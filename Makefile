@@ -21,6 +21,7 @@ XCODE_RESULT_BUNDLE_PATH ?=
 # Root directory for exported UI visual artifacts.
 RALPH_UI_ARTIFACTS_ROOT ?= target/ui-artifacts
 MACOS_APP_INSTALL_DIR ?= /Applications
+XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock
 # Constrain local gate resource usage to keep machines responsive while multitasking.
 # Set to 0 to let cargo/nextest use tool defaults (max throughput).
 RALPH_CI_JOBS ?= 4
@@ -391,7 +392,17 @@ macos-preflight:
 	fi
 
 macos-build: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
-	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/build"; \
+	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
+	mkdir -p "$$(dirname "$$lock_dir")"; \
+	acquired=0; \
+	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
+	trap cleanup EXIT INT TERM; \
+	while ! mkdir "$$lock_dir" 2>/dev/null; do \
+		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		sleep 1; \
+	done; \
+	acquired=1; \
+	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/build"; \
 	echo "→ macOS build (Xcode build)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
 	xcodebuild \
@@ -422,7 +433,17 @@ macos-install-app: macos-build
 	echo "  ✓ RalphMac.app installed"
 
 macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
-	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
+	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
+	mkdir -p "$$(dirname "$$lock_dir")"; \
+	acquired=0; \
+	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
+	trap cleanup EXIT INT TERM; \
+	while ! mkdir "$$lock_dir" 2>/dev/null; do \
+		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		sleep 1; \
+	done; \
+	acquired=1; \
+	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
 	ralph_bin_path="$$(pwd)/target/release/ralph"; \
 	include_ui_tests="$(RALPH_UI_TESTS)"; \
 	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
@@ -454,7 +475,17 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 # Build/sign macOS UI test bundles once for local iteration.
 # Use macos-ui-retest repeatedly afterward to avoid fresh bundle preparation.
 macos-ui-build-for-testing: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
-	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
+	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
+	mkdir -p "$$(dirname "$$lock_dir")"; \
+	acquired=0; \
+	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
+	trap cleanup EXIT INT TERM; \
+	while ! mkdir "$$lock_dir" 2>/dev/null; do \
+		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		sleep 1; \
+	done; \
+	acquired=1; \
+	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
 	ralph_bin_path="$$(pwd)/target/release/ralph"; \
 	echo "→ macOS UI build-for-testing (one-time prompt may appear for a rebuilt bundle)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
@@ -478,7 +509,17 @@ macos-ui-build-for-testing: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 # Re-run macOS UI tests without rebuilding the app/runner bundles.
 # Optional: set RALPH_UI_ONLY_TESTING=<Target/Class/testMethod> to focus a single test.
 macos-ui-retest:
-	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
+	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
+	mkdir -p "$$(dirname "$$lock_dir")"; \
+	acquired=0; \
+	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
+	trap cleanup EXIT INT TERM; \
+	while ! mkdir "$$lock_dir" 2>/dev/null; do \
+		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		sleep 1; \
+	done; \
+	acquired=1; \
+	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
 	ralph_bin_path="$$(pwd)/target/release/ralph"; \
 	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
 	only_testing="$(RALPH_UI_ONLY_TESTING)"; \
@@ -614,7 +655,17 @@ macos-ui-artifacts-clean:
 
 # Run targeted UI regressions for window/tab shortcut scoping.
 macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
-	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui-shortcuts"; \
+	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
+	mkdir -p "$$(dirname "$$lock_dir")"; \
+	acquired=0; \
+	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
+	trap cleanup EXIT INT TERM; \
+	while ! mkdir "$$lock_dir" 2>/dev/null; do \
+		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		sleep 1; \
+	done; \
+	acquired=1; \
+	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui-shortcuts"; \
 	ralph_bin_path="$$(pwd)/target/release/ralph"; \
 	echo "→ macOS UI shortcut regressions (focused window/tab behavior)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \

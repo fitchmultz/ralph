@@ -26,6 +26,14 @@ import OSLog
 public final class QueueFileWatcher: Sendable {
     // MARK: - Types
 
+    private final class CallbackContext: @unchecked Sendable {
+        weak var watcher: QueueFileWatcher?
+
+        init(watcher: QueueFileWatcher) {
+            self.watcher = watcher
+        }
+    }
+
     public struct ChangeEvent: Sendable {
         public let fileURL: URL
         public let changeType: ChangeType
@@ -50,10 +58,21 @@ public final class QueueFileWatcher: Sendable {
     private let lock = NSLock()
     private nonisolated(unsafe) var pendingChanges: Set<String> = []
     private nonisolated(unsafe) var debounceWorkItem: DispatchWorkItem?
+    private nonisolated(unsafe) var callbackContext: CallbackContext?
+    private nonisolated(unsafe) var shouldWatch = false
 
     // Dispatch queue for FSEvents callbacks (must be nonisolated for C callback compatibility)
     private nonisolated let callbackQueue: DispatchQueue
     private nonisolated static let callbackQueueKey = DispatchSpecificKey<UInt8>()
+    private nonisolated static let streamRetainCallback: CFAllocatorRetainCallBack = { info in
+        guard let info else { return nil }
+        _ = Unmanaged<CallbackContext>.fromOpaque(info).retain()
+        return UnsafeRawPointer(info)
+    }
+    private nonisolated static let streamReleaseCallback: CFAllocatorReleaseCallBack = { info in
+        guard let info else { return }
+        Unmanaged<CallbackContext>.fromOpaque(info).release()
+    }
 
     /// Callback invoked on MainActor when file changes are detected (after debounce)
     public var onFileChanged: (@MainActor () -> Void)?
@@ -78,8 +97,8 @@ public final class QueueFileWatcher: Sendable {
         if DispatchQueue.getSpecific(key: Self.callbackQueueKey) != nil {
             stopInternal()
         } else {
-            callbackQueue.sync { [weak self] in
-                self?.stopInternal()
+            callbackQueue.sync { [self] in
+                stopInternal()
             }
         }
     }
@@ -118,21 +137,26 @@ public final class QueueFileWatcher: Sendable {
     // MARK: - Internal Methods (called from callbackQueue.sync blocks)
 
     private nonisolated func startInternal() {
+        shouldWatch = true
         guard stream == nil else { return }
-        
+
         attemptStreamStart()
     }
     
     private nonisolated func attemptStreamStart() {
+        guard shouldWatch else { return }
+
         let queueDir = workingDirectoryURL.appendingPathComponent(".ralph")
         let pathsToWatch = [queueDir.path as NSString]
+        let callbackContext = CallbackContext(watcher: self)
+        self.callbackContext = callbackContext
 
         // Create context with self reference
         var context = FSEventStreamContext(
             version: 0,
-            info: Unmanaged.passUnretained(self).toOpaque(),
-            retain: nil,
-            release: nil,
+            info: Unmanaged.passRetained(callbackContext).toOpaque(),
+            retain: Self.streamRetainCallback,
+            release: Self.streamReleaseCallback,
             copyDescription: nil
         )
 
@@ -141,7 +165,8 @@ public final class QueueFileWatcher: Sendable {
             kCFAllocatorDefault,
             { (_, clientCallBackInfo, numEvents, eventPaths, eventFlags, _) in
                 guard let info = clientCallBackInfo else { return }
-                let watcher = Unmanaged<QueueFileWatcher>.fromOpaque(info).takeUnretainedValue()
+                let callbackContext = Unmanaged<CallbackContext>.fromOpaque(info).takeUnretainedValue()
+                guard let watcher = callbackContext.watcher else { return }
                 watcher.handleFSEvents(
                     numEvents: numEvents,
                     eventPaths: eventPaths,
@@ -180,6 +205,8 @@ public final class QueueFileWatcher: Sendable {
     }
     
     private nonisolated func handleStreamCreationFailure(_ reason: String) {
+        guard shouldWatch else { return }
+
         streamStartAttempts += 1
         
         if streamStartAttempts < maxStreamStartAttempts {
@@ -187,7 +214,8 @@ public final class QueueFileWatcher: Sendable {
             RalphLogger.shared.info("FSEvent stream creation failed: \(reason). Retrying in \(delay)s (attempt \(streamStartAttempts)/\(maxStreamStartAttempts))", category: .fileWatching)
             
             callbackQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.attemptStreamStart()
+                guard let self, self.shouldWatch else { return }
+                self.attemptStreamStart()
             }
         } else {
             RalphLogger.shared.error("FSEvent stream creation failed: \(reason). Max retries exceeded.", category: .fileWatching)
@@ -197,18 +225,23 @@ public final class QueueFileWatcher: Sendable {
     private nonisolated func handleStreamStartFailure(_ stream: FSEventStreamRef, reason: String) {
         FSEventStreamInvalidate(stream)
         self.stream = nil
+        self.callbackContext = nil
         handleStreamCreationFailure(reason)
     }
     
 
     private nonisolated func stopInternal() {
-        guard let stream = self.stream else { return }
+        shouldWatch = false
+        streamStartAttempts = 0
 
-        FSEventStreamStop(stream)
-        FSEventStreamInvalidate(stream)
-        // Don't release since we're using dispatch queue
+        if let stream = self.stream {
+            FSEventStreamStop(stream)
+            FSEventStreamInvalidate(stream)
+            // Don't release since we're using dispatch queue
+        }
 
         self.stream = nil
+        self.callbackContext = nil
 
         // Update isWatching on main actor
         Task { @MainActor [weak self] in
@@ -229,6 +262,8 @@ public final class QueueFileWatcher: Sendable {
         numEvents: Int, eventPaths: UnsafeMutableRawPointer,
         eventFlags: UnsafePointer<FSEventStreamEventFlags>
     ) {
+        guard shouldWatch, stream != nil else { return }
+
         guard let paths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as? [String]
         else {
             return
@@ -266,16 +301,20 @@ public final class QueueFileWatcher: Sendable {
     }
 
     private nonisolated func scheduleDebouncedNotification() {
+        guard shouldWatch else { return }
+
         // Cancel existing work item
         lock.withLock {
             debounceWorkItem?.cancel()
+            debounceWorkItem = nil
         }
 
         // Create new work item
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+            guard let self, self.shouldWatch else { return }
 
             self.lock.withLock {
+                self.debounceWorkItem = nil
                 self.pendingChanges.removeAll()
             }
 

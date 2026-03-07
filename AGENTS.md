@@ -169,6 +169,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 - `make macos-test-ui-artifacts` is the evidence workflow for headed UI runs (enables screenshot capture, exports attachments, writes summary).
 - Local iteration should use `make macos-ui-build-for-testing` once, then `make macos-ui-retest` to avoid repeated rebuild/sign prompts from macOS UI automation approval.
 - Use `RALPH_UI_ONLY_TESTING=<Target/Class/testMethod>` with `make macos-ui-retest` for focused debugging.
+- Makefile macOS targets serialize `xcodebuild` through `target/tmp/locks/xcodebuild.lock`; prefer the Make targets over ad-hoc concurrent `xcodebuild` invocations.
 - UI screenshot capture is opt-in only (`RALPH_UI_SCREENSHOTS=1` or `RALPH_UI_SCREENSHOT_MODE`); default `make macos-test-ui` stays lightweight.
 - Post-review cleanup is explicit: `make macos-ui-artifacts-clean`.
 - UI-test window geometry is part of the contract: keep normal UI-test launches at one visible workspace window, multiwindow launches at two, and avoid widths below the split-view practical minimum (~950pt) or sidebars/detail panes become cropped/non-hittable.

@@ -54,6 +54,82 @@ final class WorkspaceTaskCreationTests: XCTestCase {
         XCTAssertEqual(task.status, .todo)
     }
 
+    func test_queueFileWatcher_rapidStartStopWithMutationsDoesNotCrash() async throws {
+        let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-watcher-")
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
+
+        let ralphURL = workspaceURL.appendingPathComponent(".ralph", isDirectory: true)
+        try FileManager.default.createDirectory(at: ralphURL, withIntermediateDirectories: true)
+        let doneURL = ralphURL.appendingPathComponent("done.jsonc", isDirectory: false)
+        let configURL = ralphURL.appendingPathComponent("config.jsonc", isDirectory: false)
+        try "[]\n".write(to: doneURL, atomically: true, encoding: .utf8)
+        try "{}\n".write(to: configURL, atomically: true, encoding: .utf8)
+
+        for index in 0..<20 {
+            do {
+                let watcher = QueueFileWatcher(workingDirectoryURL: workspaceURL)
+                let notification = expectation(description: "watcher-notification-\(index)")
+                notification.assertForOverFulfill = false
+                watcher.onFileChanged = {
+                    notification.fulfill()
+                }
+
+                watcher.start()
+                let queueURL = ralphURL.appendingPathComponent("queue.jsonc", isDirectory: false)
+                try """
+                [
+                  { "id": "RQ-\(String(format: "%04d", index))", "title": "iteration \(index)", "status": "todo" }
+                ]
+                """.write(to: queueURL, atomically: true, encoding: .utf8)
+
+                await fulfillment(of: [notification], timeout: 5.0)
+                watcher.stop()
+            }
+
+            // Let any queued FSEvents callback work drain before the next lifecycle.
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+    }
+
+    func test_queueFileWatcher_stopBeforeDebounceSuppressesNotification() async throws {
+        let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-watcher-stop-")
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
+
+        let ralphURL = workspaceURL.appendingPathComponent(".ralph", isDirectory: true)
+        try FileManager.default.createDirectory(at: ralphURL, withIntermediateDirectories: true)
+        try "[]\n".write(
+            to: ralphURL.appendingPathComponent("done.jsonc", isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "{}\n".write(
+            to: ralphURL.appendingPathComponent("config.jsonc", isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let watcher = QueueFileWatcher(workingDirectoryURL: workspaceURL)
+        let invertedNotification = expectation(description: "watcher-stopped-before-debounce")
+        invertedNotification.isInverted = true
+        watcher.onFileChanged = {
+            invertedNotification.fulfill()
+        }
+
+        watcher.start()
+        try """
+        [
+          { "id": "RQ-STOP", "title": "stop before debounce", "status": "todo" }
+        ]
+        """.write(
+            to: ralphURL.appendingPathComponent("queue.jsonc", isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
+        watcher.stop()
+
+        await fulfillment(of: [invertedNotification], timeout: 1.0)
+    }
+
     private static func runChecked(
         client: RalphCLIClient,
         arguments: [String],

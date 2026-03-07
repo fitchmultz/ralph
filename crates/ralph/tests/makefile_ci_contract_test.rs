@@ -760,6 +760,32 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         makefile.contains("rm -rf \"$$derived_data_path\""),
         "macOS targets should clear DerivedData before running xcodebuild"
     );
+    assert!(
+        makefile.contains("XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock"),
+        "Makefile should define a dedicated Xcode build lock path"
+    );
+    assert!(
+        makefile.contains("Waiting for Xcode build lock"),
+        "macOS Xcode targets should serialize concurrent xcodebuild invocations"
+    );
+    for target in [
+        "macos-build",
+        "macos-test",
+        "macos-ui-build-for-testing",
+        "macos-ui-retest",
+        "macos-test-window-shortcuts",
+    ] {
+        let block = extract_target_block(&makefile, target)
+            .with_context(|| format!("extract {target} block"))?;
+        assert!(
+            block.contains("lock_dir=\"$(XCODE_BUILD_LOCK_DIR)\""),
+            "{target} should acquire the shared Xcode build lock"
+        );
+        assert!(
+            block.contains("while ! mkdir \"$$lock_dir\""),
+            "{target} should wait for exclusive Xcode build access"
+        );
+    }
 
     Ok(())
 }

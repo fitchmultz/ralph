@@ -135,11 +135,12 @@ final class RalphCLIClientTests: XCTestCase {
         // Simulate a CLI that outputs a version string
         let tempDir = try Self.makeTempDir(prefix: "ralph-agent-loop-version-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
+        let compatibleVersion = VersionCompatibility.minimumCLIVersion
 
         let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
         let scriptContent = """
             #!/bin/sh
-            echo "ralph 0.1.0"
+            echo "ralph \(compatibleVersion)"
             """
         try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes(
@@ -158,7 +159,7 @@ final class RalphCLIClientTests: XCTestCase {
         let result = validator.validate(versionString)
 
         XCTAssertTrue(result.isCompatible, "Version '\(versionString)' should be compatible")
-        XCTAssertEqual(result.rawVersion, "ralph 0.1.0")
+        XCTAssertEqual(result.rawVersion, "ralph \(compatibleVersion)")
     }
 
     func test_runAndCollect_versionOutput_withVPrefix_parsable() async throws {
