@@ -58,6 +58,7 @@ fn sample_failure(id: &str, replay_count: u32) -> WebhookFailureRecord {
         failed_at: "2026-02-13T00:00:00Z".to_string(),
         event: "task_completed".to_string(),
         task_id: Some("RQ-0814".to_string()),
+        destination: Some("http://127.0.0.1:9/…".to_string()),
         error: "HTTP 500: endpoint failed".to_string(),
         attempts: 3,
         replay_count,

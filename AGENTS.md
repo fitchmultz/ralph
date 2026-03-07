@@ -144,6 +144,13 @@ Every source file MUST start with `//!` docs covering:
 - Rebase-aware push must also handle branches with no local upstream but an existing remote branch (set tracking to `origin/<branch>` and avoid failing on pure "behind" states).
 - Rebase-aware push must retry fetch+rebase+push multiple times on non-fast-forward races (single retry is insufficient under concurrent branch updates).
 
+### Webhook Delivery Runtime
+- Webhook delivery runtime is reloadable, not OnceLock-first-wins: config/mode changes must rebuild the dispatcher when effective queue capacity or worker count changes.
+- Standard delivery uses a small worker pool; parallel mode scales queue capacity deterministically from `queue_capacity * max(1, workers * parallel_queue_multiplier)`.
+- Retries must be scheduled off the hot worker path (timer/scheduler queue), never by sleeping inside a delivery worker.
+- All webhook-facing logs/diagnostics/errors must render destinations through the canonical redaction helper; never log raw query strings, userinfo, or token-bearing paths.
+- Persisted webhook failure records may store a redacted `destination` for diagnostics, but never raw webhook secrets/headers.
+
 ### File Size Limits
 - Target: <500 LOC
 - Soft limit: ~800 LOC (requires justification)

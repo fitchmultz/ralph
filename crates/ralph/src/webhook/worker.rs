@@ -1,134 +1,373 @@
-//! Webhook worker and delivery logic.
+//! Webhook worker runtime and delivery logic.
 //!
 //! Responsibilities:
-//! - Manage the background worker thread for webhook delivery.
-//! - Handle HTTP delivery with retries and HMAC signatures.
-//! - Apply backpressure policies for the webhook queue.
+//! - Manage the reloadable in-process webhook dispatcher and worker pool.
+//! - Handle HTTP delivery attempts, retry scheduling, and HMAC signatures.
+//! - Apply backpressure policies for the ready queue before work enters the pool.
 //!
 //! Not handled here:
 //! - Type definitions (see `super::types`).
 //! - Notification convenience functions (see `super::notifications`).
-//! - Diagnostics and replay (see `super::diagnostics`).
+//! - Diagnostics persistence and replay selection (see `super::diagnostics`).
+//!
+//! Invariants/assumptions:
+//! - Delivery runtime settings are derived deterministically from the active mode + config.
+//! - Retries are scheduled off the hot worker path so one failing endpoint does not stall peers.
+//! - All human-visible destinations must be rendered through `redact_webhook_destination`.
 
 use crate::contracts::{WebhookConfig, WebhookQueuePolicy};
-use crossbeam_channel::{Sender, TrySendError, bounded};
-use std::sync::OnceLock;
-use std::time::Duration;
+use anyhow::Context;
+use crossbeam_channel::{Receiver, SendTimeoutError, Sender, TrySendError, bounded, unbounded};
+use std::cmp::Ordering as CmpOrdering;
+use std::collections::BinaryHeap;
+use std::sync::{Arc, OnceLock, RwLock};
+use std::time::{Duration, Instant};
 
 use super::diagnostics;
 use super::types::{ResolvedWebhookConfig, WebhookMessage, WebhookPayload};
 
-/// Global webhook channel pair for backpressure handling.
-/// This is stored in a OnceLock and initialized on first use.
-struct WebhookChannel {
-    sender: Sender<WebhookMessage>,
-    // Note: receiver is moved into the worker thread, not stored here
+const DEFAULT_QUEUE_CAPACITY: usize = 500;
+const DEFAULT_WORKER_COUNT: usize = 4;
+const MAX_QUEUE_CAPACITY: usize = 10_000;
+const MAX_PARALLEL_MULTIPLIER: f64 = 10.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DispatcherSettings {
+    queue_capacity: usize,
+    worker_count: usize,
 }
 
-// Global channel - initialized on first use.
-static CHANNEL: OnceLock<WebhookChannel> = OnceLock::new();
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RuntimeMode {
+    Standard,
+    Parallel { worker_count: u8 },
+}
 
-/// Initialize the global webhook worker and channel.
-pub(crate) fn init_worker(config: &WebhookConfig) {
-    // Clamp capacity to valid range (1-10000) to avoid rendezvous channel behavior at 0
-    // Default to 500 for better parallel mode handling (was 100, too small for burst loads)
-    let capacity = config
-        .queue_capacity
-        .map(|c| c.clamp(1, 10000))
-        .unwrap_or(500) as usize;
+#[derive(Debug)]
+struct DispatcherState {
+    mode: RuntimeMode,
+    dispatcher: Option<Arc<WebhookDispatcher>>,
+}
 
-    // Use get_or_init to ensure thread-safe one-time initialization.
-    // Intentionally ignore return value - we only need to trigger initialization.
-    CHANNEL.get_or_init(|| {
-        let (sender, receiver) = bounded(capacity);
-        diagnostics::set_queue_capacity(capacity);
+impl Default for DispatcherState {
+    fn default() -> Self {
+        Self {
+            mode: RuntimeMode::Standard,
+            dispatcher: None,
+        }
+    }
+}
 
-        // Spawn the worker thread (moves receiver into the closure)
-        std::thread::spawn(move || {
-            log::debug!("Webhook worker started (capacity: {})", capacity);
+#[derive(Debug)]
+struct WebhookDispatcher {
+    settings: DispatcherSettings,
+    ready_sender: Sender<DeliveryTask>,
+    retry_sender: Sender<ScheduledRetry>,
+}
 
-            while let Ok(msg) = receiver.recv() {
-                diagnostics::note_queue_dequeue();
-                if let Err(e) = deliver_webhook(&msg) {
-                    log::warn!("Webhook delivery failed: {}", e);
+#[derive(Debug, Clone)]
+struct DeliveryTask {
+    msg: WebhookMessage,
+    attempt: u32,
+}
+
+#[derive(Debug, Clone)]
+struct ScheduledRetry {
+    ready_at: Instant,
+    task: DeliveryTask,
+}
+
+#[derive(Debug, Clone)]
+struct RetryQueueEntry(ScheduledRetry);
+
+impl PartialEq for RetryQueueEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ready_at.eq(&other.0.ready_at)
+    }
+}
+
+impl Eq for RetryQueueEntry {}
+
+impl PartialOrd for RetryQueueEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RetryQueueEntry {
+    fn cmp(&self, other: &Self) -> CmpOrdering {
+        other.0.ready_at.cmp(&self.0.ready_at)
+    }
+}
+
+static DISPATCHER_STATE: OnceLock<RwLock<DispatcherState>> = OnceLock::new();
+
+fn dispatcher_state() -> &'static RwLock<DispatcherState> {
+    DISPATCHER_STATE.get_or_init(|| RwLock::new(DispatcherState::default()))
+}
+
+impl DispatcherSettings {
+    fn for_mode(config: &WebhookConfig, mode: &RuntimeMode) -> Self {
+        let base_capacity = config
+            .queue_capacity
+            .map(|value| value.clamp(1, MAX_QUEUE_CAPACITY as u32) as usize)
+            .unwrap_or(DEFAULT_QUEUE_CAPACITY);
+
+        match mode {
+            RuntimeMode::Standard => Self {
+                queue_capacity: base_capacity,
+                worker_count: DEFAULT_WORKER_COUNT,
+            },
+            RuntimeMode::Parallel { worker_count } => {
+                let multiplier = config
+                    .parallel_queue_multiplier
+                    .unwrap_or(2.0)
+                    .clamp(1.0, MAX_PARALLEL_MULTIPLIER as f32)
+                    as f64;
+                let scaled_capacity =
+                    (base_capacity as f64 * (*worker_count as f64 * multiplier).max(1.0)) as usize;
+
+                Self {
+                    queue_capacity: scaled_capacity.clamp(1, MAX_QUEUE_CAPACITY),
+                    worker_count: usize::max(DEFAULT_WORKER_COUNT, *worker_count as usize),
                 }
             }
-
-            log::debug!("Webhook worker shutting down");
-        });
-
-        WebhookChannel {
-            sender: sender.clone(),
         }
-    });
+    }
 }
 
-/// Initialize the global webhook worker with capacity scaled for parallel execution.
-/// Call this instead of relying on implicit init when running in parallel mode.
-///
-/// The effective capacity is calculated as:
-///   base_capacity * max(1, worker_count * parallel_queue_multiplier)
-///
-/// This provides a larger queue buffer for parallel mode where multiple workers
-/// may send webhooks concurrently while the delivery thread is blocked on slow endpoints.
+impl WebhookDispatcher {
+    fn new(settings: DispatcherSettings) -> Arc<Self> {
+        let (ready_sender, ready_receiver) = bounded(settings.queue_capacity);
+        let (retry_sender, retry_receiver) = unbounded();
+
+        let dispatcher = Arc::new(Self {
+            settings: settings.clone(),
+            ready_sender,
+            retry_sender,
+        });
+
+        diagnostics::set_queue_capacity(settings.queue_capacity);
+
+        for worker_id in 0..settings.worker_count {
+            let ready_receiver = ready_receiver.clone();
+            let retry_sender = dispatcher.retry_sender.clone();
+            let thread_name = format!("ralph-webhook-worker-{worker_id}");
+            std::thread::Builder::new()
+                .name(thread_name)
+                .spawn(move || worker_loop(ready_receiver, retry_sender))
+                .expect("spawn webhook delivery worker");
+        }
+
+        let scheduler_ready = dispatcher.ready_sender.clone();
+        std::thread::Builder::new()
+            .name("ralph-webhook-retry-scheduler".to_string())
+            .spawn(move || retry_scheduler_loop(retry_receiver, scheduler_ready))
+            .expect("spawn webhook retry scheduler");
+
+        log::debug!(
+            "Webhook dispatcher started with {} workers and queue capacity {}",
+            settings.worker_count,
+            settings.queue_capacity
+        );
+
+        dispatcher
+    }
+}
+
+impl Drop for WebhookDispatcher {
+    fn drop(&mut self) {
+        log::debug!(
+            "Webhook dispatcher shutting down (workers: {}, capacity: {})",
+            self.settings.worker_count,
+            self.settings.queue_capacity
+        );
+    }
+}
+
+fn with_dispatcher_state_write<T>(mut f: impl FnMut(&mut DispatcherState) -> T) -> T {
+    match dispatcher_state().write() {
+        Ok(mut guard) => f(&mut guard),
+        Err(poisoned) => {
+            let mut guard = poisoned.into_inner();
+            f(&mut guard)
+        }
+    }
+}
+
+fn dispatcher_for_config(config: &WebhookConfig) -> Arc<WebhookDispatcher> {
+    with_dispatcher_state_write(|state| {
+        let settings = DispatcherSettings::for_mode(config, &state.mode);
+        let needs_rebuild = state
+            .dispatcher
+            .as_ref()
+            .is_none_or(|dispatcher| dispatcher.settings != settings);
+
+        if needs_rebuild {
+            state.dispatcher = Some(WebhookDispatcher::new(settings));
+        }
+
+        state
+            .dispatcher
+            .as_ref()
+            .expect("dispatcher initialized")
+            .clone()
+    })
+}
+
+/// Initialize the webhook dispatcher with capacity scaled for parallel execution.
 pub fn init_worker_for_parallel(config: &WebhookConfig, worker_count: u8) {
-    let base_capacity = config
-        .queue_capacity
-        .map(|c| c.clamp(1, 10000))
-        .unwrap_or(500) as usize;
+    with_dispatcher_state_write(|state| {
+        state.mode = RuntimeMode::Parallel { worker_count };
+    });
+    let _ = dispatcher_for_config(config);
+}
 
-    let multiplier = config
-        .parallel_queue_multiplier
-        .unwrap_or(2.0)
-        .clamp(1.0, 10.0);
+fn worker_loop(ready_receiver: Receiver<DeliveryTask>, retry_sender: Sender<ScheduledRetry>) {
+    while let Ok(task) = ready_receiver.recv() {
+        diagnostics::note_queue_dequeue();
+        handle_delivery_task(task, &retry_sender);
+    }
+}
 
-    // Scale capacity: base * max(1, workers * multiplier), clamped to max
-    let scaled =
-        (base_capacity as f64 * (worker_count as f64 * multiplier as f64).max(1.0)) as usize;
-    let capacity = scaled.clamp(1, 10000);
-
-    // Use get_or_init to ensure thread-safe one-time initialization.
-    // Intentionally ignore return value - we only need to trigger initialization.
-    CHANNEL.get_or_init(|| {
-        let (sender, receiver) = bounded(capacity);
-        diagnostics::set_queue_capacity(capacity);
-
-        // Spawn the worker thread (moves receiver into the closure)
-        std::thread::spawn(move || {
+fn handle_delivery_task(task: DeliveryTask, retry_sender: &Sender<ScheduledRetry>) {
+    match deliver_attempt(&task.msg) {
+        Ok(()) => {
+            diagnostics::note_delivery_success();
             log::debug!(
-                "Webhook worker started (capacity: {}, parallel-optimized for {} workers)",
-                capacity,
-                worker_count
+                "Webhook delivered successfully to {}",
+                redact_webhook_destination(
+                    task.msg
+                        .config
+                        .url
+                        .as_deref()
+                        .unwrap_or("<missing webhook URL>")
+                )
             );
+        }
+        Err(err) => {
+            if task.attempt < task.msg.config.retry_count {
+                diagnostics::note_retry_attempt();
 
-            while let Ok(msg) = receiver.recv() {
-                diagnostics::note_queue_dequeue();
-                if let Err(e) = deliver_webhook(&msg) {
-                    log::warn!("Webhook delivery failed: {}", e);
+                let retry_number = task.attempt.saturating_add(1);
+                let scheduled = ScheduledRetry {
+                    ready_at: Instant::now()
+                        + retry_delay(task.msg.config.retry_backoff, retry_number),
+                    task: DeliveryTask {
+                        msg: task.msg.clone(),
+                        attempt: retry_number,
+                    },
+                };
+
+                log::debug!(
+                    "Webhook attempt {} failed for {}; scheduling retry: {:#}",
+                    retry_number,
+                    redact_webhook_destination(
+                        task.msg
+                            .config
+                            .url
+                            .as_deref()
+                            .unwrap_or("<missing webhook URL>")
+                    ),
+                    err
+                );
+
+                if let Err(send_err) = retry_sender.send(scheduled) {
+                    let scheduler_error =
+                        anyhow::anyhow!("retry scheduler unavailable for webhook: {}", send_err);
+                    diagnostics::note_delivery_failure(
+                        &task.msg,
+                        &scheduler_error,
+                        retry_number.saturating_add(1),
+                    );
+                    log::warn!("{scheduler_error:#}");
                 }
+            } else {
+                let attempts = task.attempt.saturating_add(1);
+                diagnostics::note_delivery_failure(&task.msg, &err, attempts);
+                log::warn!(
+                    "Webhook delivery failed after {} attempts: {:#}",
+                    attempts,
+                    err
+                );
+            }
+        }
+    }
+}
+
+fn retry_scheduler_loop(
+    retry_receiver: Receiver<ScheduledRetry>,
+    ready_sender: Sender<DeliveryTask>,
+) {
+    let mut pending = BinaryHeap::<RetryQueueEntry>::new();
+
+    loop {
+        let timeout = pending
+            .peek()
+            .map(|entry| entry.0.ready_at.saturating_duration_since(Instant::now()));
+
+        let scheduled = match timeout {
+            Some(duration) => match retry_receiver.recv_timeout(duration) {
+                Ok(task) => Some(task),
+                Err(crossbeam_channel::RecvTimeoutError::Timeout) => None,
+                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                    if pending.is_empty() {
+                        break;
+                    }
+                    None
+                }
+            },
+            None => match retry_receiver.recv() {
+                Ok(task) => Some(task),
+                Err(_) => break,
+            },
+        };
+
+        if let Some(task) = scheduled {
+            pending.push(RetryQueueEntry(task));
+        }
+
+        let now = Instant::now();
+        while let Some(entry) = pending.peek() {
+            if entry.0.ready_at > now {
+                break;
             }
 
-            log::debug!("Webhook worker shutting down");
-        });
-
-        WebhookChannel {
-            sender: sender.clone(),
+            let RetryQueueEntry(scheduled) = pending.pop().expect("pending retry exists");
+            match ready_sender.send(scheduled.task.clone()) {
+                Ok(()) => diagnostics::note_retry_requeue(),
+                Err(send_err) => {
+                    let error = anyhow::anyhow!(
+                        "webhook dispatcher shut down before retry enqueue: {send_err}"
+                    );
+                    diagnostics::note_delivery_failure(
+                        &scheduled.task.msg,
+                        &error,
+                        scheduled.task.attempt.saturating_add(1),
+                    );
+                    log::warn!("{error:#}");
+                    return;
+                }
+            }
         }
-    });
+    }
 }
 
-/// Get the global webhook sender.
-pub(crate) fn get_sender() -> Option<Sender<WebhookMessage>> {
-    CHANNEL.get().map(|ch| ch.sender.clone())
+fn retry_delay(base: Duration, retry_number: u32) -> Duration {
+    let millis = base
+        .as_millis()
+        .saturating_mul(retry_number as u128)
+        .min(u64::MAX as u128) as u64;
+    Duration::from_millis(millis)
 }
 
-/// Deliver a webhook in the worker thread (blocking, with retries).
-fn deliver_webhook(msg: &WebhookMessage) -> anyhow::Result<()> {
+fn deliver_attempt(msg: &WebhookMessage) -> anyhow::Result<()> {
     let url = msg
         .config
         .url
-        .as_ref()
+        .as_deref()
         .ok_or_else(|| anyhow::anyhow!("Webhook URL not configured"))?;
+    let destination = redact_webhook_destination(url);
 
     let body = serde_json::to_string(&msg.payload)?;
     let signature = msg
@@ -137,42 +376,26 @@ fn deliver_webhook(msg: &WebhookMessage) -> anyhow::Result<()> {
         .as_ref()
         .map(|secret| generate_signature(&body, secret));
 
-    let mut last_error = None;
-
-    for attempt in 0..=msg.config.retry_count {
-        if attempt > 0 {
-            diagnostics::note_retry_attempt();
-            let backoff = msg.config.retry_backoff.as_millis() as u64 * attempt as u64;
-            std::thread::sleep(Duration::from_millis(backoff));
-            log::debug!("Webhook retry attempt {} after {}ms", attempt, backoff);
-        }
-
-        match send_request(url, &body, signature.as_deref(), msg.config.timeout) {
-            Ok(()) => {
-                diagnostics::note_delivery_success();
-                log::debug!("Webhook delivered successfully to {}", url);
-                return Ok(());
-            }
-            Err(e) => {
-                log::debug!("Webhook attempt {} failed: {}", attempt + 1, e);
-                last_error = Some(e);
-            }
-        }
-    }
-
-    let final_error = last_error.unwrap_or_else(|| anyhow::anyhow!("All webhook attempts failed"));
-    diagnostics::note_delivery_failure(msg, &final_error, msg.config.retry_count.saturating_add(1));
-    Err(final_error)
+    send_request(url, &body, signature.as_deref(), msg.config.timeout)
+        .with_context(|| format!("webhook delivery to {destination}"))
 }
 
-/// Send a single HTTP POST request.
 fn send_request(
     url: &str,
     body: &str,
     signature: Option<&str>,
     timeout: Duration,
 ) -> anyhow::Result<()> {
-    // In ureq 3.x, we use an Agent with timeout configuration
+    #[cfg(test)]
+    if let Some(handler) = test_transport() {
+        return handler(&TestRequest {
+            url: url.to_string(),
+            body: body.to_string(),
+            signature: signature.map(std::string::ToString::to_string),
+            timeout,
+        });
+    }
+
     let agent = ureq::Agent::new_with_config(
         ureq::Agent::config_builder()
             .timeout_global(Some(timeout))
@@ -189,7 +412,6 @@ fn send_request(
     }
 
     let response = request.send(body)?;
-
     let status = response.status();
 
     if status.is_success() {
@@ -202,6 +424,59 @@ fn send_request(
     }
 }
 
+/// Render a webhook destination for logs and diagnostics without leaking secrets.
+pub(crate) fn redact_webhook_destination(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return "<missing webhook URL>".to_string();
+    }
+
+    let without_fragment = trimmed.split('#').next().unwrap_or(trimmed);
+    let without_query = without_fragment
+        .split('?')
+        .next()
+        .unwrap_or(without_fragment);
+
+    if let Some((scheme, rest)) = without_query.split_once("://") {
+        let authority_and_path = rest.trim_start_matches('/');
+        let authority = authority_and_path
+            .split('/')
+            .next()
+            .unwrap_or(authority_and_path)
+            .split('@')
+            .next_back()
+            .unwrap_or(authority_and_path);
+
+        if authority.is_empty() {
+            return format!("{scheme}://<redacted>");
+        }
+
+        let has_path = authority_and_path.len() > authority.len();
+        return if has_path {
+            format!("{scheme}://{authority}/…")
+        } else {
+            format!("{scheme}://{authority}")
+        };
+    }
+
+    let without_userinfo = without_query
+        .split('@')
+        .next_back()
+        .unwrap_or(without_query);
+    let host = without_userinfo
+        .split('/')
+        .next()
+        .unwrap_or(without_userinfo);
+
+    if host.is_empty() {
+        "<redacted webhook destination>".to_string()
+    } else if without_userinfo.len() > host.len() {
+        format!("{host}/…")
+    } else {
+        host.to_string()
+    }
+}
+
 /// Generate HMAC-SHA256 signature for webhook payload.
 pub(crate) fn generate_signature(body: &str, secret: &str) -> String {
     use hmac::{Hmac, Mac};
@@ -209,13 +484,10 @@ pub(crate) fn generate_signature(body: &str, secret: &str) -> String {
 
     type HmacSha256 = Hmac<Sha256>;
 
-    // HMAC accepts keys of any size per RFC 2104, so this should never fail.
-    // However, we handle the error gracefully rather than panicking.
     let mut mac = match HmacSha256::new_from_slice(secret.as_bytes()) {
         Ok(mac) => mac,
         Err(e) => {
             log::error!("Failed to create HMAC (this should never happen): {}", e);
-            // Return an invalid signature that will fail verification
             return "sha256=invalid".to_string();
         }
     };
@@ -227,24 +499,21 @@ pub(crate) fn generate_signature(body: &str, secret: &str) -> String {
 }
 
 /// Apply the configured backpressure policy for a webhook message.
-pub(crate) fn apply_backpressure_policy(
-    sender: &Sender<WebhookMessage>,
-    msg: WebhookMessage,
+fn apply_backpressure_policy(
+    sender: &Sender<DeliveryTask>,
+    msg: DeliveryTask,
     policy: WebhookQueuePolicy,
 ) -> bool {
-    // Clone event details before moving msg into try_send/send_timeout
-    let event_type = msg.payload.event.clone();
+    let event_type = msg.msg.payload.event.clone();
     let task_id = msg
+        .msg
         .payload
         .task_id
         .clone()
         .unwrap_or_else(|| "loop".to_string());
 
     match policy {
-        WebhookQueuePolicy::DropOldest => {
-            // Drop new webhooks when queue is full, preserving existing queue contents.
-            // This is functionally equivalent to `drop_new` due to channel constraints
-            // (we cannot pop from the front of the queue from the sender side).
+        WebhookQueuePolicy::DropOldest | WebhookQueuePolicy::DropNew => {
             match sender.try_send(msg) {
                 Ok(()) => {
                     diagnostics::note_enqueue_success();
@@ -252,10 +521,9 @@ pub(crate) fn apply_backpressure_policy(
                     true
                 }
                 Err(TrySendError::Full(_)) => {
-                    // Queue is full - drop the new message
                     diagnostics::note_dropped_message();
                     log::warn!(
-                        "Webhook queue full (drop_oldest policy); dropping event={} task={}",
+                        "Webhook queue full; dropping event={} task={}",
                         event_type,
                         task_id
                     );
@@ -264,7 +532,7 @@ pub(crate) fn apply_backpressure_policy(
                 Err(TrySendError::Disconnected(_)) => {
                     diagnostics::note_dropped_message();
                     log::error!(
-                        "Webhook worker disconnected; cannot send event={} task={}",
+                        "Webhook dispatcher disconnected; cannot send event={} task={}",
                         event_type,
                         task_id
                     );
@@ -272,32 +540,14 @@ pub(crate) fn apply_backpressure_policy(
                 }
             }
         }
-        WebhookQueuePolicy::DropNew => match sender.try_send(msg) {
-            Ok(()) => {
-                diagnostics::note_enqueue_success();
-                log::debug!("Webhook enqueued for delivery");
-                true
-            }
-            Err(e) => {
-                diagnostics::note_dropped_message();
-                log::warn!(
-                    "Webhook queue full; dropping event={} task={}: {}",
-                    event_type,
-                    task_id,
-                    e
-                );
-                false
-            }
-        },
         WebhookQueuePolicy::BlockWithTimeout => {
-            // Block briefly (100ms), then drop if still full
             match sender.send_timeout(msg, Duration::from_millis(100)) {
                 Ok(()) => {
                     diagnostics::note_enqueue_success();
                     log::debug!("Webhook enqueued for delivery");
                     true
                 }
-                Err(crossbeam_channel::SendTimeoutError::Timeout(_msg)) => {
+                Err(SendTimeoutError::Timeout(_)) => {
                     diagnostics::note_dropped_message();
                     log::warn!(
                         "Webhook queue full (timeout); dropping event={} task={}",
@@ -306,10 +556,10 @@ pub(crate) fn apply_backpressure_policy(
                     );
                     false
                 }
-                Err(crossbeam_channel::SendTimeoutError::Disconnected(_)) => {
+                Err(SendTimeoutError::Disconnected(_)) => {
                     diagnostics::note_dropped_message();
                     log::error!(
-                        "Webhook worker disconnected; cannot send event={} task={}",
+                        "Webhook dispatcher disconnected; cannot send event={} task={}",
                         event_type,
                         task_id
                     );
@@ -328,56 +578,101 @@ pub(crate) fn enqueue_webhook_payload_for_replay(
     send_webhook_payload_internal(payload, config, true)
 }
 
-/// Internal function to send webhook payload.
+/// Internal function to send a webhook payload.
 pub(crate) fn send_webhook_payload_internal(
     payload: WebhookPayload,
     config: &WebhookConfig,
     bypass_event_filter: bool,
 ) -> bool {
-    // Check if webhooks are enabled for this event type
     if !bypass_event_filter && !config.is_event_enabled(&payload.event) {
         log::debug!("Webhook for event {} is disabled; skipping", payload.event);
         return false;
     }
 
     let resolved = ResolvedWebhookConfig::from_config(config);
-
     if !resolved.enabled {
         log::debug!("Webhooks globally disabled; skipping");
         return false;
     }
 
     let url = match &resolved.url {
-        Some(url) if !url.is_empty() => url.clone(),
+        Some(url) if !url.trim().is_empty() => url.clone(),
         _ => {
             log::debug!("Webhook URL not configured; skipping");
             return false;
         }
     };
 
-    // Initialize worker on first use
-    init_worker(config);
-
+    let dispatcher = dispatcher_for_config(config);
     let policy = config.queue_policy.unwrap_or_default();
-
-    let msg = WebhookMessage {
-        payload,
-        config: ResolvedWebhookConfig {
-            enabled: resolved.enabled,
-            url: Some(url),
-            secret: resolved.secret,
-            timeout: resolved.timeout,
-            retry_count: resolved.retry_count,
-            retry_backoff: resolved.retry_backoff,
+    let msg = DeliveryTask {
+        msg: WebhookMessage {
+            payload,
+            config: ResolvedWebhookConfig {
+                enabled: resolved.enabled,
+                url: Some(url),
+                secret: resolved.secret,
+                timeout: resolved.timeout,
+                retry_count: resolved.retry_count,
+                retry_backoff: resolved.retry_backoff,
+            },
         },
+        attempt: 0,
     };
 
-    // Apply backpressure policy
-    match get_sender() {
-        Some(sender) => apply_backpressure_policy(&sender, msg, policy),
-        None => {
-            log::error!("Webhook worker not initialized; cannot send webhook");
-            false
+    apply_backpressure_policy(&dispatcher.ready_sender, msg, policy)
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(crate) struct TestRequest {
+    pub(crate) url: String,
+    pub(crate) body: String,
+    pub(crate) signature: Option<String>,
+    pub(crate) timeout: Duration,
+}
+
+#[cfg(test)]
+type TestTransportHandler = Arc<dyn Fn(&TestRequest) -> anyhow::Result<()> + Send + Sync + 'static>;
+
+#[cfg(test)]
+static TEST_TRANSPORT: OnceLock<RwLock<Option<TestTransportHandler>>> = OnceLock::new();
+
+#[cfg(test)]
+fn test_transport() -> Option<TestTransportHandler> {
+    let lock = TEST_TRANSPORT.get_or_init(|| RwLock::new(None));
+    match lock.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn install_test_transport_for_tests(handler: Option<TestTransportHandler>) {
+    let lock = TEST_TRANSPORT.get_or_init(|| RwLock::new(None));
+    match lock.write() {
+        Ok(mut guard) => *guard = handler,
+        Err(poisoned) => {
+            let mut guard = poisoned.into_inner();
+            *guard = handler;
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) fn current_dispatcher_settings_for_tests(config: &WebhookConfig) -> (usize, usize) {
+    let dispatcher = dispatcher_for_config(config);
+    (
+        dispatcher.settings.queue_capacity,
+        dispatcher.settings.worker_count,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn reset_dispatcher_for_tests() {
+    with_dispatcher_state_write(|state| {
+        state.mode = RuntimeMode::Standard;
+        state.dispatcher = None;
+    });
+    install_test_transport_for_tests(None);
 }

@@ -40,6 +40,8 @@ pub struct WebhookFailureRecord {
     pub event: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<String>,
     pub error: String,
     pub attempts: u32,
     pub replay_count: u32,
@@ -138,6 +140,10 @@ pub fn note_enqueue_success() {
     let state = metrics();
     state.enqueued_total.fetch_add(1, Ordering::SeqCst);
     state.queue_depth.fetch_add(1, Ordering::SeqCst);
+}
+
+pub fn note_retry_requeue() {
+    metrics().queue_depth.fetch_add(1, Ordering::SeqCst);
 }
 
 pub fn note_dropped_message() {
@@ -403,7 +409,12 @@ fn persist_failed_delivery_at_path(
         failed_at: crate::timeutil::now_utc_rfc3339_or_fallback(),
         event: msg.payload.event.clone(),
         task_id: msg.payload.task_id.clone(),
-        error: sanitize_error(err),
+        destination: msg
+            .config
+            .url
+            .as_deref()
+            .map(super::worker::redact_webhook_destination),
+        error: sanitize_error(err, msg.config.url.as_deref()),
         attempts,
         replay_count: 0,
         payload: msg.payload.clone(),
@@ -479,8 +490,13 @@ fn next_failure_id() -> String {
     format!("wf-{nanos}-{sequence}")
 }
 
-fn sanitize_error(err: &anyhow::Error) -> String {
-    let redacted = redaction::redact_text(&err.to_string());
+fn sanitize_error(err: &anyhow::Error, destination_url: Option<&str>) -> String {
+    let mut rendered = err.to_string();
+    if let Some(url) = destination_url {
+        rendered = rendered.replace(url, &super::worker::redact_webhook_destination(url));
+    }
+
+    let redacted = redaction::redact_text(&rendered);
     let trimmed = redacted.trim();
     if trimmed.chars().count() <= MAX_FAILURE_ERROR_CHARS {
         return trimmed.to_string();
