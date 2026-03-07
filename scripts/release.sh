@@ -325,7 +325,7 @@ publish_crate() {
     fi
 
     if [ "$DRY_RUN" = "1" ]; then
-        echo "    [DRY RUN] Would review packaged files: cargo package --list -p $CRATE_PACKAGE_NAME"
+        echo "    [DRY RUN] Would review packaged files: cargo package --list -p $CRATE_PACKAGE_NAME --allow-dirty"
         echo "    [DRY RUN] Would run publish dry-run: cargo publish --dry-run -p $CRATE_PACKAGE_NAME --locked --allow-dirty"
         echo "    [DRY RUN] Would publish crate: cargo publish -p $CRATE_PACKAGE_NAME --locked --allow-dirty"
         return 0
@@ -339,7 +339,7 @@ publish_crate() {
     fi
 
     log_info "Reviewing packaged files for $CRATE_PACKAGE_NAME"
-    cargo package --list -p "$CRATE_PACKAGE_NAME"
+    cargo package --list -p "$CRATE_PACKAGE_NAME" --allow-dirty
 
     log_info "Running crates.io publish dry-run"
     cargo publish --dry-run -p "$CRATE_PACKAGE_NAME" --locked --allow-dirty
