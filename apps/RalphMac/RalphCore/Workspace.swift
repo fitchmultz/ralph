@@ -359,7 +359,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         public init() {}
     }
 
-    private var client: RalphCLIClient?
+    var client: RalphCLIClient?
     private var cancellables = Set<AnyCancellable>()
     private var fileWatcher: QueueFileWatcher?
     private var activeRun: RalphCLIRun?

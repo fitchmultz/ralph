@@ -137,6 +137,14 @@ struct MenuBarContentView: View {
                 )
                 activateMainApp()
             }
+
+            Button("Decompose Task...") {
+                NotificationCenter.default.post(
+                    name: .showTaskDecompose,
+                    object: nil
+                )
+                activateMainApp()
+            }
         }
     }
     

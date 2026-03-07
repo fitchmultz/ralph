@@ -66,11 +66,19 @@ struct TaskListView: View {
             await workspace.loadTasks()
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: { showingTaskCreation = true }) {
                     Label("New Task", systemImage: "plus")
                 }
                 .accessibilityIdentifier("new-task-toolbar-button")
+
+                Button(action: {
+                    NotificationCenter.default.post(name: .showTaskDecompose, object: selectedTaskID)
+                }) {
+                    Label("Decompose", systemImage: "square.split.2x2")
+                }
+                .disabled(selectedTaskID == nil && workspace.tasks.isEmpty)
+                .accessibilityIdentifier("task-decompose-toolbar-button")
             }
             
             // Add bulk actions button when multi-select is active
@@ -314,6 +322,13 @@ struct TaskListView: View {
                     )
                         .tag(task.id)
                         .focused($focusedTaskID, equals: task.id)
+                        .contextMenu {
+                            Button("Decompose Task...") {
+                                handleTaskSelection(taskID: task.id, modifierFlags: [])
+                                focusedTaskID = task.id
+                                NotificationCenter.default.post(name: .showTaskDecompose, object: task.id)
+                            }
+                        }
                         .onTapGesture {
                             handleTaskSelection(taskID: task.id, modifierFlags: NSEvent.modifierFlags)
                             focusedTaskID = task.id

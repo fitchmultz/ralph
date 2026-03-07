@@ -28,6 +28,8 @@ struct WorkspaceView: View {
     @ObservedObject var workspace: Workspace
     @StateObject private var navigation: NavigationViewModel
     @State private var showingCommandPalette: Bool = false
+    @State private var showingTaskDecompose: Bool = false
+    @State private var taskDecomposeContext = TaskDecomposeView.PresentationContext()
     @FocusedValue(\.workspaceWindowActions) private var workspaceWindowActions
 
     init(workspace: Workspace) {
@@ -57,6 +59,9 @@ struct WorkspaceView: View {
         .focusedSceneValue(\.workspaceUIActions, focusedWorkspaceUIActions)
         .sheet(isPresented: $workspace.showErrorRecovery) { errorRecoverySheet() }
         .sheet(isPresented: $showingCommandPalette) { commandPaletteSheet() }
+        .sheet(isPresented: $showingTaskDecompose) {
+            TaskDecomposeView(workspace: workspace, context: taskDecomposeContext)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .startWorkOnSelectedTask)) { _ in
             handleStartWork()
         }
@@ -74,6 +79,15 @@ struct WorkspaceView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .quickAddTaskFromMenuBar)) { _ in
             navigation.selectedSection = .queue
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showTaskDecompose)) { notification in
+            navigation.selectedSection = .queue
+            if let taskID = notification.object as? String {
+                taskDecomposeContext = TaskDecomposeView.PresentationContext(selectedTaskID: taskID)
+            } else {
+                taskDecomposeContext = TaskDecomposeView.PresentationContext(selectedTaskID: navigation.selectedTaskID)
+            }
+            showingTaskDecompose = true
         }
     }
 

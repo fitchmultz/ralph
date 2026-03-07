@@ -64,6 +64,9 @@ extension Notification.Name {
     /// Show the task creation sheet
     static let showTaskCreation = Notification.Name("showTaskCreation")
 
+    /// Show the task decomposition sheet
+    static let showTaskDecompose = Notification.Name("showTaskDecompose")
+
     /// Start work on the selected task
     static let startWorkOnSelectedTask = Notification.Name("startWorkOnSelectedTask")
 

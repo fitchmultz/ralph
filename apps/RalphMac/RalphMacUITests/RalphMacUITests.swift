@@ -62,6 +62,9 @@ final class RalphMacUITests: XCTestCase {
         static let taskViewModePicker = "task-view-mode-picker"
         static let taskCreationTitleField = "task-creation-title-field"
         static let taskCreationSubmitButton = "task-creation-submit-button"
+        static let taskDecomposeRequestField = "task-decompose-request-field"
+        static let taskDecomposePreviewButton = "task-decompose-preview-button"
+        static let taskDecomposeWriteButton = "task-decompose-write-button"
         static let taskDetailTitleField = "task-detail-title-field"
         static let taskDetailSaveButton = "task-detail-save-button"
         static let taskDetailSaveSuccess = "task-detail-save-success"
@@ -177,6 +180,19 @@ final class RalphMacUITests: XCTestCase {
         // Verify task appears in list (by scrolling to find it)
         let taskList = requireTaskList()
         XCTAssertTrue(taskList.exists)
+    }
+
+    // MARK: - Test: Open Task Decompose Sheet
+    @MainActor
+    func test_openTaskDecomposeSheet_fromTaskMenu() throws {
+        app.menuBars.menuBarItems["Task"].click()
+        app.menuBars.menuItems["Decompose Task..."].click()
+
+        let sheet = app.sheets.firstMatch
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5), "Task decompose sheet should appear")
+        XCTAssertTrue(sheet.descendants(matching: .textField).matching(identifier: AccessibilityID.taskDecomposeRequestField).firstMatch.exists)
+        XCTAssertTrue(sheet.descendants(matching: .button).matching(identifier: AccessibilityID.taskDecomposePreviewButton).firstMatch.exists)
+        XCTAssertTrue(sheet.descendants(matching: .button).matching(identifier: AccessibilityID.taskDecomposeWriteButton).firstMatch.exists)
     }
 
     // MARK: - Test: Edit Task Title

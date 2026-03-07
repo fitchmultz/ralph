@@ -87,7 +87,10 @@ enum CommandAction: Equatable {
     
     /// Show task creation sheet
     case showTaskCreation
-    
+
+    /// Show task decomposition sheet
+    case showTaskDecompose
+
     /// Start work on selected task
     case startWork
     
@@ -213,6 +216,15 @@ extension CommandPaletteCommand {
                 category: .task,
                 icon: "plus.square",
                 action: .showTaskCreation
+            ),
+            CommandPaletteCommand(
+                id: "task.decompose",
+                title: "Decompose Task...",
+                subtitle: "Preview and write a task tree",
+                shortcut: "⌘⌥D",
+                category: .task,
+                icon: "square.split.2x2",
+                action: .showTaskDecompose
             ),
             CommandPaletteCommand(
                 id: "task.startWork",

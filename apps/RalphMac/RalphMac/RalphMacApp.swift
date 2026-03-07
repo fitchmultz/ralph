@@ -261,6 +261,14 @@ struct RalphMacApp: App {
                 )
             }
             .keyboardShortcut("n", modifiers: [.command, .option])
+
+            Button("Decompose Task...") {
+                NotificationCenter.default.post(
+                    name: .showTaskDecompose,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("d", modifiers: [.command, .option])
             
             Divider()
             

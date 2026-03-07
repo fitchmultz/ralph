@@ -212,6 +212,19 @@ ralph task "Refactor database layer" \
 **From the App (macOS):**
 
 Open the app with `ralph app open` and create tasks from the UI.
+Use `Decompose Task...` when you want Ralph to preview a task tree before writing multiple subtasks into the queue.
+
+### Example Decomposition Session
+
+```bash
+# Preview a task tree from one broad goal
+ralph task decompose "Build OAuth login with GitHub and Google"
+
+# Write the proposed subtree after review
+ralph task decompose "Build OAuth login with GitHub and Google" --write
+```
+
+The macOS app exposes the same preview-first workflow from the Task menu, queue toolbar, command palette, and task context menus.
 
 ### Example Task Session
 

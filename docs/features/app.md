@@ -58,6 +58,7 @@ Documented from `apps/RalphMac/RalphMac/RalphMacApp.swift` command registrations
 
 ### Task Actions
 - `⌥⌘N`: New task
+- `⌥⌘D`: Decompose task
 - `⌘Return`: Start work on selected task
 
 ### Workspace / Window Management
@@ -74,6 +75,23 @@ Documented from `apps/RalphMac/RalphMac/RalphMacApp.swift` command registrations
 - `⇧⌘L`: Export logs
 - `⇧⌘R`: View crash reports
 - `⌘,`: Settings
+
+## Task Decomposition
+
+The macOS app now exposes the same preview-first decomposition workflow as the CLI.
+
+Use any of these entry points:
+- Task menu: `Decompose Task...`
+- Command palette: `Decompose Task...`
+- Queue toolbar: `Decompose`
+- Queue row context menu: `Decompose Task...`
+- Menu bar: `Decompose Task...`
+
+Behavioral notes:
+- The sheet defaults to preview mode and only writes after an explicit second action.
+- Launching from a selected task defaults to decomposing that task in place.
+- Freeform mode can optionally attach a new subtree under an existing parent.
+- The app calls `ralph task decompose --format json` and renders the stable CLI response; it does not reimplement planner logic locally.
 
 ## How the App Integrates with the CLI
 

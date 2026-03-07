@@ -23,6 +23,8 @@
 		48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BA912C259042DDA03E653F /* RalphMacApp.swift */; };
 		49E9CACFFF6345C7A6ABA4FA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CB923D360143EED14F7540 /* AppDelegate.swift */; };
 		4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42A /* Workspace.swift */; };
+		4A8D2E1F8B3C4D56A7E8F902 /* DecompositionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */; };
+		4A8D2E1F8B3C4D56A7E8F903 /* Workspace+Decompose.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */; };
 		50F4E3E8CCF58E4DA7C9B66B /* NotificationNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98182BE943CBB8B4EFCD01DG /* NotificationNames.swift */; };
 		51F423D7B6694FD1BBF01DDA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6D1EEC569C94444A00C7A84 /* Assets.xcassets */; };
 		558F4EFD40ED4813905A6B0A /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */; };
@@ -76,6 +78,7 @@
 		DDEEFF001122334455AABBCC /* DependencyGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDDEEFF001122334455AABB /* DependencyGraphView.swift */; };
 		E0A06224A60DB52B85109E99 /* WorkingDirectoryHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3298F69D10A0636C5327AF65 /* WorkingDirectoryHeader.swift */; };
 		E1FE4FE54CB8402D84A8607625CC6BB5 /* TaskCreationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09515AC14F94350B766E15468824B53 /* TaskCreationView.swift */; };
+		E1FE4FE54CB8402D84A8607625CC6BB6 /* TaskDecomposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09515AC14F94350B766E15468824B54 /* TaskDecomposeView.swift */; };
 		E4635AF24A810EE76495C30B /* VersionValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0944A9447A23AA1748EC80A /* VersionValidatorTests.swift */; };
 		EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */; };
 		EECED51732D072929E614B2F /* AdvancedRunnerSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD57BF49B1F7D43DD51BEBE /* AdvancedRunnerSection.swift */; };
@@ -86,6 +89,7 @@
 		FF6677889900AA11BB22CC33DD44EE55 /* TagEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE55FF6677889900AA11BB22CC33DD44 /* TagEditorView.swift */; };
 		QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */; };
 		WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */; };
+		WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */; };
 		SETTINGSVIEW0012345678901 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = SETTINGSVIEWREF0012345678901 /* AppSettings.swift */; };
 		SETTINGSVIEWMODEL001234567 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SETTINGSVIEWMODELREF001234567 /* SettingsViewModel.swift */; };
 		UITESTSBB0012345678901234 /* RalphMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UITESTSFF1123456789012345 /* RalphMacUITests.swift */; };
@@ -134,6 +138,8 @@
 /* Begin PBXFileReference section */
 		0787D37F56E4D3F3585C3CAE /* MenuBarManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D42A /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecompositionModels.swift; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Decompose.swift"; sourceTree = "<group>"; };
 		0CA719BF19DA9A8273DC7910 /* MenuBarIconView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MenuBarIconView.swift; sourceTree = "<group>"; };
 		11223344556677889900AABBCCDDEEFF /* TaskRelationshipPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskRelationshipPicker.swift; path = RalphMac/TaskRelationshipPicker.swift; sourceTree = "<group>"; };
 		1122AABBCCDDEEFF99887766 /* ConsoleOutputBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConsoleOutputBuffer.swift; path = RalphCore/ConsoleOutputBuffer.swift; sourceTree = "<group>"; };
@@ -198,6 +204,7 @@
 		CPVIEWREF1234567890ABCDEF00 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		CPVMREF1234567890ABCDEF01 /* CommandPaletteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteViewModel.swift; sourceTree = "<group>"; };
 		D09515AC14F94350B766E15468824B53 /* TaskCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskCreationView.swift; path = RalphMac/TaskCreationView.swift; sourceTree = "<group>"; };
+		D09515AC14F94350B766E15468824B54 /* TaskDecomposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDecomposeView.swift; sourceTree = "<group>"; };
 		D54AE04AF32A434C9B785F2F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DC080C0014F94BAE85020345FFAAFAF2 /* KanbanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KanbanCardView.swift; path = RalphMac/KanbanCardView.swift; sourceTree = "<group>"; };
 		DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacePerformanceTests.swift; sourceTree = "<group>"; };
@@ -212,6 +219,7 @@
 		F7044ECE073A4355A364CD631452E561 /* KanbanBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KanbanBoardView.swift; path = RalphMac/KanbanBoardView.swift; sourceTree = "<group>"; };
 		QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueDirectParseTests.swift; sourceTree = "<group>"; };
 		WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskCreationTests.swift; sourceTree = "<group>"; };
+		WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskDecomposeTests.swift; sourceTree = "<group>"; };
 		SETTINGSVIEWMODELREF001234567 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		SETTINGSVIEWREF0012345678901 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		UITESTSFF0012345678901234 /* RalphMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RalphMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -273,6 +281,8 @@
 				CD112233445566778899AABB /* GraphAlgorithms.swift */,
 				BBAA99887766554433221100 /* AnalyticsModels.swift */,
 				0B651F8A746C4387B1F9D42A /* Workspace.swift */,
+				0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */,
+				0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */,
 				C52C942A1CA040208A1757FF /* WorkspaceManager.swift */,
 				4501A6DA17EA418787F9BC9C /* WindowState.swift */,
 				B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */,
@@ -302,6 +312,7 @@
 				CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */,
 				QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */,
 				WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */,
+				WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */,
 			);
 			path = RalphCoreTests;
 			sourceTree = "<group>";
@@ -368,6 +379,7 @@
 				3298F69D10A0636C5327AF65 /* WorkingDirectoryHeader.swift */,
 				94E7D1BF4A91545A54A06C1A /* ConsoleView.swift */,
 				A0C8497F9C98D1E54DE2DBF0 /* TaskExecutionOverridesSection.swift */,
+				D09515AC14F94350B766E15468824B54 /* TaskDecomposeView.swift */,
 			);
 			path = RalphMac;
 			sourceTree = "<group>";
@@ -553,6 +565,8 @@
 				CD2233445566778899AABBCC /* GraphAlgorithms.swift in Sources */,
 				99887766554433221100AABB /* AnalyticsModels.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F902 /* DecompositionModels.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F903 /* Workspace+Decompose.swift in Sources */,
 				5B9E3F2A9C4D5E67B8F90123 /* WorkspaceManager.swift in Sources */,
 				6CAF4A3B0D5E6F78C9012345 /* WindowState.swift in Sources */,
 				A1234567890ABCDEF1234567 /* QueueFileWatcher.swift in Sources */,
@@ -583,6 +597,7 @@
 				CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */,
 				QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */,
 				WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */,
+				WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -607,6 +622,7 @@
 				9B4C5D6E7F8A901B2C3D4E5F /* BulkActionsView.swift in Sources */,
 				D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */,
 				E1FE4FE54CB8402D84A8607625CC6BB5 /* TaskCreationView.swift in Sources */,
+				E1FE4FE54CB8402D84A8607625CC6BB6 /* TaskDecomposeView.swift in Sources */,
 				81B3129D1A9B4ACBB70F0BDD4D0F049B /* KanbanBoardView.swift in Sources */,
 				2895092585CD4799832FDA1479C815B8 /* KanbanCardView.swift in Sources */,
 				62E2D8A333624CF58EA8D8EA9B611279 /* KanbanColumnView.swift in Sources */,

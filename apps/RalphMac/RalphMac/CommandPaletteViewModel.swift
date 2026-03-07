@@ -160,6 +160,9 @@ final class CommandPaletteViewModel: ObservableObject {
             
         case .showTaskCreation:
             NotificationCenter.default.post(name: .showTaskCreation, object: nil)
+
+        case .showTaskDecompose:
+            NotificationCenter.default.post(name: .showTaskDecompose, object: nil)
             
         case .startWork:
             NotificationCenter.default.post(name: .startWorkOnSelectedTask, object: nil)

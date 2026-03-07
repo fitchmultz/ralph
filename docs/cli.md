@@ -97,11 +97,12 @@ ralph task build "Refactor queue parsing"
 ralph task decompose "Build OAuth login with GitHub and Google"
 ralph task decompose RQ-0001 --child-policy append --with-dependencies --write
 ralph task decompose --attach-to RQ-0042 --format json "Plan webhook reliability work"
-ralph task show RQ-0001
 ralph task start RQ-0001
 ralph task status doing RQ-0001
 ralph task done RQ-0001 --note "Verified with make agent-ci"
 ```
+
+On macOS, the app exposes the same workflow through `Decompose Task...` in the Task menu, command palette, queue toolbar, and task context menus.
 
 ### Diagnostics
 
