@@ -1160,23 +1160,10 @@ public actor CLIHealthChecker {
         arguments: [String],
         timeout: TimeInterval
     ) async throws -> RalphCLIClient.CollectedOutput {
-        try await withThrowingTaskGroup(of: RalphCLIClient.CollectedOutput.self) { group in
-            group.addTask {
-                try await client.runAndCollect(arguments: arguments)
-            }
-
-            group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                throw TimeoutError()
-            }
-
-            guard let result = try await group.next() else {
-                group.cancelAll()
-                throw CancellationError()
-            }
-            group.cancelAll()
-            return result
-        }
+        try await client.runAndCollect(
+            arguments: arguments,
+            timeoutConfiguration: TimeoutConfiguration(timeout: timeout)
+        )
     }
 }
 

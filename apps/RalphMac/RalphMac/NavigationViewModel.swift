@@ -6,7 +6,7 @@
  - Track the selected task ID for the Queue section
  - Track the selected command ID for the Advanced section
  - Control sidebar visibility state (collapsed/expanded)
- - Handle navigation notifications from keyboard shortcuts
+ - Persist window-local navigation state for the active workspace tab.
 
  Does not handle:
  - Window-level tab state (see WindowState)
@@ -15,11 +15,10 @@
 
  Invariants/assumptions callers must respect:
  - Must be created as @StateObject at the view level that needs navigation state
- - Notifications are sent via NotificationCenter for cross-view communication
+ - Navigation mutations should flow through the owning workspace scene actions.
  */
 
 import SwiftUI
-import Combine
 import RalphCore
 
 private let navigationStateKey = "com.mitchfultz.ralph.navigationState"
@@ -114,7 +113,6 @@ final class NavigationViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private var cancellables = Set<AnyCancellable>()
     private let workspaceID: UUID?
 
     // MARK: - Initialization
@@ -124,7 +122,6 @@ final class NavigationViewModel: ObservableObject {
     init(workspaceID: UUID? = nil) {
         self.workspaceID = workspaceID
         loadNavigationState()
-        setupNotificationHandlers()
     }
 
     // MARK: - Public Methods
@@ -207,60 +204,5 @@ final class NavigationViewModel: ObservableObject {
         if let taskIDs = state.selectedTaskIDs {
             selectedTaskIDs = Set(taskIDs)
         }
-    }
-
-    // MARK: - Private Methods
-
-    private func setupNotificationHandlers() {
-        // Handle show sidebar section notifications
-        NotificationCenter.default.publisher(for: .showSidebarSection)
-            .compactMap { $0.object as? SidebarSection }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] section in
-                self?.navigate(to: section)
-            }
-            .store(in: &cancellables)
-
-        // Handle toggle sidebar notifications
-        NotificationCenter.default.publisher(for: .toggleSidebar)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.toggleSidebar()
-            }
-            .store(in: &cancellables)
-
-        // Handle clear task selection when workspace changes
-        NotificationCenter.default.publisher(for: .workspaceTasksUpdated)
-            .receive(on: DispatchQueue.main)
-            .sink { _ in
-                // Validate selected task still exists
-                // This is handled by the view, but we could add validation here
-            }
-            .store(in: &cancellables)
-
-        // Handle toggle task view mode
-        NotificationCenter.default.publisher(for: .toggleTaskViewMode)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.toggleTaskViewMode()
-            }
-            .store(in: &cancellables)
-        
-        // Handle show graph view
-        NotificationCenter.default.publisher(for: .showGraphView)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.setTaskViewMode(.graph)
-            }
-            .store(in: &cancellables)
-        
-        // Handle set task view mode (for command palette)
-        NotificationCenter.default.publisher(for: .setTaskViewMode)
-            .compactMap { $0.object as? TaskViewMode }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] mode in
-                self?.setTaskViewMode(mode)
-            }
-            .store(in: &cancellables)
     }
 }

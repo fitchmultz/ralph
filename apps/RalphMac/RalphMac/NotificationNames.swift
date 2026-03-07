@@ -16,6 +16,18 @@
 
 import Foundation
 
+/// Targeted workspace routing payload used when an unfocused surface, such as the menu bar,
+/// needs to open content in a specific workspace without mutating other windows.
+struct WorkspaceRouteRequest {
+    let workspaceID: UUID
+    let taskID: String?
+
+    init(workspaceID: UUID, taskID: String? = nil) {
+        self.workspaceID = workspaceID
+        self.taskID = taskID
+    }
+}
+
 // MARK: - Window Lifecycle
 
 extension Notification.Name {

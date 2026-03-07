@@ -25,6 +25,17 @@
 		4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42A /* Workspace.swift */; };
 		4A8D2E1F8B3C4D56A7E8F902 /* DecompositionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */; };
 		4A8D2E1F8B3C4D56A7E8F903 /* Workspace+Decompose.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */; };
+		4A8D2E1F8B3C4D56A7E8F904 /* WorkspaceQueueSnapshotLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */; };
+		4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */; };
+		4A8D2E1F8B3C4D56A7E8F906 /* Workspace+TaskMutations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */; };
+		4A8D2E1F8B3C4D56A7E8F907 /* Workspace+RunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */; };
+		4A8D2E1F8B3C4D56A7E8F908 /* Workspace+QueueLoading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */; };
+		4A8D2E1F8B3C4D56A7E8F909 /* Workspace+ConflictDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */; };
+		4A8D2E1F8B3C4D56A7E8F90A /* Workspace+GraphData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D433 /* Workspace+GraphData.swift */; };
+		4A8D2E1F8B3C4D56A7E8F90B /* Workspace+CLISpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D434 /* Workspace+CLISpec.swift */; };
+		4A8D2E1F8B3C4D56A7E8F90C /* Workspace+Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D435 /* Workspace+Analytics.swift */; };
+		4A8D2E1F8B3C4D56A7E8F90D /* Workspace+ANSIParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D436 /* Workspace+ANSIParsing.swift */; };
+		4A8D2E1F8B3C4D56A7E8F90E /* Workspace+HealthAndCaching.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D437 /* Workspace+HealthAndCaching.swift */; };
 		50F4E3E8CCF58E4DA7C9B66B /* NotificationNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98182BE943CBB8B4EFCD01DG /* NotificationNames.swift */; };
 		51F423D7B6694FD1BBF01DDA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6D1EEC569C94444A00C7A84 /* Assets.xcassets */; };
 		558F4EFD40ED4813905A6B0A /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */; };
@@ -56,6 +67,7 @@
 		AA99BB88CC77DD66EE55FF4400112233 /* TaskDetailViewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE11DD22CC33BB44AA55FF6677889900 /* TaskDetailViewSupport.swift */; };
 		ABCD1234EFAB5678CD9012EF /* WorkspacePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */; };
 		AC12ADCEB6FBE27F325003B5 /* RetryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */; };
+		AC12ADCEB6FBE27F325003B6 /* WorkspaceTaskPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A8 /* WorkspaceTaskPresentationTests.swift */; };
 		AD262F5CE6FC50AECE385373 /* RunControlConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */; };
 		ASETTINGSINFRA0012345678900 /* ASettingsInfra.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASETTINGSINFRAREF0012345678900 /* ASettingsInfra.swift */; };
 		B21C5D6A955D6896460637B7 /* RetryHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF00ECB3884C6A991E9ED664 /* RetryHelper.swift */; };
@@ -140,6 +152,17 @@
 		0B651F8A746C4387B1F9D42A /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecompositionModels.swift; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Decompose.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueSnapshotLoader.swift; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskPresentation.swift; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+TaskMutations.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunnerState.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+QueueLoading.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+ConflictDetection.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D433 /* Workspace+GraphData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+GraphData.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D434 /* Workspace+CLISpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+CLISpec.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D435 /* Workspace+Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Analytics.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D436 /* Workspace+ANSIParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+ANSIParsing.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D437 /* Workspace+HealthAndCaching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+HealthAndCaching.swift"; sourceTree = "<group>"; };
 		0CA719BF19DA9A8273DC7910 /* MenuBarIconView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MenuBarIconView.swift; sourceTree = "<group>"; };
 		11223344556677889900AABBCCDDEEFF /* TaskRelationshipPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskRelationshipPicker.swift; path = RalphMac/TaskRelationshipPicker.swift; sourceTree = "<group>"; };
 		1122AABBCCDDEEFF99887766 /* ConsoleOutputBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConsoleOutputBuffer.swift; path = RalphCore/ConsoleOutputBuffer.swift; sourceTree = "<group>"; };
@@ -192,6 +215,7 @@
 		BB8888888888888888888888 /* VelocityDetailsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VelocityDetailsCard.swift; sourceTree = "<group>"; };
 		BBAA99887766554433221100 /* AnalyticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsModels.swift; sourceTree = "<group>"; };
 		BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetryIntegrationTests.swift; sourceTree = "<group>"; };
+		BF349B26CB0886708565C0A8 /* WorkspaceTaskPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskPresentationTests.swift; sourceTree = "<group>"; };
 		C0944A9447A23AA1748EC80A /* VersionValidatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VersionValidatorTests.swift; sourceTree = "<group>"; };
 		C52C942A1CA040208A1757FF /* WorkspaceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceManager.swift; sourceTree = "<group>"; };
 		CBD57BF49B1F7D43DD51BEBE /* AdvancedRunnerSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AdvancedRunnerSection.swift; sourceTree = "<group>"; };
@@ -283,6 +307,17 @@
 				0B651F8A746C4387B1F9D42A /* Workspace.swift */,
 				0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */,
 				0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */,
+				0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */,
+				0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */,
+				0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */,
+				0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */,
+				0B651F8A746C4387B1F9D433 /* Workspace+GraphData.swift */,
+				0B651F8A746C4387B1F9D434 /* Workspace+CLISpec.swift */,
+				0B651F8A746C4387B1F9D435 /* Workspace+Analytics.swift */,
+				0B651F8A746C4387B1F9D436 /* Workspace+ANSIParsing.swift */,
+				0B651F8A746C4387B1F9D437 /* Workspace+HealthAndCaching.swift */,
+				0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */,
+				0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */,
 				C52C942A1CA040208A1757FF /* WorkspaceManager.swift */,
 				4501A6DA17EA418787F9BC9C /* WindowState.swift */,
 				B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */,
@@ -307,6 +342,7 @@
 				DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */,
 				77F3126530AB785086AAF51A /* RetryHelperTests.swift */,
 				BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */,
+				BF349B26CB0886708565C0A8 /* WorkspaceTaskPresentationTests.swift */,
 				B86FB79CF874558CF63AAAB3 /* RalphLoggerTests.swift */,
 				E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */,
 				CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */,
@@ -567,6 +603,17 @@
 				4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F902 /* DecompositionModels.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F903 /* Workspace+Decompose.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F906 /* Workspace+TaskMutations.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F907 /* Workspace+RunnerState.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F908 /* Workspace+QueueLoading.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F909 /* Workspace+ConflictDetection.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F90A /* Workspace+GraphData.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F90B /* Workspace+CLISpec.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F90C /* Workspace+Analytics.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F90D /* Workspace+ANSIParsing.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F90E /* Workspace+HealthAndCaching.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F904 /* WorkspaceQueueSnapshotLoader.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */,
 				5B9E3F2A9C4D5E67B8F90123 /* WorkspaceManager.swift in Sources */,
 				6CAF4A3B0D5E6F78C9012345 /* WindowState.swift in Sources */,
 				A1234567890ABCDEF1234567 /* QueueFileWatcher.swift in Sources */,
@@ -592,6 +639,7 @@
 				E4635AF24A810EE76495C30B /* VersionValidatorTests.swift in Sources */,
 				268217A233EEC82D9B6E9767 /* RetryHelperTests.swift in Sources */,
 				AC12ADCEB6FBE27F325003B5 /* RetryIntegrationTests.swift in Sources */,
+				AC12ADCEB6FBE27F325003B6 /* WorkspaceTaskPresentationTests.swift in Sources */,
 				F6A75F8963921FE53D465FF3 /* RalphLoggerTests.swift in Sources */,
 				77EFDF19FDCC6111A2D9D960 /* CrashReporterTests.swift in Sources */,
 				CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */,

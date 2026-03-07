@@ -103,7 +103,9 @@ final class RalphMacUITests: XCTestCase {
         if let ralphExecutableURL {
             app.launchEnvironment[LaunchEnvironment.ralphBinPath] = ralphExecutableURL.path
         }
-        if name.contains("windowShortcuts") || name.contains("commandPaletteNewTab") {
+        if name.contains("windowShortcuts")
+            || name.contains("commandPaletteNewTab")
+            || name.contains("navigationShortcut") {
             app.launchArguments.append("--uitesting-multiwindow")
         }
         app.launch()
@@ -321,6 +323,31 @@ final class RalphMacUITests: XCTestCase {
         XCTAssertTrue(
             waitUntil { workspaceWindowCount() == windowsBefore - 1 },
             "Cmd+Shift+W should close only the focused window (expected \(windowsBefore - 1), got \(workspaceWindowCount()))"
+        )
+    }
+
+    @MainActor
+    func test_navigationShortcut_affectsOnlyFocusedWindow() throws {
+        ensureSecondWindow()
+
+        let windows = workspaceWindows()
+        XCTAssertGreaterThanOrEqual(windows.count, 2, "Expected at least two workspace windows")
+        let firstWindow = windows[0]
+        let secondWindow = windows[1]
+
+        XCTAssertTrue(taskViewModePicker(in: firstWindow).waitForExistence(timeout: 5))
+        XCTAssertTrue(taskViewModePicker(in: secondWindow).waitForExistence(timeout: 5))
+
+        firstWindow.click()
+        firstWindow.typeKey("5", modifierFlags: .command)
+
+        XCTAssertTrue(
+            waitUntil { !self.taskViewModePicker(in: firstWindow).exists },
+            "Cmd+5 should switch only the focused window away from Queue"
+        )
+        XCTAssertTrue(
+            taskViewModePicker(in: secondWindow).exists,
+            "Cmd+5 should not mutate the unfocused window's section"
         )
     }
 
@@ -597,7 +624,11 @@ final class RalphMacUITests: XCTestCase {
 
     @MainActor
     private func taskViewModePicker() -> XCUIElement {
-        let window = currentWorkspaceWindow()
+        taskViewModePicker(in: currentWorkspaceWindow())
+    }
+
+    @MainActor
+    private func taskViewModePicker(in window: XCUIElement) -> XCUIElement {
         let radioGroup = window.radioGroups[AccessibilityID.taskViewModePicker]
         if radioGroup.exists {
             return radioGroup

@@ -7,6 +7,10 @@
 import XCTest
 @testable import RalphCore
 
+#if canImport(Darwin)
+import Darwin
+#endif
+
 final class ErrorRecoveryTests: XCTestCase {
 
     // MARK: - ErrorCategory Tests
@@ -518,11 +522,66 @@ final class CLIHealthCheckerTests: XCTestCase {
         XCTAssertEqual(status.availability, .unavailable(reason: .cliNotFound))
     }
 
+    func testCheckHealth_timeoutTerminatesUnderlyingProcess() async throws {
+        let tempDir = try Self.makeTempDir(prefix: "ralph-health-timeout")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let pidFileURL = tempDir.appendingPathComponent("health.pid", isDirectory: false)
+        let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
+        let script = """
+        #!/bin/sh
+        if [ "$1" = "--version" ]; then
+          echo $$ > "\(pidFileURL.path)"
+          trap 'exit 0' TERM INT
+          sleep 30
+          exit 0
+        fi
+        exit 1
+        """
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: scriptURL.path
+        )
+
+        let checker = CLIHealthChecker()
+        let status = await checker.checkHealth(
+            workspaceID: UUID(),
+            workspaceURL: tempDir,
+            timeout: 0.2,
+            executableURL: scriptURL
+        )
+
+        XCTAssertEqual(status.availability, .unavailable(reason: .timeout))
+
+        let pidText = try XCTUnwrap(String(contentsOf: pidFileURL, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines))
+        let pidValue = try XCTUnwrap(Int32(pidText))
+        let pid = pid_t(pidValue)
+        XCTAssertTrue(
+            Self.waitForProcessExit(pid, timeout: 3),
+            "Health-check timeout should terminate the launched process"
+        )
+    }
+
     private static func makeTempDir(prefix: String) throws -> URL {
         let tempRoot = FileManager.default.temporaryDirectory
         let directory = tempRoot.appendingPathComponent("\(prefix)-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
+    }
+
+    private static func waitForProcessExit(_ pid: pid_t, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            #if canImport(Darwin)
+            if kill(pid, 0) != 0 && errno == ESRCH {
+                return true
+            }
+            #endif
+
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return false
     }
 }
 

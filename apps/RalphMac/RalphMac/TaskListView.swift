@@ -27,7 +27,9 @@ struct TaskListView: View {
     @ObservedObject var workspace: Workspace
     @Binding var selectedTaskID: String?
     @Binding var selectedTaskIDs: Set<String>
-    @State private var showingTaskCreation = false
+    let showTaskCreation: () -> Void
+    let showTaskDecompose: (String?) -> Void
+    let showTaskDetail: (String) -> Void
     @State private var showingBulkActions = false
     @State private var isRefreshingFromExternalChange = false
     @State private var recentlyChangedTaskIDs: Set<String> = []
@@ -67,13 +69,13 @@ struct TaskListView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button(action: { showingTaskCreation = true }) {
+                Button(action: showTaskCreation) {
                     Label("New Task", systemImage: "plus")
                 }
                 .accessibilityIdentifier("new-task-toolbar-button")
 
                 Button(action: {
-                    NotificationCenter.default.post(name: .showTaskDecompose, object: selectedTaskID)
+                    showTaskDecompose(selectedTaskID)
                 }) {
                     Label("Decompose", systemImage: "square.split.2x2")
                 }
@@ -91,9 +93,6 @@ struct TaskListView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingTaskCreation) {
-            TaskCreationView(workspace: workspace)
-        }
         .sheet(isPresented: $showingBulkActions) {
             BulkActionsView(
                 workspace: workspace,
@@ -104,9 +103,6 @@ struct TaskListView: View {
                     selectedTaskID = nil
                 }
             )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showTaskCreation)) { _ in
-            showingTaskCreation = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { notification in
             handleExternalChange(notification)
@@ -266,7 +262,8 @@ struct TaskListView: View {
 
     @ViewBuilder
     private func taskList() -> some View {
-        let filteredTasks = workspace.filteredAndSortedTasks()
+        let presentation = workspace.taskPresentation()
+        let filteredTasks = presentation.tasks
 
         VStack(spacing: 0) {
             if workspace.tasksLoading {
@@ -326,7 +323,7 @@ struct TaskListView: View {
                             Button("Decompose Task...") {
                                 handleTaskSelection(taskID: task.id, modifierFlags: [])
                                 focusedTaskID = task.id
-                                NotificationCenter.default.post(name: .showTaskDecompose, object: task.id)
+                                showTaskDecompose(task.id)
                             }
                         }
                         .onTapGesture {
@@ -360,10 +357,7 @@ struct TaskListView: View {
                     if let taskID = focusedTaskID ?? selectedTaskID {
                         selectedTaskID = taskID
                         selectedTaskIDs = [taskID]
-                        NotificationCenter.default.post(
-                            name: .showTaskDetail,
-                            object: taskID
-                        )
+                        showTaskDetail(taskID)
                     }
                     return .handled
                 }
@@ -372,10 +366,7 @@ struct TaskListView: View {
                     if let taskID = focusedTaskID ?? selectedTaskID {
                         selectedTaskID = taskID
                         selectedTaskIDs = [taskID]
-                        NotificationCenter.default.post(
-                            name: .showTaskDetail,
-                            object: taskID
-                        )
+                        showTaskDetail(taskID)
                     }
                     return .handled
                 }
@@ -603,8 +594,7 @@ struct TaskListView: View {
             return
         }
 
-        let nextPrimaryTaskID = workspace.filteredAndSortedTasks()
-            .map(\.id)
+        let nextPrimaryTaskID = workspace.taskPresentation().orderedTaskIDs
             .first(where: selection.contains)
             ?? selection.sorted().first
 

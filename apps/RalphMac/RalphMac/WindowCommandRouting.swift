@@ -74,6 +74,14 @@ extension FocusedValues {
 /// Workspace UI actions exposed to commands from the active scene.
 struct WorkspaceUIActions {
     let showCommandPalette: () -> Void
+    let navigateToSection: (SidebarSection) -> Void
+    let toggleSidebar: () -> Void
+    let toggleTaskViewMode: () -> Void
+    let setTaskViewMode: (TaskViewMode) -> Void
+    let showTaskCreation: () -> Void
+    let showTaskDecompose: (String?) -> Void
+    let showTaskDetail: (String) -> Void
+    let startWorkOnSelectedTask: () -> Void
 }
 
 private struct WorkspaceUIActionsKey: FocusedValueKey {

@@ -28,6 +28,7 @@ struct WorkspaceView: View {
     @ObservedObject var workspace: Workspace
     @StateObject private var navigation: NavigationViewModel
     @State private var showingCommandPalette: Bool = false
+    @State private var showingTaskCreation: Bool = false
     @State private var showingTaskDecompose: Bool = false
     @State private var taskDecomposeContext = TaskDecomposeView.PresentationContext()
     @FocusedValue(\.workspaceWindowActions) private var workspaceWindowActions
@@ -59,42 +60,63 @@ struct WorkspaceView: View {
         .focusedSceneValue(\.workspaceUIActions, focusedWorkspaceUIActions)
         .sheet(isPresented: $workspace.showErrorRecovery) { errorRecoverySheet() }
         .sheet(isPresented: $showingCommandPalette) { commandPaletteSheet() }
+        .sheet(isPresented: $showingTaskCreation) {
+            TaskCreationView(workspace: workspace)
+        }
         .sheet(isPresented: $showingTaskDecompose) {
             TaskDecomposeView(workspace: workspace, context: taskDecomposeContext)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .startWorkOnSelectedTask)) { _ in
-            handleStartWork()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showTaskDetail)) { notification in
-            if let taskID = notification.object as? String {
-                navigation.selectedTaskID = taskID
-                navigation.selectedSection = .queue
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .showTaskDetailFromMenuBar)) { notification in
-            if let taskID = notification.object as? String {
-                navigation.selectedTaskID = taskID
-                navigation.selectedSection = .queue
+            if let request = notification.object as? WorkspaceRouteRequest,
+               request.workspaceID == workspace.id,
+               let taskID = request.taskID {
+                showTaskDetail(taskID)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .quickAddTaskFromMenuBar)) { _ in
-            navigation.selectedSection = .queue
+        .onReceive(NotificationCenter.default.publisher(for: .quickAddTaskFromMenuBar)) { notification in
+            if let request = notification.object as? WorkspaceRouteRequest,
+               request.workspaceID == workspace.id {
+                showTaskCreation()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showTaskDecompose)) { notification in
-            navigation.selectedSection = .queue
-            if let taskID = notification.object as? String {
-                taskDecomposeContext = TaskDecomposeView.PresentationContext(selectedTaskID: taskID)
-            } else {
-                taskDecomposeContext = TaskDecomposeView.PresentationContext(selectedTaskID: navigation.selectedTaskID)
+            if let request = notification.object as? WorkspaceRouteRequest {
+                guard request.workspaceID == workspace.id else { return }
+                showTaskDecompose(selectedTaskID: request.taskID)
             }
-            showingTaskDecompose = true
         }
     }
 
     // MARK: - Focused Actions
 
     private var focusedWorkspaceUIActions: WorkspaceUIActions {
-        WorkspaceUIActions(showCommandPalette: { showingCommandPalette = true })
+        WorkspaceUIActions(
+            showCommandPalette: { showingCommandPalette = true },
+            navigateToSection: { section in
+                navigation.navigate(to: section)
+            },
+            toggleSidebar: {
+                navigation.toggleSidebar()
+            },
+            toggleTaskViewMode: {
+                navigation.toggleTaskViewMode()
+            },
+            setTaskViewMode: { mode in
+                navigation.setTaskViewMode(mode)
+            },
+            showTaskCreation: {
+                showTaskCreation()
+            },
+            showTaskDecompose: { taskID in
+                showTaskDecompose(selectedTaskID: taskID)
+            },
+            showTaskDetail: { taskID in
+                showTaskDetail(taskID)
+            },
+            startWorkOnSelectedTask: {
+                handleStartWork()
+            }
+        )
     }
 
     // MARK: - Columns
@@ -179,12 +201,16 @@ struct WorkspaceView: View {
                 TaskListView(
                     workspace: workspace,
                     selectedTaskID: $navigation.selectedTaskID,
-                    selectedTaskIDs: $navigation.selectedTaskIDs
+                    selectedTaskIDs: $navigation.selectedTaskIDs,
+                    showTaskCreation: showTaskCreation,
+                    showTaskDecompose: { taskID in showTaskDecompose(selectedTaskID: taskID) },
+                    showTaskDetail: showTaskDetail
                 )
             case .kanban:
                 KanbanBoardView(
                     workspace: workspace,
-                    selectedTaskID: $navigation.selectedTaskID
+                    selectedTaskID: $navigation.selectedTaskID,
+                    showTaskDetail: showTaskDetail
                 )
             case .graph:
                 DependencyGraphView(
@@ -281,7 +307,10 @@ struct WorkspaceView: View {
 
     @ViewBuilder
     private func commandPaletteSheet() -> some View {
-        CommandPaletteView(windowActions: workspaceWindowActions)
+        CommandPaletteView(
+            windowActions: workspaceWindowActions,
+            workspaceUIActions: focusedWorkspaceUIActions
+        )
             .frame(minWidth: 640, minHeight: 300)
     }
 
@@ -326,6 +355,25 @@ struct WorkspaceView: View {
                 RalphLogger.shared.error("Failed to start work on task: \(error)", category: .workspace)
             }
         }
+    }
+
+    private func showTaskCreation() {
+        navigation.selectedSection = .queue
+        showingTaskCreation = true
+    }
+
+    private func showTaskDecompose(selectedTaskID: String?) {
+        navigation.selectedSection = .queue
+        taskDecomposeContext = TaskDecomposeView.PresentationContext(
+            selectedTaskID: selectedTaskID ?? navigation.selectedTaskID
+        )
+        showingTaskDecompose = true
+    }
+
+    private func showTaskDetail(_ taskID: String) {
+        navigation.selectedSection = .queue
+        navigation.selectedTaskID = taskID
+        navigation.selectedTaskIDs = [taskID]
     }
 }
 

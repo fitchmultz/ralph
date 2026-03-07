@@ -25,6 +25,7 @@ import RalphCore
 struct KanbanBoardView: View {
     @ObservedObject var workspace: Workspace
     @Binding var selectedTaskID: String?
+    let showTaskDetail: (String) -> Void
 
     @State private var isUpdating = false
     @State private var updateError: String?
@@ -35,10 +36,12 @@ struct KanbanBoardView: View {
     @State private var focusedTaskID: String?
 
     var body: some View {
+        let presentation = workspace.taskPresentation()
+
         ScrollView(.horizontal) {
             HStack(spacing: 16) {
                 ForEach(RalphTaskStatus.allCases, id: \.self) { status in
-                    let statusTasks = tasks(for: status)
+                    let statusTasks = presentation.tasksByStatus[status, default: []]
 
                     KanbanColumnView(
                         status: status,
@@ -84,10 +87,7 @@ struct KanbanBoardView: View {
         .onKeyPress(.return) {
             if let taskID = focusedTaskID {
                 selectedTaskID = taskID
-                NotificationCenter.default.post(
-                    name: .showTaskDetail,
-                    object: taskID
-                )
+                showTaskDetail(taskID)
             }
             return .handled
         }
@@ -95,10 +95,7 @@ struct KanbanBoardView: View {
             // Space key opens task detail (same as Enter for quick access)
             if let taskID = focusedTaskID {
                 selectedTaskID = taskID
-                NotificationCenter.default.post(
-                    name: .showTaskDetail,
-                    object: taskID
-                )
+                showTaskDetail(taskID)
             }
             return .handled
         }
@@ -147,12 +144,6 @@ struct KanbanBoardView: View {
         }
     }
 
-    private func tasks(for status: RalphTaskStatus) -> [RalphTask] {
-        // Apply same filters as TaskListView
-        workspace.filteredAndSortedTasks()
-            .filter { $0.status == status }
-    }
-
     private func handleTaskDrop(taskID: String, to status: RalphTaskStatus) {
         // Find the task
         guard let task = workspace.tasks.first(where: { $0.id == taskID }) else { return }
@@ -186,14 +177,14 @@ struct KanbanBoardView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             focusedColumnStatus = newStatus
             // Select first task in new column if exists
-            let columnTasks = tasks(for: newStatus)
+            let columnTasks = workspace.taskPresentation().tasksByStatus[newStatus, default: []]
             focusedTaskID = columnTasks.first?.id
             selectedTaskID = focusedTaskID
         }
     }
     
     private func navigateKanbanTask(direction: Int) {
-        let columnTasks = tasks(for: focusedColumnStatus)
+        let columnTasks = workspace.taskPresentation().tasksByStatus[focusedColumnStatus, default: []]
         
         guard let currentID = focusedTaskID,
               let currentIndex = columnTasks.firstIndex(where: { $0.id == currentID }) else {
@@ -225,7 +216,8 @@ struct KanbanBoardView: View {
         var body: some View {
             KanbanBoardView(
                 workspace: previewWorkspace(),
-                selectedTaskID: $selectedTaskID
+                selectedTaskID: $selectedTaskID,
+                showTaskDetail: { _ in }
             )
         }
 

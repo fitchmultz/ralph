@@ -3,13 +3,13 @@
  
  Responsibilities:
  - Manage the command palette's search query and filtered results.
- - Handle command execution via notifications and focused window actions.
+ - Handle command execution via focused scene actions.
  - Track selected command index for keyboard navigation.
  - Provide fuzzy search algorithm for command matching.
  
  Does not handle:
  - UI rendering (handled by CommandPaletteView).
- - Direct view manipulation (uses notifications for decoupling).
+ - Direct view manipulation outside the focused scene contracts.
  
  Invariants/assumptions:
  - Must be used as @StateObject in the view hierarchy.
@@ -93,17 +93,32 @@ final class CommandPaletteViewModel: ObservableObject {
     }
     
     /// Executes the selected command
-    func executeSelectedCommand(windowActions: WorkspaceWindowActions?) {
+    func executeSelectedCommand(
+        windowActions: WorkspaceWindowActions?,
+        workspaceUIActions: WorkspaceUIActions?
+    ) {
         let commands = filteredCommands
         guard selectedIndex >= 0 && selectedIndex < commands.count else { return }
         
         let command = commands[selectedIndex]
-        execute(command: command, windowActions: windowActions)
+        execute(
+            command: command,
+            windowActions: windowActions,
+            workspaceUIActions: workspaceUIActions
+        )
     }
     
     /// Executes a specific command
-    func execute(command: CommandPaletteCommand, windowActions: WorkspaceWindowActions?) {
-        performAction(command.action, windowActions: windowActions)
+    func execute(
+        command: CommandPaletteCommand,
+        windowActions: WorkspaceWindowActions?,
+        workspaceUIActions: WorkspaceUIActions?
+    ) {
+        performAction(
+            command.action,
+            windowActions: windowActions,
+            workspaceUIActions: workspaceUIActions
+        )
         hide()
     }
     
@@ -134,38 +149,36 @@ final class CommandPaletteViewModel: ObservableObject {
     
     // MARK: - Private Methods
     
-    /// Performs the actual action via NotificationCenter and focused window actions.
-    private func performAction(_ action: CommandAction, windowActions: WorkspaceWindowActions?) {
+    /// Performs the actual action via focused scene contracts.
+    private func performAction(
+        _ action: CommandAction,
+        windowActions: WorkspaceWindowActions?,
+        workspaceUIActions: WorkspaceUIActions?
+    ) {
         switch action {
         case .navigateToSection(let section):
-            NotificationCenter.default.post(
-                name: .showSidebarSection,
-                object: section
-            )
+            workspaceUIActions?.navigateToSection(section)
             
         case .toggleSidebar:
-            NotificationCenter.default.post(name: .toggleSidebar, object: nil)
+            workspaceUIActions?.toggleSidebar()
             
         case .toggleTaskViewMode:
-            NotificationCenter.default.post(name: .toggleTaskViewMode, object: nil)
+            workspaceUIActions?.toggleTaskViewMode()
             
         case .setTaskViewMode(let mode):
-            NotificationCenter.default.post(
-                name: .setTaskViewMode,
-                object: mode
-            )
+            workspaceUIActions?.setTaskViewMode(mode)
             
         case .showGraphView:
-            NotificationCenter.default.post(name: .showGraphView, object: nil)
+            workspaceUIActions?.setTaskViewMode(.graph)
             
         case .showTaskCreation:
-            NotificationCenter.default.post(name: .showTaskCreation, object: nil)
+            workspaceUIActions?.showTaskCreation()
 
         case .showTaskDecompose:
-            NotificationCenter.default.post(name: .showTaskDecompose, object: nil)
+            workspaceUIActions?.showTaskDecompose(nil)
             
         case .startWork:
-            NotificationCenter.default.post(name: .startWorkOnSelectedTask, object: nil)
+            workspaceUIActions?.startWorkOnSelectedTask()
             
         case .newWindow:
             windowActions?.perform(.newWindow)

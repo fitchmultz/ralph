@@ -201,3 +201,18 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 - UI tests must never write into the production app defaults domain. `RalphAppDefaults` isolates `--uitesting` launches into a dedicated suite and normal launches prune stale `ralph-ui-tests` workspace/restoration keys from `com.mitchfultz.ralph`.
 - `ralph app open` should launch with a single `ralph://open?...` URL when workspace context exists. Pre-launching the bundle and then dispatching the URL creates duplicate SwiftUI `WindowGroup` scenes on macOS.
 - `make install` on macOS is expected to update both the CLI and `/Applications/RalphMac.app`; otherwise `ralph app open` can keep launching a stale bundle.
+
+### macOS App Window Routing
+- Active-window navigation/task commands should flow through focused scene values (`WorkspaceUIActions` / `WorkspaceWindowActions`), not process-wide `NotificationCenter` broadcasts.
+- Menu-bar initiated workspace/task routing must carry a `WorkspaceRouteRequest` and be filtered by `workspace.id` so non-target windows stay unchanged.
+
+### macOS Task Presentation
+- Shared task filtering/sorting for list + kanban lives in `WorkspaceTaskPresentation`; prefer `workspace.taskPresentation()` when a render pass needs both flat and grouped task sets.
+- Task ordering must remain deterministic for both ascending and descending sorts; always break ties explicitly rather than inverting a boolean comparator.
+
+### macOS Queue Refresh
+- Queue file watcher refreshes and CLI queue JSON decoding should use `WorkspaceQueueSnapshotLoader` so file IO + decode work stays off the main actor and only final publication happens on main.
+
+### macOS Workspace Decomposition
+- Keep `Workspace.swift` focused on shared workspace state plus broad orchestration; move dense feature areas into `Workspace+...` files.
+- Runner lifecycle/loop/cancel state lives in `Workspace+RunnerState.swift`; task edit/bulk-create flows live in `Workspace+TaskMutations.swift`.

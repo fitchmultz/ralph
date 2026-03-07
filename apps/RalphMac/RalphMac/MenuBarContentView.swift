@@ -133,7 +133,7 @@ struct MenuBarContentView: View {
             Button("Quick Add Task...") {
                 NotificationCenter.default.post(
                     name: .quickAddTaskFromMenuBar,
-                    object: nil
+                    object: WorkspaceRouteRequest(workspaceID: workspace.id)
                 )
                 activateMainApp()
             }
@@ -141,7 +141,7 @@ struct MenuBarContentView: View {
             Button("Decompose Task...") {
                 NotificationCenter.default.post(
                     name: .showTaskDecompose,
-                    object: nil
+                    object: WorkspaceRouteRequest(workspaceID: workspace.id)
                 )
                 activateMainApp()
             }
@@ -235,10 +235,9 @@ struct MenuBarContentView: View {
     
     /// Activate the main app and show task detail
     private func showTaskDetail(_ taskID: String, workspaceID: UUID) {
-        // Post notification to show task detail
         NotificationCenter.default.post(
             name: .showTaskDetailFromMenuBar,
-            object: taskID
+            object: WorkspaceRouteRequest(workspaceID: workspaceID, taskID: taskID)
         )
         
         // Activate the workspace

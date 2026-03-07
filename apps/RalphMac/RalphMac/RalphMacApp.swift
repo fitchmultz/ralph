@@ -59,8 +59,8 @@ struct RalphMacApp: App {
         .defaultPosition(.center)
         .commands {
             WorkspaceCommands()
-            navigationCommands
-            taskCommands
+            NavigationCommands()
+            TaskCommands()
             CommandPaletteCommands()
             helpCommands
             settingsCommands
@@ -181,118 +181,6 @@ struct RalphMacApp: App {
         guard !workspace.hasRalphQueueFile else { return nil }
 
         return workspace
-    }
-
-    private var navigationCommands: some Commands {
-        CommandMenu("Navigation") {
-            Button("Show Queue") {
-                NotificationCenter.default.post(
-                    name: .showSidebarSection,
-                    object: SidebarSection.queue
-                )
-            }
-            .keyboardShortcut("1", modifiers: .command)
-
-            Button("Show Quick Actions") {
-                NotificationCenter.default.post(
-                    name: .showSidebarSection,
-                    object: SidebarSection.quickActions
-                )
-            }
-            .keyboardShortcut("2", modifiers: .command)
-
-            Button("Show Run Control") {
-                NotificationCenter.default.post(
-                    name: .showSidebarSection,
-                    object: SidebarSection.runControl
-                )
-            }
-            .keyboardShortcut("3", modifiers: .command)
-
-            Button("Show Advanced Runner") {
-                NotificationCenter.default.post(
-                    name: .showSidebarSection,
-                    object: SidebarSection.advancedRunner
-                )
-            }
-            .keyboardShortcut("4", modifiers: .command)
-
-            Button("Show Analytics") {
-                NotificationCenter.default.post(
-                    name: .showSidebarSection,
-                    object: SidebarSection.analytics
-                )
-            }
-            .keyboardShortcut("5", modifiers: .command)
-
-            Divider()
-
-            Button("Toggle Sidebar") {
-                NotificationCenter.default.post(
-                    name: .toggleSidebar,
-                    object: nil
-                )
-            }
-            .keyboardShortcut("s", modifiers: [.command, .control])
-
-            Divider()
-
-            Button("Toggle View Mode") {
-                NotificationCenter.default.post(
-                    name: .toggleTaskViewMode,
-                    object: nil
-                )
-            }
-            .keyboardShortcut("k", modifiers: [.command, .shift])
-
-            Button("Show Graph View") {
-                NotificationCenter.default.post(
-                    name: .showGraphView,
-                    object: nil
-                )
-            }
-            .keyboardShortcut("g", modifiers: [.command, .shift])
-        }
-    }
-
-    private var taskCommands: some Commands {
-        CommandMenu("Task") {
-            Button("New Task...") {
-                NotificationCenter.default.post(
-                    name: .showTaskCreation,
-                    object: nil
-                )
-            }
-            .keyboardShortcut("n", modifiers: [.command, .option])
-
-            Button("Decompose Task...") {
-                NotificationCenter.default.post(
-                    name: .showTaskDecompose,
-                    object: nil
-                )
-            }
-            .keyboardShortcut("d", modifiers: [.command, .option])
-            
-            Divider()
-            
-            Button("Start Work") {
-                NotificationCenter.default.post(
-                    name: .startWorkOnSelectedTask,
-                    object: nil
-                )
-            }
-            .keyboardShortcut(.return, modifiers: .command)
-            .help("Change selected task status to Doing (⌘Enter)")
-            
-            Divider()
-            
-            Button("Check for CLI Updates") {
-                NotificationCenter.default.post(
-                    name: .checkForCLIUpdates,
-                    object: nil
-                )
-            }
-        }
     }
 
     private var helpCommands: some Commands {
@@ -443,6 +331,114 @@ private struct WorkspaceCommands: Commands {
 }
 
 // MARK: - Command Palette Commands
+
+@MainActor
+private struct NavigationCommands: Commands {
+    @FocusedValue(\.workspaceUIActions) private var workspaceUIActions
+
+    private var hasFocusedWorkspace: Bool {
+        workspaceUIActions != nil
+    }
+
+    var body: some Commands {
+        CommandMenu("Navigation") {
+            Button("Show Queue") {
+                workspaceUIActions?.navigateToSection(.queue)
+            }
+            .keyboardShortcut("1", modifiers: .command)
+            .disabled(!hasFocusedWorkspace)
+
+            Button("Show Quick Actions") {
+                workspaceUIActions?.navigateToSection(.quickActions)
+            }
+            .keyboardShortcut("2", modifiers: .command)
+            .disabled(!hasFocusedWorkspace)
+
+            Button("Show Run Control") {
+                workspaceUIActions?.navigateToSection(.runControl)
+            }
+            .keyboardShortcut("3", modifiers: .command)
+            .disabled(!hasFocusedWorkspace)
+
+            Button("Show Advanced Runner") {
+                workspaceUIActions?.navigateToSection(.advancedRunner)
+            }
+            .keyboardShortcut("4", modifiers: .command)
+            .disabled(!hasFocusedWorkspace)
+
+            Button("Show Analytics") {
+                workspaceUIActions?.navigateToSection(.analytics)
+            }
+            .keyboardShortcut("5", modifiers: .command)
+            .disabled(!hasFocusedWorkspace)
+
+            Divider()
+
+            Button("Toggle Sidebar") {
+                workspaceUIActions?.toggleSidebar()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
+            .disabled(!hasFocusedWorkspace)
+
+            Divider()
+
+            Button("Toggle View Mode") {
+                workspaceUIActions?.toggleTaskViewMode()
+            }
+            .keyboardShortcut("k", modifiers: [.command, .shift])
+            .disabled(!hasFocusedWorkspace)
+
+            Button("Show Graph View") {
+                workspaceUIActions?.setTaskViewMode(.graph)
+            }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
+            .disabled(!hasFocusedWorkspace)
+        }
+    }
+}
+
+@MainActor
+private struct TaskCommands: Commands {
+    @FocusedValue(\.workspaceUIActions) private var workspaceUIActions
+
+    private var hasFocusedWorkspace: Bool {
+        workspaceUIActions != nil
+    }
+
+    var body: some Commands {
+        CommandMenu("Task") {
+            Button("New Task...") {
+                workspaceUIActions?.showTaskCreation()
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
+            .disabled(!hasFocusedWorkspace)
+
+            Button("Decompose Task...") {
+                workspaceUIActions?.showTaskDecompose(nil)
+            }
+            .keyboardShortcut("d", modifiers: [.command, .option])
+            .disabled(!hasFocusedWorkspace)
+
+            Divider()
+
+            Button("Start Work") {
+                workspaceUIActions?.startWorkOnSelectedTask()
+            }
+            .keyboardShortcut(.return, modifiers: .command)
+            .help("Change selected task status to Doing (⌘Enter)")
+            .disabled(!hasFocusedWorkspace)
+
+            Divider()
+
+            Button("Check for CLI Updates") {
+                NotificationCenter.default.post(
+                    name: .checkForCLIUpdates,
+                    object: nil
+                )
+            }
+        }
+    }
+}
 
 /// Command palette commands routed through focused workspace UI actions.
 @MainActor
