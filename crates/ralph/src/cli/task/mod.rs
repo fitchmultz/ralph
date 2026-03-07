@@ -18,6 +18,7 @@ mod batch;
 mod build;
 mod children;
 mod clone;
+mod decompose;
 mod edit;
 mod from_template;
 mod parent;
@@ -38,7 +39,8 @@ use crate::config;
 pub use args::{
     BatchEditArgs, BatchFieldArgs, BatchMode, BatchOperation, BatchStatusArgs, TaskArgs,
     TaskBatchArgs, TaskBlocksArgs, TaskBuildArgs, TaskBuildRefactorArgs, TaskChildrenArgs,
-    TaskCloneArgs, TaskCommand, TaskDoneArgs, TaskEditArgs, TaskEditFieldArg, TaskFieldArgs,
+    TaskCloneArgs, TaskCommand, TaskDecomposeArgs, TaskDecomposeChildPolicyArg,
+    TaskDecomposeFormatArg, TaskDoneArgs, TaskEditArgs, TaskEditFieldArg, TaskFieldArgs,
     TaskFromArgs, TaskFromCommand, TaskFromTemplateArgs, TaskMarkDuplicateArgs, TaskParentArgs,
     TaskReadyArgs, TaskRejectArgs, TaskRelateArgs, TaskRelationFormat, TaskScheduleArgs,
     TaskShowArgs, TaskSplitArgs, TaskStartArgs, TaskStatusArg, TaskStatusArgs, TaskTemplateArgs,
@@ -58,6 +60,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
         Some(TaskCommand::Edit(args)) => edit::handle_edit(&args, force, &resolved),
         Some(TaskCommand::Update(args)) => edit::handle_update(&args, &resolved, force),
         Some(TaskCommand::Build(args)) => build::handle(&args, force, &resolved),
+        Some(TaskCommand::Decompose(args)) => decompose::handle(&args, force, &resolved),
         Some(TaskCommand::Template(template_args)) => template::handle(&resolved, &template_args),
         Some(TaskCommand::BuildRefactor(args)) | Some(TaskCommand::Refactor(args)) => {
             refactor::handle(&args, force, &resolved)
@@ -205,6 +208,111 @@ mod tests {
             },
             _ => panic!("expected task command"),
         }
+    }
+
+    #[test]
+    fn task_decompose_parses_preview_and_limits() {
+        let cli = Cli::try_parse_from([
+            "ralph",
+            "task",
+            "decompose",
+            "--preview",
+            "--attach-to",
+            "RQ-0042",
+            "--child-policy",
+            "append",
+            "--with-dependencies",
+            "--format",
+            "json",
+            "--max-depth",
+            "4",
+            "--max-children",
+            "6",
+            "--max-nodes",
+            "24",
+            "RQ-0001",
+        ])
+        .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Decompose(args)) => {
+                    assert!(args.preview);
+                    assert!(!args.write);
+                    assert_eq!(args.attach_to.as_deref(), Some("RQ-0042"));
+                    assert_eq!(
+                        args.child_policy,
+                        crate::cli::task::TaskDecomposeChildPolicyArg::Append
+                    );
+                    assert!(args.with_dependencies);
+                    assert_eq!(args.format, crate::cli::task::TaskDecomposeFormatArg::Json);
+                    assert_eq!(args.max_depth, 4);
+                    assert_eq!(args.max_children, 6);
+                    assert_eq!(args.max_nodes, 24);
+                    assert_eq!(args.source, vec!["RQ-0001"]);
+                }
+                _ => panic!("expected task decompose command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_decompose_parses_runner_overrides() {
+        let cli = Cli::try_parse_from([
+            "ralph",
+            "task",
+            "decompose",
+            "--runner",
+            "codex",
+            "--model",
+            "gpt-5.4",
+            "-e",
+            "high",
+            "--repo-prompt",
+            "tools",
+            "--approval-mode",
+            "auto-edits",
+            "Plan queue migration",
+        ])
+        .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Decompose(args)) => {
+                    assert_eq!(args.runner.as_deref(), Some("codex"));
+                    assert_eq!(args.model.as_deref(), Some("gpt-5.4"));
+                    assert_eq!(args.effort.as_deref(), Some("high"));
+                    assert_eq!(args.repo_prompt, Some(crate::agent::RepoPromptMode::Tools));
+                    assert_eq!(args.runner_cli.approval_mode.as_deref(), Some("auto-edits"));
+                }
+                _ => panic!("expected task decompose command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_decompose_help_mentions_write_example() {
+        let mut cmd = Cli::command();
+        let task = cmd.find_subcommand_mut("task").expect("task subcommand");
+        let decompose = task
+            .find_subcommand_mut("decompose")
+            .expect("task decompose subcommand");
+        let help = decompose.render_long_help().to_string();
+
+        assert!(
+            help.contains("Improve webhook reliability\" --write"),
+            "missing write example: {help}"
+        );
+        assert!(
+            help.contains("--attach-to RQ-0042"),
+            "missing attach example: {help}"
+        );
+        assert!(
+            help.contains("--format json"),
+            "missing json output example: {help}"
+        );
     }
 
     #[test]

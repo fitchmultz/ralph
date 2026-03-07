@@ -19,6 +19,7 @@ use clap::{Args, Subcommand};
 // Submodules
 mod batch;
 mod build;
+mod decompose;
 mod edit;
 mod lifecycle;
 mod relations;
@@ -30,6 +31,7 @@ pub use batch::{
     BatchEditArgs, BatchFieldArgs, BatchOperation, BatchSelectArgs, BatchStatusArgs, TaskBatchArgs,
 };
 pub use build::{TaskBuildArgs, TaskBuildRefactorArgs};
+pub use decompose::TaskDecomposeArgs;
 pub use edit::{TaskEditArgs, TaskFieldArgs, TaskUpdateArgs};
 pub use lifecycle::{
     TaskDoneArgs, TaskReadyArgs, TaskRejectArgs, TaskScheduleArgs, TaskShowArgs, TaskStartArgs,
@@ -43,7 +45,9 @@ pub use template::{
     TaskFromArgs, TaskFromCommand, TaskFromTemplateArgs, TaskTemplateArgs, TaskTemplateBuildArgs,
     TaskTemplateCommand, TaskTemplateShowArgs,
 };
-pub use types::{BatchMode, TaskEditFieldArg, TaskStatusArg};
+pub use types::{
+    BatchMode, TaskDecomposeChildPolicyArg, TaskDecomposeFormatArg, TaskEditFieldArg, TaskStatusArg,
+};
 
 #[derive(Args)]
 #[command(
@@ -67,6 +71,13 @@ pub enum TaskCommand {
         after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nRunner CLI options:\n - Override approval/sandbox/verbosity/plan-mode via flags.\n - Unsupported options follow --unsupported-option-policy.\n\nExamples:\n ralph task \"Add integration tests for run one\"\n ralph task --tags cli,rust \"Refactor queue parsing\"\n ralph task --scope crates/ralph \"Fix queue graph output\"\n ralph task --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n ralph task --runner gemini --model gemini-3-flash-preview \"Draft risk checklist\"\n ralph task --runner pi --model gpt-5.2 \"Draft risk checklist\"\n ralph task --runner codex --model gpt-5.4 --effort high \"Fix queue validation\"\n ralph task --approval-mode auto-edits --runner claude \"Audit approvals\"\n ralph task --sandbox disabled --runner codex \"Audit sandbox\"\n ralph task --repo-prompt plan \"Audit error handling\"\n ralph task --repo-prompt off \"Quick typo fix\"\n echo \"Triage flaky CI\" | ralph task --runner codex --model gpt-5.4 --effort medium\n\nExplicit subcommand:\n ralph task build \"Add integration tests for run one\""
     )]
     Build(TaskBuildArgs),
+
+    /// Recursively decompose a goal or existing task into a task tree.
+    #[command(
+        next_help_heading = "Create and build",
+        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nPlanner behavior:\n - Preview is the default; use --write to mutate queue state.\n - Existing tasks are preserved as parents unless --attach-to is used for a freeform request.\n - Existing parents with children are blocked by default; use --child-policy append|replace to proceed.\n - Use --with-dependencies to infer sibling depends_on edges.\n - Use --format json for stable machine-readable output.\n\nExamples:\n ralph task decompose \"Build OAuth login with GitHub and Google\"\n ralph task decompose \"Improve webhook reliability\" --write\n ralph task decompose RQ-0123 --max-depth 3 --preview\n ralph task decompose RQ-0123 --child-policy append --with-dependencies --write\n ralph task decompose --attach-to RQ-0042 \"Plan webhook reliability work\" --write\n ralph task decompose --attach-to RQ-0042 --child-policy replace --format json \"Rebuild the auth subtree\"\n ralph task decompose --runner codex --model gpt-5.4 --effort high \"Plan queue migration\""
+    )]
+    Decompose(TaskDecomposeArgs),
 
     /// Automatically create refactoring tasks for large files.
     #[command(

@@ -20,6 +20,7 @@ pub(crate) enum PromptTemplateId {
     WorkerPhase3,
     WorkerSinglePhase,
     TaskBuilder,
+    TaskDecompose,
     TaskUpdater,
     ScanMaintenanceV1,
     ScanMaintenanceV2,
@@ -85,6 +86,45 @@ const TASK_UPDATER_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
     token: "{{TASK_ID}}",
     error_message: "Template error: task updater prompt template is missing required '{{TASK_ID}}' placeholder. Ensure template in .ralph/prompts/task_updater.md includes this placeholder.",
 }];
+
+const TASK_DECOMPOSE_REQUIRED: &[RequiredPlaceholder] = &[
+    RequiredPlaceholder {
+        token: "{{SOURCE_MODE}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{SOURCE_MODE}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{SOURCE_REQUEST}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{SOURCE_REQUEST}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{SOURCE_TASK_JSON}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{SOURCE_TASK_JSON}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{ATTACH_TARGET_JSON}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{ATTACH_TARGET_JSON}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{MAX_DEPTH}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{MAX_DEPTH}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{MAX_CHILDREN}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{MAX_CHILDREN}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{MAX_NODES}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{MAX_NODES}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{CHILD_POLICY}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{CHILD_POLICY}}' placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{WITH_DEPENDENCIES}}",
+        error_message: "Template error: task decompose prompt template is missing the required '{{WITH_DEPENDENCIES}}' placeholder.",
+    },
+];
 
 const CODE_REVIEW_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
     token: "{{TASK_ID}}",
@@ -166,6 +206,16 @@ pub(crate) fn prompt_template(id: PromptTemplateId) -> PromptTemplate {
             )),
             label: "task builder",
             required_placeholders: TASK_BUILDER_REQUIRED,
+            project_type_guidance: true,
+        },
+        PromptTemplateId::TaskDecompose => PromptTemplate {
+            rel_path: ".ralph/prompts/task_decompose.md",
+            embedded_default: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/assets/prompts/task_decompose.md"
+            )),
+            label: "task decompose",
+            required_placeholders: TASK_DECOMPOSE_REQUIRED,
             project_type_guidance: true,
         },
         PromptTemplateId::TaskUpdater => PromptTemplate {

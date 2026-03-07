@@ -1,7 +1,8 @@
 //! Shared types for task CLI arguments.
 //!
 //! Responsibilities:
-//! - Define ValueEnum types for CLI argument parsing (BatchMode, TaskPriorityArg, TaskStatusArg, TaskEditFieldArg).
+//! - Define ValueEnum types for CLI argument parsing (BatchMode, TaskPriorityArg,
+//!   TaskStatusArg, TaskEditFieldArg, and task decomposition enums).
 //! - Provide conversions from CLI types to internal domain types.
 //!
 //! Not handled here:
@@ -77,6 +78,25 @@ impl From<TaskStatusArg> for TaskStatus {
             TaskStatusArg::Rejected => TaskStatus::Rejected,
         }
     }
+}
+
+/// Output format for task decomposition.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[clap(rename_all = "snake_case")]
+pub enum TaskDecomposeFormatArg {
+    #[default]
+    Text,
+    Json,
+}
+
+/// Existing-child behavior for task decomposition writes.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[clap(rename_all = "snake_case")]
+pub enum TaskDecomposeChildPolicyArg {
+    #[default]
+    Fail,
+    Append,
+    Replace,
 }
 
 /// Task edit field argument for CLI.

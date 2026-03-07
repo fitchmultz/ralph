@@ -28,8 +28,15 @@ use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
 mod build;
+mod decompose;
 mod refactor;
 mod update;
+
+pub use decompose::{
+    DecompositionAttachTarget, DecompositionChildPolicy, DecompositionPlan, DecompositionPreview,
+    DecompositionSource, PlannedNode, TaskDecomposeOptions, TaskDecomposeWriteResult,
+    plan_task_decomposition, write_task_decomposition,
+};
 
 /// Batching mode for grouping related files in build-refactor.
 #[derive(Clone, Copy, Debug)]

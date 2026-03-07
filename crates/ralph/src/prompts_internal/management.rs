@@ -113,6 +113,7 @@ pub(crate) fn all_template_ids() -> Vec<PromptTemplateId> {
         PromptTemplateId::WorkerPhase3,
         PromptTemplateId::WorkerSinglePhase,
         PromptTemplateId::TaskBuilder,
+        PromptTemplateId::TaskDecompose,
         PromptTemplateId::TaskUpdater,
         PromptTemplateId::ScanMaintenanceV1,
         PromptTemplateId::ScanMaintenanceV2,
@@ -141,6 +142,9 @@ pub(crate) fn template_description(id: PromptTemplateId) -> &'static str {
             "Single-phase wrapper (plan + implement in one pass)"
         }
         PromptTemplateId::TaskBuilder => "Task creation prompt (generates tasks from requests)",
+        PromptTemplateId::TaskDecompose => {
+            "Task decomposition prompt (returns a recursive JSON task tree)"
+        }
         PromptTemplateId::TaskUpdater => {
             "Task update prompt (refreshes task fields from repo state)"
         }
@@ -188,6 +192,7 @@ pub(crate) fn parse_template_name(name: &str) -> Option<PromptTemplateId> {
         "worker_phase3" | "worker_phase_3" => Some(PromptTemplateId::WorkerPhase3),
         "worker_single_phase" => Some(PromptTemplateId::WorkerSinglePhase),
         "task_builder" => Some(PromptTemplateId::TaskBuilder),
+        "task_decompose" => Some(PromptTemplateId::TaskDecompose),
         "task_updater" => Some(PromptTemplateId::TaskUpdater),
         "scan_maintenance_v1" => Some(PromptTemplateId::ScanMaintenanceV1),
         "scan_maintenance_v2" => Some(PromptTemplateId::ScanMaintenanceV2),
@@ -215,6 +220,7 @@ pub(crate) fn template_file_name(id: PromptTemplateId) -> &'static str {
         PromptTemplateId::WorkerPhase3 => "worker_phase3",
         PromptTemplateId::WorkerSinglePhase => "worker_single_phase",
         PromptTemplateId::TaskBuilder => "task_builder",
+        PromptTemplateId::TaskDecompose => "task_decompose",
         PromptTemplateId::TaskUpdater => "task_updater",
         PromptTemplateId::ScanMaintenanceV1 => "scan_maintenance_v1",
         PromptTemplateId::ScanMaintenanceV2 => "scan_maintenance_v2",
@@ -605,9 +611,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_template_name_supports_task_decompose() {
+        assert_eq!(
+            parse_template_name("task_decompose"),
+            Some(PromptTemplateId::TaskDecompose)
+        );
+    }
+
+    #[test]
     fn all_template_ids_count() {
         let ids = all_template_ids();
-        assert_eq!(ids.len(), 18);
+        assert_eq!(ids.len(), 19);
     }
 
     #[test]
@@ -697,11 +711,16 @@ mod tests {
     fn list_templates_shows_all() {
         let temp = TempDir::new().unwrap();
         let templates = list_templates(temp.path());
-        assert_eq!(templates.len(), 18);
+        assert_eq!(templates.len(), 19);
 
         // Check that worker is in the list
         let worker = templates.iter().find(|t| t.name == "worker").unwrap();
         assert!(!worker.has_override);
+        assert!(
+            templates
+                .iter()
+                .any(|template| template.name == "task_decompose")
+        );
     }
 
     #[test]

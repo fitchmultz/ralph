@@ -5,6 +5,7 @@
 //! Invariants/assumptions: embedded defaults mention next-id command; temp directories are writable.
 
 use super::*;
+use crate::commands::task::DecompositionChildPolicy;
 use crate::prompts_internal::task_updater::render_task_updater_prompt;
 
 #[test]
@@ -120,6 +121,44 @@ fn render_task_updater_prompt_uses_default_queue_and_done_when_unset() -> Result
     assert!(!rendered.contains("{{config.queue.file}}"));
     assert!(!rendered.contains("{{config.queue.done_file}}"));
     assert!(rendered.contains("Task: RQ-0001"));
+    Ok(())
+}
+
+#[test]
+fn render_task_decompose_prompt_replaces_placeholders() -> Result<()> {
+    let template = concat!(
+        "Mode={{SOURCE_MODE}}\n",
+        "Request={{SOURCE_REQUEST}}\n",
+        "Task={{SOURCE_TASK_JSON}}\n",
+        "Attach={{ATTACH_TARGET_JSON}}\n",
+        "Depth={{MAX_DEPTH}}\n",
+        "Children={{MAX_CHILDREN}}\n",
+        "Nodes={{MAX_NODES}}\n",
+        "Policy={{CHILD_POLICY}}\n",
+        "Deps={{WITH_DEPENDENCIES}}\n",
+    );
+    let config = default_config();
+    let rendered = render_task_decompose_prompt(
+        template,
+        "freeform",
+        "Ship OAuth",
+        "",
+        "",
+        3,
+        5,
+        20,
+        DecompositionChildPolicy::Append,
+        true,
+        ProjectType::Code,
+        &config,
+    )?;
+    assert!(rendered.contains("Mode=freeform"));
+    assert!(rendered.contains("Request=Ship OAuth"));
+    assert!(rendered.contains("Depth=3"));
+    assert!(rendered.contains("Children=5"));
+    assert!(rendered.contains("Nodes=20"));
+    assert!(rendered.contains("Policy=append"));
+    assert!(rendered.contains("Deps=true"));
     Ok(())
 }
 

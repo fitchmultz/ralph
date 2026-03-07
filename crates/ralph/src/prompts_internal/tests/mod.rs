@@ -6,7 +6,8 @@
 
 pub(crate) use super::registry::{PromptTemplateId, prompt_template};
 pub(crate) use super::{
-    merge_conflicts::*, review::*, scan::*, task_builder::*, util::*, worker::*, worker_phases::*,
+    merge_conflicts::*, review::*, scan::*, task_builder::*, task_decompose::*, util::*, worker::*,
+    worker_phases::*,
 };
 pub(crate) use crate::cli::scan::ScanMode;
 pub(crate) use crate::contracts::{Config, ProjectType};

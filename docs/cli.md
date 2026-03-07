@@ -93,6 +93,10 @@ ralph queue archive
 ### Task Lifecycle
 
 ```bash
+ralph task build "Refactor queue parsing"
+ralph task decompose "Build OAuth login with GitHub and Google"
+ralph task decompose RQ-0001 --child-policy append --with-dependencies --write
+ralph task decompose --attach-to RQ-0042 --format json "Plan webhook reliability work"
 ralph task show RQ-0001
 ralph task start RQ-0001
 ralph task status doing RQ-0001

@@ -13,6 +13,7 @@ mod registry;
 pub(crate) mod review;
 pub(crate) mod scan;
 pub(crate) mod task_builder;
+pub(crate) mod task_decompose;
 pub(crate) mod task_updater;
 pub(crate) mod util;
 pub(crate) mod worker;
@@ -27,6 +28,7 @@ use review::{
 };
 use scan::load_scan_prompt;
 use task_builder::load_task_builder_prompt;
+use task_decompose::load_task_decompose_prompt;
 use task_updater::load_task_updater_prompt;
 use worker::load_worker_prompt;
 use worker_phases::{
@@ -48,6 +50,7 @@ pub(crate) fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
     let worker_phase3 = load_worker_phase3_prompt(repo_root)?;
     let worker_single_phase = load_worker_single_phase_prompt(repo_root)?;
     let task_builder = load_task_builder_prompt(repo_root)?;
+    let task_decompose = load_task_decompose_prompt(repo_root)?;
     let task_updater = load_task_updater_prompt(repo_root)?;
     let merge_conflicts = load_merge_conflict_prompt(repo_root)?;
     let scan = load_scan_prompt(repo_root, ScanPromptVersion::V2, ScanMode::General)?;
@@ -63,6 +66,7 @@ pub(crate) fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
         || worker_phase3.contains(".ralph/README.md")
         || worker_single_phase.contains(".ralph/README.md")
         || task_builder.contains(".ralph/README.md")
+        || task_decompose.contains(".ralph/README.md")
         || task_updater.contains(".ralph/README.md")
         || merge_conflicts.contains(".ralph/README.md")
         || scan.contains(".ralph/README.md")

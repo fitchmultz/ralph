@@ -58,6 +58,10 @@ pub(crate) fn load_task_builder_prompt(repo_root: &Path) -> Result<String> {
     prompts_internal::task_builder::load_task_builder_prompt(repo_root)
 }
 
+pub(crate) fn load_task_decompose_prompt(repo_root: &Path) -> Result<String> {
+    prompts_internal::task_decompose::load_task_decompose_prompt(repo_root)
+}
+
 pub(crate) fn render_task_builder_prompt(
     template: &str,
     user_request: &str,
@@ -71,6 +75,37 @@ pub(crate) fn render_task_builder_prompt(
         user_request,
         hint_tags,
         hint_scope,
+        project_type,
+        config,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_task_decompose_prompt(
+    template: &str,
+    source_mode: &str,
+    source_request: &str,
+    source_task_json: &str,
+    attach_target_json: &str,
+    max_depth: u8,
+    max_children: usize,
+    max_nodes: usize,
+    child_policy: crate::commands::task::DecompositionChildPolicy,
+    with_dependencies: bool,
+    project_type: ProjectType,
+    config: &Config,
+) -> Result<String> {
+    prompts_internal::task_decompose::render_task_decompose_prompt(
+        template,
+        source_mode,
+        source_request,
+        source_task_json,
+        attach_target_json,
+        max_depth,
+        max_children,
+        max_nodes,
+        child_policy,
+        with_dependencies,
         project_type,
         config,
     )

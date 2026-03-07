@@ -9,6 +9,7 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 - [Quick Start](quick-start.md): install, initialize, create first task, run it
 - [CLI Reference](cli.md): command map + high-value workflows
 - [Configuration](configuration.md): config schema, precedence, and defaults
+- [PRD Specs](prd/ralph-task-decompose.md): feature-level product requirements
 - [Queue and Tasks](queue-and-tasks.md): task model and queue semantics
 - [Local Smoke Test](guides/local-smoke-test.md): deterministic install and verification path
 - [Stack Audit (2026-03)](guides/stack-audit-2026-03.md): current toolchain/dependency inventory and best-practice review

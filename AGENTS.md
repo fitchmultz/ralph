@@ -139,6 +139,13 @@ Every source file MUST start with `//!` docs covering:
 - Init tests: Always use `--non-interactive` flag
 - CI temp dirs: `${TMPDIR:-/tmp}/ralph-ci.*` (set `RALPH_CI_KEEP_TMP=1` to keep)
 
+### Task Decompose
+- `ralph task decompose` is preview-first; queue mutation requires `--write`.
+- The command supports freeform requests, existing-task decomposition, and `--attach-to <TASK_ID>` for freeform subtree attachment.
+- `--child-policy fail|append|replace` governs existing child trees; `replace` must refuse when outside tasks still reference the subtree.
+- `--with-dependencies` infers sibling-only `depends_on` edges from planner keys/titles.
+- Stable machine-readable output is exposed via `ralph task decompose --format json`.
+
 ### Release Versioning
 - Canonical repo version source is the top-level `VERSION` file.
 - Use `./scripts/versioning.sh check` (or `make version-check`) to verify Cargo, Xcode, and app compatibility metadata stay in sync.
