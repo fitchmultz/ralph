@@ -194,19 +194,9 @@ public final class Workspace: ObservableObject, Identifiable {
         set { insightsState.graphDataErrorMessage = newValue }
     }
 
-    public var analyticsData: AnalyticsData {
-        get { insightsState.analyticsData }
-        set { insightsState.analyticsData = newValue }
-    }
-
-    public var analyticsLoading: Bool {
-        get { insightsState.analyticsLoading }
-        set { insightsState.analyticsLoading = newValue }
-    }
-
-    public var analyticsErrorMessage: String? {
-        get { insightsState.analyticsErrorMessage }
-        set { insightsState.analyticsErrorMessage = newValue }
+    public var analytics: AnalyticsDashboardState {
+        get { insightsState.analytics }
+        set { insightsState.analytics = newValue }
     }
 
     public var lastRecoveryError: RecoveryError? {

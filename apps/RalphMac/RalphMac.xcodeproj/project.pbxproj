@@ -87,6 +87,11 @@
 		CPCMD1234567890ABCDEF02 /* CommandPaletteCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPCMDREF1234567890ABCDEF02 /* CommandPaletteCommand.swift */; };
 		CPVIEW1234567890ABCDEF00 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPVIEWREF1234567890ABCDEF00 /* CommandPaletteView.swift */; };
 		CPVM1234567890ABCDEF01 /* CommandPaletteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPVMREF1234567890ABCDEF01 /* CommandPaletteViewModel.swift */; };
+		A9011001B2C3D4E5F6071801 /* ErrorRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071811 /* ErrorRecoveryView.swift */; };
+		A9011001B2C3D4E5F6071802 /* TaskConflictResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071812 /* TaskConflictResolution.swift */; };
+		A9011001B2C3D4E5F6071803 /* WorkspaceDiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */; };
+		A9011001B2C3D4E5F6071804 /* AnalyticsDashboardStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */; };
+		A9011001B2C3D4E5F6071805 /* TaskConflictResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */; };
 		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
 		D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1144436E84A467CACB42516A /* NavigationViewModel.swift */; };
 		D9F46037BDEF60ADEEF6EEA9 /* ConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E7D1BF4A91545A54A06C1A /* ConsoleView.swift */; };
@@ -216,6 +221,11 @@
 		AABBCCDDEEFF001122334455 /* GraphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphModels.swift; sourceTree = "<group>"; };
 		AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RunControlConsoleView.swift; path = RunControlConsoleView.swift; sourceTree = "<group>"; };
 		AF00ECB3884C6A991E9ED664 /* RetryHelper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetryHelper.swift; sourceTree = "<group>"; };
+		A9011001B2C3D4E5F6071811 /* ErrorRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRecoveryView.swift; sourceTree = "<group>"; };
+		A9011001B2C3D4E5F6071812 /* TaskConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolution.swift; sourceTree = "<group>"; };
+		A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiagnosticsService.swift; sourceTree = "<group>"; };
+		A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardStateTests.swift; sourceTree = "<group>"; };
+		A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolutionTests.swift; sourceTree = "<group>"; };
 		ASETTINGSINFRAREF0012345678900 /* ASettingsInfra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASettingsInfra.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueFileWatcher.swift; sourceTree = "<group>"; };
 		B2C3D4E5F60718G9H0I1J2K3 /* BulkActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BulkActionsView.swift; path = RalphMac/BulkActionsView.swift; sourceTree = "<group>"; };
@@ -342,6 +352,8 @@
 				0B651F8A746C4387B1F9D435 /* Workspace+Analytics.swift */,
 				0B651F8A746C4387B1F9D436 /* Workspace+ANSIParsing.swift */,
 				0B651F8A746C4387B1F9D437 /* Workspace+HealthAndCaching.swift */,
+				A9011001B2C3D4E5F6071812 /* TaskConflictResolution.swift */,
+				A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */,
 				0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */,
 				0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */,
 				C52C942A1CA040208A1757FF /* WorkspaceManager.swift */,
@@ -373,7 +385,9 @@
 				B86FB79CF874558CF63AAAB3 /* RalphLoggerTests.swift */,
 				E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */,
 				CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */,
+				A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */,
 				QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */,
+				A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */,
 				WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */,
 				WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */,
 			);
@@ -419,6 +433,7 @@
 				AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */,
 				8B900514A511EC3E3539F2AA /* ElapsedTimeView.swift */,
 				BB1111111111111111111111 /* AnalyticsDashboardView.swift */,
+				A9011001B2C3D4E5F6071811 /* ErrorRecoveryView.swift */,
 				BB2222222222222222222222 /* BurndownChartView.swift */,
 				BB3333333333333333333333 /* CompletionHistoryChart.swift */,
 				BB4444444444444444444444 /* PriorityDistributionCard.swift */,
@@ -648,6 +663,8 @@
 				4A8D2E1F8B3C4D56A7E8F90C /* Workspace+Analytics.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F90D /* Workspace+ANSIParsing.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F90E /* Workspace+HealthAndCaching.swift in Sources */,
+				A9011001B2C3D4E5F6071802 /* TaskConflictResolution.swift in Sources */,
+				A9011001B2C3D4E5F6071803 /* WorkspaceDiagnosticsService.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F904 /* WorkspaceQueueSnapshotLoader.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */,
 				5B9E3F2A9C4D5E67B8F90123 /* WorkspaceManager.swift in Sources */,
@@ -680,7 +697,9 @@
 				F6A75F8963921FE53D465FF3 /* RalphLoggerTests.swift in Sources */,
 				77EFDF19FDCC6111A2D9D960 /* CrashReporterTests.swift in Sources */,
 				CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */,
+				A9011001B2C3D4E5F6071804 /* AnalyticsDashboardStateTests.swift in Sources */,
 				QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */,
+				A9011001B2C3D4E5F6071805 /* TaskConflictResolutionTests.swift in Sources */,
 				WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */,
 				WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */,
 			);
@@ -714,6 +733,7 @@
 				AD262F5CE6FC50AECE385373 /* RunControlConsoleView.swift in Sources */,
 				3845DDDEE8480D652D4F18BF /* ElapsedTimeView.swift in Sources */,
 				AA1111111111111111111111 /* AnalyticsDashboardView.swift in Sources */,
+				A9011001B2C3D4E5F6071801 /* ErrorRecoveryView.swift in Sources */,
 				AA2222222222222222222222 /* BurndownChartView.swift in Sources */,
 				AA3333333333333333333333 /* CompletionHistoryChart.swift in Sources */,
 				AA4444444444444444444444 /* PriorityDistributionCard.swift in Sources */,

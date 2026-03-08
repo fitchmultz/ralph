@@ -236,6 +236,11 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 ### macOS Task Presentation
 - Shared task filtering/sorting for list + kanban lives in `WorkspaceTaskPresentation`; prefer `workspace.taskPresentation()` when a render pass needs both flat and grouped task sets.
 - Task ordering must remain deterministic for both ascending and descending sorts; always break ties explicitly rather than inverting a boolean comparator.
+- Task conflict merge semantics live in `RalphCore/TaskConflictResolution.swift`; keep SwiftUI conflict views focused on selection/presentation and keep recovery tooling in separate files.
+
+### macOS Analytics State
+- Analytics UI must consume `AnalyticsDashboardState` per-section load states (`idle/loading/loaded-empty/failed`) rather than inferring failure from `nil` payloads.
+- Successful-but-empty analytics responses are presentation-state decisions (`*.isEmptyForAnalyticsPresentation`), not transport failures; preserve stale section data only through the explicit previous-value load states.
 
 ### macOS Queue Refresh
 - Queue file watcher refreshes and CLI queue JSON decoding should use `WorkspaceQueueSnapshotLoader` so file IO + decode work stays off the main actor and only final publication happens on main.

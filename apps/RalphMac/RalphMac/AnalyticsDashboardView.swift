@@ -2,17 +2,19 @@
  AnalyticsDashboardView
 
  Responsibilities:
- - Display productivity metrics and queue statistics using SwiftUI Charts.
- - Show burndown charts, velocity metrics, tag breakdowns, and completion history.
- - Provide time range selection (7d, 30d, 90d, all time).
+ - Display productivity metrics and analytics charts using per-section workspace state.
+ - Trigger analytics refreshes when the selected time range changes.
+ - Surface stale-data, empty-state, and section-failure messaging inline.
 
  Does not handle:
- - Data loading (see Workspace.swift).
- - Direct CLI calls.
+ - CLI execution.
+ - Analytics state modeling.
+ - Queue mutation.
 
  Invariants/assumptions callers must respect:
+ - Workspace analytics state is updated through `Workspace.loadAnalytics`.
+ - Chart views receive only loaded data; failure/empty states are handled here.
  - Requires macOS 13+ for SwiftUI Charts support.
- - Workspace must be injected with loaded analytics data.
  */
 
 import SwiftUI
@@ -23,15 +25,16 @@ import RalphCore
 struct AnalyticsDashboardView: View {
     @ObservedObject var workspace: Workspace
     @State private var selectedTimeRange: TimeRange = .sevenDays
-    @State private var selectedChart: ChartType? = .burndown
-    
+    @State private var selectedChart: ChartType = .burndown
+
     enum ChartType: String, CaseIterable, Identifiable {
         case burndown = "Burndown"
         case velocity = "Velocity"
         case tags = "Tags"
         case history = "History"
-        
+
         var id: String { rawValue }
+
         var icon: String {
             switch self {
             case .burndown: return "chart.line.uptrend.xyaxis"
@@ -41,69 +44,55 @@ struct AnalyticsDashboardView: View {
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header with time range picker
-            headerView()
-                .padding()
-            
+            header
+
             Divider()
-            
-            // Scrollable chart content
+
             ScrollView {
                 VStack(spacing: 20) {
-                    // Key Metrics Row
-                    metricsRow()
+                    metricsRow
                         .padding(.horizontal)
-                    
-                    // Chart Selection
-                    chartSelectionView()
+
+                    chartSelection
                         .padding(.horizontal)
-                    
-                    // Main Chart
-                    mainChartView()
+
+                    mainChart
                         .padding(.horizontal)
-                    
-                    // Secondary Metrics
-                    secondaryMetricsView()
+
+                    secondaryMetrics
                         .padding(.horizontal)
                         .padding(.bottom)
                 }
                 .padding(.vertical)
             }
         }
-        .onAppear {
-            let range = selectedTimeRange
-            Task { @MainActor in
-                await workspace.loadAnalytics(timeRange: range)
-            }
+        .task {
+            await refreshAnalytics()
         }
-        .onChange(of: selectedTimeRange) { _, newRange in
+        .onChange(of: selectedTimeRange) { _, _ in
             Task { @MainActor in
-                await workspace.loadAnalytics(timeRange: newRange)
+                await refreshAnalytics()
             }
         }
     }
-    
-    // MARK: - Header View
-    
-    @ViewBuilder
-    private func headerView() -> some View {
+
+    private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Analytics Dashboard")
                     .font(.title2)
-                    .font(.body.weight(.semibold))
-                
-                Text("Track your productivity and task metrics")
+                    .fontWeight(.semibold)
+
+                Text("Track productivity, queue health, and failure modes by section.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            
+
             Spacer()
-            
-            // Time Range Picker
+
             Picker("Time Range", selection: $selectedTimeRange) {
                 ForEach(TimeRange.allCases) { range in
                     Text(range.displayName).tag(range)
@@ -111,134 +100,264 @@ struct AnalyticsDashboardView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 280)
-            .accessibilityLabel("Time range")
-            .accessibilityHint("Select the time period for analytics data")
-            
-            // Refresh Button
-            Button(action: {
-                let range = selectedTimeRange
+
+            Button {
                 Task { @MainActor in
-                    await workspace.loadAnalytics(timeRange: range)
+                    await refreshAnalytics()
                 }
-            }) {
+            } label: {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .disabled(workspace.analyticsLoading)
+            .disabled(workspace.analytics.isLoading)
             .accessibilityLabel("Refresh analytics")
-            .accessibilityHint("Reload analytics data for selected time range")
         }
+        .padding()
     }
-    
-    // MARK: - Metrics Row
-    
-    @ViewBuilder
-    private func metricsRow() -> some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: 16) {
-            MetricCard(
+
+    private var metricsRow: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 16) {
+            metricCard(
                 title: "Total Completed",
-                value: String(workspace.analyticsData.productivitySummary?.totalCompleted ?? 0),
+                value: workspace.analytics.productivitySummaryValue.map { String($0.totalCompleted) } ?? placeholderValue(for: workspace.analytics.productivitySummaryRenderState),
                 icon: "checkmark.circle.fill",
-                color: .green
+                color: .green,
+                renderState: workspace.analytics.productivitySummaryRenderState
             )
-            .accessibilityLabel("Total Completed: \(String(workspace.analyticsData.productivitySummary?.totalCompleted ?? 0))")
-            
-            MetricCard(
+
+            metricCard(
                 title: "Current Streak",
-                value: "\(workspace.analyticsData.productivitySummary?.currentStreak ?? 0) days",
+                value: workspace.analytics.productivitySummaryValue.map { "\($0.currentStreak) days" } ?? placeholderValue(for: workspace.analytics.productivitySummaryRenderState),
                 icon: "flame.fill",
-                color: .orange
+                color: .orange,
+                renderState: workspace.analytics.productivitySummaryRenderState
             )
-            .accessibilityLabel("Current Streak: \(workspace.analyticsData.productivitySummary?.currentStreak ?? 0) days")
-            
-            MetricCard(
+
+            metricCard(
                 title: "Completion Rate",
-                value: String(format: "%.1f%%", workspace.analyticsData.queueStats?.summary.terminalRate ?? 0),
+                value: workspace.analytics.queueStatsValue.map { String(format: "%.1f%%", $0.summary.terminalRate) } ?? placeholderValue(for: workspace.analytics.queueStatsRenderState),
                 icon: "percent",
-                color: .blue
+                color: .blue,
+                renderState: workspace.analytics.queueStatsRenderState
             )
-            .accessibilityLabel("Completion Rate: \(String(format: "%.1f%%", workspace.analyticsData.queueStats?.summary.terminalRate ?? 0))")
-            
-            MetricCard(
+
+            metricCard(
                 title: "Active Tasks",
-                value: String(workspace.analyticsData.queueStats?.summary.active ?? 0),
+                value: workspace.analytics.queueStatsValue.map { String($0.summary.active) } ?? placeholderValue(for: workspace.analytics.queueStatsRenderState),
                 icon: "list.bullet",
-                color: .purple
+                color: .purple,
+                renderState: workspace.analytics.queueStatsRenderState
             )
-            .accessibilityLabel("Active Tasks: \(String(workspace.analyticsData.queueStats?.summary.active ?? 0))")
         }
     }
-    
-    // MARK: - Chart Selection
-    
-    @ViewBuilder
-    private func chartSelectionView() -> some View {
+
+    private var chartSelection: some View {
         Picker("Chart", selection: $selectedChart) {
             ForEach(ChartType.allCases) { type in
-                Label(type.rawValue, systemImage: type.icon).tag(type as ChartType?)
+                Label(type.rawValue, systemImage: type.icon).tag(type)
             }
         }
         .pickerStyle(.segmented)
-        .accessibilityLabel("Chart type")
-        .accessibilityHint("Select the type of chart to display")
     }
-    
-    // MARK: - Main Chart View
-    
-    @ViewBuilder
-    private func mainChartView() -> some View {
-        Group {
-            switch selectedChart {
-            case .burndown:
-                BurndownChartView(burndown: workspace.analyticsData.burndown)
-            case .velocity:
-                VelocityChartView(history: workspace.analyticsData.history)
-            case .tags:
-                TagBreakdownChart(tagBreakdown: workspace.analyticsData.queueStats?.tagBreakdown ?? [])
-            case .history:
-                CompletionHistoryChart(history: workspace.analyticsData.history)
-            case .none:
-                EmptyView()
-            }
-        }
-        .frame(height: 300)
-        .background(.quaternary.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+    private var mainChart: some View {
+        chartContainer(for: selectedChart)
+            .frame(height: 300)
+            .background(.quaternary.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-    
-    // MARK: - Secondary Metrics
-    
-    @ViewBuilder
-    private func secondaryMetricsView() -> some View {
+
+    private var secondaryMetrics: some View {
         HStack(alignment: .top, spacing: 20) {
-            // Priority Distribution
             PriorityDistributionCard(tasks: workspace.tasks)
                 .frame(maxWidth: .infinity)
-            
-            // Task Aging
+
             TaskAgingCard(tasks: workspace.tasks)
                 .frame(maxWidth: .infinity)
-            
-            // Velocity Details
-            VelocityDetailsCard(velocity: workspace.analyticsData.velocity)
+
+            velocityDetailsCard
                 .frame(maxWidth: .infinity)
         }
     }
-}
 
-// MARK: - Metric Card
+    @ViewBuilder
+    private var velocityDetailsCard: some View {
+        switch workspace.analytics.productivityVelocityRenderState {
+        case .content:
+            VelocityDetailsCard(velocity: workspace.analytics.productivityVelocityValue)
+        case .loading(_, let hasPreviousData):
+            if hasPreviousData {
+                VelocityDetailsCard(velocity: workspace.analytics.productivityVelocityValue)
+            } else {
+                AnalyticsStatusCard(title: "Loading Velocity", message: "Fetching velocity analytics.", systemImage: "hourglass")
+            }
+        case .idle(let message):
+            AnalyticsStatusCard(title: "Velocity Not Loaded", message: message, systemImage: "chart.bar")
+        case .empty(let message):
+            AnalyticsStatusCard(title: "Velocity Empty", message: message, systemImage: "chart.bar")
+        case .failed(let message, let hasPreviousData):
+            if hasPreviousData {
+                VStack(spacing: 12) {
+                    VelocityDetailsCard(velocity: workspace.analytics.productivityVelocityValue)
+                    failureBanner(message: message)
+                }
+            } else {
+                AnalyticsStatusCard(title: "Velocity Failed", message: message, systemImage: "exclamationmark.triangle")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chartContainer(for chart: ChartType) -> some View {
+        switch chart {
+        case .burndown:
+            sectionContent(
+                renderState: workspace.analytics.burndownRenderState,
+                loadedContent: {
+                    BurndownChartView(burndown: workspace.analytics.burndownValue)
+                },
+                staleContent: {
+                    BurndownChartView(burndown: workspace.analytics.burndownValue)
+                },
+                emptyTitle: "Burndown Empty",
+                failedTitle: "Burndown Failed"
+            )
+        case .velocity:
+            sectionContent(
+                renderState: workspace.analytics.historyRenderState,
+                loadedContent: {
+                    VelocityChartView(history: workspace.analytics.historyValue)
+                },
+                staleContent: {
+                    VelocityChartView(history: workspace.analytics.historyValue)
+                },
+                emptyTitle: "Velocity Empty",
+                failedTitle: "Velocity Failed"
+            )
+        case .tags:
+            sectionContent(
+                renderState: workspace.analytics.queueStatsRenderState,
+                loadedContent: {
+                    TagBreakdownChart(tagBreakdown: workspace.analytics.queueStatsValue?.tagBreakdown ?? [])
+                },
+                staleContent: {
+                    TagBreakdownChart(tagBreakdown: workspace.analytics.queueStatsValue?.tagBreakdown ?? [])
+                },
+                emptyTitle: "Tag Breakdown Empty",
+                failedTitle: "Tag Breakdown Failed"
+            )
+        case .history:
+            sectionContent(
+                renderState: workspace.analytics.historyRenderState,
+                loadedContent: {
+                    CompletionHistoryChart(history: workspace.analytics.historyValue)
+                },
+                staleContent: {
+                    CompletionHistoryChart(history: workspace.analytics.historyValue)
+                },
+                emptyTitle: "History Empty",
+                failedTitle: "History Failed"
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func sectionContent<Loaded: View, Stale: View>(
+        renderState: AnalyticsRenderableState,
+        loadedContent: () -> Loaded,
+        staleContent: () -> Stale,
+        emptyTitle: String,
+        failedTitle: String
+    ) -> some View {
+        switch renderState {
+        case .content:
+            loadedContent()
+        case .loading(_, let hasPreviousData):
+            if hasPreviousData {
+                VStack(spacing: 12) {
+                    staleContent()
+                    Text("Refreshing analytics...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                AnalyticsStatusCard(title: "Loading Analytics", message: "Fetching section data for the selected time range.", systemImage: "hourglass")
+            }
+        case .idle(let message):
+            AnalyticsStatusCard(title: "Analytics Not Loaded", message: message, systemImage: "chart.bar")
+        case .empty(let message):
+            AnalyticsStatusCard(title: emptyTitle, message: message, systemImage: "chart.bar")
+        case .failed(let message, let hasPreviousData):
+            if hasPreviousData {
+                VStack(spacing: 12) {
+                    staleContent()
+                    failureBanner(message: message)
+                }
+            } else {
+                AnalyticsStatusCard(title: failedTitle, message: message, systemImage: "exclamationmark.triangle")
+            }
+        }
+    }
+
+    private func metricCard(
+        title: String,
+        value: String,
+        icon: String,
+        color: Color,
+        renderState: AnalyticsRenderableState
+    ) -> some View {
+        MetricCard(title: title, value: value, icon: icon, color: color)
+            .overlay(alignment: .topTrailing) {
+                switch renderState {
+                case .failed:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .padding(10)
+                case .loading:
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .padding(10)
+                default:
+                    EmptyView()
+                }
+            }
+    }
+
+    private func failureBanner(message: String) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.orange.opacity(0.12))
+            .clipShape(.rect(cornerRadius: 8))
+    }
+
+    private func placeholderValue(for state: AnalyticsRenderableState) -> String {
+        switch state {
+        case .content:
+            return "0"
+        case .loading:
+            return "..."
+        case .idle, .empty:
+            return "No data"
+        case .failed:
+            return "Failed"
+        }
+    }
+
+    private func refreshAnalytics() async {
+        await workspace.loadAnalytics(timeRange: selectedTimeRange)
+    }
+}
 
 struct MetricCard: View {
     let title: String
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 12) {
             HStack {
@@ -247,7 +366,7 @@ struct MetricCard: View {
                     .font(.title3)
                 Spacer()
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
                     .font(.title2)
@@ -259,8 +378,7 @@ struct MetricCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
-        .background(.quaternary.opacity(0.15))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .accessibilityElement(children: .combine)
+        .background(.quaternary.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

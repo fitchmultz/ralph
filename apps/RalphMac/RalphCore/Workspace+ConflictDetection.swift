@@ -92,23 +92,9 @@ public extension Workspace {
     }
 
     func detectConflictedFields(local: RalphTask, external: RalphTask) -> [String] {
-        var fields: [String] = []
-
-        if local.title != external.title { fields.append("title") }
-        if local.description != external.description { fields.append("description") }
-        if local.status != external.status { fields.append("status") }
-        if local.priority != external.priority { fields.append("priority") }
-        if local.tags != external.tags { fields.append("tags") }
-        if local.scope != external.scope { fields.append("scope") }
-        if local.evidence != external.evidence { fields.append("evidence") }
-        if local.plan != external.plan { fields.append("plan") }
-        if local.notes != external.notes { fields.append("notes") }
-        if local.dependsOn != external.dependsOn { fields.append("dependsOn") }
-        if local.blocks != external.blocks { fields.append("blocks") }
-        if local.relatesTo != external.relatesTo { fields.append("relatesTo") }
-        if local.agent != external.agent { fields.append("agent") }
-
-        return fields
+        TaskConflictField.allCases
+            .filter { $0.differs(local: local, external: external) }
+            .map(\.rawValue)
     }
 }
 
