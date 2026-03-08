@@ -60,6 +60,7 @@ MARKDOWN_SCAN_EXCLUDES=(
 )
 
 RELEASE_TRANSACTION_DIR="$REPO_ROOT/target/release-transactions"
+RELEASE_VERIFY_DIR_ROOT="$REPO_ROOT/target/release-verifications"
 RELEASE_ARTIFACTS_DIR="$REPO_ROOT/target/release-artifacts"
 RELEASE_NOTES_DIR="$REPO_ROOT/target/release-notes"
 

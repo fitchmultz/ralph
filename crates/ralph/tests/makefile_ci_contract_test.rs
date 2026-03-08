@@ -868,24 +868,16 @@ fn test_release_verify_target_orchestrates_release_preflight() -> Result<()> {
         "release-verify should require VERSION explicitly"
     );
     assert!(
-        release_verify_block.contains("./scripts/versioning.sh sync --version \"$(VERSION)\""),
-        "release-verify should sync version metadata first"
-    );
-    assert!(
-        release_verify_block.contains("./scripts/versioning.sh check"),
-        "release-verify should validate synchronized version metadata"
-    );
-    assert!(
-        release_verify_block.contains("scripts/pre-public-check.sh --skip-ci --release-context"),
-        "release-verify should rerun publication safety checks in release-context mode"
-    );
-    assert!(
-        release_verify_block.contains("$(MAKE) --no-print-directory release-gate"),
-        "release-verify should route through the canonical release-gate target"
-    );
-    assert!(
         release_verify_block.contains("scripts/release.sh verify \"$(VERSION)\""),
-        "release-verify should use the transactional verify release command"
+        "release-verify should delegate to the transactional verify command"
+    );
+    assert!(
+        !release_verify_block.contains("./scripts/versioning.sh sync --version \"$(VERSION)\"")
+            && !release_verify_block.contains("./scripts/versioning.sh check")
+            && !release_verify_block
+                .contains("scripts/pre-public-check.sh --skip-ci --release-context")
+            && !release_verify_block.contains("$(MAKE) --no-print-directory release-gate"),
+        "release-verify should not duplicate the heavy preflight steps that the transactional verify command now owns"
     );
     assert!(
         makefile.contains("make release-verify VERSION=x.y.z"),

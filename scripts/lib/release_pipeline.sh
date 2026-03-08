@@ -3,14 +3,17 @@
 # Purpose: Implement the shared release transaction pipeline for Ralph.
 # Responsibilities:
 # - Validate prerequisites and repository state for release transactions.
-# - Prepare local release metadata, artifacts, and git state.
+# - Prepare and validate publish-ready local release snapshots.
+# - Finalize git state only after a verified snapshot is accepted for publish.
 # - Finalize remote publication to crates.io and GitHub in reconcile-safe phases.
 # Scope:
 # - Release pipeline orchestration helpers only; CLI parsing lives in scripts/release.sh.
 # Usage:
 # - source "$(dirname "$0")/lib/release_pipeline.sh"
 # Invariants/assumptions:
-# - Caller sets VERSION, REPO_ROOT, STATE_FILE, and release paths before invoking functions.
+# - Caller sets VERSION, REPO_ROOT, and release paths before invoking functions.
+# - Verify flows initialize verification state before recording a publish-ready snapshot.
+# - Execute/reconcile flows initialize transaction state before remote publication.
 
 if [ -n "${RALPH_RELEASE_PIPELINE_SOURCED:-}" ]; then
     return 0
@@ -139,13 +142,11 @@ release_generate_changelog_entries() {
     ./scripts/generate-changelog.sh
 }
 
-release_prepare_local_state() {
-    ralph_log_step "Preparing local release transaction"
+release_prepare_verified_snapshot() {
+    ralph_log_step "Preparing verified release snapshot"
 
     cd "$REPO_ROOT"
     REPO_HTTP_URL=$(ralph_get_repo_http_url)
-    release_state_write
-
     ./scripts/versioning.sh sync --version "$VERSION"
     ./scripts/versioning.sh check
     release_generate_changelog_entries
@@ -154,7 +155,8 @@ release_prepare_local_state() {
     release_run_ship_gate
     ./scripts/build-release-artifacts.sh "$VERSION"
     release_generate_release_notes
-    release_create_commit_and_tag
+    release_verify_record_ready_snapshot
+    ralph_log_success "Verified release snapshot recorded at $VERIFY_DIR"
 }
 
 release_generate_release_notes() {
@@ -186,7 +188,6 @@ release_generate_release_notes() {
         "$REPO_HTTP_URL"
 
     rm -f "$changelog_tmp" "$checksums_tmp"
-    release_state_write
     ralph_log_success "Generated release notes: $RELEASE_NOTES_FILE"
 }
 

@@ -32,16 +32,15 @@ scripts/release.sh reconcile <version>
 
 ## What `make release-verify` Does
 
-- syncs version metadata
-- checks version drift
-- runs `scripts/pre-public-check.sh --skip-ci --release-context`
-- runs `make release-gate`
 - runs `scripts/release.sh verify <version>`
+- prepares the publish-ready local snapshot (`VERSION`, changelog, app metadata, artifacts, release notes)
+- records verification state under `target/release-verifications/v<version>/`
 
 ## What `make release` Does
 
 - runs `scripts/release.sh execute <version>`
-- prepares the full local release state before remote publication
+- validates the recorded verification snapshot still matches `HEAD` and the local files
+- creates the release commit/tag and performs remote publication
 - records transaction state under `target/release-transactions/v<version>/state.env`
 
 ## Evidence to Capture
@@ -54,5 +53,6 @@ scripts/release.sh reconcile <version>
 ## Notes
 
 - `Cargo.lock` is release metadata, not incidental noise.
+- A successful `make release-verify` intentionally leaves release metadata dirty until `make release` turns it into the release commit.
 - `target/release-artifacts/` is disposable output owned by the release scripts.
 - `scripts/release.sh reconcile <version>` is the only supported continuation path after a partial remote failure.

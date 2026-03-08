@@ -53,5 +53,5 @@ scripts/pre-public-check.sh --skip-ci --release-context
 ## Notes
 
 - `agent-ci` now routes by dependency surface, not just `apps/RalphMac/` path prefixes.
-- `make release-verify` is the canonical preflight for real releases.
+- `make release-verify` is the canonical preflight for real releases and now prepares the exact local snapshot that `make release` publishes.
 - Public-readiness scans the whole repo for markdown links and obvious secret patterns; do not rely on a short doc allowlist anymore.

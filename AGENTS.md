@@ -195,13 +195,14 @@ Every source file MUST start with `//!` docs covering:
 - Canonical repo version source is the top-level `VERSION` file.
 - Use `./scripts/versioning.sh check` (or `make version-check`) to verify Cargo, Xcode, and app compatibility metadata stay in sync.
 - Use `./scripts/versioning.sh sync --version <x.y.z>` (or `make version-sync VERSION=<x.y.z>`) for release bumps; do not hand-edit Cargo/Xcode/version-range files independently.
-- Prefer `make release-verify VERSION=<x.y.z>` before any real release; it syncs version metadata, runs the release safety checks, runs the appropriate ship gate, and validates the release transaction contract.
-- `scripts/release.sh verify <x.y.z>` validates the release transaction contract without mutation.
-- `scripts/release.sh execute <x.y.z>` is the only mutating release entrypoint.
+- Prefer `make release-verify VERSION=<x.y.z>` before any real release; it prepares the exact local release snapshot that `make release` must publish.
+- `scripts/release.sh verify <x.y.z>` prepares release metadata, checks, artifacts, and notes locally and records the snapshot under `target/release-verifications/`.
+- `scripts/release.sh execute <x.y.z>` is the only remote-publishing release entrypoint and must consume that verified snapshot.
 - `scripts/release.sh reconcile <x.y.z>` is the only supported continuation path after a partial remote failure.
 - `scripts/versioning.sh sync` also refreshes `Cargo.lock`; treat lockfile drift as a release/versioning failure, not incidental noise.
 - `scripts/release.sh` is expected to sync `VERSION`, `Cargo.lock`, `crates/ralph/Cargo.toml`, `apps/RalphMac/RalphMac.xcodeproj/project.pbxproj`, and `apps/RalphMac/RalphCore/VersionValidator.swift` together.
 - Make targets automatically prefer the rustup-managed toolchain pinned by `rust-toolchain.toml` when available; use the same pinned toolchain explicitly for direct script invocations if your shell resolves an older Homebrew `rustc`.
+- `make release-verify` intentionally leaves release metadata dirty in the working tree until `make release` turns that snapshot into the release commit.
 - `scripts/release.sh` records transaction state under `target/release-transactions/v<version>/state.env`; reconcile that same version instead of inventing skip/partial reruns.
 - `scripts/build-release-artifacts.sh` owns `target/release-artifacts/`: it clears stale artifacts before packaging, so do not rely on leftover tarballs in that directory.
 - Shared Xcode-build lock wait logging is intentionally one-shot per invocation; if a macOS target is blocked, expect a single wait line rather than repeated per-second spam.

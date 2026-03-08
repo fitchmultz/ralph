@@ -1,6 +1,6 @@
 # Releasing Ralph
 
-Ralph releases now use an explicit transaction model. The release flow prepares every local mutation first, records transaction state under `target/release-transactions/`, and only then performs irreversible remote publication.
+Ralph releases now use an explicit verify-then-publish transaction model. `verify` prepares a publish-ready local snapshot, records verification state under `target/release-verifications/`, and `execute` publishes only if that exact snapshot still matches the workspace.
 
 ## Canonical Commands
 
@@ -22,36 +22,36 @@ scripts/release.sh reconcile 0.2.0
 
 | Invocation | Purpose |
 | --- | --- |
-| `scripts/release.sh verify <version>` | Validate the release contract without mutating repo or remote state |
-| `scripts/release.sh execute <version>` | Prepare local release state, then publish through the transaction pipeline |
+| `scripts/release.sh verify <version>` | Prepare and record a publish-ready local snapshot without remote publication |
+| `scripts/release.sh execute <version>` | Validate the recorded snapshot, then publish through the transaction pipeline |
 | `scripts/release.sh reconcile <version>` | Resume a previously recorded transaction for the same version |
 
-The mutating flow runs in this order:
+The full release flow now runs in this order:
 
-1. Check prerequisites and repo state.
-2. Sync version metadata from `VERSION`.
-3. Generate/promote changelog entries.
-4. Run public-readiness checks in release context.
-5. Run the ship gate (`macos-ci` when available, otherwise `ci`).
-6. Build release artifacts and release notes.
-7. Create the release commit and annotated tag locally.
-8. Publish the crate to crates.io.
-9. Push `main` and `v<version>`.
-10. Create the GitHub release and upload artifacts.
+1. `verify` checks prerequisites, repo state, and release-note/changelog contract.
+2. `verify` syncs version metadata from `VERSION`.
+3. `verify` generates/promotes changelog entries.
+4. `verify` runs public-readiness checks in release context.
+5. `verify` runs the ship gate (`macos-ci` when available, otherwise `ci`).
+6. `verify` builds release artifacts and release notes.
+7. `verify` records manifests for the exact metadata, notes, and artifact files it prepared.
+8. `execute` validates that the recorded snapshot still matches `HEAD` and the local files.
+9. `execute` creates the release commit and annotated tag locally.
+10. `execute` publishes the crate to crates.io.
+11. `execute` pushes `main` and `v<version>`.
+12. `execute` creates the GitHub release and uploads artifacts.
 
 That ordering is intentional: crates.io publication no longer happens before the rest of the release is locally finalized.
 
 ## Preflight
 
-`make release-verify VERSION=<x.y.z>` is the canonical preflight because it exercises the same policy surfaces as the real release:
+`make release-verify VERSION=<x.y.z>` is the canonical preflight because it now prepares the exact local release snapshot that `make release` will publish:
 
-1. `./scripts/versioning.sh sync --version <x.y.z>`
-2. `./scripts/versioning.sh check`
-3. `scripts/pre-public-check.sh --skip-ci --release-context`
-4. `make release-gate`
-5. `scripts/release.sh verify <x.y.z>`
+1. `scripts/release.sh verify <x.y.z>`
 
 If `make release-verify` fails, fix the issue and rerun the full preflight. Do not skip phases manually.
+
+After `make release-verify` succeeds, expect release metadata files such as `VERSION`, `Cargo.lock`, `CHANGELOG.md`, and versioned app metadata to remain dirty in the working tree until `make release VERSION=<x.y.z>` commits them as the release commit.
 
 ## Reconcile
 
@@ -61,7 +61,7 @@ If a remote step fails after local preparation, reconcile the same version expli
 scripts/release.sh reconcile 0.2.0
 ```
 
-The script reconciles from `target/release-transactions/v0.2.0/state.env` and continues at the next incomplete remote step. This replaces the older ad hoc skip-publish workflow.
+The script reconciles from `target/release-transactions/v0.2.0/state.env` and continues at the next incomplete remote step. Verification snapshots remain under `target/release-verifications/v0.2.0/` as evidence of the prepared publish state.
 
 ## Artifacts
 

@@ -98,14 +98,14 @@ fn release_policy_uses_target_transaction_state() {
 fn release_script_publishes_only_after_local_release_is_prepared() {
     let script = read_repo_file("scripts/lib/release_pipeline.sh");
     assert!(
-        script.contains("release_prepare_local_state")
+        script.contains("release_prepare_verified_snapshot")
             && script.contains("release_create_commit_and_tag")
             && script.contains("release_publish_crate"),
-        "release pipeline should prepare locally before publishing externally"
+        "release pipeline should verify locally before publishing externally"
     );
     assert!(
-        script.find("release_prepare_local_state") < script.find("release_publish_crate"),
-        "release pipeline should call local preparation before publish"
+        script.find("release_prepare_verified_snapshot") < script.find("release_publish_crate"),
+        "release pipeline should prepare the verified snapshot before publish"
     );
 }
 
@@ -132,8 +132,8 @@ fn release_script_reconciles_without_legacy_skip_flags() {
 fn release_verify_allows_release_metadata_drift_after_version_sync() {
     let script = read_repo_file("scripts/release.sh");
     assert!(
-        script.contains("release_validate_repo_state 1 1"),
-        "verify mode should allow release-only metadata drift so make release-verify can validate a bumped version"
+        script.contains("release_validate_repo_state 0 1"),
+        "execute mode should allow release-only metadata drift after verify prepares the publish snapshot"
     );
 }
 
@@ -144,5 +144,25 @@ fn release_execute_initializes_transaction_after_validation() {
         script.find("release_validate_repo_state 0")
             < script.find("release_state_init \"execute\""),
         "execute mode should not create transaction state before repo-state validation succeeds"
+    );
+}
+
+#[test]
+fn release_verify_records_a_reusable_snapshot() {
+    let script = read_repo_file("scripts/release.sh");
+    assert!(
+        script.contains("release_verify_state_init")
+            && script.contains("release_prepare_verified_snapshot")
+            && script.contains("release_verify_assert_ready_for_execute"),
+        "release.sh should prepare a durable verify snapshot and require it before execute"
+    );
+}
+
+#[test]
+fn release_verify_state_uses_target_release_verifications_directory() {
+    let script = read_repo_file("scripts/lib/release_verify_state.sh");
+    assert!(
+        script.contains("target/release-verifications"),
+        "verified release state should live under target/release-verifications"
     );
 }

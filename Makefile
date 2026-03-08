@@ -284,13 +284,8 @@ release-verify:
 		echo "Usage: make release-verify VERSION=x.y.z"; \
 		exit 2; \
 	fi
-	@echo "→ Release verification preflight for $(VERSION)..."
-	@./scripts/versioning.sh sync --version "$(VERSION)"
-	@./scripts/versioning.sh check
-	@scripts/pre-public-check.sh --skip-ci --release-context
-	@$(MAKE) --no-print-directory release-gate
 	@scripts/release.sh verify "$(VERSION)"
-	@echo "  ✓ Release verification passed for $(VERSION)"
+	@echo "  ✓ Release snapshot prepared for $(VERSION)"
 	@echo "  ✓ Safe to run: make release VERSION=$(VERSION)"
 
 release-artifacts:
