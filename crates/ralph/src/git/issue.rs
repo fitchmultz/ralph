@@ -18,6 +18,8 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
 
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
+
 pub(crate) const GITHUB_ISSUE_SYNC_HASH_KEY: &str = "github_issue_sync_hash";
 
 pub(crate) struct IssueInfo {
@@ -118,8 +120,7 @@ pub(crate) fn create_issue(
         cmd.arg("--assignee").arg(assignee);
     }
 
-    let output = cmd
-        .output()
+    let output = run_gh_issue_command(cmd, "gh issue create")
         .with_context(|| format!("run gh issue create in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -177,8 +178,7 @@ pub(crate) fn edit_issue(
         cmd.arg("--add-assignee").arg(assignee);
     }
 
-    let output = cmd
-        .output()
+    let output = run_gh_issue_command(cmd, "gh issue edit")
         .with_context(|| format!("run gh issue edit in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -187,6 +187,25 @@ pub(crate) fn edit_issue(
     }
 
     Ok(())
+}
+
+fn run_gh_issue_command(
+    command: Command,
+    description: impl Into<String>,
+) -> Result<std::process::Output> {
+    execute_managed_command(ManagedCommand::new(
+        command,
+        description,
+        TimeoutClass::GitHubCli,
+    ))
+    .map(|output| {
+        let truncated = output.stdout_truncated || output.stderr_truncated;
+        if truncated {
+            log::debug!("managed gh issue capture truncated command output");
+        }
+        output.into_output()
+    })
+    .map_err(Into::into)
 }
 
 #[cfg(test)]

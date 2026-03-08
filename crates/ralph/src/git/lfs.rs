@@ -14,7 +14,7 @@
 
 use crate::constants::defaults::LFS_POINTER_PREFIX;
 use crate::constants::limits::MAX_POINTER_SIZE;
-use crate::git::error::{GitError, git_base_command};
+use crate::git::error::{GitError, git_output};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -232,9 +232,7 @@ pub fn has_lfs(repo_root: &Path) -> Result<bool> {
 
 /// Returns a list of LFS-tracked files in the repository.
 pub fn list_lfs_files(repo_root: &Path) -> Result<Vec<String>> {
-    let output = git_base_command(repo_root)
-        .args(["lfs", "ls-files"])
-        .output()
+    let output = git_output(repo_root, &["lfs", "ls-files"])
         .with_context(|| format!("run git lfs ls-files in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -315,9 +313,7 @@ pub fn validate_lfs_filters(repo_root: &Path) -> Result<LfsFilterStatus, GitErro
         Ok((false, None))
     }
 
-    let smudge_output = git_base_command(repo_root)
-        .args(["config", "--get", "filter.lfs.smudge"])
-        .output()
+    let smudge_output = git_output(repo_root, &["config", "--get", "filter.lfs.smudge"])
         .with_context(|| {
             format!(
                 "run git config --get filter.lfs.smudge in {}",
@@ -325,9 +321,7 @@ pub fn validate_lfs_filters(repo_root: &Path) -> Result<LfsFilterStatus, GitErro
             )
         })?;
 
-    let clean_output = git_base_command(repo_root)
-        .args(["config", "--get", "filter.lfs.clean"])
-        .output()
+    let clean_output = git_output(repo_root, &["config", "--get", "filter.lfs.clean"])
         .with_context(|| {
             format!(
                 "run git config --get filter.lfs.clean in {}",
@@ -375,9 +369,7 @@ pub fn validate_lfs_filters(repo_root: &Path) -> Result<LfsFilterStatus, GitErro
 /// }
 /// ```
 pub fn check_lfs_status(repo_root: &Path) -> Result<LfsStatusSummary, GitError> {
-    let output = git_base_command(repo_root)
-        .args(["lfs", "status"])
-        .output()
+    let output = git_output(repo_root, &["lfs", "status"])
         .with_context(|| format!("run git lfs status in {}", repo_root.display()))?;
 
     if !output.status.success() {

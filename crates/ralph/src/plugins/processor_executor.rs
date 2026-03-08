@@ -20,6 +20,7 @@ use anyhow::{Context, Result};
 
 use crate::contracts::Task;
 use crate::plugins::registry::PluginRegistry;
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ProcessorHook {
@@ -173,17 +174,26 @@ impl<'a> ProcessorExecutor<'a> {
             .unwrap_or_else(|| "{}".to_string());
 
         let hook_str = hook.as_str();
-        let output = std::process::Command::new(&bin_path)
+        let mut command = std::process::Command::new(&bin_path);
+        command
             .current_dir(self.repo_root)
             .arg(hook_str)
             .arg(task_id)
             .arg(file_path)
             .env("RALPH_PLUGIN_ID", plugin_id)
-            .env("RALPH_PLUGIN_CONFIG_JSON", config_json)
-            .output()
-            .with_context(|| {
-                format!("failed to execute processor {plugin_id} for hook {hook_str}")
-            })?;
+            .env("RALPH_PLUGIN_CONFIG_JSON", config_json);
+        let output = execute_managed_command(ManagedCommand::new(
+            command,
+            format!("processor {plugin_id} {hook_str}"),
+            TimeoutClass::PluginHook,
+        ))
+        .map(|output| {
+            if output.stdout_truncated || output.stderr_truncated {
+                log::warn!("Processor hook capture truncated: plugin={plugin_id}, hook={hook_str}");
+            }
+            output.into_output()
+        })
+        .with_context(|| format!("failed to execute processor {plugin_id} for hook {hook_str}"))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

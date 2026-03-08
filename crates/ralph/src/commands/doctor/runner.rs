@@ -18,6 +18,7 @@ use crate::config;
 use crate::contracts::Runner;
 use crate::prompts;
 use crate::runner;
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
 use std::process::Command;
 
 pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolved) {
@@ -352,11 +353,17 @@ pub(crate) fn get_runner_config_key(runner: &Runner) -> &'static str {
 }
 
 fn check_command(bin: &str, args: &[&str]) -> anyhow::Result<()> {
-    let output = Command::new(bin)
+    let mut command = Command::new(bin);
+    command
         .args(args)
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output()?;
+        .stderr(std::process::Stdio::piped());
+    let output = execute_managed_command(ManagedCommand::new(
+        command,
+        format!("doctor runner probe: {} {}", bin, args.join(" ")),
+        TimeoutClass::Probe,
+    ))?
+    .into_output();
 
     if output.status.success() {
         Ok(())

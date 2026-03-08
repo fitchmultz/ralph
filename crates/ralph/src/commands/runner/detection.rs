@@ -8,9 +8,10 @@
 //! - Capability data (see capabilities.rs).
 //! - CLI output formatting.
 
-use std::process::Command;
-
 use anyhow::Context;
+
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
+use std::process::Command;
 
 /// Result of checking a runner binary.
 #[derive(Debug, Clone)]
@@ -52,12 +53,18 @@ pub fn check_runner_binary(bin: &str) -> BinaryStatus {
 }
 
 fn try_command(bin: &str, args: &[&str]) -> anyhow::Result<String> {
-    let output = Command::new(bin)
+    let mut command = Command::new(bin);
+    command
         .args(args)
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .with_context(|| format!("failed to execute runner binary '{}'", bin))?;
+        .stderr(std::process::Stdio::piped());
+    let output = execute_managed_command(ManagedCommand::new(
+        command,
+        format!("runner detection: {} {}", bin, args.join(" ")),
+        TimeoutClass::Probe,
+    ))
+    .map(|output| output.into_output())
+    .with_context(|| format!("failed to execute runner binary '{}'", bin))?;
 
     if output.status.success() {
         // Combine stdout and stderr for version parsing

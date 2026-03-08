@@ -96,6 +96,9 @@ Every source file MUST start with `//!` docs covering:
 ### CI Gate Execution
 - `agent.ci_gate` is argv-only. Shell-string execution is unsupported; reject shell launchers such as `sh -c`, `cmd /C`, `pwsh -Command`, or `powershell -Command`.
 
+### Managed Subprocesses
+- Non-runner operational subprocesses (CI, git/gh, doctor probes, processor hooks, integration sync checks) should flow through `runutil::shell` managed execution with timeout classes, bounded capture, and SIGINT-before-SIGKILL escalation. Do not reintroduce raw `Command::output()` in those paths.
+
 ### Notification Audio
 - Windows custom notification sounds are `.wav`-only and play through WinMM; do not reintroduce PowerShell-based playback.
 

@@ -12,7 +12,7 @@
 //! - LFS validation (see git/lfs.rs)
 //! - Repository cleanliness enforcement (see git/clean.rs)
 
-use crate::git::error::{GitError, git_base_command};
+use crate::git::error::{GitError, git_output};
 use anyhow::{Context, Result, anyhow, bail};
 use std::collections::HashSet;
 use std::collections::hash_map::DefaultHasher;
@@ -41,11 +41,7 @@ pub(crate) struct PorcelainZEntry {
 /// NOTE: With `-z`, records are NUL-terminated (0x00) instead of newline-terminated.
 /// This makes the output safe to parse even when filenames contain spaces/newlines.
 pub fn status_porcelain(repo_root: &Path) -> Result<String, GitError> {
-    let output = git_base_command(repo_root)
-        .arg("status")
-        .arg("--porcelain")
-        .arg("-z")
-        .output()
+    let output = git_output(repo_root, &["status", "--porcelain", "-z"])
         .with_context(|| format!("run git status --porcelain -z in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -89,11 +85,7 @@ pub fn is_path_ignored(repo_root: &Path, rel_path: &str) -> Result<bool, GitErro
         return Ok(false);
     }
 
-    let output = git_base_command(repo_root)
-        .arg("check-ignore")
-        .arg("-q")
-        .arg(rel)
-        .output()
+    let output = git_output(repo_root, &["check-ignore", "-q", rel])
         .with_context(|| format!("run git check-ignore -q {} in {}", rel, repo_root.display()))?;
 
     match output.status.code() {
@@ -115,15 +107,18 @@ pub fn is_path_ignored(repo_root: &Path, rel_path: &str) -> Result<bool, GitErro
 /// Uses `git ls-files -i -o --exclude-standard -z --directory` to get
 /// NUL-delimited paths relative to the repo root.
 pub fn ignored_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
-    let output = git_base_command(repo_root)
-        .arg("ls-files")
-        .arg("-i")
-        .arg("-o")
-        .arg("--exclude-standard")
-        .arg("-z")
-        .arg("--directory")
-        .output()
-        .with_context(|| format!("run git ls-files -i -o in {}", repo_root.display()))?;
+    let output = git_output(
+        repo_root,
+        &[
+            "ls-files",
+            "-i",
+            "-o",
+            "--exclude-standard",
+            "-z",
+            "--directory",
+        ],
+    )
+    .with_context(|| format!("run git ls-files -i -o in {}", repo_root.display()))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

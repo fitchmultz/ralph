@@ -16,7 +16,7 @@
 //! - Repository cleanliness (see git/clean.rs)
 
 use crate::git::current_branch;
-use crate::git::error::{GitError, classify_push_error, git_base_command, git_run};
+use crate::git::error::{GitError, classify_push_error, git_output, git_run};
 use anyhow::Context;
 use std::path::{Path, PathBuf};
 
@@ -165,9 +165,7 @@ pub fn restore_tracked_paths_to_head(repo_root: &Path, paths: &[PathBuf]) -> Res
 }
 
 fn is_tracked_path(repo_root: &Path, rel_path: &str) -> Result<bool, GitError> {
-    let output = git_base_command(repo_root)
-        .args(["ls-files", "--error-unmatch", "--", rel_path])
-        .output()
+    let output = git_output(repo_root, &["ls-files", "--error-unmatch", "--", rel_path])
         .with_context(|| {
             format!(
                 "run git ls-files --error-unmatch for {} in {}",
@@ -196,18 +194,16 @@ fn is_tracked_path(repo_root: &Path, rel_path: &str) -> Result<bool, GitError> {
 ///
 /// Returns the upstream reference (e.g. "origin/main") or an error if not configured.
 pub fn upstream_ref(repo_root: &Path) -> Result<String, GitError> {
-    let output = git_base_command(repo_root)
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("--symbolic-full-name")
-        .arg("@{u}")
-        .output()
-        .with_context(|| {
-            format!(
-                "run git rev-parse --abbrev-ref --symbolic-full-name @{{u}} in {}",
-                repo_root.display()
-            )
-        })?;
+    let output = git_output(
+        repo_root,
+        &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+    )
+    .with_context(|| {
+        format!(
+            "run git rev-parse --abbrev-ref --symbolic-full-name @{{u}} in {}",
+            repo_root.display()
+        )
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -227,12 +223,7 @@ pub fn upstream_ref(repo_root: &Path) -> Result<String, GitError> {
 pub fn is_ahead_of_upstream(repo_root: &Path) -> Result<bool, GitError> {
     let upstream = upstream_ref(repo_root)?;
     let range = format!("{upstream}...HEAD");
-    let output = git_base_command(repo_root)
-        .arg("rev-list")
-        .arg("--left-right")
-        .arg("--count")
-        .arg(range)
-        .output()
+    let output = git_output(repo_root, &["rev-list", "--left-right", "--count", &range])
         .with_context(|| {
             format!(
                 "run git rev-list --left-right --count in {}",
@@ -264,9 +255,7 @@ pub fn is_ahead_of_upstream(repo_root: &Path) -> Result<bool, GitError> {
 /// Returns an error if push fails due to authentication, missing upstream,
 /// or other git errors.
 pub fn push_upstream(repo_root: &Path) -> Result<(), GitError> {
-    let output = git_base_command(repo_root)
-        .arg("push")
-        .output()
+    let output = git_output(repo_root, &["push"])
         .with_context(|| format!("run git push in {}", repo_root.display()))?;
 
     if output.status.success() {
@@ -281,12 +270,7 @@ pub fn push_upstream(repo_root: &Path) -> Result<(), GitError> {
 ///
 /// Intended for new branches that do not have an upstream configured yet.
 pub fn push_upstream_allow_create(repo_root: &Path) -> Result<(), GitError> {
-    let output = git_base_command(repo_root)
-        .arg("push")
-        .arg("-u")
-        .arg("origin")
-        .arg("HEAD")
-        .output()
+    let output = git_output(repo_root, &["push", "-u", "origin", "HEAD"])
         .with_context(|| format!("run git push -u origin HEAD in {}", repo_root.display()))?;
 
     if output.status.success() {
@@ -310,9 +294,7 @@ fn is_non_fast_forward_error(err: &GitError) -> bool {
 }
 
 fn reference_exists(repo_root: &Path, reference: &str) -> Result<bool, GitError> {
-    let output = git_base_command(repo_root)
-        .args(["rev-parse", "--verify", "--quiet", reference])
-        .output()
+    let output = git_output(repo_root, &["rev-parse", "--verify", "--quiet", reference])
         .with_context(|| {
             format!(
                 "run git rev-parse --verify --quiet {} in {}",
@@ -336,12 +318,7 @@ fn reference_exists(repo_root: &Path, reference: &str) -> Result<bool, GitError>
 
 fn is_ahead_of_ref(repo_root: &Path, reference: &str) -> Result<bool, GitError> {
     let range = format!("{reference}...HEAD");
-    let output = git_base_command(repo_root)
-        .arg("rev-list")
-        .arg("--left-right")
-        .arg("--count")
-        .arg(range)
-        .output()
+    let output = git_output(repo_root, &["rev-list", "--left-right", "--count", &range])
         .with_context(|| {
             format!(
                 "run git rev-list --left-right --count in {}",
@@ -391,12 +368,7 @@ pub fn is_behind_upstream(repo_root: &Path, branch: &str) -> Result<bool, GitErr
     let upstream = format!("origin/{}", branch);
     let range = format!("HEAD...{}", upstream);
 
-    let output = git_base_command(repo_root)
-        .arg("rev-list")
-        .arg("--left-right")
-        .arg("--count")
-        .arg(&range)
-        .output()
+    let output = git_output(repo_root, &["rev-list", "--left-right", "--count", &range])
         .with_context(|| {
             format!(
                 "run git rev-list --left-right --count {} in {}",
@@ -446,10 +418,8 @@ pub fn abort_rebase(repo_root: &Path) -> Result<(), GitError> {
 ///
 /// Returns a list of file paths that have unresolved merge conflicts.
 pub fn list_conflict_files(repo_root: &Path) -> Result<Vec<String>, GitError> {
-    let output = git_base_command(repo_root)
-        .args(["diff", "--name-only", "--diff-filter=U"])
-        .output()
-        .with_context(|| {
+    let output =
+        git_output(repo_root, &["diff", "--name-only", "--diff-filter=U"]).with_context(|| {
             format!(
                 "run git diff --name-only --diff-filter=U in {}",
                 repo_root.display()
@@ -479,11 +449,7 @@ pub fn list_conflict_files(repo_root: &Path) -> Result<Vec<String>, GitError> {
 ///
 /// This pushes HEAD to the current branch on the specified remote.
 pub fn push_current_branch(repo_root: &Path, remote: &str) -> Result<(), GitError> {
-    let output = git_base_command(repo_root)
-        .arg("push")
-        .arg(remote)
-        .arg("HEAD")
-        .output()
+    let output = git_output(repo_root, &["push", remote, "HEAD"])
         .with_context(|| format!("run git push {} HEAD in {}", remote, repo_root.display()))?;
 
     if output.status.success() {
@@ -499,19 +465,15 @@ pub fn push_current_branch(repo_root: &Path, remote: &str) -> Result<(), GitErro
 /// This pushes HEAD to the specified branch on the remote, creating the branch if needed.
 /// Used in direct-push parallel mode to push directly to the base branch.
 pub fn push_head_to_branch(repo_root: &Path, remote: &str, branch: &str) -> Result<(), GitError> {
-    let output = git_base_command(repo_root)
-        .arg("push")
-        .arg(remote)
-        .arg(format!("HEAD:{}", branch))
-        .output()
-        .with_context(|| {
-            format!(
-                "run git push {} HEAD:{} in {}",
-                remote,
-                branch,
-                repo_root.display()
-            )
-        })?;
+    let refspec = format!("HEAD:{}", branch);
+    let output = git_output(repo_root, &["push", remote, &refspec]).with_context(|| {
+        format!(
+            "run git push {} HEAD:{} in {}",
+            remote,
+            branch,
+            repo_root.display()
+        )
+    })?;
 
     if output.status.success() {
         return Ok(());

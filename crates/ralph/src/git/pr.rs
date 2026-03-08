@@ -30,6 +30,8 @@ use serde::Deserialize;
 use std::path::Path;
 use std::process::Command;
 
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct PrInfo {
@@ -134,8 +136,7 @@ pub(crate) fn create_pr(
         cmd.arg("--draft");
     }
 
-    let output = cmd
-        .output()
+    let output = run_gh_command(cmd, "gh pr create", TimeoutClass::GitHubCli)
         .with_context(|| format!("run gh pr create in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -178,12 +179,13 @@ pub(crate) fn merge_pr(
         cmd.arg("--delete-branch");
     }
 
-    let output = cmd.output().with_context(|| {
-        format!(
-            "run gh pr merge --repo {} in isolated cwd",
-            repo_name_with_owner
-        )
-    })?;
+    let output =
+        run_gh_command(cmd, "gh pr merge", TimeoutClass::GitHubCli).with_context(|| {
+            format!(
+                "run gh pr merge --repo {} in isolated cwd",
+                repo_name_with_owner
+            )
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -204,13 +206,14 @@ fn merge_method_flag(method: MergeMethod) -> &'static str {
 
 #[allow(dead_code)]
 fn gh_repo_name_with_owner(repo_root: &Path) -> Result<String> {
-    let output = Command::new("gh")
+    let mut command = Command::new("gh");
+    command
         .current_dir(repo_root)
         .arg("repo")
         .arg("view")
         .arg("--json")
-        .arg("nameWithOwner")
-        .output()
+        .arg("nameWithOwner");
+    let output = run_gh_command(command, "gh repo view", TimeoutClass::GitHubCli)
         .with_context(|| format!("run gh repo view in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -316,14 +319,15 @@ fn pr_view_json(repo_root: &Path, selector: &str) -> Result<PrViewJson> {
 
 #[allow(dead_code)]
 fn run_gh_pr_view(repo_root: &Path, selector: &str, fields: &str) -> Result<PrViewJson> {
-    let output = Command::new("gh")
+    let mut command = Command::new("gh");
+    command
         .current_dir(repo_root)
         .arg("pr")
         .arg("view")
         .arg(selector)
         .arg("--json")
-        .arg(fields)
-        .output()
+        .arg(fields);
+    let output = run_gh_command(command, "gh pr view", TimeoutClass::GitHubCli)
         .with_context(|| format!("run gh pr view in {}", repo_root.display()))?;
 
     if !output.status.success() {
@@ -360,11 +364,14 @@ fn extract_pr_url(output: &str) -> Option<String> {
 
 /// Run a gh command with GH_NO_UPDATE_NOTIFIER set to avoid noisy updater prompts.
 fn run_gh_with_no_update(args: &[&str]) -> Result<std::process::Output> {
-    std::process::Command::new("gh")
-        .args(args)
-        .env("GH_NO_UPDATE_NOTIFIER", "1")
-        .output()
-        .with_context(|| format!("run gh {}", args.join(" ")))
+    let mut command = std::process::Command::new("gh");
+    command.args(args).env("GH_NO_UPDATE_NOTIFIER", "1");
+    run_gh_command(
+        command,
+        format!("gh {}", args.join(" ")),
+        TimeoutClass::Probe,
+    )
+    .with_context(|| format!("run gh {}", args.join(" ")))
 }
 
 /// Check if the GitHub CLI (`gh`) is available and authenticated.
@@ -376,6 +383,22 @@ fn run_gh_with_no_update(args: &[&str]) -> Result<std::process::Output> {
 /// Returns an error with a clear, actionable message if gh is missing or not authenticated.
 pub(crate) fn check_gh_available() -> Result<()> {
     check_gh_available_with(run_gh_with_no_update)
+}
+
+fn run_gh_command(
+    command: Command,
+    description: impl Into<String>,
+    timeout_class: TimeoutClass,
+) -> Result<std::process::Output> {
+    execute_managed_command(ManagedCommand::new(command, description, timeout_class))
+        .map(|output| {
+            let truncated = output.stdout_truncated || output.stderr_truncated;
+            if truncated {
+                log::debug!("managed gh capture truncated command output");
+            }
+            output.into_output()
+        })
+        .map_err(Into::into)
 }
 
 /// Internal implementation that accepts a custom gh runner for testability.

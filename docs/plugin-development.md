@@ -163,6 +163,13 @@ For each invoked plugin/hook:
   - `pre_prompt`: Prompt text (plugin may modify in place)
   - `post_run`: Runner stdout (NDJSON text)
 
+**Runtime Limits**
+- Processor hooks run through Ralph's managed subprocess service, not raw shell execution
+- Hook stdout/stderr capture is bounded in memory; large output tails may be truncated in diagnostics
+- Hooks have a bounded execution window; a hung hook is interrupted with `SIGINT` first and escalated to hard kill if it ignores shutdown
+- Hook authors should handle `SIGINT` cleanly and exit promptly during cleanup
+- Non-zero exit remains a fatal hook failure
+
 **Exit Code Contract**
 - `0`: Success
 - Non-zero: Failure (abort with actionable error including plugin_id, hook name, and exit code)

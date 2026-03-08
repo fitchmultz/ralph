@@ -17,7 +17,7 @@
 
 use crate::contracts::Config;
 use crate::fsutil;
-use crate::git::error::git_base_command;
+use crate::git::error::git_output;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -194,12 +194,8 @@ pub(crate) fn remove_workspace(
 }
 
 fn clone_repo_from_local(repo_root: &Path, dest: &Path) -> Result<()> {
-    let output = git_base_command(repo_root)
-        .arg("clone")
-        .arg("--no-hardlinks")
-        .arg(".")
-        .arg(dest)
-        .output()
+    let dest_owned = dest.to_string_lossy().into_owned();
+    let output = git_output(repo_root, &["clone", "--no-hardlinks", ".", &dest_owned])
         .with_context(|| format!("run git clone into {}", dest.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -232,9 +228,7 @@ Fix options:\n\
 }
 
 fn remote_url(repo_root: &Path, args: &[&str]) -> Result<Option<String>> {
-    let output = git_base_command(repo_root)
-        .args(args)
-        .output()
+    let output = git_output(repo_root, args)
         .with_context(|| format!("run git {} in {}", args.join(" "), repo_root.display()))?;
     if !output.status.success() {
         return Ok(None);
@@ -244,26 +238,21 @@ fn remote_url(repo_root: &Path, args: &[&str]) -> Result<Option<String>> {
 }
 
 fn retarget_origin(workspace_path: &Path, fetch_url: &str, push_url: &str) -> Result<()> {
-    let output = git_base_command(workspace_path)
-        .arg("remote")
-        .arg("set-url")
-        .arg("origin")
-        .arg(fetch_url.trim())
-        .output()
-        .with_context(|| format!("set origin fetch url in {}", workspace_path.display()))?;
+    let output = git_output(
+        workspace_path,
+        &["remote", "set-url", "origin", fetch_url.trim()],
+    )
+    .with_context(|| format!("set origin fetch url in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         bail!("git remote set-url origin failed: {}", stderr.trim());
     }
 
-    let output = git_base_command(workspace_path)
-        .arg("remote")
-        .arg("set-url")
-        .arg("--push")
-        .arg("origin")
-        .arg(push_url.trim())
-        .output()
-        .with_context(|| format!("set origin push url in {}", workspace_path.display()))?;
+    let output = git_output(
+        workspace_path,
+        &["remote", "set-url", "--push", "origin", push_url.trim()],
+    )
+    .with_context(|| format!("set origin push url in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         bail!("git remote set-url --push origin failed: {}", stderr.trim());
@@ -272,11 +261,7 @@ fn retarget_origin(workspace_path: &Path, fetch_url: &str, push_url: &str) -> Re
 }
 
 fn fetch_origin(workspace_path: &Path) -> Result<()> {
-    let output = git_base_command(workspace_path)
-        .arg("fetch")
-        .arg("origin")
-        .arg("--prune")
-        .output()
+    let output = git_output(workspace_path, &["fetch", "origin", "--prune"])
         .with_context(|| format!("run git fetch in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -298,12 +283,7 @@ fn resolve_base_ref(workspace_path: &Path, base_branch: &str) -> Result<String> 
 }
 
 fn git_ref_exists(repo_root: &Path, full_ref: &str) -> Result<bool> {
-    let output = git_base_command(repo_root)
-        .arg("show-ref")
-        .arg("--verify")
-        .arg("--quiet")
-        .arg(full_ref)
-        .output()
+    let output = git_output(repo_root, &["show-ref", "--verify", "--quiet", full_ref])
         .with_context(|| format!("run git show-ref in {}", repo_root.display()))?;
     if output.status.success() {
         return Ok(true);
@@ -318,12 +298,7 @@ fn git_ref_exists(repo_root: &Path, full_ref: &str) -> Result<bool> {
 }
 
 fn checkout_branch_from_base(workspace_path: &Path, branch: &str, base_ref: &str) -> Result<()> {
-    let output = git_base_command(workspace_path)
-        .arg("checkout")
-        .arg("-B")
-        .arg(branch)
-        .arg(base_ref)
-        .output()
+    let output = git_output(workspace_path, &["checkout", "-B", branch, base_ref])
         .with_context(|| format!("run git checkout -B in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -333,21 +308,14 @@ fn checkout_branch_from_base(workspace_path: &Path, branch: &str, base_ref: &str
 }
 
 fn hard_reset_and_clean(workspace_path: &Path, base_ref: &str) -> Result<()> {
-    let output = git_base_command(workspace_path)
-        .arg("reset")
-        .arg("--hard")
-        .arg(base_ref)
-        .output()
+    let output = git_output(workspace_path, &["reset", "--hard", base_ref])
         .with_context(|| format!("run git reset in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         bail!("git reset --hard failed: {}", stderr.trim());
     }
 
-    let output = git_base_command(workspace_path)
-        .arg("clean")
-        .arg("-fd")
-        .output()
+    let output = git_output(workspace_path, &["clean", "-fd"])
         .with_context(|| format!("run git clean in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -357,10 +325,7 @@ fn hard_reset_and_clean(workspace_path: &Path, base_ref: &str) -> Result<()> {
 }
 
 fn ensure_clean_workspace(workspace_path: &Path) -> Result<()> {
-    let output = git_base_command(workspace_path)
-        .arg("status")
-        .arg("--porcelain")
-        .output()
+    let output = git_output(workspace_path, &["status", "--porcelain"])
         .with_context(|| format!("run git status in {}", workspace_path.display()))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

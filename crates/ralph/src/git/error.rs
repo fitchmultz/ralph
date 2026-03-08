@@ -17,6 +17,8 @@ use std::path::Path;
 use std::process::Command;
 use thiserror::Error;
 
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
+
 /// Errors that can occur during git operations.
 #[derive(Error, Debug)]
 pub enum GitError {
@@ -110,9 +112,7 @@ pub fn git_base_command(repo_root: &Path) -> Command {
 
 /// Run a git command and return an error on failure.
 pub fn git_run(repo_root: &Path, args: &[&str]) -> Result<(), GitError> {
-    let output = git_base_command(repo_root)
-        .args(args)
-        .output()
+    let output = git_output(repo_root, args)
         .with_context(|| format!("run git {} in {}", args.join(" "), repo_root.display()))?;
 
     if output.status.success() {
@@ -154,9 +154,7 @@ pub(crate) fn git_merge_allow_conflicts(
     repo_root: &Path,
     merge_target: &str,
 ) -> Result<GitMergeOutcome, GitError> {
-    let output = git_base_command(repo_root)
-        .args(["merge", merge_target])
-        .output()
+    let output = git_output(repo_root, &["merge", merge_target])
         .with_context(|| format!("run git merge {} in {}", merge_target, repo_root.display()))?;
 
     if output.status.success() {
@@ -178,6 +176,22 @@ pub(crate) fn git_merge_allow_conflicts(
         code,
         stderr: stderr.trim().to_string(),
     })
+}
+
+pub(crate) fn git_output(
+    repo_root: &Path,
+    args: &[&str],
+) -> Result<std::process::Output, GitError> {
+    let mut command = git_base_command(repo_root);
+    command.args(args);
+    execute_managed_command(ManagedCommand::new(
+        command,
+        format!("git {}", args.join(" ")),
+        TimeoutClass::Git,
+    ))
+    .map(|output| output.into_output())
+    .map_err(anyhow::Error::from)
+    .map_err(GitError::from)
 }
 
 #[cfg(test)]

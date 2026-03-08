@@ -23,12 +23,13 @@ use crate::commands::run::supervision::{
 use crate::config::Resolved;
 use crate::contracts::TaskStatus;
 use crate::git;
+use crate::git::error::git_output;
 use crate::queue;
+use crate::runutil::sleep_with_cancellation;
 use crate::timeutil;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::Duration;
 
 // =============================================================================
@@ -479,11 +480,11 @@ fn head_is_synced_to_remote(repo_root: &Path, target_branch: &str) -> Result<boo
         .with_context(|| format!("fetch origin/{} for sync check", target_branch))?;
 
     let remote_ref = format!("origin/{}", target_branch);
-    let output = Command::new("git")
-        .args(["merge-base", "--is-ancestor", "HEAD", &remote_ref])
-        .current_dir(repo_root)
-        .output()
-        .with_context(|| format!("check if HEAD is ancestor of {}", remote_ref))?;
+    let output = git_output(
+        repo_root,
+        &["merge-base", "--is-ancestor", "HEAD", &remote_ref],
+    )
+    .with_context(|| format!("check if HEAD is ancestor of {}", remote_ref))?;
 
     if output.status.success() {
         return Ok(true);
@@ -696,7 +697,7 @@ pub(crate) fn run_integration_loop(
                         return Ok(IntegrationOutcome::BlockedPush { reason });
                     }
                     previous_failure = Some(reason);
-                    std::thread::sleep(config.backoff_for_attempt(attempt_index as usize));
+                    wait_before_retry(config, attempt_index as usize, task_id)?;
                     continue;
                 }
             };
@@ -758,7 +759,7 @@ pub(crate) fn run_integration_loop(
         }
 
         previous_failure = Some(reason);
-        std::thread::sleep(config.backoff_for_attempt(attempt_index as usize));
+        wait_before_retry(config, attempt_index as usize, task_id)?;
     }
 
     let reason = format!("integration exhausted {} attempts", config.max_attempts);
@@ -772,6 +773,21 @@ pub(crate) fn run_integration_loop(
         log::warn!("Failed to write blocked marker: {}", marker_err);
     }
     Ok(IntegrationOutcome::BlockedPush { reason })
+}
+
+fn wait_before_retry(
+    config: &IntegrationConfig,
+    attempt_index: usize,
+    task_id: &str,
+) -> Result<()> {
+    let delay = config.backoff_for_attempt(attempt_index);
+    log::info!(
+        "Integration retry backoff for {}: sleeping {}ms before next attempt",
+        task_id,
+        delay.as_millis()
+    );
+    sleep_with_cancellation(delay, None)
+        .map_err(|_| anyhow::anyhow!("integration retry cancelled for {}", task_id))
 }
 
 #[cfg(test)]

@@ -42,6 +42,12 @@ pub mod buffers {
     /// Maximum stdout capture size for timeouts (128KB).
     pub const TIMEOUT_STDOUT_CAPTURE_MAX_BYTES: usize = 128 * 1024;
 
+    /// Maximum bounded capture size for managed subprocess stdout/stderr tails.
+    pub const MANAGED_SUBPROCESS_CAPTURE_MAX_BYTES: usize = 256 * 1024;
+
+    /// Maximum bounded capture size for CI gate stdout/stderr tails.
+    pub const MANAGED_SUBPROCESS_CI_CAPTURE_MAX_BYTES: usize = 4 * 1024 * 1024;
+
     /// Number of output tail lines to display.
     pub const OUTPUT_TAIL_LINES: usize = 20;
 
@@ -112,6 +118,33 @@ pub mod timeouts {
 
     /// Lock cleanup retry delays in milliseconds.
     pub const DELAYS_MS: [u64; 3] = [10, 50, 100];
+
+    /// Managed subprocess timeout for short probes (doctor, availability checks).
+    pub const MANAGED_SUBPROCESS_PROBE_TIMEOUT: Duration = Duration::from_secs(15);
+
+    /// Managed subprocess timeout for standard git operations.
+    pub const MANAGED_SUBPROCESS_GIT_TIMEOUT: Duration = Duration::from_secs(120);
+
+    /// Managed subprocess timeout for GitHub CLI operations.
+    pub const MANAGED_SUBPROCESS_GH_TIMEOUT: Duration = Duration::from_secs(180);
+
+    /// Managed subprocess timeout for processor plugin hooks.
+    pub const MANAGED_SUBPROCESS_PLUGIN_TIMEOUT: Duration = Duration::from_secs(300);
+
+    /// Managed subprocess timeout for CI gate execution.
+    pub const MANAGED_SUBPROCESS_CI_TIMEOUT: Duration = Duration::from_secs(60 * 30);
+
+    /// Grace period after SIGINT before escalating to SIGKILL for managed subprocesses.
+    pub const MANAGED_SUBPROCESS_INTERRUPT_GRACE: Duration = Duration::from_secs(2);
+
+    /// Polling cadence for managed subprocess wait loops.
+    pub const MANAGED_SUBPROCESS_POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+    /// Best-effort reap timeout after a managed subprocess receives SIGKILL.
+    pub const MANAGED_SUBPROCESS_REAP_TIMEOUT: Duration = Duration::from_secs(5);
+
+    /// Polling cadence for cancellation-aware retry waits.
+    pub const MANAGED_RETRY_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
     /// How long terminal worker records are retained before stale pruning.
     ///

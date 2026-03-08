@@ -13,17 +13,13 @@
 //! - Caller expects a named branch (not detached HEAD).
 //! - Git is available and the repo root is valid.
 
-use crate::git::error::git_base_command;
+use crate::git::error::git_output;
 use anyhow::{Context, Result, bail};
 use std::path::Path;
 
 pub(crate) fn current_branch(repo_root: &Path) -> Result<String> {
-    let output = git_base_command(repo_root)
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .output()
-        .with_context(|| {
+    let output =
+        git_output(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"]).with_context(|| {
             format!(
                 "run git rev-parse --abbrev-ref HEAD in {}",
                 repo_root.display()
@@ -57,9 +53,7 @@ pub(crate) fn fast_forward_branch_to_origin(repo_root: &Path, branch: &str) -> R
         bail!("Cannot fast-forward: branch name is empty.");
     }
 
-    let checkout_output = git_base_command(repo_root)
-        .args(["checkout", branch])
-        .output()
+    let checkout_output = git_output(repo_root, &["checkout", branch])
         .with_context(|| format!("run git checkout {} in {}", branch, repo_root.display()))?;
     if !checkout_output.status.success() {
         let stderr = String::from_utf8_lossy(&checkout_output.stderr);
@@ -70,9 +64,7 @@ pub(crate) fn fast_forward_branch_to_origin(repo_root: &Path, branch: &str) -> R
         );
     }
 
-    let fetch_output = git_base_command(repo_root)
-        .args(["fetch", "origin", "--prune"])
-        .output()
+    let fetch_output = git_output(repo_root, &["fetch", "origin", "--prune"])
         .with_context(|| format!("run git fetch origin --prune in {}", repo_root.display()))?;
     if !fetch_output.status.success() {
         let stderr = String::from_utf8_lossy(&fetch_output.stderr);
@@ -84,10 +76,8 @@ pub(crate) fn fast_forward_branch_to_origin(repo_root: &Path, branch: &str) -> R
     }
 
     let remote_ref = format!("origin/{}", branch);
-    let merge_output = git_base_command(repo_root)
-        .args(["merge", "--ff-only", &remote_ref])
-        .output()
-        .with_context(|| {
+    let merge_output =
+        git_output(repo_root, &["merge", "--ff-only", &remote_ref]).with_context(|| {
             format!(
                 "run git merge --ff-only {} in {}",
                 remote_ref,
