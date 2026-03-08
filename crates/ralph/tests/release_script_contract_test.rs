@@ -141,7 +141,8 @@ fn release_verify_allows_release_metadata_drift_after_version_sync() {
 fn release_execute_initializes_transaction_after_validation() {
     let script = read_repo_file("scripts/release.sh");
     assert!(
-        script.find("release_validate_repo_state 0") < script.find("release_state_init \"execute\""),
+        script.find("release_validate_repo_state 0")
+            < script.find("release_state_init \"execute\""),
         "execute mode should not create transaction state before repo-state validation succeeds"
     );
 }
