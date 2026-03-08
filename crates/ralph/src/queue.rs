@@ -45,14 +45,14 @@ pub use size_check::{
 };
 pub use validation::{ValidationWarning, log_warnings, validate_queue, validate_queue_set};
 
-// Re-exports from new modules (maintaining backward compatibility)
+// Re-exports from new modules.
 pub use backup::backup_queue;
 pub use id::next_id_across;
 pub use id::{format_id, normalize_prefix};
 pub use json_repair::attempt_json_repair;
 pub use loader::{
     load_and_validate_queues, load_queue, load_queue_or_default, load_queue_with_repair,
-    load_queue_with_repair_and_validate,
+    load_queue_with_repair_and_validate, repair_and_validate_queues,
 };
 pub use save::save_queue;
 

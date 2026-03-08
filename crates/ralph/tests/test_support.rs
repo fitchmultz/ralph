@@ -446,6 +446,9 @@ pub fn configure_runner(
         serde_json::to_string_pretty(&config).context("serialize config")?,
     )
     .context("write config")?;
+    if bin_path.is_some() {
+        trust_project_commands(dir)?;
+    }
     Ok(())
 }
 
@@ -560,6 +563,16 @@ pub fn git_add_all_commit(dir: &Path, message: &str) -> Result<()> {
     anyhow::ensure!(status.success(), "git commit failed");
 
     Ok(())
+}
+
+pub fn git_status_porcelain(dir: &Path) -> Result<String> {
+    let output = Command::new("git")
+        .current_dir(dir)
+        .args(["status", "--porcelain"])
+        .output()
+        .context("git status --porcelain")?;
+    anyhow::ensure!(output.status.success(), "git status --porcelain failed");
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 /// Initialize a ralph project in the given directory.

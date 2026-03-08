@@ -162,6 +162,7 @@ fn parallel_worker_lifecycle_transitions() -> Result<()> {
     let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
     test_support::configure_runner(temp.path(), "opencode", "test-model", Some(&runner_path))?;
     test_support::configure_parallel_for_direct_push(temp.path())?;
+    test_support::trust_project_commands(temp.path())?;
 
     // Run parallel
     test_support::run_in_dir(
@@ -354,6 +355,7 @@ fn parallel_state_schema_v3_structure() -> Result<()> {
 
     let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
     test_support::configure_runner(temp.path(), "opencode", "test-model", Some(&runner_path))?;
+    test_support::trust_project_commands(temp.path())?;
     test_support::configure_parallel_for_direct_push(temp.path())?;
 
     test_support::run_in_dir(
@@ -520,6 +522,7 @@ fn parallel_multiple_tasks_execution() -> Result<()> {
     std::fs::create_dir_all(&bin_dir)?;
     let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
     test_support::configure_runner(temp.path(), "opencode", "test-model", Some(&runner_path))?;
+    test_support::trust_project_commands(temp.path())?;
     test_support::configure_parallel_for_direct_push(temp.path())?;
 
     // Run parallel with 2 workers, max 2 tasks

@@ -14,7 +14,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::cli::task::args::{TaskChildrenArgs, TaskRelationFormat};
 use crate::config::Resolved;
 use crate::contracts::Task;
@@ -24,7 +24,7 @@ use std::collections::HashSet;
 
 /// Handle the `task children` command.
 pub fn handle(args: &TaskChildrenArgs, resolved: &Resolved) -> Result<()> {
-    let (queue_file, done_file) = load_and_validate_queues(resolved, args.include_done)?;
+    let (queue_file, done_file) = load_and_validate_queues_read_only(resolved, args.include_done)?;
 
     let done_ref = done_file
         .as_ref()

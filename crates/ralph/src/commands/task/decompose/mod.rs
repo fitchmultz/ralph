@@ -10,7 +10,7 @@
 //! - Direct queue editing by runners.
 //!
 //! Invariants/assumptions:
-//! - Preview stays side-effect free aside from normal queue maintenance.
+//! - Preview stays side-effect free with respect to queue/done files.
 //! - Write mode re-checks queue state under lock before mutating.
 
 mod support;

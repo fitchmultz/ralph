@@ -79,11 +79,10 @@ Every source file MUST start with `//!` docs covering:
 - Untrusted repos ignore project-scope plugins under `.ralph/plugins`; only trusted repos may execute project-local plugins.
 - Plugin manifest executables must stay plugin-dir-relative; absolute and escaping paths are invalid.
 
-### Queue Load/Validate Auto-Repair
-- `queue::load_and_validate_queues` performs conservative maintenance before validation.
-- Parseable non-UTC RFC3339 timestamps are normalized to UTC; missing terminal `completed_at` is backfilled.
-- Malformed timestamps are never rewritten and still fail validation.
-- Maintenance writes back to queue/done during load+validate.
+### Queue Load/Validate Semantics
+- `queue::load_and_validate_queues` is read-only: it may tolerate JSON syntax repair in memory, but it must never rewrite queue/done files.
+- Non-UTC RFC3339 timestamps and missing terminal `completed_at` are validation failures for pure read/load paths; they are not silently normalized on read.
+- Conservative timestamp normalization/backfill lives behind explicit repair flows such as `queue::repair_and_validate_queues` or `ralph queue repair`.
 
 ### Repo Target Resolution
 - Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).

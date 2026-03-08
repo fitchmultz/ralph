@@ -31,7 +31,7 @@ use clap::Args;
 use time::OffsetDateTime;
 
 use crate::cli::queue::shared::task_eta_display;
-use crate::cli::{load_and_validate_queues, resolve_list_limit};
+use crate::cli::{load_and_validate_queues_read_only, resolve_list_limit};
 use crate::config::Resolved;
 use crate::contracts::{Task, TaskStatus};
 use crate::eta_calculator::EtaCalculator;
@@ -119,7 +119,7 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
     }
 
     let (queue_file, done_file) =
-        load_and_validate_queues(resolved, args.include_done || args.only_done)?;
+        load_and_validate_queues_read_only(resolved, args.include_done || args.only_done)?;
 
     // Check queue size and print warning if needed
     if !args.quiet {

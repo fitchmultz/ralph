@@ -16,7 +16,7 @@ use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::config::Resolved;
 use crate::queue;
 use crate::reports;
@@ -40,7 +40,7 @@ pub struct QueueStatsArgs {
 }
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueStatsArgs) -> Result<()> {
-    let (queue_file, done_file) = load_and_validate_queues(resolved, true)?;
+    let (queue_file, done_file) = load_and_validate_queues_read_only(resolved, true)?;
 
     // Check queue size and print warning if needed
     if !args.quiet {

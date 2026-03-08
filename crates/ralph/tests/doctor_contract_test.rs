@@ -42,7 +42,6 @@ fn doctor_passes_in_clean_env() -> Result<()> {
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
-
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
     trust_repo(dir.path())?;
@@ -100,7 +99,6 @@ fn doctor_warns_on_missing_upstream() -> Result<()> {
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
-
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
     trust_repo(dir.path())?;
@@ -312,6 +310,7 @@ fn doctor_passes_with_runner_that_only_supports_help() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     // Create a stub runner that only supports --help (not --version)
     let bin_dir = dir.path().join("bin");
@@ -332,15 +331,23 @@ esac
         std::fs::set_permissions(&runner_path, perms)?;
     }
 
-    // Configure the stub runner
-    let config_path = dir.path().join(".ralph/config.jsonc");
+    // Configure the stub runner via temp global config so this test exercises
+    // the runner probe fallback logic rather than repo trust gating.
+    let home_dir = dir.path().join("home");
+    let global_config_dir = home_dir.join(".config/ralph");
+    std::fs::create_dir_all(&global_config_dir)?;
+    let config_path = global_config_dir.join("config.jsonc");
     let config_content = format!(
         r#"{{"version":1,"agent":{{"runner":"opencode","opencode_bin":"{}"}}}}"#,
         runner_path.display()
     );
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path())
+        .env("HOME", &home_dir)
+        .env_remove("XDG_CONFIG_HOME")
+        .arg("doctor")
+        .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -378,6 +385,7 @@ fn doctor_passes_with_runner_that_only_supports_v_flag() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     // Create a stub runner that only supports -V (not --version)
     let bin_dir = dir.path().join("bin");
@@ -400,15 +408,23 @@ esac
         std::fs::set_permissions(&runner_path, perms)?;
     }
 
-    // Configure the stub runner
-    let config_path = dir.path().join(".ralph/config.jsonc");
+    // Configure the stub runner via temp global config so this test exercises
+    // the runner probe fallback logic rather than repo trust gating.
+    let home_dir = dir.path().join("home");
+    let global_config_dir = home_dir.join(".config/ralph");
+    std::fs::create_dir_all(&global_config_dir)?;
+    let config_path = global_config_dir.join("config.jsonc");
     let config_content = format!(
         r#"{{"version":1,"agent":{{"runner":"claude","claude_bin":"{}"}}}}"#,
         runner_path.display()
     );
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path())
+        .env("HOME", &home_dir)
+        .env_remove("XDG_CONFIG_HOME")
+        .arg("doctor")
+        .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -446,6 +462,7 @@ fn doctor_fails_with_runner_that_has_no_valid_flags() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     // Create a stub runner that rejects all version/help flags
     let bin_dir = dir.path().join("bin");

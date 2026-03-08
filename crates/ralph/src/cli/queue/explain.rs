@@ -14,7 +14,7 @@
 use anyhow::Result;
 use clap::Args;
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::cli::queue::shared::QueueReportFormat;
 use crate::config::Resolved;
 use crate::queue::operations::{RunnableSelectionOptions, queue_runnability_report};
@@ -40,7 +40,7 @@ pub struct QueueExplainArgs {
 }
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueExplainArgs) -> Result<()> {
-    let (queue_file, done_file) = load_and_validate_queues(resolved, true)?;
+    let (queue_file, done_file) = load_and_validate_queues_read_only(resolved, true)?;
     let done_ref = done_file
         .as_ref()
         .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());

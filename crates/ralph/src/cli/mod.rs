@@ -249,7 +249,7 @@ pub fn handle_cli_spec(args: CliSpecArgs) -> Result<()> {
     }
 }
 
-pub(crate) fn load_and_validate_queues(
+pub(crate) fn load_and_validate_queues_read_only(
     resolved: &crate::config::Resolved,
     include_done: bool,
 ) -> Result<(QueueFile, Option<QueueFile>)> {

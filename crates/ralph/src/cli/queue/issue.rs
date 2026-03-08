@@ -22,7 +22,7 @@ use regex::Regex;
 use std::collections::HashSet;
 use std::io::{self, BufRead, IsTerminal, Write};
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::cli::queue::shared::StatusArg;
 use crate::config::Resolved;
 use crate::contracts::{QueueFile, Task, TaskStatus};
@@ -148,7 +148,7 @@ pub(crate) fn handle_publish(
     }
 
     if args.dry_run {
-        let (mut queue_file, _done_file) = load_and_validate_queues(resolved, false)?;
+        let (mut queue_file, _done_file) = load_and_validate_queues_read_only(resolved, false)?;
         let result = publish_task(
             resolved,
             &mut queue_file,
@@ -176,7 +176,7 @@ pub(crate) fn handle_publish(
     // Create undo snapshot before mutation
     crate::undo::create_undo_snapshot(resolved, &format!("queue issue publish {}", task_id))?;
 
-    let (mut queue_file, _done_file) = load_and_validate_queues(resolved, false)?;
+    let (mut queue_file, _done_file) = crate::queue::load_and_validate_queues(resolved, false)?;
     let result = publish_task(
         resolved,
         &mut queue_file,
@@ -223,7 +223,7 @@ pub(crate) fn handle_publish_many(
 ) -> Result<()> {
     let mode = resolve_publish_mode(args.dry_run, args.execute)?;
     let filters = parse_publish_many_filters(&args)?;
-    let (queue_for_plan, _done_file) = load_and_validate_queues(resolved, false)?;
+    let (queue_for_plan, _done_file) = load_and_validate_queues_read_only(resolved, false)?;
     let selected_task_ids = select_publishable_task_ids(&queue_for_plan, &filters)?;
 
     if selected_task_ids.is_empty() {
@@ -278,7 +278,7 @@ pub(crate) fn handle_publish_many(
     // Create undo snapshot BEFORE any mutations
     crate::undo::create_undo_snapshot(resolved, "queue issue publish-many")?;
 
-    let (mut queue_file, _done_file) = load_and_validate_queues(resolved, false)?;
+    let (mut queue_file, _done_file) = crate::queue::load_and_validate_queues(resolved, false)?;
     let mut final_summary = PublishManySummary {
         selected: selected_task_ids.len(),
         ..PublishManySummary::default()

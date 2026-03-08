@@ -16,7 +16,7 @@
 use anyhow::{Result, bail};
 use clap::Args;
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::config::Resolved;
 use crate::queue::hierarchy::{HierarchyIndex, TaskSource, detect_parent_cycles, render_tree};
 
@@ -39,7 +39,7 @@ pub struct QueueTreeArgs {
 
 /// Handle the `queue tree` command.
 pub fn handle(resolved: &Resolved, args: QueueTreeArgs) -> Result<()> {
-    let (queue_file, done_file) = load_and_validate_queues(resolved, args.include_done)?;
+    let (queue_file, done_file) = load_and_validate_queues_read_only(resolved, args.include_done)?;
 
     let done_ref = done_file
         .as_ref()

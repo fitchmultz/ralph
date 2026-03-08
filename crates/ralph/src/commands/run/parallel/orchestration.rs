@@ -135,8 +135,8 @@ pub(crate) fn run_loop_parallel(
 
     signal::clear_stop_signal_at_loop_start(&cache_dir);
 
-    // Preflight: load, conservatively repair timestamps, and validate queue/done
-    let (queue_file, _done_file) = queue::load_and_validate_queues(resolved, true)
+    // Preflight: explicitly repair timestamp maintenance, persist it, and validate queue/done
+    let (queue_file, _done_file) = queue::repair_and_validate_queues(resolved, true)
         .context("Parallel preflight: validate queue/done set")?;
 
     // Preflight: validate workspace mapping

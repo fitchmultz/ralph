@@ -15,14 +15,14 @@
 use anyhow::Result;
 use serde_json::json;
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::cli::task::args::{TaskParentArgs, TaskRelationFormat};
 use crate::config::Resolved;
 use crate::queue::hierarchy::HierarchyIndex;
 
 /// Handle the `task parent` command.
 pub fn handle(args: &TaskParentArgs, resolved: &Resolved) -> Result<()> {
-    let (queue_file, done_file) = load_and_validate_queues(resolved, args.include_done)?;
+    let (queue_file, done_file) = load_and_validate_queues_read_only(resolved, args.include_done)?;
 
     let done_ref = done_file
         .as_ref()

@@ -1,10 +1,10 @@
-//! Queue file loading functionality with various options.
+//! Queue file loading functionality with explicit read-vs-repair semantics.
 //!
 //! Responsibilities:
 //! - Load queue files from disk with standard JSONC parsing.
 //! - Load with automatic repair for common JSON errors.
-//! - Load with repair and semantic validation.
-//! - Load active and done queues together with conservative timestamp maintenance + validation.
+//! - Load with repair and semantic validation without mutating files.
+//! - Provide explicit queue-set repair helpers that persist normalized timestamp maintenance.
 //!
 //! Not handled here:
 //! - Queue file saving (see `queue::save`).
@@ -12,7 +12,8 @@
 //!
 //! Invariants/assumptions:
 //! - Missing queue files return default empty queues.
-//! - Callers must hold locks when loading mutable state.
+//! - Pure load/validate APIs never write to disk.
+//! - Callers must hold locks before invoking explicit repair-and-save APIs.
 
 use crate::config::Resolved;
 use crate::contracts::{QueueFile, Task};
@@ -116,7 +117,7 @@ fn log_maintenance_report(report: QueueMaintenanceReport, queue_path: &Path, don
     }
 
     log::warn!(
-        "Queue load auto-repair applied: normalized {} non-UTC timestamp(s), backfilled {} terminal completed_at value(s). Saved queue={}, done={} (queue_path={}, done_path={}).",
+        "Queue repair applied: normalized {} non-UTC timestamp(s), backfilled {} terminal completed_at value(s). Saved queue={}, done={} (queue_path={}, done_path={}).",
         report.normalized_timestamps,
         report.backfilled_completed_at,
         report.queue_changed,
@@ -217,11 +218,10 @@ pub fn load_queue_with_repair(path: &Path) -> Result<QueueFile> {
     }
 }
 
-/// Load queue with repair and semantic validation.
+/// Load queue with JSON repair and semantic validation.
 ///
-/// JSON repair is followed by semantic validation via `validate_queue_set`. Callers
-/// should log warnings if needed. This ensures repaired-but-invalid queues fail
-/// early with descriptive errors.
+/// This API is pure with respect to the filesystem: it may repair parseable JSON
+/// mistakes in memory, but it never rewrites the queue file on disk.
 ///
 /// Returns the queue file and any validation warnings (non-blocking issues).
 pub fn load_queue_with_repair_and_validate(
@@ -231,20 +231,7 @@ pub fn load_queue_with_repair_and_validate(
     id_width: usize,
     max_dependency_depth: u8,
 ) -> Result<(QueueFile, Vec<ValidationWarning>)> {
-    let mut queue = load_queue_with_repair(path)?;
-    let now = crate::timeutil::now_utc_rfc3339()?;
-    let report = maintain_single_queue_timestamps(&mut queue, &now)?;
-    if report.changed {
-        super::save_queue(path, &queue)
-            .with_context(|| format!("save auto-repaired queue {}", path.display()))?;
-        log::warn!(
-            "Queue load auto-repair applied: normalized {} non-UTC timestamp(s), backfilled {} terminal completed_at value(s). Saved queue={} (queue_path={}).",
-            report.normalized_timestamps,
-            report.backfilled_completed_at,
-            report.changed,
-            path.display()
-        );
-    }
+    let queue = load_queue_with_repair(path)?;
 
     let warnings = if let Some(d) = done {
         validation::validate_queue_set(&queue, Some(d), id_prefix, id_width, max_dependency_depth)
@@ -258,20 +245,81 @@ pub fn load_queue_with_repair_and_validate(
     Ok((queue, warnings))
 }
 
-/// Load the active queue and optionally the done queue, validating both.
-pub fn load_and_validate_queues(
+fn validate_loaded_queues(
+    resolved: &Resolved,
+    queue_file: &QueueFile,
+    done_file: &QueueFile,
+) -> Result<Vec<ValidationWarning>> {
+    let done_ref = if !done_file.tasks.is_empty() || resolved.done_path.exists() {
+        Some(done_file)
+    } else {
+        None
+    };
+
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    let warnings = validation::validate_queue_set(
+        queue_file,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )?;
+    validation::log_warnings(&warnings);
+    Ok(warnings)
+}
+
+fn load_queue_set_with_repair(
     resolved: &Resolved,
     include_done: bool,
-) -> Result<(QueueFile, Option<QueueFile>)> {
-    let mut queue_file = load_queue_with_repair(&resolved.queue_path)?;
-
-    // Always load done file for validation context (dependency checks need it)
+) -> Result<(QueueFile, QueueFile, bool)> {
+    let queue_file = load_queue_with_repair(&resolved.queue_path)?;
     let done_path_exists = resolved.done_path.exists();
-    let mut done_for_validation = if done_path_exists {
+    let done_file = if done_path_exists {
         load_queue_with_repair(&resolved.done_path)?
     } else {
         QueueFile::default()
     };
+
+    let done_file = if include_done || done_path_exists {
+        done_file
+    } else {
+        QueueFile::default()
+    };
+
+    Ok((queue_file, done_file, done_path_exists))
+}
+
+/// Load the active queue and optionally the done queue, validating both.
+///
+/// This API is pure with respect to the filesystem: it may repair parseable JSON
+/// in memory, but it never rewrites queue/done files during the read.
+pub fn load_and_validate_queues(
+    resolved: &Resolved,
+    include_done: bool,
+) -> Result<(QueueFile, Option<QueueFile>)> {
+    let (queue_file, done_for_validation, _done_path_exists) =
+        load_queue_set_with_repair(resolved, include_done)?;
+    validate_loaded_queues(resolved, &queue_file, &done_for_validation)?;
+
+    let done_file = if include_done {
+        Some(done_for_validation)
+    } else {
+        None
+    };
+
+    Ok((queue_file, done_file))
+}
+
+/// Explicitly repair queue/done timestamp maintenance and persist the result before validation.
+///
+/// Unlike [`load_and_validate_queues`], this API mutates queue/done files on disk when it
+/// normalizes non-UTC timestamps or backfills missing terminal `completed_at` values.
+pub fn repair_and_validate_queues(
+    resolved: &Resolved,
+    include_done: bool,
+) -> Result<(QueueFile, Option<QueueFile>)> {
+    let (mut queue_file, mut done_for_validation, done_path_exists) =
+        load_queue_set_with_repair(resolved, true)?;
 
     maintain_and_save_loaded_queues(
         &resolved.queue_path,
@@ -281,25 +329,8 @@ pub fn load_and_validate_queues(
         &mut done_for_validation,
     )?;
 
-    // Build reference for validation (same logic as before)
-    let done_ref = if !done_for_validation.tasks.is_empty() || done_path_exists {
-        Some(&done_for_validation)
-    } else {
-        None
-    };
+    validate_loaded_queues(resolved, &queue_file, &done_for_validation)?;
 
-    // Always run full validation (includes dependency checks)
-    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-    let warnings = validation::validate_queue_set(
-        &queue_file,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-    )?;
-    validation::log_warnings(&warnings);
-
-    // Return done_file only if caller requested it (maintains API contract)
     let done_file = if include_done {
         Some(done_for_validation)
     } else {
@@ -484,7 +515,7 @@ mod tests {
     }
 
     #[test]
-    fn load_and_validate_queues_normalizes_non_utc_timestamps_and_persists() -> Result<()> {
+    fn load_and_validate_queues_rejects_non_utc_timestamps_without_persisting() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path();
         let ralph_dir = repo_root.join(".ralph");
@@ -528,7 +559,125 @@ mod tests {
             project_config_path: None,
         };
 
-        let (queue, done) = load_and_validate_queues(&resolved, true)?;
+        let err = load_and_validate_queues(&resolved, true)
+            .expect_err("non-UTC timestamps should fail without explicit repair");
+        let err_msg = format!("{err:#}");
+        assert!(
+            err_msg.contains("must be a valid RFC3339 UTC timestamp"),
+            "unexpected error message: {err_msg}"
+        );
+
+        let persisted_queue = load_queue(&queue_path)?;
+        let persisted_done = load_queue(&done_path)?;
+        assert_eq!(
+            persisted_queue.tasks[0].created_at.as_deref(),
+            Some("2026-01-18T12:00:00-05:00")
+        );
+        assert_eq!(
+            persisted_done.tasks[0].completed_at.as_deref(),
+            Some("2026-01-18T12:00:00-07:00")
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn load_and_validate_queues_rejects_missing_terminal_completed_at_without_persisting()
+    -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path();
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir)?;
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        let mut queue_task = task("RQ-0001");
+        queue_task.status = TaskStatus::Done;
+        queue_task.completed_at = None;
+        save_queue(
+            &queue_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![queue_task],
+            },
+        )?;
+        save_queue(&done_path, &QueueFile::default())?;
+
+        let resolved = Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: repo_root.to_path_buf(),
+            queue_path: queue_path.clone(),
+            done_path,
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let err = load_and_validate_queues(&resolved, true)
+            .expect_err("missing completed_at should fail without explicit repair");
+        let err_msg = format!("{err:#}");
+        assert!(
+            err_msg.contains("Missing completed_at"),
+            "unexpected error message: {err_msg}"
+        );
+
+        let persisted_queue = load_queue(&queue_path)?;
+        assert!(
+            persisted_queue.tasks[0].completed_at.is_none(),
+            "read-only validation must not backfill completed_at"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn repair_and_validate_queues_normalizes_non_utc_timestamps_and_persists() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path();
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir)?;
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        let mut active_task = task("RQ-0001");
+        active_task.created_at = Some("2026-01-18T12:00:00-05:00".to_string());
+        active_task.updated_at = Some("2026-01-18T13:00:00-05:00".to_string());
+        save_queue(
+            &queue_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![active_task],
+            },
+        )?;
+
+        let mut done_task = task("RQ-0002");
+        done_task.status = TaskStatus::Done;
+        done_task.created_at = Some("2026-01-18T10:00:00-07:00".to_string());
+        done_task.updated_at = Some("2026-01-18T11:00:00-07:00".to_string());
+        done_task.completed_at = Some("2026-01-18T12:00:00-07:00".to_string());
+        save_queue(
+            &done_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![done_task],
+            },
+        )?;
+
+        let resolved = Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: repo_root.to_path_buf(),
+            queue_path: queue_path.clone(),
+            done_path: done_path.clone(),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let (queue, done) = repair_and_validate_queues(&resolved, true)?;
         let done = done.expect("done file should be present");
 
         let expected_active_created = crate::timeutil::format_rfc3339(
@@ -562,7 +711,7 @@ mod tests {
     }
 
     #[test]
-    fn load_and_validate_queues_backfills_terminal_completed_at_and_persists() -> Result<()> {
+    fn repair_and_validate_queues_backfills_terminal_completed_at_and_persists() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path();
         let ralph_dir = repo_root.join(".ralph");
@@ -594,7 +743,7 @@ mod tests {
             project_config_path: None,
         };
 
-        let (queue, _done) = load_and_validate_queues(&resolved, true)?;
+        let (queue, _done) = repair_and_validate_queues(&resolved, true)?;
         let completed_at = queue.tasks[0]
             .completed_at
             .as_deref()

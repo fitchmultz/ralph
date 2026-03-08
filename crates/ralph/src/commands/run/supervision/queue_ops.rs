@@ -1,7 +1,7 @@
 //! Queue maintenance operations for post-run supervision.
 //!
 //! Responsibilities:
-//! - Load, repair, and validate queue and done files.
+//! - Explicitly repair and validate queue and done files for post-run recovery.
 //! - Ensure task status transitions to Done appropriately.
 //! - Handle queue/done file persistence.
 //!
@@ -20,11 +20,11 @@ use crate::runutil;
 use crate::{queue, timeutil};
 use anyhow::{Result, anyhow, bail};
 
-/// Loads, conservatively repairs timestamps, and validates the queue and done files.
+/// Explicitly repairs timestamp maintenance, persists it, and validates the queue and done files.
 pub(crate) fn maintain_and_validate_queues(
     resolved: &crate::config::Resolved,
 ) -> Result<(QueueFile, QueueFile)> {
-    let (queue_file, done_file_opt) = queue::load_and_validate_queues(resolved, true)?;
+    let (queue_file, done_file_opt) = queue::repair_and_validate_queues(resolved, true)?;
     let done_file = done_file_opt.unwrap_or_default();
 
     Ok((queue_file, done_file))

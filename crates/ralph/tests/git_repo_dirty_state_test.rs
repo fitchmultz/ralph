@@ -67,6 +67,7 @@ fn run_one_succeeds_when_repo_is_dirty_and_force_is_used() -> Result<()> {
         "#!/bin/sh\ncat >/dev/null\nexit 0\n",
     )?;
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+    test_support::trust_project_commands(dir.path())?;
 
     // Use --force to bypass the dirty repo check.
     let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["--force", "run", "one"]);

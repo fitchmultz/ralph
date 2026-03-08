@@ -113,6 +113,9 @@ fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Pat
         serde_json::to_string_pretty(&config).context("serialize config")?,
     )
     .context("write config")?;
+    if bin_path.is_some() {
+        test_support::trust_project_commands(dir)?;
+    }
     Ok(())
 }
 

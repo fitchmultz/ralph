@@ -51,7 +51,7 @@ pub(crate) fn select_next_task_locked(
     excluded_ids: &HashSet<String>,
     _queue_lock: &DirLock,
 ) -> Result<Option<(String, String)>> {
-    let (queue_file, done_file) = queue::load_and_validate_queues(resolved, true)?;
+    let (queue_file, done_file) = queue::repair_and_validate_queues(resolved, true)?;
     let done_ref = done_file.as_ref();
 
     let idx =
@@ -1226,7 +1226,7 @@ mod tests {
     }
 
     #[test]
-    fn select_next_task_locked_normalizes_non_utc_done_timestamps() -> Result<()> {
+    fn select_next_task_locked_repairs_non_utc_done_timestamps() -> Result<()> {
         use crate::config;
         use crate::contracts::{QueueFile, Task, TaskStatus};
         use tempfile::TempDir;

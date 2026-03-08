@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::config::Resolved;
 use crate::contracts::{Task, TaskStatus};
 use crate::queue;
@@ -102,7 +102,7 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueExportArgs) -> Result<()> {
 
     // Load queue and optionally done file
     let (queue_file, done_file) =
-        load_and_validate_queues(resolved, args.include_archive || args.only_archive)?;
+        load_and_validate_queues_read_only(resolved, args.include_archive || args.only_archive)?;
 
     // Check queue size and print warning if needed
     if !args.quiet {

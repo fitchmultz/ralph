@@ -13,7 +13,7 @@
 use anyhow::Result;
 use clap::Args;
 
-use crate::cli::load_and_validate_queues;
+use crate::cli::load_and_validate_queues_read_only;
 use crate::config::Resolved;
 use crate::contracts::TaskStatus;
 use crate::reports;
@@ -37,7 +37,7 @@ pub struct QueueAgingArgs {
 }
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueAgingArgs) -> Result<()> {
-    let (queue_file, _done_file) = load_and_validate_queues(resolved, false)?;
+    let (queue_file, _done_file) = load_and_validate_queues_read_only(resolved, false)?;
 
     let statuses: Vec<TaskStatus> = if args.status.is_empty() {
         vec![TaskStatus::Todo, TaskStatus::Doing]

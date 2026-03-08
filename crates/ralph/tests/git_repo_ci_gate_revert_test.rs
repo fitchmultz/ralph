@@ -36,6 +36,7 @@ fn run_one_reverts_changes_when_ci_fails() -> Result<()> {
     let runner_path = test_support::create_fake_runner(dir.path(), "codex", &script)
         .context("write runner script")?;
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+    test_support::trust_project_commands(dir.path())?;
 
     // Commit the setup so the repo starts clean.
     test_support::git_add_all_commit(dir.path(), "setup test env")?;
@@ -105,6 +106,7 @@ fn run_one_keeps_changes_when_ci_fails_and_git_revert_mode_disabled() -> Result<
     let runner_path = test_support::create_fake_runner(dir.path(), "codex", &script)
         .context("write runner script")?;
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+    test_support::trust_project_commands(dir.path())?;
 
     test_support::git_add_all_commit(dir.path(), "setup test env")?;
 
@@ -157,6 +159,7 @@ fn run_one_keeps_changes_when_ci_fails_and_git_revert_mode_ask_non_tty() -> Resu
     let runner_path = test_support::create_fake_runner(dir.path(), "codex", &script)
         .context("write runner script")?;
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+    test_support::trust_project_commands(dir.path())?;
 
     test_support::git_add_all_commit(dir.path(), "setup test env")?;
 

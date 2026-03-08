@@ -18,7 +18,7 @@
 use anyhow::{Result, bail};
 use clap::Args;
 
-use crate::cli::{load_and_validate_queues, resolve_list_limit};
+use crate::cli::{load_and_validate_queues_read_only, resolve_list_limit};
 use crate::config::Resolved;
 use crate::contracts::{Task, TaskStatus};
 use crate::{outpututil, queue};
@@ -99,7 +99,7 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueSearchArgs) -> Result<()> {
     }
 
     let (queue_file, done_file) =
-        load_and_validate_queues(resolved, args.include_done || args.only_done)?;
+        load_and_validate_queues_read_only(resolved, args.include_done || args.only_done)?;
     let done_ref = done_file
         .as_ref()
         .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());

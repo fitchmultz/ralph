@@ -30,6 +30,7 @@ fn run_one_succeeds_without_upstream_and_warns() -> Result<()> {
         "#!/bin/sh\ncat >/dev/null\nexit 0\n",
     )?;
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+    test_support::trust_project_commands(dir.path())?;
 
     // 4. Run `ralph run one` with the fake runner
     test_support::git_add_all_commit(dir.path(), "setup test env")?;
