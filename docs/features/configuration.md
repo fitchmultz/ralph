@@ -491,7 +491,7 @@ Desktop notification configuration for task events.
 | `notify_on_loop_complete` | `boolean` | `true` | Notify when loop mode completes |
 | `suppress_when_active` | `boolean` | `true` | Suppress when the macOS app is active |
 | `sound_enabled` | `boolean` | `false` | Play sound with notifications |
-| `sound_path` | `string` | `null` | Custom sound file path |
+| `sound_path` | `string` | `null` | Custom sound file path (`.wav` only on Windows) |
 | `timeout_ms` | `number` | `8000` | Notification timeout (1000-60000) |
 
 #### Platform Notes
@@ -681,8 +681,6 @@ The `plugins` section enables custom runners and processors.
     "plugins": {
       "<plugin-id>": {
         "enabled": true,
-        "runner": { "bin": "custom-runner" },
-        "processor": { "bin": "custom-processor" },
         "config": { /* opaque plugin config */ }
       }
     }
@@ -695,8 +693,6 @@ The `plugins` section enables custom runners and processors.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Enable/disable the plugin |
-| `runner.bin` | `string` | `null` | Override runner executable |
-| `processor.bin` | `string` | `null` | Override processor executable |
 | `config` | `object` | `null` | Opaque plugin configuration |
 
 ### Plugin Directories
@@ -704,6 +700,8 @@ The `plugins` section enables custom runners and processors.
 Plugins are discovered from:
 - Project: `.ralph/plugins/<plugin_id>/plugin.json`
 - Global: `~/.config/ralph/plugins/<plugin_id>/plugin.json`
+
+Project-local plugin settings and project-scope plugin directories require repo trust via `.ralph/trust.jsonc`.
 
 ### Example
 

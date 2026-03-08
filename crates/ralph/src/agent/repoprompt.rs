@@ -122,7 +122,6 @@ mod tests {
                 ci_gate: Some(crate::contracts::CiGateConfig {
                     enabled: Some(true),
                     argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                    shell: None,
                 }),
                 git_revert_mode: Some(GitRevertMode::Ask),
                 git_commit_push_enabled: Some(true),

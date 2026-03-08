@@ -75,7 +75,7 @@ Supported fields:
   **Parallel workers:** This setting is inherited by parallel workers for phase execution behavior in each workspace.
 - `session_timeout_hours`: session timeout in hours for crash recovery (default: `24`). Sessions older than this threshold are considered stale and require explicit user confirmation to resume. Set to a higher value if you want to allow resuming sessions after longer periods.
 - `runner_retry`: runner invocation retry/backoff configuration for transient failure handling. See [`agent.runner_retry`](#agentrunner_retry) below.
-- `ci_gate`: structured CI gate config. Use `argv` for direct execution or `shell` only in repos trusted via `.ralph/trust.jsonc`.
+- `ci_gate`: structured CI gate config. Use `argv` only; shell-string execution is unsupported.
   **Safety warning:** Disabling the CI gate skips validation before commit/push, which may allow broken code to be pushed.
 - `claude_bin`, `codex_bin`, `opencode_bin`, `gemini_bin`, `cursor_bin`: override runner executable path/name (Cursor uses the `agent` binary).
 - `claude_permission_mode`: `accept_edits` or `bypass_permissions`.
@@ -620,7 +620,7 @@ Non-dry-run replay (`ralph webhook replay` without `--dry-run`) requires:
 - `agent.webhook.enabled: true`
 - `agent.webhook.url` set to a non-empty endpoint URL
 
-- **Windows**: Uses toast notifications; custom sounds play via `winmm.dll` PlaySound for `.wav` files, PowerShell MediaPlayer fallback for other formats.
+- **Windows**: Uses toast notifications; custom sounds are `.wav`-only and play via `winmm.dll` PlaySound.
 
 Example:
 
@@ -654,10 +654,10 @@ CLI overrides:
 
 **Security warning:** Plugins are NOT sandboxed. Enabling a plugin is equivalent to trusting it with full system access. Only enable plugins from trusted sources.
 
+Project-local plugin settings and project-scope plugin directories require repo trust via `.ralph/trust.jsonc`. In untrusted repos, Ralph ignores `.ralph/plugins/*` during runtime discovery.
+
 Supported fields:
 - `plugins.plugins.<id>.enabled`: enable/disable the plugin (default: `false`).
-- `plugins.plugins.<id>.runner.bin`: override the runner executable path.
-- `plugins.plugins.<id>.processor.bin`: override the processor executable path.
 - `plugins.plugins.<id>.config`: opaque configuration blob passed to the plugin.
 
 Plugin directories (searched in order, project overrides global):
@@ -673,9 +673,6 @@ Example:
     "plugins": {
       "my.custom-runner": {
         "enabled": true,
-        "runner": {
-          "bin": "custom-runner"
-        },
         "config": {
           "api_key": "secret",
           "endpoint": "https://api.example.com"

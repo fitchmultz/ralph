@@ -40,7 +40,6 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
             ci_gate: Some(CiGateConfig {
                 enabled: Some(true),
                 argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                shell: None,
             }),
             git_commit_push_enabled: Some(true),
             ..Default::default()

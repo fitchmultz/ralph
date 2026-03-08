@@ -639,7 +639,6 @@ fn test_agent_config_merge_from_partial() {
         ci_gate: Some(CiGateConfig {
             enabled: Some(true),
             argv: Some(vec!["make".to_string(), "ci".to_string()]),
-            shell: None,
         }),
         git_revert_mode: Some(GitRevertMode::Ask),
         git_commit_push_enabled: Some(true),
@@ -673,7 +672,6 @@ fn test_agent_config_merge_from_partial() {
         ci_gate: Some(CiGateConfig {
             enabled: Some(false),
             argv: Some(vec!["custom".to_string(), "ci".to_string()]),
-            shell: None,
         }),
         git_revert_mode: Some(GitRevertMode::Disabled),
         git_commit_push_enabled: Some(false),
@@ -699,7 +697,6 @@ fn test_agent_config_merge_from_partial() {
         Some(CiGateConfig {
             enabled: Some(false),
             argv: Some(vec!["custom".to_string(), "ci".to_string()]),
-            shell: None,
         })
     );
 }

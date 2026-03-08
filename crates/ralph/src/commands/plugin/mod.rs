@@ -17,7 +17,7 @@ use crate::config::Resolved;
 use crate::plugins::PLUGIN_API_VERSION;
 use crate::plugins::discovery::{PluginScope, discover_plugins, plugin_roots};
 use crate::plugins::manifest::{PluginManifest, ProcessorPlugin, RunnerPlugin};
-use crate::plugins::registry::PluginRegistry;
+use crate::plugins::registry::{PluginRegistry, resolve_plugin_relative_exe};
 
 pub fn run(args: &PluginArgs, resolved: &Resolved) -> Result<()> {
     match &args.command {
@@ -143,7 +143,8 @@ fn cmd_validate(resolved: &Resolved, filter_id: Option<&str>) -> Result<()> {
 
         // Check runner binary exists if specified
         if let Some(runner) = &d.manifest.runner {
-            let bin_path = d.plugin_dir.join(&runner.bin);
+            let bin_path = resolve_plugin_relative_exe(&d.plugin_dir, &runner.bin)
+                .context("resolve runner binary path")?;
             if !bin_path.exists() {
                 println!("FAILED (runner binary)");
                 println!("  Error: runner binary not found: {}", bin_path.display());
@@ -154,7 +155,8 @@ fn cmd_validate(resolved: &Resolved, filter_id: Option<&str>) -> Result<()> {
 
         // Check processor binary exists if specified
         if let Some(proc) = &d.manifest.processors {
-            let bin_path = d.plugin_dir.join(&proc.bin);
+            let bin_path = resolve_plugin_relative_exe(&d.plugin_dir, &proc.bin)
+                .context("resolve processor binary path")?;
             if !bin_path.exists() {
                 println!("FAILED (processor binary)");
                 println!(

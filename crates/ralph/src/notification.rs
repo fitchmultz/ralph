@@ -16,6 +16,7 @@
 //! - Sound playback failures don't fail the notification.
 //! - Notification failures are logged but don't fail the calling operation.
 //! - All platform-specific code is isolated per target OS.
+//! - Windows custom sounds are limited to `.wav` files played through WinMM.
 
 use std::path::Path;
 
@@ -570,13 +571,8 @@ fn play_windows_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
             }
         }
 
-        // Fall back to PowerShell MediaPlayer for other formats or if winmm fails
-        if let Ok(()) = play_sound_powershell(path) {
-            return Ok(());
-        }
-
         return Err(anyhow::anyhow!(
-            "Failed to play sound with all available methods"
+            "Windows custom notification sounds must be .wav files"
         ));
     }
 
@@ -586,48 +582,27 @@ fn play_windows_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
 
 #[cfg(target_os = "windows")]
 fn play_sound_winmm(path: &str) -> anyhow::Result<()> {
-    use std::ffi::CString;
-    use windows_sys::Win32::Media::Audio::{PlaySoundA, SND_FILENAME, SND_SYNC};
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Media::Audio::{PlaySoundW, SND_FILENAME, SND_SYNC};
 
-    let c_path = CString::new(path).map_err(|e| anyhow::anyhow!("Invalid path encoding: {}", e))?;
+    let wide_path = Path::new(path)
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<u16>>();
 
-    // SAFETY: PlaySoundA is a Windows API that accepts a valid null-terminated C string
-    // pointer (c_path.as_ptr()) and flags. The SND_FILENAME flag tells it to treat the
-    // pointer as a file path. The pointer is valid for the duration of the call.
+    // SAFETY: PlaySoundW accepts a valid null-terminated UTF-16 file path pointer and flags.
+    // The pointer remains valid for the duration of the synchronous call.
     let result = unsafe {
-        PlaySoundA(
-            c_path.as_ptr(),
+        PlaySoundW(
+            wide_path.as_ptr(),
             std::ptr::null_mut(),
             SND_FILENAME | SND_SYNC,
         )
     };
 
     if result == 0 {
-        return Err(anyhow::anyhow!("PlaySoundA failed"));
-    }
-
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn play_sound_powershell(path: &str) -> anyhow::Result<()> {
-    let script = format!(
-        "$player = New-Object System.Media.SoundPlayer '{}'; $player.PlaySync()",
-        path.replace('\'', "''")
-    );
-
-    let output = std::process::Command::new("powershell.exe")
-        .arg("-Command")
-        .arg(&script)
-        .output()
-        .map_err(|e| anyhow::anyhow!("Failed to execute PowerShell: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!(
-            "PowerShell sound playback failed: {}",
-            stderr
-        ));
+        return Err(anyhow::anyhow!("PlaySoundW failed"));
     }
 
     Ok(())
@@ -823,7 +798,7 @@ mod tests {
         }
 
         #[test]
-        fn play_windows_sound_non_wav_uses_powershell() {
+        fn play_windows_sound_non_wav_is_rejected() {
             // Create a dummy mp3 file (just a header, not a real mp3)
             let mut temp_file = NamedTempFile::with_suffix(".mp3").unwrap();
             // MP3 sync word (not a full valid header, but enough for path validation)
@@ -832,11 +807,8 @@ mod tests {
             temp_file.flush().unwrap();
 
             let path = temp_file.path().to_str().unwrap();
-            // Should attempt PowerShell fallback for non-WAV files
-            // Result depends on whether PowerShell is available
-            if let Err(e) = play_windows_sound(Some(path)) {
-                log::debug!("Sound playback failed in test (expected in CI): {}", e);
-            }
+            let err = play_windows_sound(Some(path)).unwrap_err();
+            assert!(err.to_string().contains(".wav"));
         }
     }
 }

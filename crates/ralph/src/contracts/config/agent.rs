@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Define AgentConfig struct and merge behavior for runner defaults.
-//! - Model CI gate execution using explicit argv or trusted shell settings.
+//! - Model CI gate execution using explicit argv settings.
 //!
 //! Not handled here:
 //! - Runner-specific configuration (see `crate::contracts::runner`).
@@ -18,45 +18,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Platform shell mode for trusted CI gate execution.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ShellMode {
-    Posix,
-    WindowsCmd,
-}
-
-impl ShellMode {
-    pub fn display_prefix(self) -> &'static str {
-        match self {
-            Self::Posix => "sh -c",
-            Self::WindowsCmd => "cmd /C",
-        }
-    }
-}
-
-/// Trusted shell execution settings for the CI gate.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, PartialEq, Eq)]
-#[serde(default, deny_unknown_fields)]
-pub struct ShellCommandConfig {
-    /// Shell mode used to interpret the command string.
-    pub mode: Option<ShellMode>,
-
-    /// Command string evaluated by the configured shell.
-    pub command: Option<String>,
-}
-
-impl ShellCommandConfig {
-    pub fn merge_from(&mut self, other: Self) {
-        if other.mode.is_some() {
-            self.mode = other.mode;
-        }
-        if other.command.is_some() {
-            self.command = other.command;
-        }
-    }
-}
-
 /// Structured CI gate execution settings.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, PartialEq, Eq)]
 #[serde(default, deny_unknown_fields)]
@@ -66,9 +27,6 @@ pub struct CiGateConfig {
 
     /// Direct argv execution. The first item is the program and remaining items are arguments.
     pub argv: Option<Vec<String>>,
-
-    /// Explicit shell-mode execution. Intended only for trusted local configuration.
-    pub shell: Option<ShellCommandConfig>,
 }
 
 impl CiGateConfig {
@@ -85,15 +43,6 @@ impl CiGateConfig {
             return format_argv(argv);
         }
 
-        if let Some(shell) = &self.shell {
-            let mode = shell
-                .mode
-                .map(ShellMode::display_prefix)
-                .unwrap_or("<shell>");
-            let command = shell.command.as_deref().unwrap_or("<unset>");
-            return format!("{mode} {command}");
-        }
-
         "<unset>".to_string()
     }
 
@@ -103,12 +52,6 @@ impl CiGateConfig {
         }
         if other.argv.is_some() {
             self.argv = other.argv;
-        }
-        if let Some(other_shell) = other.shell {
-            match &mut self.shell {
-                Some(existing) => existing.merge_from(other_shell),
-                None => self.shell = Some(other_shell),
-            }
         }
     }
 }

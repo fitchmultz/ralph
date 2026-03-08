@@ -215,6 +215,16 @@ mod tests {
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
+    fn trust_repo(repo_root: &Path) {
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir).unwrap();
+        std::fs::write(
+            ralph_dir.join("trust.jsonc"),
+            r#"{"allow_project_commands": true}"#,
+        )
+        .unwrap();
+    }
+
     fn create_test_task(id: &str) -> Task {
         Task {
             id: id.to_string(),
@@ -300,6 +310,7 @@ mod tests {
     #[test]
     fn test_pre_prompt_mutates_prompt() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
 
         // Create a processor that appends a marker to the prompt
@@ -314,6 +325,19 @@ fi
 exit 0
 "#;
         create_processor_plugin(&plugin_dir, "test.plugin", vec!["pre_prompt"], script).unwrap();
+        let plugin_root = tmp.path().join(".ralph/plugins");
+        let discovered = crate::plugins::discovery::discover_plugins(tmp.path()).unwrap();
+        assert!(
+            discovered.contains_key("test.plugin"),
+            "plugin root exists={}, manifest exists={}, root entries={:?}, manifest={}",
+            plugin_root.is_dir(),
+            plugin_dir.join("plugin.json").is_file(),
+            std::fs::read_dir(&plugin_root)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+                .collect::<Vec<_>>(),
+            std::fs::read_to_string(plugin_dir.join("plugin.json")).unwrap()
+        );
 
         let mut cfg = Config::default();
         cfg.plugins.plugins.insert(
@@ -325,6 +349,8 @@ exit 0
         );
 
         let registry = PluginRegistry::load(tmp.path(), &cfg).unwrap();
+        assert!(registry.discovered().contains_key("test.plugin"));
+        assert!(registry.is_enabled("test.plugin"));
         let exec = ProcessorExecutor::new(tmp.path(), &registry);
 
         let original_prompt = "Original prompt";
@@ -337,6 +363,7 @@ exit 0
     #[test]
     fn test_multiple_processors_chain_in_order() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
 
         // Create two plugins with IDs that will be sorted: a.plugin and b.plugin
         let plugin_a_dir = tmp.path().join(".ralph/plugins/a.plugin");
@@ -379,6 +406,10 @@ exit 0
         );
 
         let registry = PluginRegistry::load(tmp.path(), &cfg).unwrap();
+        assert!(registry.discovered().contains_key("a.plugin"));
+        assert!(registry.discovered().contains_key("b.plugin"));
+        assert!(registry.is_enabled("a.plugin"));
+        assert!(registry.is_enabled("b.plugin"));
         let exec = ProcessorExecutor::new(tmp.path(), &registry);
 
         let original_prompt = "X";
@@ -391,6 +422,7 @@ exit 0
     #[test]
     fn test_hook_filtering_plugin_without_hook_not_invoked() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
 
         // Create a processor that only supports validate_task (not pre_prompt)
@@ -410,6 +442,8 @@ exit 0
         );
 
         let registry = PluginRegistry::load(tmp.path(), &cfg).unwrap();
+        assert!(registry.discovered().contains_key("test.plugin"));
+        assert!(registry.is_enabled("test.plugin"));
         let exec = ProcessorExecutor::new(tmp.path(), &registry);
 
         // Call pre_prompt - the plugin should not be invoked
@@ -422,6 +456,7 @@ exit 0
     #[test]
     fn test_non_zero_exit_surfaces_error() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
 
         let script = r#"#!/bin/bash
@@ -440,6 +475,8 @@ exit 1
         );
 
         let registry = PluginRegistry::load(tmp.path(), &cfg).unwrap();
+        assert!(registry.discovered().contains_key("test.plugin"));
+        assert!(registry.is_enabled("test.plugin"));
         let exec = ProcessorExecutor::new(tmp.path(), &registry);
 
         let task = create_test_task("RQ-0001");
@@ -452,36 +489,22 @@ exit 1
     }
 
     #[test]
-    fn test_processor_bin_override_in_config() {
+    fn test_processor_uses_manifest_bin() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
 
-        // Create the default processor.sh
         let script = r#"#!/bin/bash
-echo "default" >> "$3"
+echo "manifest" >> "$3"
 exit 0
 "#;
         create_processor_plugin(&plugin_dir, "test.plugin", vec!["pre_prompt"], script).unwrap();
-
-        // Create a custom processor
-        let custom_script = r#"#!/bin/bash
-echo "custom" >> "$3"
-exit 0
-"#;
-        let custom_path = plugin_dir.join("custom.sh");
-        std::fs::write(&custom_path, custom_script).unwrap();
-        let mut perms = std::fs::metadata(&custom_path).unwrap().permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(&custom_path, perms).unwrap();
 
         let mut cfg = Config::default();
         cfg.plugins.plugins.insert(
             "test.plugin".to_string(),
             crate::contracts::PluginConfig {
                 enabled: Some(true),
-                processor: Some(crate::contracts::PluginProcessorConfig {
-                    bin: Some("custom.sh".to_string()),
-                }),
                 ..Default::default()
             },
         );
@@ -490,9 +513,7 @@ exit 0
         let exec = ProcessorExecutor::new(tmp.path(), &registry);
 
         let final_prompt = exec.pre_prompt("RQ-0001", "").unwrap();
-
-        // Should use the custom script
-        assert_eq!(final_prompt.trim(), "custom");
+        assert_eq!(final_prompt.trim(), "manifest");
     }
 
     // Import needed for tests

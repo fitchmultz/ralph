@@ -585,10 +585,7 @@ Use comments in config for documentation:
   "agent": {
     "ci_gate": {
       "enabled": true,
-      "shell": {
-        "mode": "posix",
-        "command": "cargo test && cargo clippy"
-      }
+      "argv": ["cargo", "test"]
     },
     "phases": 2
   },

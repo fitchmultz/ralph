@@ -31,24 +31,7 @@ pub fn ci_gate_to_safe_command(ci_gate: &CiGateConfig) -> Result<SafeCommand> {
         return Ok(SafeCommand::Argv { argv: argv.clone() });
     }
 
-    if let Some(shell) = &ci_gate.shell {
-        let mode = shell
-            .mode
-            .ok_or_else(|| anyhow::anyhow!("CI gate shell mode is required"))?;
-        let command = shell
-            .command
-            .as_deref()
-            .ok_or_else(|| anyhow::anyhow!("CI gate shell command is required"))?;
-        if command.trim().is_empty() {
-            bail!("CI gate shell command must be non-empty");
-        }
-        return Ok(SafeCommand::Shell {
-            command: command.to_string(),
-            mode,
-        });
-    }
-
-    bail!("CI gate is enabled but no argv or shell command is configured");
+    bail!("CI gate is enabled but no argv is configured");
 }
 
 /// Execute the configured CI gate command.

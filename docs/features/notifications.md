@@ -37,7 +37,7 @@ Notifications are configured via the `agent.notification` section in your config
 | `notify_on_loop_complete` | boolean | `true` | Enable notifications when loop mode finishes |
 | `suppress_when_active` | boolean | `true` | Suppress notifications when the macOS app is active |
 | `sound_enabled` | boolean | `false` | Play sound with notifications |
-| `sound_path` | string | `null` | Custom sound file path (platform-specific) |
+| `sound_path` | string | `null` | Custom sound file path (platform-specific; `.wav` only on Windows) |
 | `timeout_ms` | number | `8000` | Notification display duration (1000-60000 ms) |
 
 ### Configuration Precedence
@@ -183,8 +183,8 @@ alsa-utils          # For aplay (fallback)
 **Sound Support:**
 - Default: Windows toast notifications play system default sound
 - Custom sounds: Uses `winmm.dll` `PlaySoundA` for `.wav` files
-- Fallback to PowerShell `MediaPlayer` for other formats
-- Supported formats: WAV (native), MP3 and others via PowerShell
+- Other formats are rejected for custom Windows sounds
+- Supported formats: WAV only for custom sound files
 
 **Example Windows Configuration:**
 ```json
@@ -252,8 +252,8 @@ Platform-specific paths should be used:
 
 **Windows:**
 - `.wav` files: Uses native `winmm.dll` `PlaySoundA`
-- Other formats: Falls back to PowerShell `MediaPlayer`
-- Silent fallback if both methods fail
+- Other formats are rejected for custom sound playback
+- Silent fallback if playback fails
 
 ### INTENDED vs CURRENT BEHAVIOR: Sound Failure Handling
 

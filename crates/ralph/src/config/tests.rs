@@ -69,7 +69,6 @@ fn validate_config_rejects_empty_ci_gate_argv_when_enabled() {
     cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
         argv: Some(vec!["".to_string()]),
-        shell: None,
     });
 
     let err = validate_config(&cfg).expect_err("expected validation to fail");
@@ -82,7 +81,6 @@ fn validate_config_allows_missing_ci_gate_shape_when_disabled() {
     cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(false),
         argv: None,
-        shell: None,
     });
 
     validate_config(&cfg).expect("validation should pass when disabled");
@@ -98,11 +96,13 @@ fn validate_config_rejects_shell_launcher_argv_without_shell_mode() {
             "-c".to_string(),
             "make ci".to_string(),
         ]),
-        shell: None,
     });
 
     let err = validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("requires agent.ci_gate.shell"));
+    assert!(
+        err.to_string()
+            .contains("shell launcher argv is not supported")
+    );
 }
 
 #[test]
@@ -111,7 +111,6 @@ fn validate_project_execution_trust_rejects_untrusted_project_ci_gate() {
     layer.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
         argv: Some(vec!["cargo".to_string(), "test".to_string()]),
-        shell: None,
     });
 
     let err = validate_project_execution_trust(Some(&layer), &RepoTrust::default())
@@ -125,7 +124,6 @@ fn validate_project_execution_trust_allows_trusted_project_ci_gate() {
     layer.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
         argv: Some(vec!["cargo".to_string(), "test".to_string()]),
-        shell: None,
     });
 
     validate_project_execution_trust(
@@ -136,6 +134,42 @@ fn validate_project_execution_trust_allows_trusted_project_ci_gate() {
         },
     )
     .expect("trusted project config should pass");
+}
+
+#[test]
+fn validate_project_execution_trust_rejects_untrusted_project_plugins() {
+    let mut layer = ConfigLayer::default();
+    layer.plugins.plugins.insert(
+        "test.plugin".to_string(),
+        crate::contracts::PluginConfig {
+            enabled: Some(true),
+            ..Default::default()
+        },
+    );
+
+    let err = validate_project_execution_trust(Some(&layer), &RepoTrust::default())
+        .expect_err("expected trust failure");
+    assert!(err.to_string().contains(ERR_PROJECT_EXECUTION_TRUST));
+}
+
+#[test]
+fn validate_project_execution_trust_rejects_untrusted_project_runner_bin_override() {
+    let mut layer = ConfigLayer::default();
+    layer.agent.codex_bin = Some("/tmp/codex".to_string());
+
+    let err = validate_project_execution_trust(Some(&layer), &RepoTrust::default())
+        .expect_err("expected trust failure");
+    assert!(err.to_string().contains(ERR_PROJECT_EXECUTION_TRUST));
+}
+
+#[test]
+fn validate_project_execution_trust_rejects_untrusted_project_plugin_runner_selection() {
+    let mut layer = ConfigLayer::default();
+    layer.agent.runner = Some(crate::contracts::Runner::Plugin("test.plugin".to_string()));
+
+    let err = validate_project_execution_trust(Some(&layer), &RepoTrust::default())
+        .expect_err("expected trust failure");
+    assert!(err.to_string().contains(ERR_PROJECT_EXECUTION_TRUST));
 }
 
 #[test]

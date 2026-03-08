@@ -18,6 +18,16 @@ fn ralph_cmd_in_dir(dir: &std::path::Path) -> Command {
     cmd
 }
 
+fn trust_repo(dir: &std::path::Path) -> Result<()> {
+    let ralph_dir = dir.join(".ralph");
+    std::fs::create_dir_all(&ralph_dir)?;
+    std::fs::write(
+        ralph_dir.join("trust.jsonc"),
+        r#"{"allow_project_commands": true}"#,
+    )?;
+    Ok(())
+}
+
 #[test]
 fn doctor_passes_in_clean_env() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
@@ -35,6 +45,7 @@ fn doctor_passes_in_clean_env() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
@@ -92,6 +103,7 @@ fn doctor_warns_on_missing_upstream() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
@@ -127,6 +139,7 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     // Configure a non-existent runner binary
     let config_path = dir.path().join(".ralph/config.jsonc");
@@ -162,6 +175,7 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = r#"{"version":1,"agent":{"runner":"gemini","gemini_bin":"this-gemini-does-not-exist-xyz123"}}"#;
@@ -194,6 +208,7 @@ fn doctor_fails_with_nonexistent_claude_binary() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = r#"{"version":1,"agent":{"runner":"claude","claude_bin":"this-claude-does-not-exist-xyz123"}}"#;
@@ -226,6 +241,7 @@ fn doctor_fails_with_invalid_done_archive() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     // Corrupt done.json
     let done_path = dir.path().join(".ralph/done.jsonc");
@@ -262,6 +278,7 @@ fn doctor_warns_when_instruction_files_missing() -> Result<()> {
 
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+    trust_repo(dir.path())?;
 
     // Configure instruction file injection with a missing path.
     let config_path = dir.path().join(".ralph/config.jsonc");

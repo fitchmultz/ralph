@@ -880,7 +880,7 @@ mod tests {
     use super::*;
     use crate::contracts::{
         AgentConfig, CiGateConfig, Config, NotificationConfig, QueueConfig, Runner,
-        RunnerRetryConfig, ShellCommandConfig, ShellMode,
+        RunnerRetryConfig,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -905,6 +905,31 @@ mod tests {
         command: Option<String>,
         enabled: bool,
     ) -> crate::config::Resolved {
+        let argv = command.map(|command| {
+            let script_name = if cfg!(windows) {
+                "ci-gate-test.cmd"
+            } else {
+                "ci-gate-test.sh"
+            };
+            let script_path = repo_root.join(script_name);
+            let script = if cfg!(windows) {
+                format!("@echo off\r\n{command}\r\n")
+            } else {
+                format!("#!/bin/sh\nset -e\n{command}\n")
+            };
+            fs::write(&script_path, script).expect("write CI gate test script");
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = fs::metadata(&script_path)
+                    .expect("script metadata")
+                    .permissions();
+                perms.set_mode(0o755);
+                fs::set_permissions(&script_path, perms).expect("set script permissions");
+            }
+            vec![script_path.to_string_lossy().to_string()]
+        });
+
         let cfg = Config {
             agent: AgentConfig {
                 runner: Some(Runner::Codex),
@@ -927,25 +952,9 @@ mod tests {
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),
-                ci_gate: Some(if let Some(command) = command {
-                    CiGateConfig {
-                        enabled: Some(enabled),
-                        argv: None,
-                        shell: Some(ShellCommandConfig {
-                            mode: Some(if cfg!(windows) {
-                                ShellMode::WindowsCmd
-                            } else {
-                                ShellMode::Posix
-                            }),
-                            command: Some(command),
-                        }),
-                    }
-                } else {
-                    CiGateConfig {
-                        enabled: Some(enabled),
-                        argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                        shell: None,
-                    }
+                ci_gate: Some(CiGateConfig {
+                    enabled: Some(enabled),
+                    argv: argv.or_else(|| Some(vec!["make".to_string(), "ci".to_string()])),
                 }),
                 git_revert_mode: Some(crate::contracts::GitRevertMode::Disabled),
                 git_commit_push_enabled: Some(true),
@@ -995,13 +1004,12 @@ mod tests {
     #[test]
     fn ci_gate_command_label_returns_custom() {
         let temp = TempDir::new().unwrap();
-        let resolved = resolved_with_ci_command(temp.path(), Some("cargo test".to_string()), true);
-        let expected = if cfg!(windows) {
-            "cmd /C cargo test"
-        } else {
-            "sh -c cargo test"
-        };
-        assert_eq!(ci_gate_command_label(&resolved), expected);
+        let mut resolved = resolved_with_ci_command(temp.path(), None, true);
+        resolved.config.agent.ci_gate = Some(CiGateConfig {
+            enabled: Some(true),
+            argv: Some(vec!["cargo".to_string(), "test".to_string()]),
+        });
+        assert_eq!(ci_gate_command_label(&resolved), "cargo test");
     }
 
     #[test]
@@ -1018,19 +1026,19 @@ mod tests {
     fn run_ci_gate_errors_on_empty_command() {
         let temp = TempDir::new().unwrap();
         write_repo_trust(temp.path());
-        let resolved = resolved_with_ci_command(temp.path(), Some("".to_string()), true);
+        let mut resolved = resolved_with_ci_command(temp.path(), None, true);
+        resolved.config.agent.ci_gate = Some(CiGateConfig {
+            enabled: Some(true),
+            argv: Some(vec!["".to_string()]),
+        });
         let err = run_ci_gate(&resolved).unwrap_err();
-        assert!(format!("{err:#}").contains("CI gate shell command must be non-empty"));
+        assert!(format!("{err:#}").contains("CI gate argv entries must be non-empty"));
     }
 
     #[test]
     fn run_ci_gate_captures_output() -> Result<()> {
         let temp = TempDir::new()?;
-        let command = if cfg!(windows) {
-            "powershell -NoProfile -Command \"Write-Output 'stdout text'; Write-Error 'stderr text'; exit 1\""
-        } else {
-            "echo stdout text; echo stderr text >&2; exit 1"
-        };
+        let command = "python3 -c \"import sys; print('stdout text'); print('stderr text', file=sys.stderr); raise SystemExit(1)\"";
         write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let err = run_ci_gate(&resolved).unwrap_err();
@@ -2047,11 +2055,7 @@ mod tests {
     #[test]
     fn run_ci_gate_with_continue_session_escalates_on_threshold_same_pattern() -> Result<()> {
         let temp = TempDir::new()?;
-        let command = if cfg!(windows) {
-            r#"powershell -NoProfile -Command "Write-Error 'ruff failed: TOML parse error at line 44'; exit 1""#
-        } else {
-            r#"echo "ruff failed: TOML parse error at line 44" >&2; exit 1"#
-        };
+        let command = "python3 -c \"import sys; print('ruff failed: TOML parse error at line 44', file=sys.stderr); raise SystemExit(1)\"";
 
         write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
@@ -2084,11 +2088,7 @@ mod tests {
     #[test]
     fn run_ci_gate_with_continue_session_escalation_honors_continue_choice() -> Result<()> {
         let temp = TempDir::new()?;
-        let command = if cfg!(windows) {
-            r#"powershell -NoProfile -Command "Write-Error 'format-check failed'; exit 1""#
-        } else {
-            r#"echo "format-check failed" >&2; exit 1"#
-        };
+        let command = "python3 -c \"import sys; print('format-check failed', file=sys.stderr); raise SystemExit(1)\"";
 
         write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
@@ -2136,11 +2136,7 @@ mod tests {
     #[test]
     fn run_ci_gate_with_continue_session_resets_counter_when_pattern_changes() -> Result<()> {
         let temp = TempDir::new()?;
-        let command = if cfg!(windows) {
-            r#"powershell -NoProfile -Command "Write-Error 'format-check failed'; exit 1""#
-        } else {
-            r#"echo "format-check failed" >&2; exit 1"#
-        };
+        let command = "python3 -c \"import sys; print('format-check failed', file=sys.stderr); raise SystemExit(1)\"";
 
         write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
@@ -2170,11 +2166,7 @@ mod tests {
     #[test]
     fn run_ci_gate_with_continue_session_clears_pattern_tracking_after_success() -> Result<()> {
         let temp = TempDir::new()?;
-        let command = if cfg!(windows) {
-            r#"powershell -NoProfile -Command "exit 0""#
-        } else {
-            "exit 0"
-        };
+        let command = "python3 -c \"raise SystemExit(0)\"";
 
         write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);

@@ -173,19 +173,9 @@ fn build_ci_gate_value(legacy_command: Option<&Value>, enabled: bool) -> Result<
         .filter(|value| !value.is_empty())
         .unwrap_or("make ci");
 
-    if contains_shell_syntax(command) {
-        return Ok(serde_json::json!({
-            "enabled": true,
-            "shell": {
-                "mode": if cfg!(windows) { "windows_cmd" } else { "posix" },
-                "command": command,
-            }
-        }));
-    }
-
     let argv = shlex::split(command).ok_or_else(|| {
         anyhow::anyhow!(
-            "could not split legacy CI gate command into argv: {}",
+            "could not migrate legacy CI gate command to argv-only execution: {}",
             command
         )
     })?;
@@ -197,12 +187,6 @@ fn build_ci_gate_value(legacy_command: Option<&Value>, enabled: bool) -> Result<
         "enabled": true,
         "argv": argv,
     }))
-}
-
-fn contains_shell_syntax(command: &str) -> bool {
-    ["&&", "||", "|", ";", "$(", "`", ">", "<"]
-        .iter()
-        .any(|needle| command.contains(needle))
 }
 
 /// Rename a key in a specific config file while preserving comments.

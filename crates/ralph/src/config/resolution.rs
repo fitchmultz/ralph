@@ -36,24 +36,25 @@ use super::validation::{
 
 /// Resolve configuration from the current working directory.
 pub fn resolve_from_cwd() -> Result<Resolved> {
-    resolve_from_cwd_internal(true, None)
+    resolve_from_cwd_internal(true, true, None)
 }
 
 /// Resolve config with an optional profile selection.
 ///
 /// The profile is applied after base config resolution but before instruction_files validation.
 pub fn resolve_from_cwd_with_profile(profile: Option<&str>) -> Result<Resolved> {
-    resolve_from_cwd_internal(true, profile)
+    resolve_from_cwd_internal(true, true, profile)
 }
 
 /// Resolve config for the doctor command, skipping instruction_files validation.
 /// This allows doctor to diagnose and warn about missing files without failing early.
 pub fn resolve_from_cwd_for_doctor() -> Result<Resolved> {
-    resolve_from_cwd_internal(false, None)
+    resolve_from_cwd_internal(false, false, None)
 }
 
 fn resolve_from_cwd_internal(
     validate_instruction_files: bool,
+    validate_execution_trust: bool,
     profile: Option<&str>,
 ) -> Result<Resolved> {
     let cwd = env::current_dir().context("resolve current working directory")?;
@@ -88,7 +89,9 @@ fn resolve_from_cwd_internal(
             .with_context(|| format!("apply project config {}", project_path.display()))?;
     }
 
-    validate_project_execution_trust(project_layer.as_ref(), &repo_trust)?;
+    if validate_execution_trust {
+        validate_project_execution_trust(project_layer.as_ref(), &repo_trust)?;
+    }
     validate_config(&cfg)?;
 
     // Apply selected profile if specified

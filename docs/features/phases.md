@@ -149,7 +149,7 @@ make ci
 
 # Configurable via:
 # - CLI: (no direct flag, use config)
-# - Config: agent.ci_gate.argv / agent.ci_gate.shell
+# - Config: agent.ci_gate.argv
 # - Config: agent.ci_gate.enabled (set to false to disable)
 ```
 

@@ -26,9 +26,8 @@ mod task;
 // All config types are now re-exported from config::mod.rs for backward compatibility
 pub use config::{
     AgentConfig, CiGateConfig, Config, GitRevertMode, LoopConfig, NotificationConfig,
-    ParallelConfig, PhaseOverrideConfig, PhaseOverrides, PluginConfig, PluginProcessorConfig,
-    PluginRunnerConfig, PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig,
-    RunnerRetryConfig, ScanPromptVersion, ShellCommandConfig, ShellMode, WebhookConfig,
+    ParallelConfig, PhaseOverrideConfig, PhaseOverrides, PluginConfig, PluginsConfig, ProjectType,
+    QueueAgingThresholds, QueueConfig, RunnerRetryConfig, ScanPromptVersion, WebhookConfig,
     WebhookEventSubscription, WebhookQueuePolicy,
 };
 

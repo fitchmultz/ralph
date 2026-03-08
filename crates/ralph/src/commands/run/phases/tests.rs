@@ -123,7 +123,6 @@ fn resolved_for_repo(repo_root: PathBuf, opencode_bin: &Path) -> crate::config::
     cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(false),
         argv: None,
-        shell: None,
     });
     cfg.queue = QueueConfig {
         file: Some(PathBuf::from(".ralph/queue.json")),
@@ -944,11 +943,14 @@ echo '{"sessionID":"sess-123"}'
     trust_repo(temp.path())?;
     resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
-        argv: None,
-        shell: Some(crate::contracts::ShellCommandConfig {
-            mode: Some(crate::contracts::ShellMode::Posix),
-            command: Some(format!("echo ok > {}", ci_marker.display())),
-        }),
+        argv: Some(vec![
+            "python3".to_string(),
+            "-c".to_string(),
+            format!(
+                "from pathlib import Path; Path(r\"{}\").write_text(\"ok\")",
+                ci_marker.display()
+            ),
+        ]),
     });
 
     let settings = runner::AgentSettings {
@@ -1033,11 +1035,7 @@ echo '{{"sessionID":"sess-123"}}'
     trust_repo(temp.path())?;
     resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
-        argv: None,
-        shell: Some(crate::contracts::ShellCommandConfig {
-            mode: Some(crate::contracts::ShellMode::Posix),
-            command: Some("exit 1".to_string()),
-        }),
+        argv: Some(vec!["false".to_string()]),
     });
 
     let settings = runner::AgentSettings {
@@ -1553,11 +1551,14 @@ echo '{"sessionID":"sess-phase2"}'
     trust_repo(temp.path())?;
     resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
-        argv: None,
-        shell: Some(crate::contracts::ShellCommandConfig {
-            mode: Some(crate::contracts::ShellMode::Posix),
-            command: Some(format!("echo ci > {}", ci_marker.display())),
-        }),
+        argv: Some(vec![
+            "python3".to_string(),
+            "-c".to_string(),
+            format!(
+                "from pathlib import Path; Path(r\"{}\").write_text(\"ci\")",
+                ci_marker.display()
+            ),
+        ]),
     });
 
     let settings = runner::AgentSettings {

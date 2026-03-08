@@ -89,7 +89,6 @@ fn resolved_for_repo(repo_root: &Path) -> crate::config::Resolved {
             ci_gate: Some(crate::contracts::CiGateConfig {
                 enabled: Some(false),
                 argv: None,
-                shell: None,
             }),
             git_revert_mode: Some(GitRevertMode::Disabled),
             git_commit_push_enabled: Some(true),
@@ -663,8 +662,6 @@ echo '{{"sessionID":"sess-123"}}'
     let runner_path = create_fake_runner(temp.path(), "opencode", &runner_script)?;
 
     let ci_pass = temp.path().join("ci-pass.txt");
-    let ci_command = format!("test -f {}", ci_pass.display());
-
     let mut resolved = resolved_for_repo(temp.path());
     std::fs::write(
         temp.path().join(".ralph/trust.jsonc"),
@@ -672,11 +669,14 @@ echo '{{"sessionID":"sess-123"}}'
     )?;
     resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
-        argv: None,
-        shell: Some(crate::contracts::ShellCommandConfig {
-            mode: Some(crate::contracts::ShellMode::Posix),
-            command: Some(ci_command),
-        }),
+        argv: Some(vec![
+            "python3".to_string(),
+            "-c".to_string(),
+            format!(
+                "from pathlib import Path; raise SystemExit(0 if Path(r\"{}\").is_file() else 1)",
+                ci_pass.display()
+            ),
+        ]),
     });
     resolved.config.agent.opencode_bin = Some(runner_path.to_str().unwrap().to_string());
 

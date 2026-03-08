@@ -63,6 +63,27 @@ pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolve
         }
     };
 
+    if let Some((config_key, config_path)) = blocked_project_runner_override(resolved, &runner) {
+        let message = format!(
+            "project config defines execution-sensitive runner override '{}', but this repo is not trusted",
+            config_key
+        );
+        let guidance = format!(
+            "Move agent.{config_key} to trusted global config or create .ralph/trust.jsonc before running doctor checks that execute runner binaries. Config file: {}",
+            config_path.display()
+        );
+        report.add(CheckResult::error(
+            "runner",
+            "runner_binary",
+            &message,
+            false,
+            Some(&guidance),
+        ));
+        log::error!("{message}");
+        log::error!("{guidance}");
+        return;
+    }
+
     if let Err(e) = check_runner_binary(bin_name) {
         let config_key = get_runner_config_key(&runner);
         let message = format!(
@@ -210,6 +231,46 @@ pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolve
                 Some("Check instruction file paths in config"),
             ));
         }
+    }
+}
+
+fn blocked_project_runner_override(
+    resolved: &config::Resolved,
+    runner: &Runner,
+) -> Option<(&'static str, std::path::PathBuf)> {
+    let config_key = get_runner_config_key(runner);
+    if config_key == "plugin_bin" {
+        return None;
+    }
+
+    let repo_trust = config::load_repo_trust(&resolved.repo_root).ok()?;
+    if repo_trust.is_trusted() {
+        return None;
+    }
+
+    let project_path = resolved.project_config_path.as_ref()?;
+    if !project_path.exists() {
+        return None;
+    }
+
+    let layer = config::load_layer(project_path).ok()?;
+    if runner_override_is_configured(&layer.agent, runner) {
+        return Some((config_key, project_path.clone()));
+    }
+
+    None
+}
+
+fn runner_override_is_configured(agent: &crate::contracts::AgentConfig, runner: &Runner) -> bool {
+    match runner {
+        Runner::Codex => agent.codex_bin.is_some(),
+        Runner::Opencode => agent.opencode_bin.is_some(),
+        Runner::Gemini => agent.gemini_bin.is_some(),
+        Runner::Claude => agent.claude_bin.is_some(),
+        Runner::Cursor => agent.cursor_bin.is_some(),
+        Runner::Kimi => agent.kimi_bin.is_some(),
+        Runner::Pi => agent.pi_bin.is_some(),
+        Runner::Plugin(_) => false,
     }
 }
 

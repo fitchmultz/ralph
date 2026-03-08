@@ -487,7 +487,7 @@ Plugins are **disabled by default** and must be explicitly enabled:
 
 1. **Only enable trusted plugins**: Enabling a plugin is equivalent to trusting it
 2. **Review plugin code**: Understand what a plugin does before enabling
-3. **Use absolute paths**: Specify full paths to plugin executables
+3. **Keep plugin binaries plugin-local**: Manifest `runner.bin` / `processors.bin` must stay relative to the plugin directory
 4. **Limit plugin scope**: Use project-specific plugins over global when possible
 5. **Monitor plugin activity**: Review plugin output in logs
 

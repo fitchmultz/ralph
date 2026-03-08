@@ -73,9 +73,11 @@ Every source file MUST start with `//!` docs covering:
 4. Schema defaults
 
 ### Repo Execution Trust
-- Repo-local executable settings (for example `agent.ci_gate.shell`) are gated by local `.ralph/trust.jsonc` / `.ralph/trust.json`, not shared config.
+- Repo-local execution settings (for example `agent.ci_gate`, runner binary overrides, plugin runner selection, and `plugins.*`) are gated by local `.ralph/trust.jsonc` / `.ralph/trust.json`, not shared config.
 - Trust file shape: `{"allow_project_commands": true, "trusted_at": "<RFC3339 optional>"}`.
 - Missing trust file means the repo is untrusted.
+- Untrusted repos ignore project-scope plugins under `.ralph/plugins`; only trusted repos may execute project-local plugins.
+- Plugin manifest executables must stay plugin-dir-relative; absolute and escaping paths are invalid.
 
 ### Queue Load/Validate Auto-Repair
 - `queue::load_and_validate_queues` performs conservative maintenance before validation.
@@ -88,9 +90,15 @@ Every source file MUST start with `//!` docs covering:
 - `RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and `RALPH_DONE_PATH_OVERRIDE` are unsupported.
 
 ### Repo Execution Trust
-- Repo-local executable CI settings are trust-gated through local-only `.ralph/trust.jsonc` / `.ralph/trust.json`.
-- Missing trust file means repo config may not define `agent.ci_gate`; move CI settings to trusted global config or create the local trust file.
+- Repo-local execution settings are trust-gated through local-only `.ralph/trust.jsonc` / `.ralph/trust.json`.
+- Missing trust file means repo config may not define `agent.ci_gate`, runner binary overrides, plugin runner selections, or `plugins.*`; move those settings to trusted global config or create the local trust file.
 - `.ralph/trust.json*` must remain untracked.
+
+### CI Gate Execution
+- `agent.ci_gate` is argv-only. Shell-string execution is unsupported; reject shell launchers such as `sh -c`, `cmd /C`, `pwsh -Command`, or `powershell -Command`.
+
+### Notification Audio
+- Windows custom notification sounds are `.wav`-only and play through WinMM; do not reintroduce PowerShell-based playback.
 
 ### Phase 1 Follow-up Guardrail
 - Follow-up Phase 1 baseline snapshots must exclude mutable `.ralph/**` paths; only baseline dirty paths outside `.ralph/` are immutable.

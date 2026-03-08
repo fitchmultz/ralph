@@ -168,7 +168,6 @@ fn expand_variables_expands_config_ci_gate_display() -> Result<()> {
     config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(true),
         argv: Some(vec!["cargo".to_string(), "test".to_string()]),
-        shell: None,
     });
     let result = expand_variables(template, &config)?;
     assert!(result.contains("CI: cargo test"));
@@ -182,7 +181,6 @@ fn expand_variables_expands_config_ci_gate_enabled() -> Result<()> {
     config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
         enabled: Some(false),
         argv: None,
-        shell: None,
     });
     let result = expand_variables(template, &config)?;
     assert!(result.contains("Enabled: false"));

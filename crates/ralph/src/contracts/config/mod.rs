@@ -44,13 +44,13 @@ mod retry;
 mod tests;
 mod webhook;
 
-pub use agent::{AgentConfig, CiGateConfig, ShellCommandConfig, ShellMode};
+pub use agent::{AgentConfig, CiGateConfig};
 pub use enums::{GitRevertMode, ProjectType, ScanPromptVersion};
 pub use loop_::LoopConfig;
 pub use notification::NotificationConfig;
 pub use parallel::{ParallelConfig, default_push_backoff_ms};
 pub use phase::{PhaseOverrideConfig, PhaseOverrides};
-pub use plugin::{PluginConfig, PluginProcessorConfig, PluginRunnerConfig, PluginsConfig};
+pub use plugin::{PluginConfig, PluginsConfig};
 pub use queue::{QueueAgingThresholds, QueueConfig};
 pub use retry::RunnerRetryConfig;
 pub use webhook::{WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy};
@@ -173,7 +173,6 @@ impl Default for Config {
                 ci_gate: Some(CiGateConfig {
                     enabled: Some(true),
                     argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                    shell: None,
                 }),
                 git_revert_mode: Some(GitRevertMode::Ask),
                 git_commit_push_enabled: Some(true),

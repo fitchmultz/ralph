@@ -13,8 +13,7 @@
             "make",
             "ci"
           ],
-          "enabled": true,
-          "shell": null
+          "enabled": true
         },
         "claude_bin": "claude",
         "claude_permission_mode": "bypass_permissions",
@@ -512,18 +511,6 @@
             "null"
           ],
           "default": null
-        },
-        "shell": {
-          "description": "Explicit shell-mode execution. Intended only for trusted local configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ShellCommandConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
         }
       },
       "additionalProperties": false
@@ -875,58 +862,6 @@
           "description": "Enable/disable the plugin. If None, defaults to disabled.",
           "type": [
             "boolean",
-            "null"
-          ],
-          "default": null
-        },
-        "processor": {
-          "description": "Optional overrides for processor executable path/name for this plugin's task processors.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PluginProcessorConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "runner": {
-          "description": "Optional overrides for runner executable path/name for this plugin's runner.\nIf not set, manifest runner.bin is used.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PluginRunnerConfig"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "additionalProperties": false
-    },
-    "PluginProcessorConfig": {
-      "description": "Plugin processor executable configuration.",
-      "type": "object",
-      "properties": {
-        "bin": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        }
-      },
-      "additionalProperties": false
-    },
-    "PluginRunnerConfig": {
-      "description": "Plugin runner executable configuration.",
-      "type": "object",
-      "properties": {
-        "bin": {
-          "type": [
-            "string",
             "null"
           ],
           "default": null
@@ -1358,41 +1293,6 @@
           "type": "string",
           "const": "v2"
         }
-      ]
-    },
-    "ShellCommandConfig": {
-      "description": "Trusted shell execution settings for the CI gate.",
-      "type": "object",
-      "properties": {
-        "command": {
-          "description": "Command string evaluated by the configured shell.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "mode": {
-          "description": "Shell mode used to interpret the command string.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ShellMode"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "additionalProperties": false
-    },
-    "ShellMode": {
-      "description": "Platform shell mode for trusted CI gate execution.",
-      "type": "string",
-      "enum": [
-        "posix",
-        "windows_cmd"
       ]
     },
     "UnsupportedOptionPolicy": {

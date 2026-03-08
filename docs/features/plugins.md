@@ -488,7 +488,7 @@ Enabling a plugin is equivalent to trusting it with full system access. Plugins 
 
 3. **Project vs Global Scope**
    - Project plugins override global plugins
-   - Be cautious when installing project-scope plugins from untrusted sources
+   - Project-scope plugins are runtime-active only in trusted repos; untrusted repos ignore `.ralph/plugins/*`
    - Review `.ralph/plugins/` in repositories you clone
 
 4. **Binary Path Security**
@@ -885,8 +885,8 @@ ralph plugin validate --id my.plugin
 
 **Runner not found:**
 - Verify `runner.bin` path in manifest
-- Path is relative to plugin directory
-- Use absolute paths in config if needed
+- Path must stay relative to the plugin directory
+- Config-level runner/processor binary overrides are not supported
 
 **Processor hook failing:**
 - Check exit code in error message

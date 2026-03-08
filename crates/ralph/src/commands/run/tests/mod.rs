@@ -106,7 +106,6 @@ pub fn resolved_with_agent_defaults(
             ci_gate: Some(crate::contracts::CiGateConfig {
                 enabled: Some(true),
                 argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                shell: None,
             }),
             git_revert_mode: Some(GitRevertMode::Ask),
             git_commit_push_enabled: Some(true),
@@ -202,7 +201,6 @@ pub fn resolved_with_repo_root(repo_root: PathBuf) -> config::Resolved {
             ci_gate: Some(crate::contracts::CiGateConfig {
                 enabled: Some(true),
                 argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                shell: None,
             }),
             git_revert_mode: Some(GitRevertMode::Ask),
             git_commit_push_enabled: Some(true),
@@ -349,7 +347,6 @@ pub fn resolved_with_notification_config(
             ci_gate: Some(crate::contracts::CiGateConfig {
                 enabled: Some(true),
                 argv: Some(vec!["make".to_string(), "ci".to_string()]),
-                shell: None,
             }),
             git_revert_mode: Some(GitRevertMode::Ask),
             git_commit_push_enabled: Some(true),
@@ -450,7 +447,6 @@ pub fn test_config_agent(
         ci_gate: Some(crate::contracts::CiGateConfig {
             enabled: Some(true),
             argv: Some(vec!["make".to_string(), "ci".to_string()]),
-            shell: None,
         }),
         git_revert_mode: Some(GitRevertMode::Ask),
         git_commit_push_enabled: Some(true),

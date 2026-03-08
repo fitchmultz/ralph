@@ -155,7 +155,7 @@ All processor hooks receive:
 **Hook Protocol**
 
 For each invoked plugin/hook:
-- Binary: Resolved from manifest `processors.bin` or config override `plugins.plugins.<id>.processor.bin`
+- Binary: Resolved from manifest `processors.bin`
 - Working directory: Repository root
 - Arguments: `<HOOK> <TASK_ID> <FILEPATH>`
 - File contents:
@@ -332,7 +332,7 @@ ralph plugin uninstall my.plugin --scope project
    ralph plugin validate --id my.plugin
    ```
 
-4. **Project vs Global**: Project plugins override global plugins. Be cautious when installing project-scope plugins from untrusted sources.
+4. **Project vs Global**: Project plugins override global plugins, but only in trusted repos. Untrusted repos ignore `.ralph/plugins/*` at runtime.
 
 ## Debugging
 
@@ -389,6 +389,6 @@ The current plugin API version is `1`. Ralph will reject plugins with incompatib
 - Look at stderr output for error messages
 
 **Runner not found:**
-- Verify `runner.bin` path in manifest or config override
-- Path is relative to plugin directory
-- Use absolute paths in config if needed
+- Verify `runner.bin` path in manifest
+- Path must stay relative to the plugin directory
+- Config-level runner/processor binary overrides are not supported

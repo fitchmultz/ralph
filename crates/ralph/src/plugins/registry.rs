@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Provide lookup for enabled runner plugins and processor plugins.
-//! - Resolve plugin runner/processor executables with config overrides.
+//! - Resolve plugin runner/processor executables from plugin manifests.
 //!
 //! Not handled here:
 //! - Installing/uninstalling plugins (see `crate::commands::plugin`).
@@ -10,13 +10,14 @@
 //!
 //! Invariants/assumptions:
 //! - Disabled plugins MUST NOT be executed.
-//! - Any resolved executable path is either absolute or plugin-dir-relative; never allow `..` escape.
+//! - Any resolved executable path is plugin-dir-relative and never escapes via `..`.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use crate::config::load_repo_trust;
 use crate::contracts::Config;
-use crate::plugins::discovery::{DiscoveredPlugin, discover_plugins};
+use crate::plugins::discovery::{DiscoveredPlugin, PluginScope, discover_plugins};
 
 #[derive(Debug, Clone)]
 pub(crate) struct PluginRegistry {
@@ -26,8 +27,14 @@ pub(crate) struct PluginRegistry {
 
 impl PluginRegistry {
     pub(crate) fn load(repo_root: &Path, cfg: &Config) -> anyhow::Result<Self> {
+        let repo_trust = load_repo_trust(repo_root)?;
+        let mut discovered = discover_plugins(repo_root)?;
+        if !repo_trust.is_trusted() {
+            discovered.retain(|_, plugin| plugin.scope != PluginScope::Project);
+        }
+
         Ok(Self {
-            discovered: discover_plugins(repo_root)?,
+            discovered,
             config: cfg.plugins.clone(),
         })
     }
@@ -63,15 +70,7 @@ impl PluginRegistry {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("plugin {plugin_id} does not provide a runner"))?;
 
-        let override_bin = self
-            .config
-            .plugins
-            .get(plugin_id)
-            .and_then(|p| p.runner.as_ref())
-            .and_then(|r| r.bin.clone());
-
-        let bin_str = override_bin.unwrap_or_else(|| runner.bin.clone());
-        resolve_plugin_relative_exe(&discovered.plugin_dir, &bin_str)
+        resolve_plugin_relative_exe(&discovered.plugin_dir, &runner.bin)
     }
 
     pub(crate) fn resolve_processor_bin(&self, plugin_id: &str) -> anyhow::Result<PathBuf> {
@@ -86,33 +85,28 @@ impl PluginRegistry {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("plugin {plugin_id} does not provide processors"))?;
 
-        let override_bin = self
-            .config
-            .plugins
-            .get(plugin_id)
-            .and_then(|p| p.processor.as_ref())
-            .and_then(|r| r.bin.clone());
-
-        let bin_str = override_bin.unwrap_or_else(|| proc.bin.clone());
-        resolve_plugin_relative_exe(&discovered.plugin_dir, &bin_str)
+        resolve_plugin_relative_exe(&discovered.plugin_dir, &proc.bin)
     }
 }
 
-fn resolve_plugin_relative_exe(plugin_dir: &Path, bin: &str) -> anyhow::Result<PathBuf> {
+pub(crate) fn resolve_plugin_relative_exe(plugin_dir: &Path, bin: &str) -> anyhow::Result<PathBuf> {
     let p = Path::new(bin);
-    let full = if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        plugin_dir.join(p)
-    };
-
-    // Prevent simple path escape; canonicalize only if exists to keep error clear.
-    if full
-        .components()
-        .any(|c| matches!(c, std::path::Component::ParentDir))
-    {
-        anyhow::bail!("plugin executable path must not contain '..': {bin}");
+    if p.is_absolute() {
+        anyhow::bail!("plugin executable path must be relative to the plugin directory: {bin}");
     }
+
+    if p.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir
+                | std::path::Component::RootDir
+                | std::path::Component::Prefix(_)
+        )
+    }) {
+        anyhow::bail!("plugin executable path must stay within the plugin directory: {bin}");
+    }
+
+    let full = plugin_dir.join(p);
     Ok(full)
 }
 
@@ -143,9 +137,20 @@ mod tests {
         Ok(())
     }
 
+    fn trust_repo(repo_root: &Path) {
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir).unwrap();
+        std::fs::write(
+            ralph_dir.join("trust.jsonc"),
+            r#"{"allow_project_commands": true}"#,
+        )
+        .unwrap();
+    }
+
     #[test]
     fn is_enabled_defaults_to_false() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
         std::fs::create_dir_all(&plugin_dir).unwrap();
         create_test_plugin(&plugin_dir, "test.plugin").unwrap();
@@ -159,6 +164,7 @@ mod tests {
     #[test]
     fn is_enabled_respects_config() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
         std::fs::create_dir_all(&plugin_dir).unwrap();
         create_test_plugin(&plugin_dir, "test.plugin").unwrap();
@@ -179,6 +185,7 @@ mod tests {
     #[test]
     fn resolve_runner_bin_rejects_disabled_plugin() {
         let tmp = TempDir::new().unwrap();
+        trust_repo(tmp.path());
         let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
         std::fs::create_dir_all(&plugin_dir).unwrap();
         create_test_plugin(&plugin_dir, "test.plugin").unwrap();
@@ -208,7 +215,12 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let result = resolve_plugin_relative_exe(tmp.path(), "../escape.sh");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(".."));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("must stay within the plugin directory")
+        );
     }
 
     #[test]
@@ -219,10 +231,42 @@ mod tests {
     }
 
     #[test]
-    fn resolve_plugin_relative_exe_accepts_absolute_path() {
+    fn resolve_plugin_relative_exe_rejects_absolute_path() {
         let tmp = TempDir::new().unwrap();
         let abs = tmp.path().join("absolute_runner.sh");
-        let result = resolve_plugin_relative_exe(tmp.path(), abs.to_str().unwrap()).unwrap();
-        assert_eq!(result, abs);
+        let err = resolve_plugin_relative_exe(tmp.path(), abs.to_str().unwrap()).unwrap_err();
+        assert!(err.to_string().contains("relative to the plugin directory"));
+    }
+
+    #[test]
+    fn load_ignores_project_plugins_in_untrusted_repo() {
+        let tmp = TempDir::new().unwrap();
+        let plugin_dir = tmp.path().join(".ralph/plugins/test.plugin");
+        std::fs::create_dir_all(&plugin_dir).unwrap();
+        create_test_plugin(&plugin_dir, "test.plugin").unwrap();
+
+        let cfg = Config::default();
+        let registry = PluginRegistry::load(tmp.path(), &cfg).unwrap();
+
+        assert!(registry.discovered().is_empty());
+    }
+
+    #[test]
+    fn load_keeps_project_plugins_in_trusted_repo() {
+        let tmp = TempDir::new().unwrap();
+        let ralph_dir = tmp.path().join(".ralph");
+        let plugin_dir = ralph_dir.join("plugins/test.plugin");
+        std::fs::create_dir_all(&plugin_dir).unwrap();
+        std::fs::write(
+            ralph_dir.join("trust.jsonc"),
+            r#"{"allow_project_commands": true}"#,
+        )
+        .unwrap();
+        create_test_plugin(&plugin_dir, "test.plugin").unwrap();
+
+        let cfg = Config::default();
+        let registry = PluginRegistry::load(tmp.path(), &cfg).unwrap();
+
+        assert!(registry.discovered().contains_key("test.plugin"));
     }
 }

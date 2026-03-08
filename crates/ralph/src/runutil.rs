@@ -8,7 +8,7 @@
 //! - Prompt template rendering, queue/task persistence, or runner selection logic.
 //!
 //! Invariants/assumptions:
-//! - Submodules remain cohesive (execution vs revert vs abort vs shell vs retry).
+//! - Submodules remain cohesive (execution vs revert vs abort vs ci-gate vs retry).
 //! - Re-exports preserve the existing public and `pub(crate)` API surface.
 
 mod abort;

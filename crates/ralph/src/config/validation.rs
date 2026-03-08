@@ -17,10 +17,7 @@
 
 use crate::config::{ConfigLayer, RepoTrust};
 use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PARALLEL_WORKERS, MIN_PHASES};
-use crate::contracts::{
-    AgentConfig, CiGateConfig, Config, QueueAgingThresholds, QueueConfig, ShellCommandConfig,
-    ShellMode,
-};
+use crate::contracts::{AgentConfig, CiGateConfig, Config, QueueAgingThresholds, QueueConfig};
 use anyhow::{Result, bail};
 use std::path::{Component, Path};
 
@@ -49,9 +46,7 @@ pub(crate) const ERR_EMPTY_QUEUE_ID_PREFIX: &str = "Empty queue.id_prefix: prefi
 pub(crate) const ERR_INVALID_QUEUE_ID_WIDTH: &str = "Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.jsonc or via --id-width.";
 pub(crate) const ERR_EMPTY_QUEUE_FILE: &str = "Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.jsonc') in .ralph/config.jsonc or via --queue-file.";
 pub(crate) const ERR_EMPTY_QUEUE_DONE_FILE: &str = "Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.jsonc') in .ralph/config.jsonc or via --done-file.";
-pub(crate) const ERR_PROJECT_EXECUTION_TRUST: &str = "Project config defines execution-sensitive CI gate settings, but this repo is not trusted. Create .ralph/trust.jsonc with {\"allow_project_commands\": true, \"trusted_at\": \"<RFC3339>\"} or move agent.ci_gate to trusted global config.";
-pub(crate) const ERR_SHELL_MODE_SHAPE: &str =
-    "agent.ci_gate.shell requires both mode and command when enabled.";
+pub(crate) const ERR_PROJECT_EXECUTION_TRUST: &str = "Project config defines execution-sensitive settings (runner binaries, plugin runners, agent.ci_gate, and/or plugins), but this repo is not trusted. Create .ralph/trust.jsonc with {\"allow_project_commands\": true, \"trusted_at\": \"<RFC3339>\"} or move those settings to trusted global config.";
 
 fn validate_ci_gate_config(ci_gate: Option<&CiGateConfig>, label: &str) -> Result<()> {
     let Some(ci_gate) = ci_gate else {
@@ -62,20 +57,11 @@ fn validate_ci_gate_config(ci_gate: Option<&CiGateConfig>, label: &str) -> Resul
         return Ok(());
     }
 
-    let argv = ci_gate.argv.as_ref();
-    let shell = ci_gate.shell.as_ref();
-
-    match (argv, shell) {
-        (Some(_), Some(_)) => {
-            bail!("Invalid {label}.ci_gate: choose either argv or shell, not both.");
+    match ci_gate.argv.as_ref() {
+        Some(argv) => validate_ci_gate_argv(argv, label)?,
+        None => {
+            bail!("Invalid {label}.ci_gate: enabled CI gate requires argv settings.");
         }
-        (None, None) => {
-            bail!(
-                "Invalid {label}.ci_gate: enabled CI gate requires either argv or shell settings."
-            );
-        }
-        (Some(argv), None) => validate_ci_gate_argv(argv, label)?,
-        (None, Some(shell)) => validate_ci_gate_shell(shell, label)?,
     }
 
     Ok(())
@@ -90,25 +76,10 @@ fn validate_ci_gate_argv(argv: &[String], label: &str) -> Result<()> {
     }
     if argv_launches_shell(argv) {
         bail!(
-            "Invalid {label}.ci_gate.argv: shell launcher argv requires agent.ci_gate.shell instead of argv."
+            "Invalid {label}.ci_gate.argv: shell launcher argv is not supported. Use direct executable argv instead."
         );
     }
     Ok(())
-}
-
-fn validate_ci_gate_shell(shell: &ShellCommandConfig, label: &str) -> Result<()> {
-    let Some(mode) = shell.mode else {
-        bail!("{ERR_SHELL_MODE_SHAPE}");
-    };
-    let Some(command) = shell.command.as_deref() else {
-        bail!("{ERR_SHELL_MODE_SHAPE}");
-    };
-    if command.trim().is_empty() {
-        bail!("Invalid {label}.ci_gate.shell.command: shell command must be non-empty.");
-    }
-    match mode {
-        ShellMode::Posix | ShellMode::WindowsCmd => Ok(()),
-    }
 }
 
 pub fn validate_project_execution_trust(
@@ -123,13 +94,43 @@ pub fn validate_project_execution_trust(
 }
 
 fn layer_has_execution_settings(layer: &ConfigLayer) -> bool {
-    if layer.agent.ci_gate.is_some() {
+    if agent_has_execution_settings(&layer.agent) {
+        return true;
+    }
+    if !layer.plugins.plugins.is_empty() {
         return true;
     }
     layer
         .profiles
         .as_ref()
-        .is_some_and(|profiles| profiles.values().any(|agent| agent.ci_gate.is_some()))
+        .is_some_and(|profiles| profiles.values().any(agent_has_execution_settings))
+}
+
+fn agent_has_execution_settings(agent: &AgentConfig) -> bool {
+    agent.ci_gate.is_some()
+        || agent.codex_bin.is_some()
+        || agent.opencode_bin.is_some()
+        || agent.gemini_bin.is_some()
+        || agent.claude_bin.is_some()
+        || agent.cursor_bin.is_some()
+        || agent.kimi_bin.is_some()
+        || agent.pi_bin.is_some()
+        || agent
+            .runner
+            .as_ref()
+            .is_some_and(crate::contracts::Runner::is_plugin)
+        || agent
+            .phase_overrides
+            .as_ref()
+            .is_some_and(phase_overrides_have_plugin_runner)
+}
+
+fn phase_overrides_have_plugin_runner(overrides: &crate::contracts::PhaseOverrides) -> bool {
+    [&overrides.phase1, &overrides.phase2, &overrides.phase3]
+        .into_iter()
+        .flatten()
+        .filter_map(|phase| phase.runner.as_ref())
+        .any(crate::contracts::Runner::is_plugin)
 }
 
 fn argv_launches_shell(argv: &[String]) -> bool {

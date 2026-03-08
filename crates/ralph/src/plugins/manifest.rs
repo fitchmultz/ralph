@@ -7,6 +7,8 @@
 //! - Filesystem discovery (see `discovery`).
 //! - Enable/disable policy (see `registry`).
 
+use std::path::{Component, Path};
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +70,11 @@ impl PluginManifest {
         if self.id.contains('/') || self.id.contains('\\') {
             anyhow::bail!("plugin id must not contain path separators");
         }
+        if let Some(runner) = &self.runner {
+            validate_plugin_bin(&runner.bin, "runner.bin")?;
+        }
         if let Some(proc) = &self.processors {
+            validate_plugin_bin(&proc.bin, "processors.bin")?;
             for hook in &proc.hooks {
                 match hook.as_str() {
                     "validate_task" | "pre_prompt" | "post_run" => {}
@@ -78,6 +84,25 @@ impl PluginManifest {
         }
         Ok(())
     }
+}
+
+fn validate_plugin_bin(bin: &str, field: &str) -> anyhow::Result<()> {
+    if bin.trim().is_empty() {
+        anyhow::bail!("plugin {field} must be non-empty");
+    }
+
+    let path = Path::new(bin);
+    if path.is_absolute() {
+        anyhow::bail!("plugin {field} must be relative to the plugin directory");
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        anyhow::bail!("plugin {field} must not contain '..'");
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -161,5 +186,26 @@ mod tests {
         };
         let err = m.validate().unwrap_err();
         assert!(err.to_string().contains("unsupported"));
+    }
+
+    #[test]
+    fn validate_rejects_absolute_runner_bin() {
+        let mut m = valid_manifest();
+        m.runner.as_mut().unwrap().bin = "/tmp/runner.sh".to_string();
+        let err = m.validate().unwrap_err();
+        assert!(err.to_string().contains("relative"));
+    }
+
+    #[test]
+    fn validate_rejects_parent_dir_processor_bin() {
+        let m = PluginManifest {
+            processors: Some(ProcessorPlugin {
+                bin: "../proc.sh".to_string(),
+                hooks: vec!["pre_prompt".to_string()],
+            }),
+            ..valid_manifest()
+        };
+        let err = m.validate().unwrap_err();
+        assert!(err.to_string().contains("must not contain '..'"));
     }
 }
