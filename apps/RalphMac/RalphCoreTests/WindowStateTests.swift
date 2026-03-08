@@ -21,6 +21,7 @@ final class WindowStateTests: XCTestCase {
     private var manager: WorkspaceManager!
     private let testRestorationKey = "com.mitchfultz.ralph.windowRestorationState"
     private let testNavigationKey = "com.mitchfultz.ralph.navigationState"
+    private let workspaceSnapshotPrefix = "com.mitchfultz.ralph.workspace."
 
     override func setUp() {
         super.setUp()
@@ -33,6 +34,7 @@ final class WindowStateTests: XCTestCase {
         // Clear any existing test state
         UserDefaults.standard.removeObject(forKey: testRestorationKey)
         cleanupNavigationState()
+        cleanupWorkspaceSnapshots()
     }
 
     override func tearDown() {
@@ -43,6 +45,7 @@ final class WindowStateTests: XCTestCase {
         manager.resetSceneRoutingForTests()
         UserDefaults.standard.removeObject(forKey: testRestorationKey)
         cleanupNavigationState()
+        cleanupWorkspaceSnapshots()
         super.tearDown()
     }
 
@@ -53,6 +56,19 @@ final class WindowStateTests: XCTestCase {
                 defaults.removeObject(forKey: key)
             }
         }
+    }
+
+    private func cleanupWorkspaceSnapshots() {
+        let defaults = UserDefaults.standard
+        for key in defaults.dictionaryRepresentation().keys {
+            if key.hasPrefix(workspaceSnapshotPrefix) {
+                defaults.removeObject(forKey: key)
+            }
+        }
+    }
+
+    private func workspaceSnapshotKey(for workspaceID: UUID) -> String {
+        workspaceSnapshotPrefix + workspaceID.uuidString + ".snapshot"
     }
 
     // MARK: - WindowState Persistence Tests
@@ -183,9 +199,14 @@ final class WindowStateTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: temp) }
 
         let workspace = manager.createWorkspace(workingDirectory: temp)
-        let key = "com.mitchfultz.ralph.workspace.\(workspace.id.uuidString).workingPath"
+        let key = workspaceSnapshotKey(for: workspace.id)
+        let snapshotData = UserDefaults.standard.data(forKey: key)
+        let snapshot = try? snapshotData.flatMap {
+            try JSONDecoder().decode(RalphWorkspaceDefaultsSnapshot.self, from: $0)
+        }
 
-        XCTAssertEqual(UserDefaults.standard.string(forKey: key), temp.path)
+        XCTAssertEqual(snapshot?.workingDirectoryURL, temp)
+        XCTAssertEqual(snapshot?.name, temp.lastPathComponent)
     }
 
     func test_workspaceProjectDisplayName_prefersWorkingDirectoryLeafName() throws {
@@ -325,14 +346,18 @@ final class WindowStateTests: XCTestCase {
         let defaults = UserDefaults.standard
         let workspaceID = UUID()
         let navigationKey = "com.mitchfultz.ralph.navigationState.\(workspaceID.uuidString)"
-        let workingPathKey = "com.mitchfultz.ralph.workspace.\(workspaceID.uuidString).workingPath"
+        let snapshotKey = workspaceSnapshotKey(for: workspaceID)
         let cachedTasksKey = "com.mitchfultz.ralph.workspace.\(workspaceID.uuidString).cachedTasks"
         let tempUITestPath = FileManager.default.temporaryDirectory
             .appendingPathComponent("ralph-ui-tests")
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            .path
+        let snapshot = RalphWorkspaceDefaultsSnapshot(
+            name: "UI Test Workspace",
+            workingDirectoryURL: tempUITestPath,
+            recentWorkingDirectories: [tempUITestPath]
+        )
 
-        defaults.set(tempUITestPath, forKey: workingPathKey)
+        defaults.set(try JSONEncoder().encode(snapshot), forKey: snapshotKey)
         defaults.set(Data("cached".utf8), forKey: cachedTasksKey)
         defaults.set(Data("navigation".utf8), forKey: navigationKey)
         defaults.set(
@@ -342,10 +367,21 @@ final class WindowStateTests: XCTestCase {
 
         RalphAppDefaults.prepareForLaunch()
 
-        XCTAssertNil(defaults.object(forKey: workingPathKey))
+        XCTAssertNil(defaults.object(forKey: snapshotKey))
         XCTAssertNil(defaults.object(forKey: cachedTasksKey))
         XCTAssertNil(defaults.object(forKey: navigationKey))
         XCTAssertTrue(manager.loadAllWindowStates().isEmpty)
+    }
+
+    func test_workspaceWorkingDirectory_withCorruptSnapshot_surfacesPersistenceIssue() {
+        let workspaceID = UUID()
+        UserDefaults.standard.set(Data("not-json".utf8), forKey: workspaceSnapshotKey(for: workspaceID))
+
+        let resolved = manager.workspaceWorkingDirectory(workspaceID)
+
+        XCTAssertEqual(resolved, FileManager.default.homeDirectoryForCurrentUser)
+        XCTAssertEqual(manager.persistenceIssue?.domain, .workspaceState)
+        XCTAssertEqual(manager.persistenceIssue?.operation, .load)
     }
 
     // MARK: - Codable Tests

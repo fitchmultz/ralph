@@ -28,6 +28,39 @@ public import Combine
 import SwiftUI
 import OSLog
 
+public struct RalphAppLaunchPreparationResult {
+    public let persistenceIssue: PersistenceIssue?
+}
+
+private struct WindowStateStore {
+    private let defaults: UserDefaults
+    private let restorationKey: String
+
+    init(
+        defaults: UserDefaults = RalphAppDefaults.userDefaults,
+        restorationKey: String = RalphAppDefaults.productionDomainIdentifier + ".windowRestorationState"
+    ) {
+        self.defaults = defaults
+        self.restorationKey = restorationKey
+    }
+
+    func loadAll() throws -> [WindowState] {
+        guard let data = defaults.data(forKey: restorationKey) else {
+            return []
+        }
+        return try JSONDecoder().decode([WindowState].self, from: data)
+    }
+
+    func saveAll(_ states: [WindowState]) throws {
+        let data = try JSONEncoder().encode(states)
+        defaults.set(data, forKey: restorationKey)
+    }
+
+    func clear() {
+        defaults.removeObject(forKey: restorationKey)
+    }
+}
+
 public enum RalphAppDefaults {
     public static let productionDomainIdentifier = "com.mitchfultz.ralph"
     public static let uiTestingDomainIdentifier = productionDomainIdentifier + ".uitesting"
@@ -49,13 +82,15 @@ public enum RalphAppDefaults {
     }
 
     @MainActor
-    public static func prepareForLaunch() {
+    public static func prepareForLaunch() -> RalphAppLaunchPreparationResult {
         if isUITesting {
             resetUITestingDefaults()
-            return
+            return RalphAppLaunchPreparationResult(persistenceIssue: nil)
         }
 
-        pruneUITestingStateFromProductionDefaults()
+        return RalphAppLaunchPreparationResult(
+            persistenceIssue: pruneUITestingStateFromProductionDefaults()
+        )
     }
 
     private static func resetUITestingDefaults() {
@@ -63,38 +98,53 @@ public enum RalphAppDefaults {
         suiteDefaults.removePersistentDomain(forName: uiTestingDomainIdentifier)
     }
 
-    private static func pruneUITestingStateFromProductionDefaults() {
+    private static func pruneUITestingStateFromProductionDefaults() -> PersistenceIssue? {
         let defaults = UserDefaults.standard
         let dictionary = defaults.dictionaryRepresentation()
-        let contaminatedWorkspaceIDs = dictionary.keys.reduce(into: Set<UUID>()) { ids, key in
-            guard key.hasPrefix(workspaceKeyPrefix),
-                  key.hasSuffix(".workingPath"),
-                  let path = dictionary[key] as? String,
-                  path.contains(uiTestingPathMarker),
-                  let workspaceID = workspaceID(fromWorkspaceKey: key) else {
-                return
+        var contaminatedWorkspaceIDs = Set<UUID>()
+        for key in dictionary.keys where key.hasPrefix(workspaceKeyPrefix) && key.hasSuffix(".snapshot") {
+            guard let data = dictionary[key] as? Data else { continue }
+            do {
+                let snapshot = try JSONDecoder().decode(RalphWorkspaceDefaultsSnapshot.self, from: data)
+                guard snapshot.workingDirectoryURL.path.contains(uiTestingPathMarker),
+                      let workspaceID = workspaceID(fromWorkspaceKey: key) else {
+                    continue
+                }
+                contaminatedWorkspaceIDs.insert(workspaceID)
+            } catch {
+                return PersistenceIssue(
+                    domain: .appDefaultsPreparation,
+                    operation: .load,
+                    context: key,
+                    error: error
+                )
             }
-            ids.insert(workspaceID)
         }
 
-        guard !contaminatedWorkspaceIDs.isEmpty else { return }
+        guard !contaminatedWorkspaceIDs.isEmpty else { return nil }
 
         for workspaceID in contaminatedWorkspaceIDs {
             removeWorkspaceState(workspaceID, from: defaults)
         }
 
-        if let data = defaults.data(forKey: restorationKey),
-           let states = try? JSONDecoder().decode([WindowState].self, from: data) {
+        do {
+            let store = WindowStateStore(defaults: defaults, restorationKey: restorationKey)
+            let states = try store.loadAll()
             let filteredStates = states.compactMap { state -> WindowState? in
                 var updated = state
                 updated.workspaceIDs.removeAll { contaminatedWorkspaceIDs.contains($0) }
                 updated.validateSelection()
                 return updated.workspaceIDs.isEmpty ? nil : updated
             }
-
-            if let filteredData = try? JSONEncoder().encode(filteredStates) {
-                defaults.set(filteredData, forKey: restorationKey)
-            }
+            try store.saveAll(filteredStates)
+            return nil
+        } catch {
+            return PersistenceIssue(
+                domain: .appDefaultsPreparation,
+                operation: .load,
+                context: restorationKey,
+                error: error
+            )
         }
     }
 
@@ -123,6 +173,7 @@ public final class WorkspaceManager: ObservableObject {
     @Published public var errorMessage: String?
     @Published public private(set) var versionCheckResult: VersionValidator.VersionCheckResult?
     @Published public var focusedWorkspace: Workspace?
+    @Published public private(set) var persistenceIssue: PersistenceIssue?
 
     public private(set) var client: RalphCLIClient?
 
@@ -136,7 +187,8 @@ public final class WorkspaceManager: ObservableObject {
     private var pendingWorkspaceRoutes: [UUID: [WorkspaceSceneRoute]] = [:]
 
     private init() {
-        RalphAppDefaults.prepareForLaunch()
+        let preparation = RalphAppDefaults.prepareForLaunch()
+        persistenceIssue = preparation.persistenceIssue
 
         if !configureInitialClient() {
             return
@@ -147,7 +199,6 @@ public final class WorkspaceManager: ObservableObject {
             await performVersionCheck()
         }
 
-        // Migrate from legacy single-workspace state if needed
         migrateLegacyStateIfNeeded()
     }
 
@@ -226,6 +277,7 @@ public final class WorkspaceManager: ObservableObject {
     public func closeWorkspace(_ workspace: Workspace) {
         // Cancel any running operations
         workspace.cancel()
+        workspace.removePersistedState()
 
         // Remove from tracking
         workspaces.removeAll { $0.id == workspace.id }
@@ -249,8 +301,18 @@ public final class WorkspaceManager: ObservableObject {
         allStates.removeAll { $0.id == state.id }
         allStates.append(state)
 
-        if let data = try? JSONEncoder().encode(allStates) {
-            RalphAppDefaults.userDefaults.set(data, forKey: restorationKey)
+        do {
+            try WindowStateStore().saveAll(allStates)
+            clearPersistenceIssue(domain: .windowRestoration)
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .windowRestoration,
+                    operation: .save,
+                    context: restorationKey,
+                    error: error
+                )
+            )
         }
 
         if restorationPoolInitialized {
@@ -259,11 +321,21 @@ public final class WorkspaceManager: ObservableObject {
     }
 
     public func loadAllWindowStates() -> [WindowState] {
-        guard let data = RalphAppDefaults.userDefaults.data(forKey: restorationKey),
-              let states = try? JSONDecoder().decode([WindowState].self, from: data) else {
+        do {
+            let states = try WindowStateStore().loadAll()
+            clearPersistenceIssue(domain: .windowRestoration)
+            return states
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .windowRestoration,
+                    operation: .load,
+                    context: restorationKey,
+                    error: error
+                )
+            )
             return []
         }
-        return states
     }
 
     public func removeWindowState(_ windowID: UUID) {
@@ -271,8 +343,18 @@ public final class WorkspaceManager: ObservableObject {
         allStates.removeAll { $0.id == windowID }
         unclaimedWindowStates.removeAll { $0.id == windowID }
 
-        if let data = try? JSONEncoder().encode(allStates) {
-            RalphAppDefaults.userDefaults.set(data, forKey: restorationKey)
+        do {
+            try WindowStateStore().saveAll(allStates)
+            clearPersistenceIssue(domain: .windowRestoration)
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .windowRestoration,
+                    operation: .save,
+                    context: restorationKey,
+                    error: error
+                )
+            )
         }
     }
 
@@ -394,11 +476,25 @@ public final class WorkspaceManager: ObservableObject {
     }
 
     private func workspaceWorkingDirectory(_ workspaceID: UUID) -> URL? {
-        let key = "com.mitchfultz.ralph.workspace.\(workspaceID.uuidString).workingPath"
-        guard let path = RalphAppDefaults.userDefaults.string(forKey: key) else {
+        let snapshotKeyPrefix = RalphAppDefaults.productionDomainIdentifier + ".workspace."
+        let snapshot: RalphWorkspaceDefaultsSnapshot
+        do {
+            guard let loaded = try WorkspaceStateStore().load(id: workspaceID, keyPrefix: snapshotKeyPrefix) else {
+                return nil
+            }
+            snapshot = loaded
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .workspaceState,
+                    operation: .load,
+                    context: "\(snapshotKeyPrefix)\(workspaceID.uuidString).snapshot",
+                    error: error
+                )
+            )
             return nil
         }
-        let url = URL(fileURLWithPath: path, isDirectory: true)
+        let url = snapshot.workingDirectoryURL
         return workspaceIsRestorable(url) ? url : nil
     }
 
@@ -497,8 +593,23 @@ public final class WorkspaceManager: ObservableObject {
 
     /// Check if we have a recent cached version result
     private func checkCachedVersionResult() -> VersionValidator.VersionCheckResult? {
-        guard let data = RalphAppDefaults.userDefaults.data(forKey: versionCheckCacheKey),
-              let cached = try? JSONDecoder().decode(CachedVersionResult.self, from: data) else {
+        guard let data = RalphAppDefaults.userDefaults.data(forKey: versionCheckCacheKey) else {
+            return nil
+        }
+        let cached: CachedVersionResult
+        do {
+            cached = try JSONDecoder().decode(CachedVersionResult.self, from: data)
+            clearPersistenceIssue(domain: .versionCache)
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .versionCache,
+                    operation: .load,
+                    context: versionCheckCacheKey,
+                    error: error
+                )
+            )
+            RalphAppDefaults.userDefaults.removeObject(forKey: versionCheckCacheKey)
             return nil
         }
 
@@ -527,8 +638,19 @@ public final class WorkspaceManager: ObservableObject {
             versionString: result.rawVersion
         )
 
-        if let data = try? JSONEncoder().encode(cached) {
+        do {
+            let data = try JSONEncoder().encode(cached)
             RalphAppDefaults.userDefaults.set(data, forKey: versionCheckCacheKey)
+            clearPersistenceIssue(domain: .versionCache)
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .versionCache,
+                    operation: .save,
+                    context: versionCheckCacheKey,
+                    error: error
+                )
+            )
         }
     }
 
@@ -555,6 +677,19 @@ public final class WorkspaceManager: ObservableObject {
         }
 
         return result
+    }
+
+    private func recordPersistenceIssue(_ issue: PersistenceIssue) {
+        persistenceIssue = issue
+        RalphLogger.shared.error(
+            "WorkspaceManager persistence \(issue.domain.rawValue) \(issue.operation.rawValue) failed for \(issue.context): \(issue.message)",
+            category: .workspace
+        )
+    }
+
+    private func clearPersistenceIssue(domain: PersistenceIssue.Domain) {
+        guard persistenceIssue?.domain == domain else { return }
+        persistenceIssue = nil
     }
 }
 

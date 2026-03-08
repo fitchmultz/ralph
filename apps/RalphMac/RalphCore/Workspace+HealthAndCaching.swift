@@ -16,6 +16,20 @@
 //! - Offline display prefers cache only when the CLI is unavailable.
 
 public import Foundation
+public import Combine
+
+@MainActor
+public final class WorkspaceDiagnosticsState: ObservableObject {
+    @Published public var lastRecoveryError: RecoveryError?
+    @Published public var showErrorRecovery = false
+    @Published public var retryState: RetryState?
+    @Published public var cliHealthStatus: CLIHealthStatus?
+    @Published public var isCheckingHealth = false
+    @Published public var cachedTasks: [RalphTask] = []
+    @Published public var persistenceIssue: PersistenceIssue?
+
+    public init() {}
+}
 
 public extension Workspace {
     @MainActor
@@ -56,8 +70,16 @@ public extension Workspace {
         do {
             let data = try JSONEncoder().encode(tasks)
             RalphAppDefaults.userDefaults.set(data, forKey: defaultsKey("cachedTasks"))
+            clearPersistenceIssue(domain: .cachedTasks)
         } catch {
-            RalphLogger.shared.error("Failed to cache tasks: \(error)", category: .workspace)
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .cachedTasks,
+                    operation: .save,
+                    context: defaultsKey("cachedTasks"),
+                    error: error
+                )
+            )
         }
     }
 
@@ -70,8 +92,16 @@ public extension Workspace {
 
         do {
             cachedTasks = try JSONDecoder().decode([RalphTask].self, from: data)
+            clearPersistenceIssue(domain: .cachedTasks)
         } catch {
-            RalphLogger.shared.error("Failed to load cached tasks: \(error)", category: .workspace)
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .cachedTasks,
+                    operation: .load,
+                    context: defaultsKey("cachedTasks"),
+                    error: error
+                )
+            )
             cachedTasks = []
         }
     }
@@ -88,5 +118,6 @@ public extension Workspace {
     func clearCachedTasks() {
         cachedTasks = []
         RalphAppDefaults.userDefaults.removeObject(forKey: defaultsKey("cachedTasks"))
+        clearPersistenceIssue(domain: .cachedTasks)
     }
 }

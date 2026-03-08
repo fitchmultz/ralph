@@ -4,6 +4,7 @@
 //! - Start, cancel, and loop Ralph CLI executions for a workspace.
 //! - Track per-workspace runner lifecycle fields such as active run, phase, and history.
 //! - Resolve the next runnable task, runner configuration, and execution phase state.
+//! - Apply incremental stream parsing to runner output instead of reparsing the full buffer.
 //!
 //! Does not handle:
 //! - Queue file decoding or file-watcher orchestration.
@@ -16,7 +17,134 @@
 //! - Cancellation must target the active subprocess owned by this workspace.
 //! - Runner configuration is resolved by the CLI itself, not reconstructed in-app.
 
-import Foundation
+public import Foundation
+public import Combine
+public import SwiftUI
+
+@MainActor
+public final class WorkspaceRunState: ObservableObject {
+    @Published public var output = ""
+    @Published public var isRunning = false
+    @Published public var lastExitStatus: RalphCLIExitStatus?
+    @Published public var errorMessage: String?
+    @Published public var currentTaskID: String?
+    @Published public var currentPhase: Workspace.ExecutionPhase?
+    @Published public var executionStartTime: Date?
+    @Published public var isLoopMode = false
+    @Published public var stopAfterCurrent = false
+    @Published public var executionHistory: [Workspace.ExecutionRecord] = []
+    @Published public var currentRunnerConfig: Workspace.RunnerConfig?
+    @Published public var runnerConfigLoading = false
+    @Published public var runnerConfigErrorMessage: String?
+    @Published public var runControlSelectedTaskID: String?
+    @Published public var runControlForceDirtyRepo = false
+    @Published public var attributedOutput: [Workspace.ANSISegment] = []
+    @Published public var outputBuffer: ConsoleOutputBuffer
+    @Published public var maxANSISegments = 1_000 {
+        didSet {
+            if maxANSISegments != oldValue {
+                attributedOutput = streamProcessor.displaySegments(maxSegments: maxANSISegments)
+            }
+        }
+    }
+
+    let streamProcessor = WorkspaceStreamProcessor()
+
+    public init(outputBuffer: ConsoleOutputBuffer) {
+        self.outputBuffer = outputBuffer
+    }
+
+    func prepareForNewRun() {
+        output = ""
+        outputBuffer.clear()
+        attributedOutput = []
+        lastExitStatus = nil
+        errorMessage = nil
+        isRunning = true
+        executionStartTime = Date()
+        currentPhase = nil
+        streamProcessor.reset()
+    }
+}
+
+public extension Workspace {
+    enum ExecutionPhase: Int, CaseIterable, Sendable {
+        case plan = 1
+        case implement = 2
+        case review = 3
+
+        public var displayName: String {
+            switch self {
+            case .plan: return "Plan"
+            case .implement: return "Implement"
+            case .review: return "Review"
+            }
+        }
+
+        public var icon: String {
+            switch self {
+            case .plan: return "doc.text.magnifyingglass"
+            case .implement: return "hammer.fill"
+            case .review: return "checkmark.shield.fill"
+            }
+        }
+
+        public var progressFraction: Double {
+            switch self {
+            case .plan: return 0.17
+            case .implement: return 0.5
+            case .review: return 0.83
+            }
+        }
+
+        public var color: SwiftUI.Color {
+            switch self {
+            case .plan: return .blue
+            case .implement: return .orange
+            case .review: return .green
+            }
+        }
+    }
+
+    struct ExecutionRecord: Identifiable, Codable, Sendable {
+        public let id: UUID
+        public let taskID: String?
+        public let startTime: Date
+        public let endTime: Date?
+        public let exitCode: Int?
+        public let wasCancelled: Bool
+
+        public init(id: UUID = UUID(), taskID: String?, startTime: Date, endTime: Date?, exitCode: Int?, wasCancelled: Bool) {
+            self.id = id
+            self.taskID = taskID
+            self.startTime = startTime
+            self.endTime = endTime
+            self.exitCode = exitCode
+            self.wasCancelled = wasCancelled
+        }
+
+        public var duration: TimeInterval? {
+            guard let endTime else { return nil }
+            return endTime.timeIntervalSince(startTime)
+        }
+
+        public var success: Bool {
+            exitCode == 0 && !wasCancelled
+        }
+    }
+
+    struct RunnerConfig: Sendable {
+        public let model: String?
+        public let phases: Int?
+        public let maxIterations: Int?
+
+        public init(model: String? = nil, phases: Int? = nil, maxIterations: Int? = nil) {
+            self.model = model
+            self.phases = phases
+            self.maxIterations = maxIterations
+        }
+    }
+}
 
 public extension Workspace {
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
@@ -72,14 +200,8 @@ public extension Workspace {
         }
         guard !isRunning else { return }
 
-        output = ""
-        outputBuffer.clear()
-        attributedOutput = []
-        lastExitStatus = nil
-        errorMessage = nil
-        isRunning = true
+        runState.prepareForNewRun()
         cancelRequested = false
-        executionStartTime = Date()
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -94,10 +216,7 @@ public extension Workspace {
                 for await event in run.events {
                     outputBuffer.append(event.text)
                     output = outputBuffer.content
-
-                    detectPhase(from: output)
-                    parseANSICodes(from: output, appendToExisting: false)
-                    enforceANSISegmentLimit()
+                    consumeStreamTextChunk(event.text)
                 }
 
                 let status = await run.waitUntilExit()
@@ -168,7 +287,6 @@ public extension Workspace {
         }
     }
 
-    /// Run a task from the queue (defaults to the next runnable task).
     func runNextTask(taskIDOverride: String? = nil, forceDirtyRepo: Bool = false) {
         guard !isRunning else { return }
 
@@ -199,7 +317,6 @@ public extension Workspace {
         }
     }
 
-    /// Start loop mode (continuously run tasks)
     func startLoop(forceDirtyRepo: Bool? = nil) {
         isLoopMode = true
         stopAfterCurrent = false
@@ -207,29 +324,9 @@ public extension Workspace {
         runNextTask(forceDirtyRepo: shouldForceDirtyRepo)
     }
 
-    /// Stop loop mode (finish current task then stop)
     func stopLoop() {
         isLoopMode = false
         stopAfterCurrent = true
-    }
-
-    /// Parse phase information from CLI output
-    func detectPhase(from output: String) {
-        if output.contains("PHASE 1") || output.contains("Phase 1") ||
-            output.contains("PLANNING") || output.contains("Planning") ||
-            output.contains("# Phase 1") || output.contains("## Phase 1") {
-            currentPhase = .plan
-        } else if output.contains("PHASE 2") || output.contains("Phase 2") ||
-                    output.contains("IMPLEMENTING") || output.contains("Implementing") ||
-                    output.contains("IMPLEMENTATION") || output.contains("# Phase 2") ||
-                    output.contains("## Phase 2") {
-            currentPhase = .implement
-        } else if output.contains("PHASE 3") || output.contains("Phase 3") ||
-                    output.contains("REVIEWING") || output.contains("Reviewing") ||
-                    output.contains("REVIEW") || output.contains("# Phase 3") ||
-                    output.contains("## Phase 3") {
-            currentPhase = .review
-        }
     }
 }
 
@@ -273,16 +370,13 @@ private extension Workspace {
         return nextTask()?.id
     }
 
-    /// Reset execution state after completion or cancellation
     func resetExecutionState() {
         currentPhase = nil
         executionStartTime = nil
         currentTaskID = nil
-        attributedOutput = []
-        // Note: outputBuffer is intentionally preserved for inspection after completion
+        resetStreamProcessingState()
     }
 
-    /// Add execution record to history (keeps last 50)
     func addToHistory(_ record: ExecutionRecord) {
         executionHistory.insert(record, at: 0)
         if executionHistory.count > 50 {

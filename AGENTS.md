@@ -243,8 +243,12 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 
 ### macOS Workspace Decomposition
 - Keep `Workspace.swift` focused on shared workspace state plus broad orchestration; move dense feature areas into `Workspace+...` files.
+- `Workspace` is `@MainActor` only and acts as a facade over domain owners (`WorkspaceIdentityState`, `WorkspaceCommandState`, `WorkspaceTaskState`, `WorkspaceInsightsState`, `WorkspaceDiagnosticsState`, `WorkspaceRunState`); do not reintroduce `@unchecked Sendable`.
 - Runner lifecycle/loop/cancel state lives in `Workspace+RunnerState.swift`; task edit/bulk-create flows live in `Workspace+TaskMutations.swift`.
 - Workspace persistence and working-directory path resolution live in `Workspace+Persistence.swift`; workspace recovery UI state lives in `Workspace+ErrorRecovery.swift`.
+- Workspace identity persistence is a single `.snapshot` payload per workspace via `WorkspaceStateStore`; persistence failures must surface as `PersistenceIssue` state instead of `try?` drops.
+- Window restoration/version-cache/app-default cleanup must also surface `PersistenceIssue` through `WorkspaceManager`; crash-report storage failures surface through `CrashReporter.operationalIssues`.
+- Console stream parsing is incremental: hot-path chunks must flow through `consumeStreamTextChunk(_:)` / `WorkspaceStreamProcessor` rather than reparsing full accumulated output.
 
 ### macOS CLI Client Decomposition
 - Keep `RalphCLIClient.swift` focused on the core subprocess API (`start`, `runAndCollect`, timeout handling).

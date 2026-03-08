@@ -1,15 +1,16 @@
 /**
  CrashReporter
- 
+
  Responsibilities:
  - Capture uncaught exceptions and crashes in the macOS app.
  - Store crash reports locally for user review and optional export.
+ - Surface crash-report persistence failures as observable operational state.
  - Provide basic crash metadata (timestamp, stack trace, app version).
- 
+
  Does not handle:
  - Automatic upload to external services (user must manually export).
  - Symbolication of stack traces (raw addresses only).
- 
+
  Invariants/assumptions callers must respect:
  - Must be initialized early in app lifecycle (before crashes can occur).
  - Crash reports are stored in app support directory with .json extension.
@@ -20,7 +21,6 @@ public import Foundation
 import AppKit
 import Darwin
 
-/// Information about a captured crash
 public struct CrashReport: Codable, Identifiable, Sendable {
     public let id: UUID
     public let timestamp: Date
@@ -30,7 +30,7 @@ public struct CrashReport: Codable, Identifiable, Sendable {
     public let appVersion: String
     public let osVersion: String
     public let deviceModel: String
-    
+
     public init(
         id: UUID,
         timestamp: Date,
@@ -50,8 +50,7 @@ public struct CrashReport: Codable, Identifiable, Sendable {
         self.osVersion = osVersion
         self.deviceModel = deviceModel
     }
-    
-    /// Human-readable formatted report
+
     public var formattedReport: String {
         var lines: [String] = []
         lines.append("=== Ralph Crash Report ===")
@@ -61,11 +60,11 @@ public struct CrashReport: Codable, Identifiable, Sendable {
         lines.append("macOS Version: \(osVersion)")
         lines.append("Device: \(deviceModel)")
         lines.append("")
-        if let name = exceptionName {
-            lines.append("Exception: \(name)")
+        if let exceptionName {
+            lines.append("Exception: \(exceptionName)")
         }
-        if let reason = exceptionReason {
-            lines.append("Reason: \(reason)")
+        if let exceptionReason {
+            lines.append("Reason: \(exceptionReason)")
         }
         lines.append("")
         lines.append("Stack Trace:")
@@ -77,39 +76,211 @@ public struct CrashReport: Codable, Identifiable, Sendable {
     }
 }
 
-/// Simple crash reporter that captures uncaught exceptions
-public final class CrashReporter: @unchecked Sendable {
+struct CrashReportStorage: Sendable {
+    var directoryURL: @Sendable () -> URL
+    var createDirectory: @Sendable (URL) throws -> Void
+    var listFiles: @Sendable (URL) throws -> [URL]
+    var readData: @Sendable (URL) throws -> Data
+    var writeData: @Sendable (Data, URL) throws -> Void
+    var removeItem: @Sendable (URL) throws -> Void
+
+    static let live = CrashReportStorage(
+        directoryURL: {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                ?? FileManager.default.temporaryDirectory
+            return appSupport.appendingPathComponent("Ralph/CrashReports", isDirectory: true)
+        },
+        createDirectory: { url in
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        },
+        listFiles: { url in
+            try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
+        },
+        readData: { url in
+            try Data(contentsOf: url)
+        },
+        writeData: { data, url in
+            try data.write(to: url, options: .atomic)
+        },
+        removeItem: { url in
+            try FileManager.default.removeItem(at: url)
+        }
+    )
+}
+
+@MainActor
+public final class CrashReporter: ObservableObject {
     public static let shared = CrashReporter()
-    
+
+    @Published public private(set) var operationalIssues: [PersistenceIssue] = []
+
     private let maxReports = 10
-    
+    private static let storageLock = NSLock()
+    private static var storage = CrashReportStorage.live
+
     private init() {}
-    
-    /// Returns the crash reports directory URL
-    private func crashReportsDirectory() -> URL {
-        Self.crashReportsDirectoryStatic()
-    }
-    
-    /// Install crash handlers. Call this early in app launch.
+
     public func install() {
-        // Ensure directory exists
-        try? FileManager.default.createDirectory(at: crashReportsDirectory(), withIntermediateDirectories: true)
-        
-        // Install exception handler
+        let storage = Self.currentStorage()
+        do {
+            try storage.createDirectory(storage.directoryURL())
+            clearIssues(for: .install)
+        } catch {
+            recordIssue(
+                PersistenceIssue(
+                    domain: .crashReporting,
+                    operation: .install,
+                    context: storage.directoryURL().path,
+                    error: error
+                )
+            )
+            return
+        }
+
         NSSetUncaughtExceptionHandler { exception in
             CrashReporter.handleException(exception)
         }
-        
-        // Note: Signal handling for crashes would require C-style signal handlers
-        // which are complex in Swift. For this implementation, we focus on exception handling.
-        
-        // Clean up old reports to enforce maxReports limit
+
         pruneOldReports()
-        
         RalphLogger.shared.info("Crash reporter installed", category: .crashReporting)
     }
-    
-    /// Nonisolated handler for exceptions (called from C callback)
+
+    public func getAllReports() -> [CrashReport] {
+        let storage = Self.currentStorage()
+        let directory = storage.directoryURL()
+        do {
+            let files = try storage.listFiles(directory)
+            var encounteredLoadIssue = false
+            let reports = files
+                .filter { $0.pathExtension == "json" }
+                .compactMap { fileURL -> (CrashReport, URL)? in
+                    do {
+                        let data = try storage.readData(fileURL)
+                        let report = try JSONDecoder().decode(CrashReport.self, from: data)
+                        return (report, fileURL)
+                    } catch {
+                        encounteredLoadIssue = true
+                        recordIssue(
+                            PersistenceIssue(
+                                domain: .crashReporting,
+                                operation: .load,
+                                context: fileURL.path,
+                                error: error
+                            )
+                        )
+                        return nil
+                    }
+                }
+                .sorted { $0.0.timestamp > $1.0.timestamp }
+
+            if !encounteredLoadIssue {
+                clearIssues(for: .load)
+            }
+            return reports.map(\.0)
+        } catch {
+            recordIssue(
+                PersistenceIssue(
+                    domain: .crashReporting,
+                    operation: .load,
+                    context: directory.path,
+                    error: error
+                )
+            )
+            return []
+        }
+    }
+
+    public func clearAllReports() {
+        let storage = Self.currentStorage()
+        let directory = storage.directoryURL()
+        do {
+            let files = try storage.listFiles(directory)
+            for file in files where file.pathExtension == "json" {
+                try storage.removeItem(file)
+            }
+            clearIssues(for: .delete)
+            RalphLogger.shared.info("Cleared all crash reports", category: .crashReporting)
+        } catch {
+            recordIssue(
+                PersistenceIssue(
+                    domain: .crashReporting,
+                    operation: .delete,
+                    context: directory.path,
+                    error: error
+                )
+            )
+        }
+    }
+
+    public func exportAllReports() -> String {
+        let reports = getAllReports()
+        if reports.isEmpty {
+            return "No crash reports found."
+        }
+        return reports.map(\.formattedReport).joined(separator: "\n\n")
+    }
+
+    public func clearOperationalIssues() {
+        operationalIssues.removeAll(keepingCapacity: false)
+    }
+
+    func setStorageForTesting(_ storage: CrashReportStorage) {
+        Self.storageLock.lock()
+        Self.storage = storage
+        Self.storageLock.unlock()
+    }
+
+    func reportsDirectoryURLForTesting() -> URL {
+        Self.currentStorage().directoryURL()
+    }
+
+    private func pruneOldReports() {
+        let storage = Self.currentStorage()
+        let directory = storage.directoryURL()
+        do {
+            let files = try storage.listFiles(directory)
+                .filter { $0.pathExtension == "json" }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            guard files.count > maxReports else {
+                clearIssues(for: .prune)
+                return
+            }
+
+            for file in files.prefix(files.count - maxReports) {
+                try storage.removeItem(file)
+            }
+            clearIssues(for: .prune)
+        } catch {
+            recordIssue(
+                PersistenceIssue(
+                    domain: .crashReporting,
+                    operation: .prune,
+                    context: directory.path,
+                    error: error
+                )
+            )
+        }
+    }
+
+    private func recordIssue(_ issue: PersistenceIssue) {
+        operationalIssues.removeAll {
+            $0.domain == issue.domain &&
+            $0.operation == issue.operation &&
+            $0.context == issue.context
+        }
+        operationalIssues.append(issue)
+        RalphLogger.shared.error(
+            "Crash reporter \(issue.operation.rawValue) failed for \(issue.context): \(issue.message)",
+            category: .crashReporting
+        )
+    }
+
+    private func clearIssues(for operation: PersistenceIssue.Operation) {
+        operationalIssues.removeAll {
+            $0.domain == .crashReporting && $0.operation == operation
+        }
+    }
+
     private static func handleException(_ exception: NSException) {
         let report = CrashReport(
             id: UUID(),
@@ -121,78 +292,43 @@ public final class CrashReporter: @unchecked Sendable {
             osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
             deviceModel: deviceModel()
         )
-        
-        // Save report synchronously (we may crash soon)
-        if let data = try? JSONEncoder().encode(report) {
-            let filename = "crash_\(report.timestamp.timeIntervalSince1970).json"
-            let url = crashReportsDirectoryStatic().appendingPathComponent(filename)
-            try? data.write(to: url)
-        }
-    }
-    
-    /// Static version for nonisolated contexts
-    private static func crashReportsDirectoryStatic() -> URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return appSupport.appendingPathComponent("Ralph/CrashReports", isDirectory: true)
-    }
-    
-    /// Get all stored crash reports
-    public func getAllReports() -> [CrashReport] {
-        guard let files = try? FileManager.default.contentsOfDirectory(at: crashReportsDirectory(), includingPropertiesForKeys: nil) else {
-            return []
-        }
-        
-        return files
-            .filter { $0.pathExtension == "json" }
-            .compactMap { url -> CrashReport? in
-                guard let data = try? Data(contentsOf: url) else { return nil }
-                return try? JSONDecoder().decode(CrashReport.self, from: data)
-            }
-            .sorted { $0.timestamp > $1.timestamp }
-    }
-    
-    /// Clear all stored crash reports
-    public func clearAllReports() {
-        guard let files = try? FileManager.default.contentsOfDirectory(at: crashReportsDirectory(), includingPropertiesForKeys: nil) else {
-            return
-        }
-        
-        for file in files where file.pathExtension == "json" {
-            try? FileManager.default.removeItem(at: file)
-        }
-        
-        RalphLogger.shared.info("Cleared all crash reports", category: .crashReporting)
-    }
-    
-    /// Export all crash reports as a single string
-    public func exportAllReports() -> String {
-        let reports = getAllReports()
-        if reports.isEmpty {
-            return "No crash reports found."
-        }
-        return reports.map { $0.formattedReport }.joined(separator: "\n\n")
-    }
-    
-    /// Delete old reports if we exceed maxReports
-    private func pruneOldReports() {
-        let reports = getAllReports()
-        if reports.count > maxReports {
-            let toDelete = reports.suffix(from: maxReports)
-            for report in toDelete {
-                let url = crashReportsDirectory().appendingPathComponent("crash_\(report.timestamp.timeIntervalSince1970).json")
-                try? FileManager.default.removeItem(at: url)
+
+        do {
+            try persistCrashReport(report)
+        } catch {
+            Task { @MainActor in
+                CrashReporter.shared.recordIssue(
+                    PersistenceIssue(
+                        domain: .crashReporting,
+                        operation: .save,
+                        context: Self.currentStorage().directoryURL().path,
+                        error: error
+                    )
+                )
             }
         }
     }
-    
-    /// Get device model string
+
+    private static func persistCrashReport(_ report: CrashReport) throws {
+        let storage = currentStorage()
+        let directory = storage.directoryURL()
+        try storage.createDirectory(directory)
+        let data = try JSONEncoder().encode(report)
+        let filename = "crash_\(report.timestamp.timeIntervalSince1970).json"
+        try storage.writeData(data, directory.appendingPathComponent(filename))
+    }
+
+    private static func currentStorage() -> CrashReportStorage {
+        storageLock.lock()
+        defer { storageLock.unlock() }
+        return storage
+    }
+
     private static func deviceModel() -> String {
         var size = 0
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var machine = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.model", &machine, &size, nil, 0)
-        // Remove null terminator and convert CChar (Int8) to UInt8 for UTF8 decoding
         let trimmed = machine.prefix { $0 != 0 }
         let bytes = trimmed.map { UInt8(bitPattern: $0) }
         return String(decoding: bytes, as: UTF8.self)

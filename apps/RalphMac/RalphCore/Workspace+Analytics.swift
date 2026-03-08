@@ -15,7 +15,32 @@
 //! - Partial analytics availability is acceptable.
 //! - Failures degrade gracefully to nil section data.
 
-import Foundation
+public import Foundation
+public import Combine
+
+@MainActor
+public final class WorkspaceInsightsState: ObservableObject {
+    @Published public var graphData: RalphGraphDocument?
+    @Published public var graphDataLoading = false
+    @Published public var graphDataErrorMessage: String?
+    @Published public var analyticsData = Workspace.AnalyticsData()
+    @Published public var analyticsLoading = false
+    @Published public var analyticsErrorMessage: String?
+
+    public init() {}
+}
+
+public extension Workspace {
+    struct AnalyticsData: Sendable {
+        public var productivitySummary: ProductivitySummaryReport?
+        public var velocity: ProductivityVelocityReport?
+        public var burndown: BurndownReport?
+        public var queueStats: QueueStatsReport?
+        public var history: HistoryReport?
+
+        public init() {}
+    }
+}
 
 public extension Workspace {
     func loadAnalytics(timeRange: TimeRange = .sevenDays) async {

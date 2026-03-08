@@ -3,15 +3,57 @@ import XCTest
 
 @MainActor
 final class CrashReporterTests: XCTestCase {
-    
-    override func setUp() {
-        super.setUp()
+    private var reportsDirectory: URL!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        reportsDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ralph-crash-tests-\(UUID().uuidString)", isDirectory: true)
+        CrashReporter.shared.setStorageForTesting(makeStorage(directoryURL: reportsDirectory))
         CrashReporter.shared.clearAllReports()
+        CrashReporter.shared.clearOperationalIssues()
     }
-    
-    override func tearDown() {
+
+    override func tearDown() async throws {
+        CrashReporter.shared.setStorageForTesting(makeStorage(directoryURL: reportsDirectory))
         CrashReporter.shared.clearAllReports()
-        super.tearDown()
+        CrashReporter.shared.clearOperationalIssues()
+        try? FileManager.default.removeItem(at: reportsDirectory)
+        try await super.tearDown()
+    }
+
+    private static func makeStorage(
+        directoryURL: URL,
+        listFiles: (@Sendable (URL) throws -> [URL])? = nil
+    ) -> CrashReportStorage {
+        CrashReportStorage(
+            directoryURL: { directoryURL },
+            createDirectory: { url in
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            },
+            listFiles: { url in
+                if let listFiles {
+                    return try listFiles(url)
+                }
+                return try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
+            },
+            readData: { url in
+                try Data(contentsOf: url)
+            },
+            writeData: { data, url in
+                try data.write(to: url, options: .atomic)
+            },
+            removeItem: { url in
+                try FileManager.default.removeItem(at: url)
+            }
+        )
+    }
+
+    private func makeStorage(
+        directoryURL: URL,
+        listFiles: (@Sendable (URL) throws -> [URL])? = nil
+    ) -> CrashReportStorage {
+        Self.makeStorage(directoryURL: directoryURL, listFiles: listFiles)
     }
     
     func testCrashReportCreation() {
@@ -92,5 +134,50 @@ final class CrashReporterTests: XCTestCase {
         )
         
         XCTAssertNotEqual(report1.id, report2.id)
+    }
+
+    func testInstall_surfacesOperationalIssue_whenStorageInitializationFails() {
+        enum StorageFailure: Error {
+            case createDirectory
+        }
+
+        guard let reportsDirectory else {
+            XCTFail("Missing reports directory test fixture")
+            return
+        }
+
+        CrashReporter.shared.setStorageForTesting(
+            CrashReportStorage(
+                directoryURL: { reportsDirectory },
+                createDirectory: { _ in throw StorageFailure.createDirectory },
+                listFiles: { _ in [] },
+                readData: { _ in Data() },
+                writeData: { _, _ in },
+                removeItem: { _ in }
+            )
+        )
+
+        CrashReporter.shared.install()
+
+        XCTAssertEqual(CrashReporter.shared.operationalIssues.count, 1)
+        XCTAssertEqual(CrashReporter.shared.operationalIssues.first?.domain, .crashReporting)
+        XCTAssertEqual(CrashReporter.shared.operationalIssues.first?.operation, .install)
+    }
+
+    func testGetAllReports_surfacesOperationalIssue_forUnreadableReport() throws {
+        try FileManager.default.createDirectory(at: reportsDirectory, withIntermediateDirectories: true)
+        let invalidReportURL = reportsDirectory.appendingPathComponent("broken.json")
+        try Data("not-json".utf8).write(to: invalidReportURL)
+
+        let reports = CrashReporter.shared.getAllReports()
+
+        XCTAssertTrue(reports.isEmpty)
+        XCTAssertEqual(CrashReporter.shared.operationalIssues.count, 1)
+        XCTAssertEqual(CrashReporter.shared.operationalIssues.first?.domain, .crashReporting)
+        XCTAssertEqual(CrashReporter.shared.operationalIssues.first?.operation, .load)
+        let reportedContext = CrashReporter.shared.operationalIssues.first.map { issue in
+            URL(fileURLWithPath: issue.context).resolvingSymlinksInPath().path
+        }
+        XCTAssertEqual(reportedContext, invalidReportURL.resolvingSymlinksInPath().path)
     }
 }

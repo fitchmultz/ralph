@@ -15,7 +15,63 @@
 //! - Direct file parsing is a fast path and may fall back to the CLI.
 //! - Queue refresh events retain previous and current task snapshots for view-local reactions.
 
-import Foundation
+public import Foundation
+public import Combine
+
+@MainActor
+public final class WorkspaceTaskState: ObservableObject {
+    @Published public var tasks: [RalphTask] = []
+    @Published public var tasksLoading = false
+    @Published public var tasksErrorMessage: String?
+    @Published public var lastQueueRefreshEvent: Workspace.QueueRefreshEvent?
+    @Published public var taskFilterText = ""
+    @Published public var taskStatusFilter: RalphTaskStatus?
+    @Published public var taskPriorityFilter: RalphTaskPriority?
+    @Published public var taskTagFilter: String?
+    @Published public var taskSortBy: Workspace.TaskSortOption = .priority
+    @Published public var taskSortAscending = false
+
+    public init() {}
+}
+
+public extension Workspace {
+    enum TaskSortOption: String, CaseIterable {
+        case priority = "Priority"
+        case created = "Created"
+        case updated = "Updated"
+        case status = "Status"
+        case title = "Title"
+    }
+
+    struct QueueRefreshEvent: Identifiable, Sendable, Equatable {
+        public enum Source: String, Sendable, Equatable {
+            case externalFileChange
+        }
+
+        public let id: UUID
+        public let source: Source
+        public let previousTasks: [RalphTask]
+        public let currentTasks: [RalphTask]
+        public let highlightedTaskIDs: Set<String>
+
+        public init(
+            id: UUID = UUID(),
+            source: Source,
+            previousTasks: [RalphTask],
+            currentTasks: [RalphTask]
+        ) {
+            let changes = TaskChanges.diff(previous: previousTasks, current: currentTasks)
+            var highlightedTaskIDs = Set(changes.changed.map(\.id))
+            highlightedTaskIDs.formUnion(changes.added.map(\.id))
+
+            self.id = id
+            self.source = source
+            self.previousTasks = previousTasks
+            self.currentTasks = currentTasks
+            self.highlightedTaskIDs = highlightedTaskIDs
+        }
+    }
+}
 
 public extension Workspace {
     func loadTasks(retryConfiguration: RetryConfiguration = .default) async {

@@ -314,6 +314,29 @@ final class ANSIParserTests: XCTestCase {
         XCTAssertEqual(workspace.attributedOutput[1].text, "green")
     }
 
+    func test_incrementalStreamParsing_preservesANSIStateAcrossChunks() async {
+        workspace.resetStreamProcessingState()
+
+        workspace.consumeStreamTextChunk("\u{001B}[31mred")
+        workspace.consumeStreamTextChunk(" still red\u{001B}[0m plain")
+
+        XCTAssertEqual(workspace.attributedOutput.count, 2)
+        XCTAssertEqual(workspace.attributedOutput[0].text, "red still red")
+        XCTAssertEqual(workspace.attributedOutput[0].color, .red)
+        XCTAssertEqual(workspace.attributedOutput[1].text, " plain")
+        XCTAssertEqual(workspace.attributedOutput[1].color, .default)
+    }
+
+    func test_incrementalStreamParsing_detectsPhaseFromDeltaOnly() async {
+        workspace.resetStreamProcessingState()
+        workspace.currentPhase = nil
+
+        workspace.consumeStreamTextChunk("prelude\n")
+        workspace.consumeStreamTextChunk("## Phase 2\nimplementing now\n")
+
+        XCTAssertEqual(workspace.currentPhase, .implement)
+    }
+
     // MARK: - Complex/Real-World Cases
 
     func test_cargoBuildStyle_output() async {

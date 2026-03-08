@@ -15,7 +15,26 @@
 //! - Hidden commands and args are filtered app-side only for presentation.
 //! - Argument building honors single-value versus multi-value inputs.
 
-import Foundation
+public import Foundation
+public import Combine
+
+@MainActor
+public final class WorkspaceCommandState: ObservableObject {
+    @Published public var cliSpec: RalphCLISpecDocument?
+    @Published public var cliSpecErrorMessage: String?
+    @Published public var cliSpecIsLoading = false
+    @Published public var advancedSearchText = ""
+    @Published public var advancedShowHiddenCommands = false
+    @Published public var advancedShowHiddenArgs = false
+    @Published public var advancedIncludeNoColor = true
+    @Published public var advancedSelectedCommandID: String?
+    @Published public var advancedBoolValues: [String: Bool] = [:]
+    @Published public var advancedCountValues: [String: Int] = [:]
+    @Published public var advancedSingleValues: [String: String] = [:]
+    @Published public var advancedMultiValues: [String: String] = [:]
+
+    public init() {}
+}
 
 public extension Workspace {
     func loadCLISpec(retryConfiguration: RetryConfiguration = .minimal) async {
