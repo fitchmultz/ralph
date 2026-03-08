@@ -1,7 +1,7 @@
 //! Release script contract tests.
 //!
 //! Responsibilities:
-//! - Guard release-script invariants that should not regress silently.
+//! - Guard release-script transaction invariants that should not regress silently.
 //! - Verify release automation derives GitHub metadata from the current repo.
 //!
 //! Not handled here:
@@ -41,24 +41,15 @@ fn read_repo_file(relative_path: &str) -> String {
 }
 
 #[test]
-fn release_script_sets_explicit_github_release_title() {
-    let script = read_repo_file("scripts/release.sh");
-    assert!(
-        script.contains("--title \"v$VERSION\""),
-        "release.sh should set an explicit GitHub release title"
-    );
-}
-
-#[test]
 fn release_script_derives_repo_url_from_origin_remote() {
-    let script = read_repo_file("scripts/release.sh");
+    let script = read_repo_file("scripts/lib/release_pipeline.sh");
     assert!(
-        script.contains("get_repo_http_url()"),
-        "release.sh should derive the repo URL from git remote origin"
+        script.contains("ralph_get_repo_http_url"),
+        "release pipeline should derive the repo URL from git remote origin"
     );
     assert!(
         !script.contains("https://github.com/fitchmultz/ralph/compare"),
-        "release.sh should not hardcode compare links to a specific owner"
+        "release pipeline should not hardcode compare links to a specific owner"
     );
 }
 
@@ -76,61 +67,63 @@ fn release_notes_template_uses_repo_placeholders() {
 }
 
 #[test]
-fn release_script_treats_cargo_lock_as_release_metadata() {
-    let script = read_repo_file("scripts/release.sh");
+fn release_policy_treats_cargo_lock_as_release_metadata() {
+    let script = read_repo_file("scripts/lib/release_policy.sh");
     assert!(
         script.contains("\"Cargo.lock\""),
-        "release.sh should treat Cargo.lock as release metadata"
-    );
-    assert!(
-        script.contains("git add VERSION Cargo.lock"),
-        "release.sh should stage Cargo.lock in the release commit"
-    );
-    assert!(
-        script.contains("git checkout -- VERSION Cargo.lock"),
-        "release.sh should roll back Cargo.lock on failed release cleanup"
+        "release policy should treat Cargo.lock as release metadata"
     );
 }
 
 #[test]
-fn release_script_cleans_release_artifacts_directory() {
-    let script = read_repo_file("scripts/release.sh");
+fn release_artifact_builder_cleans_release_artifacts_directory() {
+    let script = read_repo_file("scripts/build-release-artifacts.sh");
     let cleanup_count = script.matches("rm -rf \"$RELEASE_ARTIFACTS_DIR\"").count();
     assert!(
-        cleanup_count >= 2,
-        "release.sh should clean target/release-artifacts before packaging and during cleanup"
+        cleanup_count >= 1,
+        "artifact builder should clean target/release-artifacts before packaging"
     );
 }
 
 #[test]
-fn release_script_allows_dirty_packaging_review_before_release_commit() {
-    let script = read_repo_file("scripts/release.sh");
+fn release_policy_uses_target_transaction_state() {
+    let script = read_repo_file("scripts/lib/release_state.sh");
     assert!(
-        script.contains("cargo package --list -p \"$CRATE_PACKAGE_NAME\" --allow-dirty"),
-        "release.sh should review packaged files with --allow-dirty before the release commit exists"
-    );
-    assert!(
-        script
-            .contains("cargo publish --dry-run -p \"$CRATE_PACKAGE_NAME\" --locked --allow-dirty"),
-        "release.sh should dry-run crates.io publish with --allow-dirty before the release commit exists"
+        script.contains("target/release-transactions"),
+        "release state should keep release transaction state under target/release-transactions"
     );
 }
 
 #[test]
-fn release_script_only_allows_existing_tags_for_explicit_dry_run_verification() {
+fn release_script_publishes_only_after_local_release_is_prepared() {
+    let script = read_repo_file("scripts/lib/release_pipeline.sh");
+    assert!(
+        script.contains("release_prepare_local_state")
+            && script.contains("release_create_commit_and_tag")
+            && script.contains("release_publish_crate"),
+        "release pipeline should prepare locally before publishing externally"
+    );
+    assert!(
+        script.find("release_prepare_local_state") < script.find("release_publish_crate"),
+        "release pipeline should call local preparation before publish"
+    );
+}
+
+#[test]
+fn release_script_reconciles_without_legacy_skip_flags() {
     let script = read_repo_file("scripts/release.sh");
     assert!(
-        script.contains("ALLOW_EXISTING_TAG=\"${RALPH_RELEASE_ALLOW_EXISTING_TAG:-0}\""),
-        "release.sh should require an explicit env var to allow existing tags during verification"
+        script.contains("scripts/release.sh reconcile")
+            || script.contains("reconcile 0.2.0")
+            || script.contains("reconcile <version>"),
+        "release.sh should document durable transaction-state reconciliation"
     );
     assert!(
-        script.contains("if [ \"$DRY_RUN\" = \"1\" ] && [ \"$ALLOW_EXISTING_TAG\" = \"1\" ]; then"),
-        "release.sh should only bypass existing-tag failure for explicit dry-run verification"
+        !script.contains("RALPH_RELEASE_SKIP_PUBLISH"),
+        "release.sh should not rely on the old manual skip-publish recovery flag"
     );
     assert!(
-        script.contains(
-            "RELEASE_DRY_RUN=1 RALPH_RELEASE_ALLOW_EXISTING_TAG=1 scripts/release.sh $VERSION"
-        ),
-        "release.sh should document the explicit verification override when an existing tag blocks release execution"
+        !script.contains("RALPH_RELEASE_ALLOW_EXISTING_TAG"),
+        "release.sh should not retain the old existing-tag override flag"
     );
 }

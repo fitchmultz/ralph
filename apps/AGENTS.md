@@ -78,11 +78,11 @@ xcodebuild -project RalphMac/RalphMac.xcodeproj -scheme RalphCoreTests -destinat
 
 ### Bundling the Ralph CLI
 
-The GUI expects a `ralph` executable in the app bundle at `Contents/MacOS/ralph`. The Xcode project includes a build phase that copies this binary. During development, the executable can be located via:
+The GUI expects a `ralph` executable in the app bundle at `Contents/MacOS/ralph`. Xcode and Makefile flows must both use `scripts/ralph-cli-bundle.sh` as the single bundling/build entrypoint. During development, the executable can be located via:
 
 1. **Bundled binary:** Placed next to the app executable in the bundle
 2. **Environment variable:** `RALPH_BIN_PATH` for testing/development
-3. **Cargo build:** E2E tests will auto-build the Rust project if binary not found
+3. **Shared bundling script:** `scripts/ralph-cli-bundle.sh --configuration Debug|Release --print-path`
 
 ## Code Style Guidelines
 

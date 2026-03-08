@@ -674,7 +674,7 @@ cat .ralph/logs/debug.log | grep -A 50 "Rendered prompt"
 
 ### Related Documentation
 
-- [Workflow](docs/workflow.md) - Phase execution and prompt overrides
-- [Configuration](docs/configuration.md) - Config options affecting prompts
-- [Queue and Tasks](docs/queue-and-tasks.md) - Task structure and fields
-- [Scan](docs/features/scan.md) - Repository scanning details
+- [Workflow](../workflow.md) - Phase execution and prompt overrides
+- [Configuration](../configuration.md) - Config options affecting prompts
+- [Queue and Tasks](../queue-and-tasks.md) - Task structure and fields
+- [Scan](./scan.md) - Repository scanning details

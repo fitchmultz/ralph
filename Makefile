@@ -60,7 +60,7 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help install macos-install-app update lint lint-fix format format-check type-check clean clean-temp test generate docs build ci ci-fast deps \
-	changelog changelog-preview changelog-check version-check version-sync publish-check publish-crate release release-dry-run release-verify release-artifacts pre-commit pre-public-check \
+	changelog changelog-preview changelog-check version-check version-sync publish-check publish-crate release release-dry-run release-verify release-artifacts pre-commit pre-public-check release-gate \
 	agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
 	macos-test-window-shortcuts coverage coverage-clean FORCE
@@ -68,8 +68,9 @@ help:
 	@echo "Common targets:"
 	@echo "  make ci-fast     # Fast deterministic Rust/CLI gate for day-to-day development"
 	@echo "  make ci          # Full Rust release gate (ci-fast + build/generate/install)"
-	@echo "  make agent-ci    # Agent gate: Rust/CLI always; macOS app gate only on apps/RalphMac changes"
+	@echo "  make agent-ci    # Agent gate: dependency-surface routing between ci-fast and macos-ci"
 	@echo "  make macos-ci     # Rust gate + macOS app build+test (requires Xcode)"
+	@echo "  make release-gate # Canonical ship gate: macOS when available, otherwise Rust-only"
 	@echo "  make test         # Nextest workspace tests + cargo doc tests (auto-fallback if nextest missing)"
 	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
 	@echo "  make coverage-clean  # Remove coverage artifacts"
@@ -269,14 +270,14 @@ release:
 		echo "Usage: make release VERSION=x.y.z"; \
 		exit 2; \
 	fi
-	@scripts/release.sh "$(VERSION)"
+	@scripts/release.sh execute "$(VERSION)"
 
 release-dry-run:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Usage: make release-dry-run VERSION=x.y.z"; \
 		exit 2; \
 	fi
-	@RELEASE_DRY_RUN=1 RALPH_RELEASE_ALLOW_EXISTING_TAG=1 scripts/release.sh "$(VERSION)"
+	@scripts/release.sh verify "$(VERSION)"
 
 release-verify:
 	@if [ -z "$(VERSION)" ]; then \
@@ -286,15 +287,9 @@ release-verify:
 	@echo "→ Release verification preflight for $(VERSION)..."
 	@./scripts/versioning.sh sync --version "$(VERSION)"
 	@./scripts/versioning.sh check
-	@scripts/pre-public-check.sh --skip-ci --skip-clean
-	@if [ "$$(uname -s)" = "Darwin" ] && command -v xcodebuild >/dev/null 2>&1; then \
-		echo "  → Running macOS ship gate"; \
-		$(MAKE) --no-print-directory macos-ci; \
-	else \
-		echo "  → xcodebuild unavailable; running Rust release gate only"; \
-		$(MAKE) --no-print-directory ci; \
-	fi
-	@RELEASE_DRY_RUN=1 RALPH_RELEASE_ALLOW_EXISTING_TAG=1 scripts/release.sh "$(VERSION)"
+	@scripts/pre-public-check.sh --skip-ci --release-context
+	@$(MAKE) --no-print-directory release-gate
+	@scripts/release.sh verify "$(VERSION)"
 	@echo "  ✓ Release verification passed for $(VERSION)"
 	@echo "  ✓ Safe to run: make release VERSION=$(VERSION)"
 
@@ -350,10 +345,19 @@ ci: ci-fast build generate install
 	@echo ""
 	@echo "  ✓ CI completed"
 
+release-gate:
+	@if [ "$$(uname -s)" = "Darwin" ] && command -v xcodebuild >/dev/null 2>&1; then \
+		echo "  → Running macOS release gate"; \
+		$(MAKE) --no-print-directory macos-ci; \
+	else \
+		echo "  → Running Rust release gate"; \
+		$(MAKE) --no-print-directory ci; \
+	fi
+
 # Agent CI compromise: always run Rust/CLI gate; run macOS app gate only when app paths change.
 # Set RALPH_AGENT_CI_FORCE_MACOS=1 to force the macOS app gate.
 agent-ci:
-	@echo "→ Agent CI gate (Rust/CLI always; macOS app gate on app changes)..."
+	@echo "→ Agent CI gate (dependency-surface routing between Rust-only and macOS ship gates)..."
 	@force_macos="$${RALPH_AGENT_CI_FORCE_MACOS:-0}"; \
 	if [ "$$force_macos" = "1" ]; then \
 		echo "  → RALPH_AGENT_CI_FORCE_MACOS=1; running macOS gate"; \
@@ -365,20 +369,10 @@ agent-ci:
 		$(MAKE) --no-print-directory macos-ci; \
 		exit 0; \
 	fi; \
-	changed_paths="$$( \
-		{ \
-			git diff --name-only --relative; \
-			git diff --cached --name-only --relative; \
-			git ls-files --others --exclude-standard; \
-		} | sed '/^$$/d' | sort -u \
-	)"; \
-	if printf '%s\n' "$$changed_paths" | grep -qE '^apps/RalphMac/'; then \
-		echo "  → app changes detected under apps/RalphMac/; running macOS gate"; \
-		$(MAKE) --no-print-directory macos-ci; \
-	else \
-		echo "  → no app changes detected; running fast Rust/CLI gate"; \
-		$(MAKE) --no-print-directory ci-fast; \
-	fi
+	target_name="$$(scripts/agent-ci-surface.sh --target)"; \
+	target_reason="$$(scripts/agent-ci-surface.sh --reason)"; \
+	echo "  → $$target_reason"; \
+	$(MAKE) --no-print-directory "$$target_name"
 
 macos-preflight:
 	@os="$$(uname -s)"; \
@@ -407,9 +401,10 @@ macos-build: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	done; \
 	acquired=1; \
 	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/build"; \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Release --print-path)"; \
 	echo "→ macOS build (Xcode build)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
-	xcodebuild \
+	RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
 		-project apps/RalphMac/RalphMac.xcodeproj \
 		-scheme RalphMac \
 		-configuration Release \
@@ -452,7 +447,7 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	done; \
 	acquired=1; \
 	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
-	ralph_bin_path="$$(pwd)/target/release/ralph"; \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Debug --print-path)"; \
 	include_ui_tests="$(RALPH_UI_TESTS)"; \
 	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
 	if [ "$$include_ui_tests" = "1" ]; then \
@@ -498,7 +493,7 @@ macos-ui-build-for-testing: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	done; \
 	acquired=1; \
 	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
-	ralph_bin_path="$$(pwd)/target/release/ralph"; \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Debug --print-path)"; \
 	echo "→ macOS UI build-for-testing (one-time prompt may appear for a rebuilt bundle)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
 	RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
@@ -536,7 +531,7 @@ macos-ui-retest:
 	done; \
 	acquired=1; \
 	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
-	ralph_bin_path="$$(pwd)/target/release/ralph"; \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Debug --print-path)"; \
 	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
 	only_testing="$(RALPH_UI_ONLY_TESTING)"; \
 	app_bundle="$$derived_data_path/Build/Products/Debug/RalphMac.app"; \
@@ -686,7 +681,7 @@ macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	done; \
 	acquired=1; \
 	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui-shortcuts"; \
-	ralph_bin_path="$$(pwd)/target/release/ralph"; \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Release --print-path)"; \
 	echo "→ macOS UI shortcut regressions (focused window/tab behavior)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
 	RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \

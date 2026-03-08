@@ -63,6 +63,20 @@ Includes:
 
 UI automation is intentionally excluded from `macos-ci` by default.
 
+## Canonical Release Gate
+
+Run:
+
+```bash
+make release-gate
+```
+
+Behavior:
+
+- runs `macos-ci` on macOS when Xcode is available
+- otherwise runs `ci`
+- is the shared gate used by `make release-verify` and `scripts/pre-public-check.sh`
+
 ## Heavy / Interactive / On-Demand Checks
 
 Run only when needed (manual or scheduled in your own automation):

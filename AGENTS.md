@@ -33,7 +33,7 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 
 ## User Preferences
 
-- **CI-first**: Run `make agent-ci` before claiming completion (`ci-fast` for non-app changes, `macos-ci` when app paths change)
+- **CI-first**: Run `make agent-ci` before claiming completion (dependency-surface routing decides `ci-fast` vs `macos-ci`)
 - **Full Rust gate**: Run `make ci` before release tagging/public launch windows
 - **Public-readiness gate**: Use `make pre-public-check` before making broad visibility changes
 - **Resource controls**: Prefer `RALPH_CI_JOBS` / `RALPH_XCODE_JOBS` caps on shared workstations
@@ -195,12 +195,15 @@ Every source file MUST start with `//!` docs covering:
 - Canonical repo version source is the top-level `VERSION` file.
 - Use `./scripts/versioning.sh check` (or `make version-check`) to verify Cargo, Xcode, and app compatibility metadata stay in sync.
 - Use `./scripts/versioning.sh sync --version <x.y.z>` (or `make version-sync VERSION=<x.y.z>`) for release bumps; do not hand-edit Cargo/Xcode/version-range files independently.
-- Prefer `make release-verify VERSION=<x.y.z>` before any real release; it syncs version metadata, runs the release safety checks, runs the appropriate ship gate, and dry-runs `scripts/release.sh`.
-- `make release-verify` intentionally passes `RALPH_RELEASE_ALLOW_EXISTING_TAG=1` to the dry-run release script so re-validating an already-cut version does not fail on the local tag; real `scripts/release.sh` invocations still treat an existing tag as fatal.
+- Prefer `make release-verify VERSION=<x.y.z>` before any real release; it syncs version metadata, runs the release safety checks, runs the appropriate ship gate, and validates the release transaction contract.
+- `scripts/release.sh verify <x.y.z>` validates the release transaction contract without mutation.
+- `scripts/release.sh execute <x.y.z>` is the only mutating release entrypoint.
+- `scripts/release.sh reconcile <x.y.z>` is the only supported continuation path after a partial remote failure.
 - `scripts/versioning.sh sync` also refreshes `Cargo.lock`; treat lockfile drift as a release/versioning failure, not incidental noise.
 - `scripts/release.sh` is expected to sync `VERSION`, `Cargo.lock`, `crates/ralph/Cargo.toml`, `apps/RalphMac/RalphMac.xcodeproj/project.pbxproj`, and `apps/RalphMac/RalphCore/VersionValidator.swift` together.
 - Make targets automatically prefer the rustup-managed toolchain pinned by `rust-toolchain.toml` when available; use the same pinned toolchain explicitly for direct script invocations if your shell resolves an older Homebrew `rustc`.
-- `scripts/release.sh` owns `target/release-artifacts/`: it clears stale artifacts before packaging and on rollback/exit, so do not rely on leftover tarballs in that directory.
+- `scripts/release.sh` records transaction state under `target/release-transactions/v<version>/state.env`; reconcile that same version instead of inventing skip/partial reruns.
+- `scripts/build-release-artifacts.sh` owns `target/release-artifacts/`: it clears stale artifacts before packaging, so do not rely on leftover tarballs in that directory.
 - Shared Xcode-build lock wait logging is intentionally one-shot per invocation; if a macOS target is blocked, expect a single wait line rather than repeated per-second spam.
 
 ### Secrets
@@ -209,7 +212,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 ### Public-Release Guardrails
 - Required fast safety gate in CI: `check-env-safety` target now delegates to `scripts/pre-public-check.sh --skip-ci --skip-links --skip-clean`.
 - Convenience alias: `make check-repo-safety`.
-- `scripts/pre-public-check.sh` enforces `.ralph` tracked-file allowlist (`README.md`, queue/done/config json/jsonc) and blocks tracked runtime dirs (`cache`, `logs`, `lock`, `workspaces`, `undo`, `webhooks`).
+- `scripts/pre-public-check.sh` scans repo-wide markdown links and obvious secret patterns, supports `--release-context`, enforces the `.ralph` tracked-file allowlist, and blocks tracked runtime dirs (`cache`, `logs`, `lock`, `workspaces`, `undo`, `webhooks`).
 - `scripts/release.sh` should derive the GitHub repo URL from `git remote origin` and set an explicit GitHub release title (`v<version>`); avoid hardcoded owner-specific release links inside automation.
 
 ### macOS UI Visual Artifacts
@@ -223,6 +226,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 - UI tests must never write into the production app defaults domain. `RalphAppDefaults` isolates `--uitesting` launches into a dedicated suite and normal launches prune stale `ralph-ui-tests` workspace/restoration keys from `com.mitchfultz.ralph`.
 - `ralph app open` should launch with a single `ralph://open?...` URL when workspace context exists. Pre-launching the bundle and then dispatching the URL creates duplicate SwiftUI `WindowGroup` scenes on macOS.
 - `make install` on macOS is expected to update both the CLI and `/Applications/RalphMac.app`; otherwise `ralph app open` can keep launching a stale bundle.
+- App bundling must go through `scripts/ralph-cli-bundle.sh`; do not reintroduce standalone Cargo fallback logic inside the Xcode project or ad hoc macOS targets.
 
 ### macOS App Window Routing
 - Active-window navigation/task commands should flow through focused scene values (`WorkspaceUIActions` / `WorkspaceWindowActions`), not process-wide `NotificationCenter` broadcasts.

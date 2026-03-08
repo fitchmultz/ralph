@@ -3,8 +3,8 @@
 //! Responsibilities:
 //! - Verify the Makefile `ci` and `macos-ci` targets define the exact required
 //!   dependency sequence (no missing, reordered, or duplicated steps).
-//! - Verify `agent-ci` routes to `ci-fast` by default and escalates to
-//!   `macos-ci` only for app-path changes (or explicit force).
+//! - Verify `agent-ci` routes by dependency surface and escalates to
+//!   `macos-ci` for app/CLI/build/runtime contract changes (or explicit force).
 //! - Ensure contributor-facing documentation stays synchronized with
 //!   the canonical CI pipeline definition.
 //! - Validate clean target preserves user data while removing temp artifacts.
@@ -17,7 +17,7 @@
 //! - The semantic `ci` pipeline in the Makefile must exactly match
 //!   `REQUIRED_CI_STEPS` (including `ci-fast` expansion when factored).
 //! - The `macos-ci` target must exactly match `REQUIRED_MACOS_CI_DEPS`.
-//! - The `agent-ci` target must include deterministic path-based routing.
+//! - The `agent-ci` target must use the shared dependency-surface classifier.
 //! - The `release-verify` target must remain the canonical Makefile release preflight.
 //! - Docs parity is anchored to the canonical constant, not dynamically parsed
 //!   Makefile output, to prevent lockstep drift.
@@ -811,20 +811,16 @@ fn test_agent_ci_routes_between_ci_and_macos_ci() -> Result<()> {
         extract_target_block(&makefile, "agent-ci").context("extract agent-ci block")?;
 
     assert!(
-        agent_ci_block.contains("apps/RalphMac/"),
-        "agent-ci must route based on app path changes under apps/RalphMac/"
+        agent_ci_block.contains("scripts/agent-ci-surface.sh --target"),
+        "agent-ci must route through the shared dependency-surface classifier"
     );
     assert!(
-        agent_ci_block.contains("$(MAKE) --no-print-directory ci-fast"),
-        "agent-ci must invoke the fast Rust/CLI gate for non-app changes"
+        agent_ci_block.contains("$(MAKE) --no-print-directory \"$$target_name\""),
+        "agent-ci must dispatch to the classifier-selected gate target"
     );
     assert!(
-        agent_ci_block.contains("$(MAKE) --no-print-directory macos-ci"),
-        "agent-ci must escalate to macOS gate when app changes are detected"
-    );
-    assert!(
-        agent_ci_block.contains("RALPH_AGENT_CI_FORCE_MACOS"),
-        "agent-ci must support explicit macOS forcing via env var"
+        agent_ci_block.contains("target_reason"),
+        "agent-ci should surface the classifier's routing reason"
     );
 
     Ok(())
@@ -880,22 +876,16 @@ fn test_release_verify_target_orchestrates_release_preflight() -> Result<()> {
         "release-verify should validate synchronized version metadata"
     );
     assert!(
-        release_verify_block.contains("scripts/pre-public-check.sh --skip-ci --skip-clean"),
-        "release-verify should rerun publication safety checks in a post-sync-safe mode"
+        release_verify_block.contains("scripts/pre-public-check.sh --skip-ci --release-context"),
+        "release-verify should rerun publication safety checks in release-context mode"
     );
     assert!(
-        release_verify_block.contains("$(MAKE) --no-print-directory macos-ci"),
-        "release-verify should prefer the macOS ship gate when Xcode is available"
+        release_verify_block.contains("$(MAKE) --no-print-directory release-gate"),
+        "release-verify should route through the canonical release-gate target"
     );
     assert!(
-        release_verify_block.contains("$(MAKE) --no-print-directory ci"),
-        "release-verify should fall back to the Rust release gate when macOS tooling is unavailable"
-    );
-    assert!(
-        release_verify_block.contains(
-            "RELEASE_DRY_RUN=1 RALPH_RELEASE_ALLOW_EXISTING_TAG=1 scripts/release.sh \"$(VERSION)\""
-        ),
-        "release-verify should exercise the real release script in dry-run mode and tolerate an already-cut local tag"
+        release_verify_block.contains("scripts/release.sh verify \"$(VERSION)\""),
+        "release-verify should use the transactional verify release command"
     );
     assert!(
         makefile.contains("make release-verify VERSION=x.y.z"),

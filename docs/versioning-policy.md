@@ -44,7 +44,10 @@ Release/versioning invariants:
 - `VERSION` is the canonical source of truth.
 - `scripts/versioning.sh sync --version <x.y.z>` is the only supported way to bump release metadata.
 - `make release-verify VERSION=<x.y.z>` is the preferred preflight before `make release`.
-- `make release-verify` intentionally allows an already-existing local `v<version>` tag during the dry-run release script so re-validating a shipped release does not fail on tag state alone; real `scripts/release.sh` runs still fail on an existing tag.
+- `scripts/release.sh verify <x.y.z>` is the non-mutating release contract check.
+- `scripts/release.sh execute <x.y.z>` is the only mutating release entrypoint.
+- `scripts/release.sh reconcile <x.y.z>` is the only supported continuation path after a partial remote failure.
+- Release transaction state lives under `target/release-transactions/v<version>/state.env`.
 - `Cargo.lock` is part of synchronized version metadata and must be committed with release bumps.
 - `scripts/release.sh` owns `target/release-artifacts/` and clears stale tarballs before packaging.
 - Make targets automatically prefer the pinned toolchain from [`rust-toolchain.toml`](../rust-toolchain.toml) when `rustup` is available; use the rustup toolchain bin dir explicitly for direct script invocations if your shell resolves an older `rustc`.

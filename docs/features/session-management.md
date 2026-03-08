@@ -496,7 +496,7 @@ ralph run loop --non-interactive  # with session_timeout_hours: 1 in config
 
 ## See Also
 
-- [Workflow](./workflow.md) - High-level execution flow
+- [Workflow](../workflow.md) - High-level execution flow
 - [Configuration](../configuration.md) - Session timeout configuration
 - [Phases](./phases.md) - Phase execution details
 - [Runners](./runners.md) - Runner-specific behavior
