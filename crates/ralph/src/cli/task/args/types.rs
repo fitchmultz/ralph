@@ -104,6 +104,7 @@ pub enum TaskDecomposeChildPolicyArg {
 #[clap(rename_all = "snake_case")]
 pub enum TaskEditFieldArg {
     Title,
+    Description,
     Status,
     Priority,
     Tags,
@@ -131,6 +132,7 @@ impl TaskEditFieldArg {
     pub fn as_str(self) -> &'static str {
         match self {
             TaskEditFieldArg::Title => "title",
+            TaskEditFieldArg::Description => "description",
             TaskEditFieldArg::Status => "status",
             TaskEditFieldArg::Priority => "priority",
             TaskEditFieldArg::Tags => "tags",
@@ -160,6 +162,7 @@ impl From<TaskEditFieldArg> for TaskEditKey {
     fn from(value: TaskEditFieldArg) -> Self {
         match value {
             TaskEditFieldArg::Title => TaskEditKey::Title,
+            TaskEditFieldArg::Description => TaskEditKey::Description,
             TaskEditFieldArg::Status => TaskEditKey::Status,
             TaskEditFieldArg::Priority => TaskEditKey::Priority,
             TaskEditFieldArg::Tags => TaskEditKey::Tags,

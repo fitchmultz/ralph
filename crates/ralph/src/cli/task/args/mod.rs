@@ -22,6 +22,7 @@ mod build;
 mod decompose;
 mod edit;
 mod lifecycle;
+mod mutate;
 mod relations;
 mod template;
 mod types;
@@ -37,6 +38,7 @@ pub use lifecycle::{
     TaskDoneArgs, TaskReadyArgs, TaskRejectArgs, TaskScheduleArgs, TaskShowArgs, TaskStartArgs,
     TaskStatusArgs,
 };
+pub use mutate::TaskMutateArgs;
 pub use relations::{
     TaskBlocksArgs, TaskChildrenArgs, TaskCloneArgs, TaskMarkDuplicateArgs, TaskParentArgs,
     TaskRelateArgs, TaskRelationFormat, TaskSplitArgs,
@@ -152,6 +154,13 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task edit title \"Clarify CLI edit\" RQ-0001\n ralph task edit status doing RQ-0001\n ralph task edit priority high RQ-0001\n ralph task edit tags \"cli, rust\" RQ-0001\n ralph task edit custom_fields \"severity=high, owner=ralph\" RQ-0001\n ralph task edit agent '{\"runner\":\"codex\",\"model\":\"gpt-5.4\",\"phases\":2}' RQ-0001\n ralph task edit request \"\" RQ-0001\n ralph task edit completed_at \"2026-01-20T12:00:00Z\" RQ-0001\n ralph task edit --dry-run title \"Preview change\" RQ-0001\n ralph task edit --no-auto-archive title \"Update without archiving\" RQ-0001"
     )]
     Edit(TaskEditArgs),
+
+    /// Apply a structured multi-field task mutation transaction.
+    #[command(
+        next_help_heading = "Edit",
+        after_long_help = "Examples:\n echo '{\"version\":1,\"atomic\":true,\"tasks\":[{\"task_id\":\"RQ-0001\",\"edits\":[{\"field\":\"title\",\"value\":\"Clarified title\"},{\"field\":\"priority\",\"value\":\"high\"}]}]}' | ralph task mutate\n ralph task mutate --input /tmp/task-mutation.json\n ralph task mutate --dry-run --input /tmp/task-mutation.json"
+    )]
+    Mutate(TaskMutateArgs),
 
     /// Update existing task fields based on current repository state.
     #[command(

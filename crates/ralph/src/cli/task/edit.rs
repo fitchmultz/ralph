@@ -21,6 +21,9 @@ use crate::cli::task::args::{TaskEditArgs, TaskFieldArgs, TaskUpdateArgs};
 use crate::commands::task as task_cmd;
 use crate::config;
 use crate::queue;
+use crate::queue::operations::{
+    TaskFieldEdit, TaskMutationRequest, TaskMutationSpec, apply_task_mutation_request,
+};
 use crate::timeutil;
 
 /// Handle the `field` command (set custom fields).
@@ -151,17 +154,30 @@ pub fn handle_edit(args: &TaskEditArgs, force: bool, resolved: &config::Resolved
     let mut queue_file = queue::load_queue(&resolved.queue_path)?;
     let mut done_file = queue::load_queue_or_default(&resolved.done_path)?;
 
-    let result = queue::operations::batch_apply_edit(
+    let request = TaskMutationRequest {
+        version: 1,
+        atomic: true,
+        tasks: task_ids
+            .iter()
+            .map(|task_id| TaskMutationSpec {
+                task_id: task_id.clone(),
+                expected_updated_at: None,
+                edits: vec![TaskFieldEdit {
+                    field: args.field.as_str().to_string(),
+                    value: args.value.clone(),
+                }],
+            })
+            .collect(),
+    };
+
+    let result = apply_task_mutation_request(
         &mut queue_file,
         Some(&done_file),
-        &task_ids,
-        args.field.into(),
-        &args.value,
+        &request,
         &now,
         &resolved.id_prefix,
         resolved.id_width,
         max_depth,
-        false, // continue_on_error - default to atomic for CLI
     )?;
 
     // Run auto-archive sweep for terminal tasks if configured and not disabled
@@ -189,10 +205,10 @@ pub fn handle_edit(args: &TaskEditArgs, force: bool, resolved: &config::Resolved
         queue::save_queue(&resolved.done_path, &done_file)?;
     }
 
-    queue::operations::print_batch_results(
-        &result,
-        &format!("Edit field '{}'", args.field.as_str()),
-        false,
+    println!(
+        "Applied field '{}' to {} task(s).",
+        args.field.as_str(),
+        result.tasks.len()
     );
 
     if !archived_task_ids.is_empty() {

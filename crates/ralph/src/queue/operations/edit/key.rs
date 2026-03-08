@@ -18,6 +18,7 @@ use anyhow::{Result, bail};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskEditKey {
     Title,
+    Description,
     Status,
     Priority,
     Tags,
@@ -45,6 +46,7 @@ impl TaskEditKey {
     pub fn as_str(self) -> &'static str {
         match self {
             TaskEditKey::Title => "title",
+            TaskEditKey::Description => "description",
             TaskEditKey::Status => "status",
             TaskEditKey::Priority => "priority",
             TaskEditKey::Tags => "tags",
@@ -91,6 +93,7 @@ impl TaskEditKey {
     pub fn format_value(self, task: &Task, list_sep: &str) -> String {
         match self {
             TaskEditKey::Title => task.title.clone(),
+            TaskEditKey::Description => task.description.clone().unwrap_or_default(),
             TaskEditKey::Status => task.status.to_string(),
             TaskEditKey::Priority => task.priority.to_string(),
             TaskEditKey::Tags => task.tags.join(list_sep),
@@ -140,6 +143,7 @@ impl std::str::FromStr for TaskEditKey {
         let normalized = value.trim().to_lowercase();
         match normalized.as_str() {
             "title" => Ok(TaskEditKey::Title),
+            "description" => Ok(TaskEditKey::Description),
             "status" => Ok(TaskEditKey::Status),
             "priority" => Ok(TaskEditKey::Priority),
             "tags" => Ok(TaskEditKey::Tags),
@@ -162,7 +166,7 @@ impl std::str::FromStr for TaskEditKey {
             "estimated_minutes" => Ok(TaskEditKey::EstimatedMinutes),
             "actual_minutes" => Ok(TaskEditKey::ActualMinutes),
             _ => bail!(
-                "Unknown task field: '{}'. Expected one of: title, status, priority, tags, scope, evidence, plan, notes, request, depends_on, blocks, relates_to, duplicates, custom_fields, agent, created_at, updated_at, completed_at, started_at, scheduled_start, estimated_minutes, actual_minutes.",
+                "Unknown task field: '{}'. Expected one of: title, description, status, priority, tags, scope, evidence, plan, notes, request, depends_on, blocks, relates_to, duplicates, custom_fields, agent, created_at, updated_at, completed_at, started_at, scheduled_start, estimated_minutes, actual_minutes.",
                 value
             ),
         }

@@ -21,6 +21,7 @@ mod clone;
 mod decompose;
 mod edit;
 mod from_template;
+mod mutate;
 mod parent;
 mod refactor;
 mod relations;
@@ -41,10 +42,11 @@ pub use args::{
     TaskBatchArgs, TaskBlocksArgs, TaskBuildArgs, TaskBuildRefactorArgs, TaskChildrenArgs,
     TaskCloneArgs, TaskCommand, TaskDecomposeArgs, TaskDecomposeChildPolicyArg,
     TaskDecomposeFormatArg, TaskDoneArgs, TaskEditArgs, TaskEditFieldArg, TaskFieldArgs,
-    TaskFromArgs, TaskFromCommand, TaskFromTemplateArgs, TaskMarkDuplicateArgs, TaskParentArgs,
-    TaskReadyArgs, TaskRejectArgs, TaskRelateArgs, TaskRelationFormat, TaskScheduleArgs,
-    TaskShowArgs, TaskSplitArgs, TaskStartArgs, TaskStatusArg, TaskStatusArgs, TaskTemplateArgs,
-    TaskTemplateBuildArgs, TaskTemplateCommand, TaskTemplateShowArgs, TaskUpdateArgs,
+    TaskFromArgs, TaskFromCommand, TaskFromTemplateArgs, TaskMarkDuplicateArgs, TaskMutateArgs,
+    TaskParentArgs, TaskReadyArgs, TaskRejectArgs, TaskRelateArgs, TaskRelationFormat,
+    TaskScheduleArgs, TaskShowArgs, TaskSplitArgs, TaskStartArgs, TaskStatusArg, TaskStatusArgs,
+    TaskTemplateArgs, TaskTemplateBuildArgs, TaskTemplateCommand, TaskTemplateShowArgs,
+    TaskUpdateArgs,
 };
 
 /// Main entry point for task commands.
@@ -58,6 +60,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
         Some(TaskCommand::Reject(args)) => status::handle_reject(&args, force, &resolved),
         Some(TaskCommand::Field(args)) => edit::handle_field(&args, force, &resolved),
         Some(TaskCommand::Edit(args)) => edit::handle_edit(&args, force, &resolved),
+        Some(TaskCommand::Mutate(args)) => mutate::handle(&args, force, &resolved),
         Some(TaskCommand::Update(args)) => edit::handle_update(&args, &resolved, force),
         Some(TaskCommand::Build(args)) => build::handle(&args, force, &resolved),
         Some(TaskCommand::Decompose(args)) => decompose::handle(&args, force, &resolved),

@@ -532,10 +532,8 @@ fn format_ci_output_for_message(
     )
 }
 
-/// Executes the CI gate command if enabled.
-///
-/// Returns a CiGateResult containing success status, exit code, and captured output.
-pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateResult> {
+/// Executes the CI gate command if enabled and always returns the captured result.
+pub(crate) fn capture_ci_gate_result(resolved: &crate::config::Resolved) -> Result<CiGateResult> {
     let ci_gate = resolved
         .config
         .agent
@@ -580,38 +578,45 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateRe
             exit_code
         );
 
-        if success {
-            Ok(CiGateResult {
-                success,
-                exit_code,
-                stdout,
-                stderr,
-            })
-        } else {
-            // Detect error pattern for logging context
-            let detected = detect_ci_error_pattern(&stdout, &stderr);
-            if detected
+        if !success
+            && detect_ci_error_pattern(&stdout, &stderr)
                 .as_ref()
                 .is_some_and(|pattern| pattern.pattern_type == "Lock contention")
-            {
-                log::warn!(
-                    "CI gate failure indicates lock contention. {}",
-                    LOCK_CONTENTION_GUIDANCE
-                );
-            }
-            let error_pattern = detected.as_ref().map(|p| p.pattern_type);
-
-            // Return CiFailure so with_scope logs it with ERROR level
-            // The Display impl includes truncated output for immediate visibility
-            Err(CiFailure {
-                exit_code,
-                stdout,
-                stderr,
-                error_pattern,
-            }
-            .into())
+        {
+            log::warn!(
+                "CI gate failure indicates lock contention. {}",
+                LOCK_CONTENTION_GUIDANCE
+            );
         }
+
+        Ok(CiGateResult {
+            success,
+            exit_code,
+            stdout,
+            stderr,
+        })
     })
+}
+
+/// Executes the CI gate command if enabled.
+///
+/// Returns a CiGateResult containing success status, exit code, and captured output.
+pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateResult> {
+    let result = capture_ci_gate_result(resolved)?;
+    if result.success {
+        return Ok(result);
+    }
+
+    let detected = detect_ci_error_pattern(&result.stdout, &result.stderr);
+    let error_pattern = detected.as_ref().map(|p| p.pattern_type);
+
+    Err(CiFailure {
+        exit_code: result.exit_code,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        error_pattern,
+    }
+    .into())
 }
 
 /// Build a combined CI failure message that includes CI output context.

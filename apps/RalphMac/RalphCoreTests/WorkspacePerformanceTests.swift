@@ -572,7 +572,7 @@ final class WorkspacePerformanceTests: XCTestCase {
         XCTAssertEqual(workspace.stopAfterCurrent, true)
     }
 
-    // MARK: - Task Edit Agent Override Tests
+    // MARK: - Task Mutation Agent Override Tests
 
     func test_updateTask_agentOverride_emitsAgentEditCommand() async throws {
         let tempDir = try Self.makeTempDir(prefix: "ralph-workspace-agent-edit-")
@@ -603,11 +603,14 @@ final class WorkspacePerformanceTests: XCTestCase {
               exit 0
             fi
 
-            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "edit" ]; then
+            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "mutate" ] && [ "$4" = "--input" ] && [ -n "$5" ]; then
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
+              cat "$5" >> "$log_file"
+              printf '\n' >> "$log_file"
+              echo '{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9001","applied_edits":1}]}'
               exit 0
             fi
 
@@ -616,7 +619,7 @@ final class WorkspacePerformanceTests: XCTestCase {
             """
         let scriptURL = try Self.makeExecutableScript(
             in: tempDir,
-            name: "mock-ralph-task-edit-agent",
+            name: "mock-ralph-task-mutate-agent",
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
@@ -648,15 +651,18 @@ final class WorkspacePerformanceTests: XCTestCase {
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         let lines = log.split(separator: "\n").map(String.init)
-        let agentEditLine = lines.first { $0.contains("<task><edit><agent><") }
+        let mutateInvocationLine = lines.first { $0.contains("<--no-color><task><mutate><--input><") }
+        let payloadLine = lines.first { $0.contains("\"task_id\" : \"RQ-9001\"") }
 
-        XCTAssertNotNil(agentEditLine)
-        XCTAssertTrue(agentEditLine?.contains("\"runner\":\"codex\"") == true)
-        XCTAssertTrue(agentEditLine?.contains("\"model\":\"gpt-5.3-codex\"") == true)
-        XCTAssertTrue(agentEditLine?.contains("\"model_effort\":\"high\"") == true)
-        XCTAssertTrue(agentEditLine?.contains("\"phases\":2") == true)
-        XCTAssertTrue(agentEditLine?.contains("\"iterations\":1") == true)
-        XCTAssertTrue(agentEditLine?.contains("\"phase_overrides\":{\"phase2\"") == true)
+        XCTAssertNotNil(mutateInvocationLine)
+        XCTAssertNotNil(payloadLine)
+        XCTAssertTrue(log.contains("\"field\" : \"agent\""))
+        XCTAssertTrue(log.contains("\\\"runner\\\":\\\"codex\\\""))
+        XCTAssertTrue(log.contains("\\\"model\\\":\\\"gpt-5.3-codex\\\""))
+        XCTAssertTrue(log.contains("\\\"model_effort\\\":\\\"high\\\""))
+        XCTAssertTrue(log.contains("\\\"phases\\\":2"))
+        XCTAssertTrue(log.contains("\\\"iterations\\\":1"))
+        XCTAssertTrue(log.contains("\\\"phase_overrides\\\":{\\\"phase2\\\""))
         XCTAssertTrue(lines.contains { $0.contains("<--no-color><queue><list><--format><json>") })
     }
 
@@ -689,11 +695,14 @@ final class WorkspacePerformanceTests: XCTestCase {
               exit 0
             fi
 
-            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "edit" ]; then
+            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "mutate" ] && [ "$4" = "--input" ] && [ -n "$5" ]; then
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
+              cat "$5" >> "$log_file"
+              printf '\n' >> "$log_file"
+              echo '{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9002","applied_edits":1}]}'
               exit 0
             fi
 
@@ -702,7 +711,7 @@ final class WorkspacePerformanceTests: XCTestCase {
             """
         let scriptURL = try Self.makeExecutableScript(
             in: tempDir,
-            name: "mock-ralph-task-edit-agent-clear",
+            name: "mock-ralph-task-mutate-agent-clear",
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
@@ -726,13 +735,12 @@ final class WorkspacePerformanceTests: XCTestCase {
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         let lines = log.split(separator: "\n").map(String.init)
-        let agentEditLine = lines.first { $0.contains("<--no-color><task><edit><agent><") }
+        let mutateInvocationLine = lines.first { $0.contains("<--no-color><task><mutate><--input><") }
 
-        XCTAssertNotNil(agentEditLine)
-        XCTAssertTrue(
-            agentEditLine == "<--no-color><task><edit><agent><><RQ-9002>"
-                || agentEditLine == "<--no-color><task><edit><agent><RQ-9002>"
-        )
+        XCTAssertNotNil(mutateInvocationLine)
+        XCTAssertTrue(log.contains("\"task_id\" : \"RQ-9002\""))
+        XCTAssertTrue(log.contains("\"field\" : \"agent\""))
+        XCTAssertTrue(log.contains("\"value\" : \"\""))
     }
 
     func test_updateTask_semanticallyEmptyAgentOverride_doesNotEmitAgentEdit() async throws {
@@ -764,11 +772,14 @@ final class WorkspacePerformanceTests: XCTestCase {
               exit 0
             fi
 
-            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "edit" ]; then
+            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "mutate" ] && [ "$4" = "--input" ] && [ -n "$5" ]; then
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
+              cat "$5" >> "$log_file"
+              printf '\n' >> "$log_file"
+              echo '{"version":1,"atomic":true,"tasks":[]}'
               exit 0
             fi
 
@@ -777,7 +788,7 @@ final class WorkspacePerformanceTests: XCTestCase {
             """
         let scriptURL = try Self.makeExecutableScript(
             in: tempDir,
-            name: "mock-ralph-task-edit-agent-noop",
+            name: "mock-ralph-task-mutate-agent-noop",
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
@@ -800,9 +811,12 @@ final class WorkspacePerformanceTests: XCTestCase {
 
         try await workspace.updateTask(from: original, to: updated)
 
-        let log = try String(contentsOf: logURL, encoding: .utf8)
-        let lines = log.split(separator: "\n").map(String.init)
-        XCTAssertFalse(lines.contains { $0.contains("<--no-color><task><edit><agent><") })
+        if FileManager.default.fileExists(atPath: logURL.path) {
+            let log = try String(contentsOf: logURL, encoding: .utf8)
+            let lines = log.split(separator: "\n").map(String.init)
+            XCTAssertFalse(lines.contains { $0.contains("<--no-color><task><mutate><--input><") })
+            XCTAssertFalse(log.contains("\"field\" : \"agent\""))
+        }
     }
 
     // MARK: - Helpers

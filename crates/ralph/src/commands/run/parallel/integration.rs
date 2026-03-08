@@ -17,7 +17,9 @@
 
 #![allow(dead_code)]
 
-use crate::commands::run::supervision::{ContinueSession, resume_continue_session};
+use crate::commands::run::supervision::{
+    ContinueSession, capture_ci_gate_result, resume_continue_session,
+};
 use crate::config::Resolved;
 use crate::contracts::TaskStatus;
 use crate::git;
@@ -452,47 +454,20 @@ fn validate_task_archived(resolved: &Resolved, task_id: &str) -> Result<()> {
 }
 
 /// Run CI gate check as deterministic validation.
-fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
-    let ci_gate = resolved
-        .config
-        .agent
-        .ci_gate
-        .as_ref()
-        .filter(|ci_gate| ci_gate.is_enabled())
-        .ok_or_else(|| {
-            anyhow::anyhow!("CI gate validation requested but agent.ci_gate is disabled.")
-        })?;
-    let ci_command = ci_gate.display_string();
-
-    log::info!(
-        "Running CI gate validation (may take several minutes): {}",
-        ci_command
-    );
-    let started = std::time::Instant::now();
-
-    let output =
-        crate::runutil::execute_ci_gate(ci_gate, repo_root).context("spawn CI gate command")?;
-
-    log::info!(
-        "CI gate validation finished in {:.1}s with exit code {:?}",
-        started.elapsed().as_secs_f64(),
-        output.status.code()
-    );
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
+fn run_ci_check(_repo_root: &Path, resolved: &Resolved) -> Result<()> {
+    let result = capture_ci_gate_result(resolved)?;
+    if !result.success {
+        let combined = format!("{}\n{}", result.stdout, result.stderr).to_lowercase();
         if combined.contains("waiting for file lock")
             || combined.contains("file lock on build directory")
         {
             bail!(
                 "CI lock contention detected (stale build/test process likely holding a lock). {} | {}",
-                stdout.trim(),
-                stderr.trim()
+                result.stdout.trim(),
+                result.stderr.trim()
             );
         }
-        bail!("{} | {}", stdout.trim(), stderr.trim());
+        bail!("{} | {}", result.stdout.trim(), result.stderr.trim());
     }
 
     Ok(())

@@ -18,6 +18,7 @@
 
 import SwiftUI
 import Combine
+import RalphCore
 
 @MainActor
 final class CommandPaletteViewModel: ObservableObject {

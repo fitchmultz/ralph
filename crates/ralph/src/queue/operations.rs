@@ -21,6 +21,7 @@ mod mutation;
 mod query;
 mod runnability;
 mod status;
+mod transaction;
 mod validate;
 
 pub use archive::*;
@@ -31,6 +32,7 @@ pub use mutation::*;
 pub use query::*;
 pub use runnability::*;
 pub use status::*;
+pub use transaction::*;
 
 #[cfg(test)]
 #[path = "operations/tests/mod.rs"]

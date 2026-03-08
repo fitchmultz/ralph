@@ -1,396 +1,276 @@
-//! Workspace+TaskMutations
-//!
-//! Responsibilities:
-//! - Apply single-task edits through the Ralph CLI with retry and optimistic locking.
-//! - Execute bulk task mutations and surface aggregated failures clearly.
-//! - Create new tasks through the direct queue-import and template-backed flows.
-//!
-//! Does not handle:
-//! - Task filtering or task presentation for views.
-//! - Runner execution state, looping, or cancellation.
-//! - Publishing queue refreshes from file-watcher events.
-//!
-//! Invariants/assumptions callers must respect:
-//! - The workspace must have a configured CLI client before mutations run.
-//! - Task creation must go through the CLI-backed queue mutation flows.
-//! - Callers rely on `loadTasks()` to publish the final post-mutation state.
+/**
+ Workspace+TaskMutations
+
+ Responsibilities:
+ - Apply single-task and bulk task mutations through `ralph task mutate`.
+ - Build atomic mutation requests from app task state and user edits.
+ - Surface optimistic-lock conflicts after refreshing workspace tasks from disk.
+
+ Does not handle:
+ - Task creation flows.
+ - Queue refresh notifications outside post-mutation reloads.
+ - Task conflict diffing helpers (see Workspace+ConflictDetection).
+
+ Invariants/assumptions callers must respect:
+ - The workspace must have a configured CLI client before mutations run.
+ - Mutation requests are sent as atomic transactions through the CLI.
+ - Expected timestamps are derived from the task snapshot the user edited.
+ */
 
 public import Foundation
 
 public extension Workspace {
-    /// Update a task by applying changes via the CLI and reloading the task list.
-    /// This compares the original task with the updated task and generates appropriate CLI commands.
+    /// Update a task by applying all changed fields through a single CLI transaction.
     /// - Parameters:
-    ///   - original: The original task before any edits
-    ///   - updated: The updated task with edits applied
-    ///   - originalUpdatedAt: The updatedAt timestamp at the time editing began (for optimistic locking)
-    /// - Throws: WorkspaceError.taskConflict if the task has been modified externally
+    ///   - original: The original task before any edits.
+    ///   - updated: The edited task state to persist.
+    ///   - originalUpdatedAt: Optional optimistic-lock timestamp captured when editing began.
     func updateTask(from original: RalphTask, to updated: RalphTask, originalUpdatedAt: Date? = nil) async throws {
-        guard let client else {
-            throw WorkspaceError.cliClientUnavailable
+        let edits = try taskEdits(from: original, to: updated)
+        guard !edits.isEmpty else { return }
+
+        let request = WorkspaceTaskMutationRequest(tasks: [
+            WorkspaceTaskMutationSpec(
+                taskID: updated.id,
+                expectedUpdatedAt: encodeExpectedUpdatedAt(originalUpdatedAt ?? original.updatedAt),
+                edits: edits
+            )
+        ])
+
+        _ = try await executeTaskMutationRequest(
+            request,
+            operationDescription: "update task \(updated.id)"
+        )
+    }
+
+    /// Update task status via one CLI transaction.
+    func updateTaskStatus(taskID: String, to newStatus: RalphTaskStatus) async throws {
+        guard let task = tasks.first(where: { $0.id == taskID }) else {
+            throw WorkspaceError.cliError("Task not found: \(taskID)")
         }
 
-        if let originalUpdatedAt = originalUpdatedAt {
-            if let currentTask = tasks.first(where: { $0.id == updated.id }),
-               let currentUpdatedAt = currentTask.updatedAt,
-               currentUpdatedAt != originalUpdatedAt {
-                throw WorkspaceError.taskConflict(currentTask)
+        let request = WorkspaceTaskMutationRequest(tasks: [
+            WorkspaceTaskMutationSpec(
+                taskID: taskID,
+                expectedUpdatedAt: encodeExpectedUpdatedAt(task.updatedAt),
+                edits: [WorkspaceTaskFieldEdit(field: "status", value: newStatus.rawValue)]
+            )
+        ])
+
+        _ = try await executeTaskMutationRequest(
+            request,
+            operationDescription: "update status for \(taskID)"
+        )
+    }
+
+    /// Update status for multiple tasks in bulk with one atomic CLI transaction.
+    @discardableResult
+    func bulkUpdateStatus(taskIDs: [String], to newStatus: RalphTaskStatus, skipReload: Bool = false) async throws -> [(String, String)] {
+        let selectedTasks = try selectedTasks(for: taskIDs)
+        let request = WorkspaceTaskMutationRequest(tasks: selectedTasks.map { task in
+            WorkspaceTaskMutationSpec(
+                taskID: task.id,
+                expectedUpdatedAt: encodeExpectedUpdatedAt(task.updatedAt),
+                edits: [WorkspaceTaskFieldEdit(field: "status", value: newStatus.rawValue)]
+            )
+        })
+
+        _ = try await executeTaskMutationRequest(
+            request,
+            operationDescription: "bulk update status",
+            reloadAfterSuccess: !skipReload
+        )
+        return []
+    }
+
+    /// Update priority for multiple tasks in bulk with one atomic CLI transaction.
+    @discardableResult
+    func bulkUpdatePriority(taskIDs: [String], to newPriority: RalphTaskPriority, skipReload: Bool = false) async throws -> [(String, String)] {
+        let selectedTasks = try selectedTasks(for: taskIDs)
+        let request = WorkspaceTaskMutationRequest(tasks: selectedTasks.map { task in
+            WorkspaceTaskMutationSpec(
+                taskID: task.id,
+                expectedUpdatedAt: encodeExpectedUpdatedAt(task.updatedAt),
+                edits: [WorkspaceTaskFieldEdit(field: "priority", value: newPriority.rawValue)]
+            )
+        })
+
+        _ = try await executeTaskMutationRequest(
+            request,
+            operationDescription: "bulk update priority",
+            reloadAfterSuccess: !skipReload
+        )
+        return []
+    }
+
+    /// Update tags for multiple tasks in bulk with one atomic CLI transaction.
+    @discardableResult
+    func bulkUpdateTags(taskIDs: [String], addTags: [String], removeTags: [String], skipReload: Bool = false) async throws -> [(String, String)] {
+        guard !addTags.isEmpty || !removeTags.isEmpty else { return [] }
+
+        let selectedTasks = try selectedTasks(for: taskIDs)
+        let request = WorkspaceTaskMutationRequest(tasks: selectedTasks.map { task in
+            var newTags = task.tags
+            newTags.removeAll { removeTags.contains($0) }
+            for tag in addTags where !newTags.contains(tag) {
+                newTags.append(tag)
             }
-        }
 
-        var editCommands: [(field: String, value: String)] = []
+            return WorkspaceTaskMutationSpec(
+                taskID: task.id,
+                expectedUpdatedAt: encodeExpectedUpdatedAt(task.updatedAt),
+                edits: [WorkspaceTaskFieldEdit(field: "tags", value: newTags.joined(separator: ", "))]
+            )
+        })
+
+        _ = try await executeTaskMutationRequest(
+            request,
+            operationDescription: "bulk update tags",
+            reloadAfterSuccess: !skipReload
+        )
+        return []
+    }
+}
+
+private extension Workspace {
+    func taskEdits(from original: RalphTask, to updated: RalphTask) throws -> [WorkspaceTaskFieldEdit] {
+        var edits: [WorkspaceTaskFieldEdit] = []
 
         if original.title != updated.title {
-            editCommands.append(("title", updated.title))
+            edits.append(WorkspaceTaskFieldEdit(field: "title", value: updated.title))
         }
 
-        let originalDesc = original.description ?? ""
-        let updatedDesc = updated.description ?? ""
-        if originalDesc != updatedDesc {
-            editCommands.append(("description", updatedDesc))
+        if (original.description ?? "") != (updated.description ?? "") {
+            edits.append(WorkspaceTaskFieldEdit(field: "description", value: updated.description ?? ""))
         }
 
         if original.status != updated.status {
-            editCommands.append(("status", updated.status.rawValue))
+            edits.append(WorkspaceTaskFieldEdit(field: "status", value: updated.status.rawValue))
         }
 
         if original.priority != updated.priority {
-            editCommands.append(("priority", updated.priority.rawValue))
+            edits.append(WorkspaceTaskFieldEdit(field: "priority", value: updated.priority.rawValue))
         }
 
         if original.tags != updated.tags {
-            let value = updated.tags.joined(separator: ", ")
-            editCommands.append(("tags", value))
+            edits.append(WorkspaceTaskFieldEdit(field: "tags", value: updated.tags.joined(separator: ", ")))
         }
 
-        let originalScope = original.scope ?? []
-        let updatedScope = updated.scope ?? []
-        if originalScope != updatedScope {
-            let value = updatedScope.joined(separator: "\n")
-            editCommands.append(("scope", value))
+        if (original.scope ?? []) != (updated.scope ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "scope", value: (updated.scope ?? []).joined(separator: "\n")))
         }
 
-        let originalEvidence = original.evidence ?? []
-        let updatedEvidence = updated.evidence ?? []
-        if originalEvidence != updatedEvidence {
-            let value = updatedEvidence.joined(separator: "\n")
-            editCommands.append(("evidence", value))
+        if (original.evidence ?? []) != (updated.evidence ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "evidence", value: (updated.evidence ?? []).joined(separator: "\n")))
         }
 
-        let originalPlan = original.plan ?? []
-        let updatedPlan = updated.plan ?? []
-        if originalPlan != updatedPlan {
-            let value = updatedPlan.joined(separator: "\n")
-            editCommands.append(("plan", value))
+        if (original.plan ?? []) != (updated.plan ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "plan", value: (updated.plan ?? []).joined(separator: "\n")))
         }
 
-        let originalNotes = original.notes ?? []
-        let updatedNotes = updated.notes ?? []
-        if originalNotes != updatedNotes {
-            let value = updatedNotes.joined(separator: "\n")
-            editCommands.append(("notes", value))
+        if (original.notes ?? []) != (updated.notes ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "notes", value: (updated.notes ?? []).joined(separator: "\n")))
         }
 
-        let originalDepends = original.dependsOn ?? []
-        let updatedDepends = updated.dependsOn ?? []
-        if originalDepends != updatedDepends {
-            let value = updatedDepends.joined(separator: ", ")
-            editCommands.append(("depends_on", value))
+        if (original.dependsOn ?? []) != (updated.dependsOn ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "depends_on", value: (updated.dependsOn ?? []).joined(separator: ", ")))
         }
 
-        let originalBlocks = original.blocks ?? []
-        let updatedBlocks = updated.blocks ?? []
-        if originalBlocks != updatedBlocks {
-            let value = updatedBlocks.joined(separator: ", ")
-            editCommands.append(("blocks", value))
+        if (original.blocks ?? []) != (updated.blocks ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "blocks", value: (updated.blocks ?? []).joined(separator: ", ")))
         }
 
-        let originalRelates = original.relatesTo ?? []
-        let updatedRelates = updated.relatesTo ?? []
-        if originalRelates != updatedRelates {
-            let value = updatedRelates.joined(separator: ", ")
-            editCommands.append(("relates_to", value))
+        if (original.relatesTo ?? []) != (updated.relatesTo ?? []) {
+            edits.append(WorkspaceTaskFieldEdit(field: "relates_to", value: (updated.relatesTo ?? []).joined(separator: ", ")))
         }
 
         let originalAgent = RalphTaskAgent.normalizedOverride(original.agent)
         let updatedAgent = RalphTaskAgent.normalizedOverride(updated.agent)
         if originalAgent != updatedAgent {
-            let value = try Self.encodeTaskAgentFieldValue(updatedAgent)
-            editCommands.append(("agent", value))
+            edits.append(WorkspaceTaskFieldEdit(field: "agent", value: try Self.encodeTaskAgentFieldValue(updatedAgent)))
         }
 
-        let helper = RetryHelper(configuration: .default)
+        return edits
+    }
 
-        for (field, value) in editCommands {
-            let collected = try await helper.execute(
-                operation: { [self] in
-                    let result = try await client.runAndCollect(
-                        arguments: ["--no-color", "task", "edit", field, value, updated.id],
-                        currentDirectoryURL: workingDirectoryURL
-                    )
-                    if result.status.code != 0 {
-                        throw result.toError()
-                    }
-                    return result
-                },
-                onProgress: { [weak self] attempt, maxAttempts, _ in
+    func executeTaskMutationRequest(
+        _ request: WorkspaceTaskMutationRequest,
+        operationDescription: String,
+        reloadAfterSuccess: Bool = true
+    ) async throws -> WorkspaceTaskMutationReport {
+        guard let client else {
+            throw WorkspaceError.cliClientUnavailable
+        }
+
+        let tempFileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ralph-task-mutation-\(UUID().uuidString)", isDirectory: false)
+            .appendingPathExtension("json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(request).write(to: tempFileURL, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: tempFileURL) }
+
+        do {
+            let collected = try await client.runAndCollectWithRetry(
+                arguments: ["--no-color", "task", "mutate", "--input", tempFileURL.path],
+                currentDirectoryURL: workingDirectoryURL,
+                onRetry: { [weak self] attempt, maxAttempts, _ in
                     await MainActor.run { [weak self] in
-                        self?.errorMessage = "Retrying edit \(field) (attempt \(attempt)/\(maxAttempts))..."
+                        self?.errorMessage = "Retrying \(operationDescription) (attempt \(attempt)/\(maxAttempts))..."
                     }
                 }
             )
 
-            guard collected.status.code == 0 else {
-                throw WorkspaceError.cliError(
-                    "Failed to edit \(field): \(collected.stderr.isEmpty ? "Exit \(collected.status.code)" : collected.stderr)"
-                )
-            }
-        }
+            let reportData = Data(collected.stdout.utf8)
+            let report = try JSONDecoder().decode(WorkspaceTaskMutationReport.self, from: reportData)
 
-        await loadTasks()
+            if reloadAfterSuccess {
+                await loadTasks()
+            }
+
+            return report
+        } catch {
+            if let conflict = await taskConflictFromMutationFailure(error, request: request) {
+                throw WorkspaceError.taskConflict(conflict)
+            }
+            throw WorkspaceError.cliError(error.localizedDescription)
+        }
     }
 
-    /// Update status for multiple tasks in bulk.
-    /// Executes CLI commands for each task sequentially with retry logic.
-    /// - Parameters:
-    ///   - taskIDs: Array of task IDs to update
-    ///   - newStatus: The new status to apply
-    ///   - skipReload: If true, skips calling `loadTasks()` after completion (useful when combining multiple bulk operations)
-    /// - Returns: Array of (taskID, error) tuples for any failures (empty if all succeeded)
-    @discardableResult
-    func bulkUpdateStatus(taskIDs: [String], to newStatus: RalphTaskStatus, skipReload: Bool = false) async throws -> [(String, String)] {
-        guard let client else {
-            throw WorkspaceError.cliClientUnavailable
+    func selectedTasks(for taskIDs: [String]) throws -> [RalphTask] {
+        let requested = Array(NSOrderedSet(array: taskIDs.compactMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }))
+            .compactMap { $0 as? String }
+        guard !requested.isEmpty else {
+            throw WorkspaceError.cliError("No tasks selected.")
         }
 
-        let helper = RetryHelper(configuration: .default)
-        var failures: [(String, String)] = []
-
-        for taskID in taskIDs {
-            let arguments = ["--no-color", "task", "edit", "status", newStatus.rawValue, taskID]
-
-            do {
-                _ = try await helper.execute(
-                    operation: { [self] in
-                        let result = try await client.runAndCollect(
-                            arguments: arguments,
-                            currentDirectoryURL: workingDirectoryURL
-                        )
-                        if result.status.code != 0 {
-                            throw result.toError()
-                        }
-                        return result
-                    }
-                )
-
-                if newStatus == .doing {
-                    let dateFormatter = ISO8601DateFormatter()
-                    let startedAt = dateFormatter.string(from: Date())
-                    _ = try? await helper.execute(
-                        operation: { [self] in
-                            let result = try await client.runAndCollect(
-                                arguments: ["--no-color", "task", "edit", "started_at", startedAt, taskID],
-                                currentDirectoryURL: workingDirectoryURL
-                            )
-                            return result
-                        }
-                    )
-                }
-            } catch {
-                failures.append((taskID, error.localizedDescription))
-            }
-        }
-
-        if !skipReload {
-            await loadTasks()
-        }
-
-        if !failures.isEmpty {
-            throw WorkspaceError.cliError(formatBulkFailureMessage(failures, operation: "status"))
-        }
-        return failures
-    }
-
-    /// Update priority for multiple tasks in bulk.
-    /// - Parameters:
-    ///   - taskIDs: Array of task IDs to update
-    ///   - newPriority: The new priority to apply
-    ///   - skipReload: If true, skips calling `loadTasks()` after completion
-    /// - Returns: Array of (taskID, error) tuples for any failures (empty if all succeeded)
-    @discardableResult
-    func bulkUpdatePriority(taskIDs: [String], to newPriority: RalphTaskPriority, skipReload: Bool = false) async throws -> [(String, String)] {
-        guard let client else {
-            throw WorkspaceError.cliClientUnavailable
-        }
-
-        let helper = RetryHelper(configuration: .default)
-        var failures: [(String, String)] = []
-
-        for taskID in taskIDs {
-            let arguments = ["--no-color", "task", "edit", "priority", newPriority.rawValue, taskID]
-
-            do {
-                _ = try await helper.execute(
-                    operation: { [self] in
-                        let result = try await client.runAndCollect(
-                            arguments: arguments,
-                            currentDirectoryURL: workingDirectoryURL
-                        )
-                        if result.status.code != 0 {
-                            throw result.toError()
-                        }
-                        return result
-                    }
-                )
-            } catch {
-                failures.append((taskID, error.localizedDescription))
-            }
-        }
-
-        if !skipReload {
-            await loadTasks()
-        }
-
-        if !failures.isEmpty {
-            throw WorkspaceError.cliError(formatBulkFailureMessage(failures, operation: "priority"))
-        }
-        return failures
-    }
-
-    /// Update tags for multiple tasks in bulk.
-    /// - Parameters:
-    ///   - taskIDs: Array of task IDs to update
-    ///   - addTags: Tags to add to each task
-    ///   - removeTags: Tags to remove from each task
-    ///   - skipReload: If true, skips calling `loadTasks()` after completion
-    /// - Returns: Array of (taskID, error) tuples for any failures (empty if all succeeded)
-    @discardableResult
-    func bulkUpdateTags(taskIDs: [String], addTags: [String], removeTags: [String], skipReload: Bool = false) async throws -> [(String, String)] {
-        guard let client else {
-            throw WorkspaceError.cliClientUnavailable
-        }
-
-        guard !addTags.isEmpty || !removeTags.isEmpty else { return [] }
-
-        let helper = RetryHelper(configuration: .default)
-        var failures: [(String, String)] = []
-
-        for taskID in taskIDs {
+        var selected: [RalphTask] = []
+        for taskID in requested {
             guard let task = tasks.first(where: { $0.id == taskID }) else {
-                failures.append((taskID, "Task not found"))
-                continue
+                throw WorkspaceError.cliError("Task not found: \(taskID)")
             }
-
-            var newTags = task.tags
-            newTags.removeAll { removeTags.contains($0) }
-
-            for tag in addTags where !newTags.contains(tag) {
-                newTags.append(tag)
-            }
-
-            let value = newTags.joined(separator: ", ")
-            let arguments = ["--no-color", "task", "edit", "tags", value, taskID]
-
-            do {
-                _ = try await helper.execute(
-                    operation: { [self] in
-                        let result = try await client.runAndCollect(
-                            arguments: arguments,
-                            currentDirectoryURL: workingDirectoryURL
-                        )
-                        if result.status.code != 0 {
-                            throw result.toError()
-                        }
-                        return result
-                    }
-                )
-            } catch {
-                failures.append((taskID, error.localizedDescription))
-            }
+            selected.append(task)
         }
-
-        if !skipReload {
-            await loadTasks()
-        }
-
-        if !failures.isEmpty {
-            throw WorkspaceError.cliError(formatBulkFailureMessage(failures, operation: "tags"))
-        }
-        return failures
+        return selected
     }
 
-    /// Create a new task using a deterministic direct-create flow.
-    ///
-    /// Non-template tasks are created via `queue next-id` + `queue import --format json` so the
-    /// app can create structured tasks immediately without invoking the AI task builder.
-    /// Template-backed tasks use `task from template`, which is the explicit direct template-create
-    /// command in the CLI.
-    func createTask(
-        title: String,
-        description: String? = nil,
-        priority: RalphTaskPriority,
-        tags: [String] = [],
-        scope: [String]? = nil,
-        template: String? = nil,
-        target: String? = nil
-    ) async throws {
-        guard let client else {
-            throw WorkspaceError.cliClientUnavailable
-        }
-
-        let helper = RetryHelper(configuration: .default)
-        let nextTaskID = try await reserveNextTaskID(using: client)
-
-        let collected = try await helper.execute(
-            operation: { [self] in
-                if let template {
-                    return try await createTaskFromTemplate(
-                        client: client,
-                        taskID: nextTaskID,
-                        template: template,
-                        title: title,
-                        tags: tags,
-                        target: target
-                    )
-                }
-
-                return try await importStructuredTask(
-                    client: client,
-                    taskID: nextTaskID,
-                    title: title,
-                    description: description,
-                    priority: priority,
-                    tags: tags,
-                    scope: scope
-                )
-            },
-            onProgress: { [weak self] attempt, maxAttempts, _ in
-                await MainActor.run { [weak self] in
-                    self?.errorMessage = "Retrying create task (attempt \(attempt)/\(maxAttempts))..."
-                }
-            }
-        )
-
-        guard collected.status.code == 0 else {
-            throw WorkspaceError.cliError(
-                collected.stderr.isEmpty ? "Failed to create task (exit \(collected.status.code))" : collected.stderr
-            )
+    func taskConflictFromMutationFailure(
+        _ error: any Error,
+        request: WorkspaceTaskMutationRequest
+    ) async -> RalphTask? {
+        let description = error.localizedDescription
+        guard description.contains("Task mutation conflict for"),
+              request.tasks.count == 1 else {
+            return nil
         }
 
         await loadTasks(retryConfiguration: .minimal)
+        return tasks.first(where: { $0.id == request.tasks[0].taskID })
     }
-}
 
-private extension Workspace {
-    /// Formats a list of failures into a truncated error message.
-    /// Shows up to `maxShown` failures with a count summary if truncated.
-    func formatBulkFailureMessage(_ failures: [(String, String)], operation: String, maxShown: Int = 5) -> String {
-        let shown = failures.prefix(maxShown)
-        let failureList = shown.map { "\($0.0): \($0.1)" }.joined(separator: "; ")
-        if failures.count > maxShown {
-            return "Partial failure updating \(operation): \(failureList); and \(failures.count - maxShown) more"
-        }
-        return "Partial failure updating \(operation): \(failureList)"
+    func encodeExpectedUpdatedAt(_ date: Date?) -> String? {
+        guard let date else { return nil }
+        return ISO8601DateFormatter().string(from: date)
     }
 
     static func encodeTaskAgentFieldValue(_ agent: RalphTaskAgent?) throws -> String {
@@ -399,122 +279,5 @@ private extension Workspace {
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(agent)
         return String(decoding: data, as: UTF8.self)
-    }
-
-    func reserveNextTaskID(using client: RalphCLIClient) async throws -> String {
-        let nextIDResult = try await client.runAndCollect(
-            arguments: ["--no-color", "queue", "next-id"],
-            currentDirectoryURL: workingDirectoryURL
-        )
-        guard nextIDResult.status.code == 0 else {
-            throw nextIDResult.toError()
-        }
-
-        let nextTaskID = nextIDResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !nextTaskID.isEmpty else {
-            throw WorkspaceError.cliError("queue next-id returned an empty task ID")
-        }
-        return nextTaskID
-    }
-
-    func createTaskFromTemplate(
-        client: RalphCLIClient,
-        taskID: String,
-        template: String,
-        title: String,
-        tags: [String],
-        target: String?
-    ) async throws -> RalphCLIClient.CollectedOutput {
-        var arguments: [String] = ["--no-color", "task", "from", "template", template, "--title", title]
-        if !tags.isEmpty {
-            arguments.append(contentsOf: ["--tags", tags.joined(separator: ",")])
-        }
-        if let target, !target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            arguments.append(contentsOf: ["--set", "target=\(target)"])
-        }
-
-        let result = try await client.runAndCollect(
-            arguments: arguments,
-            currentDirectoryURL: workingDirectoryURL
-        )
-        if result.status.code != 0 {
-            throw result.toError()
-        }
-
-        RalphLogger.shared.info("Created template task \(taskID) via task from template", category: .workspace)
-        return result
-    }
-
-    func importStructuredTask(
-        client: RalphCLIClient,
-        taskID: String,
-        title: String,
-        description: String?,
-        priority: RalphTaskPriority,
-        tags: [String],
-        scope: [String]?
-    ) async throws -> RalphCLIClient.CollectedOutput {
-        struct ImportedTask: Encodable {
-            let id: String
-            let status: String
-            let title: String
-            let description: String?
-            let priority: String
-            let tags: [String]
-            let scope: [String]?
-            let createdAt: String
-            let updatedAt: String
-
-            enum CodingKeys: String, CodingKey {
-                case id
-                case status
-                case title
-                case description
-                case priority
-                case tags
-                case scope
-                case createdAt = "created_at"
-                case updatedAt = "updated_at"
-            }
-        }
-
-        let timestamp = ISO8601DateFormatter().string(from: Date())
-        let payload = [ImportedTask(
-            id: taskID,
-            status: RalphTaskStatus.todo.rawValue,
-            title: title,
-            description: description?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? description : nil,
-            priority: priority.rawValue,
-            tags: tags,
-            scope: scope,
-            createdAt: timestamp,
-            updatedAt: timestamp
-        )]
-
-        let tempFileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ralph-task-import-\(UUID().uuidString)", isDirectory: false)
-            .appendingPathExtension("json")
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(payload).write(to: tempFileURL, options: .atomic)
-        defer { try? FileManager.default.removeItem(at: tempFileURL) }
-
-        let result = try await client.runAndCollect(
-            arguments: [
-                "--no-color",
-                "queue",
-                "import",
-                "--format",
-                "json",
-                "--input",
-                tempFileURL.path
-            ],
-            currentDirectoryURL: workingDirectoryURL
-        )
-        if result.status.code != 0 {
-            throw result.toError()
-        }
-
-        return result
     }
 }

@@ -18,6 +18,7 @@
 
 import Foundation
 import SwiftUI
+import RalphCore
 
 /// Shared window command identifiers used by menu and command-palette surfaces.
 enum WindowCommandRoute: String {

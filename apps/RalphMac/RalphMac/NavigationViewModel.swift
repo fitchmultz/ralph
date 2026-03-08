@@ -18,32 +18,45 @@
  - Navigation mutations should flow through the owning workspace scene actions.
  */
 
-import SwiftUI
-import RalphCore
+public import SwiftUI
 
 private let navigationStateKey = "com.mitchfultz.ralph.navigationState"
 private let navigationStateVersion = 1
 
 /// Represents the persisted navigation state for a workspace
-struct NavigationState: Codable {
-    let version: Int
-    let selectedSection: SidebarSection
-    let taskViewMode: TaskViewMode
-    let selectedTaskID: String?
-    let selectedTaskIDs: [String]?
+public struct NavigationState: Codable {
+    public let version: Int
+    public let selectedSection: SidebarSection
+    public let taskViewMode: TaskViewMode
+    public let selectedTaskID: String?
+    public let selectedTaskIDs: [String]?
+
+    public init(
+        version: Int,
+        selectedSection: SidebarSection,
+        taskViewMode: TaskViewMode,
+        selectedTaskID: String?,
+        selectedTaskIDs: [String]?
+    ) {
+        self.version = version
+        self.selectedSection = selectedSection
+        self.taskViewMode = taskViewMode
+        self.selectedTaskID = selectedTaskID
+        self.selectedTaskIDs = selectedTaskIDs
+    }
 }
 
 /// Represents the main sidebar navigation sections
-enum SidebarSection: String, CaseIterable, Identifiable, Codable {
+public enum SidebarSection: String, CaseIterable, Identifiable, Codable {
     case queue = "Queue"
     case quickActions = "Quick Actions"
     case runControl = "Run Control"
     case advancedRunner = "Advanced Runner"
     case analytics = "Analytics"
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var icon: String {
+    public var icon: String {
         switch self {
         case .queue: return "list.bullet.rectangle"
         case .quickActions: return "bolt.fill"
@@ -53,7 +66,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var keyboardShortcut: KeyEquivalent {
+    public var keyboardShortcut: KeyEquivalent {
         switch self {
         case .queue: return "1"
         case .quickActions: return "2"
@@ -65,14 +78,14 @@ enum SidebarSection: String, CaseIterable, Identifiable, Codable {
 }
 
 /// Represents the task view mode for the Queue section
-enum TaskViewMode: String, CaseIterable, Identifiable, Codable {
+public enum TaskViewMode: String, CaseIterable, Identifiable, Codable {
     case list = "List"
     case kanban = "Kanban"
     case graph = "Graph"
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var icon: String {
+    public var icon: String {
         switch self {
         case .list: return "list.bullet"
         case .kanban: return "rectangle.split.3x3"
@@ -82,21 +95,21 @@ enum TaskViewMode: String, CaseIterable, Identifiable, Codable {
 }
 
 @MainActor
-final class NavigationViewModel: ObservableObject {
+public final class NavigationViewModel: ObservableObject {
     // MARK: - Published Properties
 
-    @Published var selectedSection: SidebarSection = .queue {
+    @Published public var selectedSection: SidebarSection = .queue {
         didSet { saveNavigationState() }
     }
-    @Published var selectedTaskID: String? = nil {
+    @Published public var selectedTaskID: String? = nil {
         didSet { saveNavigationState() }
     }
     /// Set of task IDs for multi-select mode (Cmd+click selection)
-    @Published var selectedTaskIDs: Set<String> = [] {
+    @Published public var selectedTaskIDs: Set<String> = [] {
         didSet { saveNavigationState() }
     }
-    @Published var sidebarVisibility: NavigationSplitViewVisibility = .automatic
-    @Published var taskViewMode: TaskViewMode = .list {
+    @Published public var sidebarVisibility: NavigationSplitViewVisibility = .automatic
+    @Published public var taskViewMode: TaskViewMode = .list {
         didSet { saveNavigationState() }
     }
     
@@ -119,7 +132,7 @@ final class NavigationViewModel: ObservableObject {
 
     /// Creates a new NavigationViewModel, optionally loading persisted state for a specific workspace
     /// - Parameter workspaceID: The ID of the workspace to load/save state for, or nil for generic state
-    init(workspaceID: UUID? = nil) {
+    public init(workspaceID: UUID? = nil) {
         self.workspaceID = workspaceID
         loadNavigationState()
     }
@@ -127,28 +140,28 @@ final class NavigationViewModel: ObservableObject {
     // MARK: - Public Methods
 
     /// Navigate to a specific sidebar section
-    func navigate(to section: SidebarSection) {
+    public func navigate(to section: SidebarSection) {
         selectedSection = section
     }
 
     /// Toggle sidebar visibility between automatic and detail-only
-    func toggleSidebar() {
+    public func toggleSidebar() {
         sidebarVisibility = sidebarVisibility == .detailOnly ? .automatic : .detailOnly
     }
 
     /// Select a task by ID (clears if already selected)
-    func selectTask(_ taskID: String?) {
+    public func selectTask(_ taskID: String?) {
         selectedTaskID = taskID
     }
 
     /// Clear the current task selection
-    func clearTaskSelection() {
+    public func clearTaskSelection() {
         selectedTaskID = nil
         selectedTaskIDs.removeAll()
     }
 
     /// Toggle between list, kanban, and graph view modes
-    func toggleTaskViewMode() {
+    public func toggleTaskViewMode() {
         switch taskViewMode {
         case .list:
             taskViewMode = .kanban
@@ -160,7 +173,7 @@ final class NavigationViewModel: ObservableObject {
     }
     
     /// Switch to a specific view mode
-    func setTaskViewMode(_ mode: TaskViewMode) {
+    public func setTaskViewMode(_ mode: TaskViewMode) {
         taskViewMode = mode
     }
 

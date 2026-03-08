@@ -15,6 +15,7 @@
  */
 
 import Foundation
+import RalphCore
 
 /// Targeted workspace routing payload used when an unfocused surface, such as the menu bar,
 /// needs to open content in a specific workspace without mutating other windows.

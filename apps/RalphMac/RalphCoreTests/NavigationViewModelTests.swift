@@ -2,23 +2,27 @@
  NavigationViewModelTests
 
  Responsibilities:
- - Validate NavigationViewModel persistence via UserDefaults
- - Ensure navigation state is correctly saved and restored across app launches
- - Test that different workspaces have separate navigation state
+ - Validate NavigationViewModel persistence via RalphAppDefaults.
+ - Ensure navigation state is correctly saved and restored across app launches.
+ - Test that different workspaces keep separate navigation state.
 
  Does not handle:
- - UI-level navigation interactions
- - Notification handling (tested separately)
- - Cross-workspace state synchronization
+ - UI-level navigation interactions.
+ - Window routing or focused scene action behavior.
+ - Cross-workspace synchronization outside persisted state.
+
+ Invariants/assumptions callers must respect:
+ - Tests run on the main actor.
+ - Navigation state persistence uses Ralph's isolated app defaults suite.
+ - State round-trips should remain versioned and backward-safe.
  */
 
 #if canImport(SwiftUI)
 
-public import Foundation
-public import XCTest
+import Foundation
+import XCTest
 @testable import RalphCore
 
-@MainActor
 final class NavigationViewModelTests: XCTestCase {
     private let testNavigationKey = "com.mitchfultz.ralph.navigationState"
 
@@ -33,57 +37,45 @@ final class NavigationViewModelTests: XCTestCase {
     }
 
     private func cleanupNavigationState() {
-        let defaults = UserDefaults.standard
-        for key in defaults.dictionaryRepresentation().keys {
-            if key.hasPrefix(testNavigationKey) {
-                defaults.removeObject(forKey: key)
-            }
+        let defaults = RalphAppDefaults.userDefaults
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(testNavigationKey) {
+            defaults.removeObject(forKey: key)
         }
     }
 
-    // MARK: - Persistence Tests
-
+    @MainActor
     func test_navigationViewModel_saveAndLoad_roundTrip() throws {
         let workspaceID = UUID()
-
-        // Create and configure view model
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
         viewModel.selectedSection = .quickActions
         viewModel.taskViewMode = .kanban
         viewModel.selectedTaskID = "RQ-0001"
 
-        // Allow didSet to trigger save
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
 
-        // Create new view model for same workspace
         let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
-
-        // Verify state was restored
         XCTAssertEqual(loadedViewModel.selectedSection, .quickActions)
         XCTAssertEqual(loadedViewModel.taskViewMode, .kanban)
         XCTAssertEqual(loadedViewModel.selectedTaskID, "RQ-0001")
     }
 
+    @MainActor
     func test_navigationViewModel_differentWorkspaces_haveSeparateState() throws {
         let workspace1ID = UUID()
         let workspace2ID = UUID()
 
-        // Configure first workspace
         let vm1 = NavigationViewModel(workspaceID: workspace1ID)
         vm1.selectedSection = .queue
         vm1.taskViewMode = .list
         vm1.selectedTaskID = "RQ-0001"
 
-        // Configure second workspace
         let vm2 = NavigationViewModel(workspaceID: workspace2ID)
         vm2.selectedSection = .quickActions
         vm2.taskViewMode = .kanban
         vm2.selectedTaskID = "RQ-0002"
 
-        // Allow saves to complete
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
 
-        // Create new view models and verify separate state
         let loadedVM1 = NavigationViewModel(workspaceID: workspace1ID)
         let loadedVM2 = NavigationViewModel(workspaceID: workspace2ID)
 
@@ -96,123 +88,77 @@ final class NavigationViewModelTests: XCTestCase {
         XCTAssertEqual(loadedVM2.selectedTaskID, "RQ-0002")
     }
 
+    @MainActor
     func test_navigationViewModel_noWorkspaceID_usesGenericState() throws {
-        // Create view model without workspace ID
         let viewModel = NavigationViewModel(workspaceID: nil)
         viewModel.selectedSection = .advancedRunner
         viewModel.taskViewMode = .graph
 
-        // Allow save to complete
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
 
-        // Create new view model without workspace ID
         let loadedViewModel = NavigationViewModel(workspaceID: nil)
-
         XCTAssertEqual(loadedViewModel.selectedSection, .advancedRunner)
         XCTAssertEqual(loadedViewModel.taskViewMode, .graph)
     }
 
+    @MainActor
     func test_navigationViewModel_versionMismatch_usesDefaults() throws {
-        let workspaceID = UUID()
-
-        // Create invalid state with wrong version
         struct InvalidState: Codable {
             let version: Int
             let selectedSection: String
         }
 
+        let workspaceID = UUID()
         let invalidState = InvalidState(version: 999, selectedSection: "queue")
         let data = try JSONEncoder().encode(invalidState)
-        let key = "\(testNavigationKey).\(workspaceID.uuidString)"
-        UserDefaults.standard.set(data, forKey: key)
+        RalphAppDefaults.userDefaults.set(data, forKey: "\(testNavigationKey).\(workspaceID.uuidString)")
 
-        // Create view model - should use defaults due to version mismatch
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
-
-        // Should have default values
         XCTAssertEqual(viewModel.selectedSection, .queue)
         XCTAssertEqual(viewModel.taskViewMode, .list)
         XCTAssertNil(viewModel.selectedTaskID)
     }
 
-    func test_navigationViewModel_noSavedState_usesDefaults() throws {
-        let workspaceID = UUID()
-
-        // Create view model with no prior state
-        let viewModel = NavigationViewModel(workspaceID: workspaceID)
-
-        // Should have default values
+    @MainActor
+    func test_navigationViewModel_noSavedState_usesDefaults() {
+        let viewModel = NavigationViewModel(workspaceID: UUID())
         XCTAssertEqual(viewModel.selectedSection, .queue)
         XCTAssertEqual(viewModel.taskViewMode, .list)
         XCTAssertNil(viewModel.selectedTaskID)
     }
 
-    func test_navigationState_encodeDecode() throws {
-        // Test that NavigationState can be properly encoded/decoded
-        struct TestNavigationState: Codable {
-            let version: Int
-            let selectedSection: String
-            let taskViewMode: String
-            let selectedTaskID: String?
-        }
-
-        let originalState = TestNavigationState(
-            version: 1,
-            selectedSection: "quickActions",
-            taskViewMode: "kanban",
-            selectedTaskID: "RQ-1234"
-        )
-
-        let data = try JSONEncoder().encode(originalState)
-        let decodedState = try JSONDecoder().decode(TestNavigationState.self, from: data)
-
-        XCTAssertEqual(decodedState.version, originalState.version)
-        XCTAssertEqual(decodedState.selectedSection, originalState.selectedSection)
-        XCTAssertEqual(decodedState.taskViewMode, originalState.taskViewMode)
-        XCTAssertEqual(decodedState.selectedTaskID, originalState.selectedTaskID)
-    }
-
+    @MainActor
     func test_navigationViewModel_stateChange_triggersSave() throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
-
-        // Change state
         viewModel.selectedSection = .analytics
 
-        // Allow save to complete
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
 
-        // Create new view model and verify state was saved
         let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
         XCTAssertEqual(loadedViewModel.selectedSection, .analytics)
     }
 
+    @MainActor
     func test_navigationViewModel_taskSelectionChange_triggersSave() throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
-
-        // Change task selection
         viewModel.selectTask("RQ-5678")
 
-        // Allow save to complete
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
 
-        // Create new view model and verify state was saved
         let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
         XCTAssertEqual(loadedViewModel.selectedTaskID, "RQ-5678")
     }
 
+    @MainActor
     func test_navigationViewModel_taskViewModeChange_triggersSave() throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
-
-        // Change view mode
         viewModel.setTaskViewMode(.graph)
 
-        // Allow save to complete
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
 
-        // Create new view model and verify state was saved
         let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
         XCTAssertEqual(loadedViewModel.taskViewMode, .graph)
     }

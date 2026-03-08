@@ -76,6 +76,13 @@ pub fn apply_task_edit(
             }
             task.title = trimmed.to_string();
         }
+        TaskEditKey::Description => {
+            task.description = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
+        }
         TaskEditKey::Status => {
             let next_status = if trimmed.is_empty() {
                 cycle_status(task.status)

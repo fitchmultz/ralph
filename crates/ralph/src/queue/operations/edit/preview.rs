@@ -93,6 +93,13 @@ pub fn preview_task_edit(
             }
             preview_task.title = trimmed.to_string();
         }
+        TaskEditKey::Description => {
+            preview_task.description = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
+        }
         TaskEditKey::Status => {
             let next_status = if trimmed.is_empty() {
                 cycle_status(preview_task.status)

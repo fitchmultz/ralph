@@ -18,6 +18,7 @@
 		2895092585CD4799832FDA1479C815B8 /* KanbanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC080C0014F94BAE85020345FFAAFAF2 /* KanbanCardView.swift */; };
 		3845DDDEE8480D652D4F18BF /* ElapsedTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B900514A511EC3E3539F2AA /* ElapsedTimeView.swift */; };
 		3A50AB4D19664FC7A750A366 /* RalphCLIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */; };
+		3A50AB4D19664FC7A750A367 /* NavigationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7496516A44544D58A079C2B7 /* NavigationViewModelTests.swift */; };
 		3BCD64DD1FD0B5B8CCFD9875 /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A24E80C16889B4FDE88205DC /* CrashReporter.swift */; };
 		4531CFF0D6FF4741BB54C467 /* RalphModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */; };
 		48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BA912C259042DDA03E653F /* RalphMacApp.swift */; };
@@ -28,6 +29,10 @@
 		4A8D2E1F8B3C4D56A7E8F904 /* WorkspaceQueueSnapshotLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */; };
 		4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */; };
 		4A8D2E1F8B3C4D56A7E8F906 /* Workspace+TaskMutations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */; };
+		4A8D2E1F8B3C4D56A7E8F910 /* Workspace+TaskCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D438 /* Workspace+TaskCreation.swift */; };
+		4A8D2E1F8B3C4D56A7E8F911 /* WorkspaceTaskMutationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D439 /* WorkspaceTaskMutationModels.swift */; };
+		4A8D2E1F8B3C4D56A7E8F912 /* Workspace+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D43A /* Workspace+Persistence.swift */; };
+		4A8D2E1F8B3C4D56A7E8F913 /* Workspace+ErrorRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D43B /* Workspace+ErrorRecovery.swift */; };
 		4A8D2E1F8B3C4D56A7E8F907 /* Workspace+RunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */; };
 		4A8D2E1F8B3C4D56A7E8F908 /* Workspace+QueueLoading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */; };
 		4A8D2E1F8B3C4D56A7E8F909 /* Workspace+ConflictDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */; };
@@ -93,6 +98,10 @@
 		E1FE4FE54CB8402D84A8607625CC6BB6 /* TaskDecomposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09515AC14F94350B766E15468824B54 /* TaskDecomposeView.swift */; };
 		E4635AF24A810EE76495C30B /* VersionValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0944A9447A23AA1748EC80A /* VersionValidatorTests.swift */; };
 		EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */; };
+		EE9BBA22346A4F6089F70336 /* RalphCLIClient+Recovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E753A /* RalphCLIClient+Recovery.swift */; };
+		EE9BBA22346A4F6089F70337 /* RalphCLIRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E753B /* RalphCLIRun.swift */; };
+		EE9BBA22346A4F6089F70338 /* RalphCLIClient+Retry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E753C /* RalphCLIClient+Retry.swift */; };
+		EE9BBA22346A4F6089F70339 /* RalphCLIHealthChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E753D /* RalphCLIHealthChecker.swift */; };
 		EECED51732D072929E614B2F /* AdvancedRunnerSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD57BF49B1F7D43DD51BEBE /* AdvancedRunnerSection.swift */; };
 		EF9F001157144DB59DB782FF /* RalphModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3014AC133794F7F8AF0E753 /* RalphModels.swift */; };
 		F0991C52FCDBA422BDD86604 /* VersionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D9B54003005176B3196572 /* VersionValidator.swift */; };
@@ -155,6 +164,10 @@
 		0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueSnapshotLoader.swift; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskPresentation.swift; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+TaskMutations.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D438 /* Workspace+TaskCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+TaskCreation.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D439 /* WorkspaceTaskMutationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskMutationModels.swift; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D43A /* Workspace+Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+Persistence.swift"; sourceTree = "<group>"; };
+		0B651F8A746C4387B1F9D43B /* Workspace+ErrorRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+ErrorRecovery.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunnerState.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+QueueLoading.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+ConflictDetection.swift"; sourceTree = "<group>"; };
@@ -170,6 +183,10 @@
 		16591EC6C1744AC5AF4189A4 /* RalphCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RalphCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		29D9B54003005176B3196572 /* VersionValidator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VersionValidator.swift; sourceTree = "<group>"; };
 		31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIClient.swift; sourceTree = "<group>"; };
+		31B301E8A7CC431E930E753A /* RalphCLIClient+Recovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RalphCLIClient+Recovery.swift"; sourceTree = "<group>"; };
+		31B301E8A7CC431E930E753B /* RalphCLIRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIRun.swift; sourceTree = "<group>"; };
+		31B301E8A7CC431E930E753C /* RalphCLIClient+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RalphCLIClient+Retry.swift"; sourceTree = "<group>"; };
+		31B301E8A7CC431E930E753D /* RalphCLIHealthChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIHealthChecker.swift; sourceTree = "<group>"; };
 		3298F69D10A0636C5327AF65 /* WorkingDirectoryHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkingDirectoryHeader.swift; sourceTree = "<group>"; };
 		34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModelsTests.swift; sourceTree = "<group>"; };
 		3ABCA66572BF4FE381DD0476 /* RalphCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RalphCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -183,6 +200,7 @@
 		6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		65F63B68A6B84D5195D20137 /* RalphE2ESmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphE2ESmokeTests.swift; sourceTree = "<group>"; };
 		7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIClientTests.swift; sourceTree = "<group>"; };
+		7496516A44544D58A079C2B7 /* NavigationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationViewModelTests.swift; sourceTree = "<group>"; };
 		777A75CD59CE21353DC20516 /* MenuBarContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		77F3126530AB785086AAF51A /* RetryHelperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetryHelperTests.swift; sourceTree = "<group>"; };
 		85F21ECB14C15455214EB21E /* ConnectionStatusViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConnectionStatusViews.swift; sourceTree = "<group>"; };
@@ -299,6 +317,10 @@
 			isa = PBXGroup;
 			children = (
 				31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */,
+				31B301E8A7CC431E930E753A /* RalphCLIClient+Recovery.swift */,
+				31B301E8A7CC431E930E753B /* RalphCLIRun.swift */,
+				31B301E8A7CC431E930E753C /* RalphCLIClient+Retry.swift */,
+				31B301E8A7CC431E930E753D /* RalphCLIHealthChecker.swift */,
 				5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */,
 				F3014AC133794F7F8AF0E753 /* RalphModels.swift */,
 				AABBCCDDEEFF001122334455 /* GraphModels.swift */,
@@ -308,6 +330,10 @@
 				0B651F8A746C4387B1F9D42B /* DecompositionModels.swift */,
 				0B651F8A746C4387B1F9D42C /* Workspace+Decompose.swift */,
 				0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */,
+				0B651F8A746C4387B1F9D438 /* Workspace+TaskCreation.swift */,
+				0B651F8A746C4387B1F9D439 /* WorkspaceTaskMutationModels.swift */,
+				0B651F8A746C4387B1F9D43A /* Workspace+Persistence.swift */,
+				0B651F8A746C4387B1F9D43B /* Workspace+ErrorRecovery.swift */,
 				0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */,
 				0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */,
 				0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */,
@@ -336,6 +362,7 @@
 			children = (
 				B2C3D4E5F678901234567890 /* ANSIParserTests.swift */,
 				7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */,
+				7496516A44544D58A079C2B7 /* NavigationViewModelTests.swift */,
 				34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */,
 				65F63B68A6B84D5195D20137 /* RalphE2ESmokeTests.swift */,
 				C0944A9447A23AA1748EC80A /* VersionValidatorTests.swift */,
@@ -595,15 +622,24 @@
 			buildActionMask = 2147483647;
 			files = (
 				EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */,
+				EE9BBA22346A4F6089F70336 /* RalphCLIClient+Recovery.swift in Sources */,
+				EE9BBA22346A4F6089F70337 /* RalphCLIRun.swift in Sources */,
+				EE9BBA22346A4F6089F70338 /* RalphCLIClient+Retry.swift in Sources */,
+				EE9BBA22346A4F6089F70339 /* RalphCLIHealthChecker.swift in Sources */,
 				0F5CF3F1723144EA83490033 /* RalphCLIExecutableLocator.swift in Sources */,
 				EF9F001157144DB59DB782FF /* RalphModels.swift in Sources */,
 				11223344556677889900AABB /* GraphModels.swift in Sources */,
 				CD2233445566778899AABBCC /* GraphAlgorithms.swift in Sources */,
 				99887766554433221100AABB /* AnalyticsModels.swift in Sources */,
+				D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F902 /* DecompositionModels.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F903 /* Workspace+Decompose.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F906 /* Workspace+TaskMutations.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F910 /* Workspace+TaskCreation.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F911 /* WorkspaceTaskMutationModels.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F912 /* Workspace+Persistence.swift in Sources */,
+				4A8D2E1F8B3C4D56A7E8F913 /* Workspace+ErrorRecovery.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F907 /* Workspace+RunnerState.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F908 /* Workspace+QueueLoading.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F909 /* Workspace+ConflictDetection.swift in Sources */,
@@ -634,6 +670,7 @@
 				A1B2C3D4E5F6789012345678 /* ANSIParserTests.swift in Sources */,
 				ABCD1234EFAB5678CD9012EF /* WorkspacePerformanceTests.swift in Sources */,
 				3A50AB4D19664FC7A750A366 /* RalphCLIClientTests.swift in Sources */,
+				3A50AB4D19664FC7A750A367 /* NavigationViewModelTests.swift in Sources */,
 				4531CFF0D6FF4741BB54C467 /* RalphModelsTests.swift in Sources */,
 				DA8C4A1F9FDD44F5BCDE5CB9 /* RalphE2ESmokeTests.swift in Sources */,
 				E4635AF24A810EE76495C30B /* VersionValidatorTests.swift in Sources */,
@@ -668,7 +705,6 @@
 				223344556677889900AABBCCDDEEFF11 /* TaskRelationshipPicker.swift in Sources */,
 				9A3B7C4E5D6E7F8A901B2C3D /* TaskListView.swift in Sources */,
 				9B4C5D6E7F8A901B2C3D4E5F /* BulkActionsView.swift in Sources */,
-				D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */,
 				E1FE4FE54CB8402D84A8607625CC6BB5 /* TaskCreationView.swift in Sources */,
 				E1FE4FE54CB8402D84A8607625CC6BB6 /* TaskDecomposeView.swift in Sources */,
 				81B3129D1A9B4ACBB70F0BDD4D0F049B /* KanbanBoardView.swift in Sources */,

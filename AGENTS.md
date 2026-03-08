@@ -122,6 +122,11 @@ Every source file MUST start with `//!` docs covering:
 - Removal reconciliation is scoped to the files processed in the current scan batch; untouched files must not be auto-closed.
 - Move/rename policy is intentional cutover behavior: moved comments and renamed files close the old watch task and create a new one; structured legacy watch tasks may upgrade in place only on exact same-file same-line matches.
 
+### Task Mutation Transactions
+- `ralph task mutate` is the atomic JSON mutation surface for multi-field and multi-task edits; app-side task editing should not shell out field-by-field.
+- App optimistic locking should flow through CLI mutation requests via `expected_updated_at`, not bespoke app-only timestamp checks.
+- Atomic mutation requests should update status-derived fields (for example `started_at`) through the same transaction path rather than follow-up best-effort edits.
+
 ### Signal Recovery
 - Signal-terminated runner invocations should auto-attempt recovery up to `MAX_SIGNAL_RESUMES` (default `5`) before surfacing terminal failure handling.
 - Signal recovery should reuse session resume when possible and rerun fresh when no resumable session exists.
@@ -216,3 +221,8 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 ### macOS Workspace Decomposition
 - Keep `Workspace.swift` focused on shared workspace state plus broad orchestration; move dense feature areas into `Workspace+...` files.
 - Runner lifecycle/loop/cancel state lives in `Workspace+RunnerState.swift`; task edit/bulk-create flows live in `Workspace+TaskMutations.swift`.
+- Workspace persistence and working-directory path resolution live in `Workspace+Persistence.swift`; workspace recovery UI state lives in `Workspace+ErrorRecovery.swift`.
+
+### macOS CLI Client Decomposition
+- Keep `RalphCLIClient.swift` focused on the core subprocess API (`start`, `runAndCollect`, timeout handling).
+- Retry helpers live in `RalphCLIClient+Retry.swift`; recovery classification lives in `RalphCLIClient+Recovery.swift`; health probing lives in `RalphCLIHealthChecker.swift`; process lifecycle ownership lives in `RalphCLIRun.swift`.

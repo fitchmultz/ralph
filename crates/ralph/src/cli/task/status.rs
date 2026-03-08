@@ -21,6 +21,9 @@ use crate::config;
 use crate::constants::custom_fields::{MODEL_USED, RUNNER_USED};
 use crate::contracts::TaskStatus;
 use crate::queue;
+use crate::queue::operations::{
+    TaskFieldEdit, TaskMutationRequest, TaskMutationSpec, apply_task_mutation_request,
+};
 use crate::timeutil;
 use crate::webhook;
 use std::collections::HashMap;
@@ -187,21 +190,54 @@ pub fn handle_status(
                 bail!("No tasks specified. Provide task IDs or use --tag-filter.");
             }
 
-            let result = queue::operations::batch_set_status(
+            if let Some(note) = args.note.as_deref()
+                && !note.trim().is_empty()
+            {
+                let result = queue::operations::batch_set_status(
+                    &mut queue_file,
+                    &task_ids,
+                    status,
+                    &now,
+                    Some(note),
+                    false,
+                )?;
+                queue::save_queue(&resolved.queue_path, &queue_file)?;
+                queue::operations::print_batch_results(
+                    &result,
+                    &format!("Status update to {}", status),
+                    false,
+                );
+                return Ok(());
+            }
+
+            let request = TaskMutationRequest {
+                version: 1,
+                atomic: true,
+                tasks: task_ids
+                    .iter()
+                    .map(|task_id| TaskMutationSpec {
+                        task_id: task_id.clone(),
+                        expected_updated_at: None,
+                        edits: vec![TaskFieldEdit {
+                            field: "status".to_string(),
+                            value: status.to_string(),
+                        }],
+                    })
+                    .collect(),
+            };
+
+            let result = apply_task_mutation_request(
                 &mut queue_file,
-                &task_ids,
-                status,
+                None,
+                &request,
                 &now,
-                args.note.as_deref(),
-                false, // continue_on_error - default to atomic for CLI
+                &resolved.id_prefix,
+                resolved.id_width,
+                resolved.config.queue.max_dependency_depth.unwrap_or(10),
             )?;
 
             queue::save_queue(&resolved.queue_path, &queue_file)?;
-            queue::operations::print_batch_results(
-                &result,
-                &format!("Status update to {}", status),
-                false,
-            );
+            println!("Updated {} task(s) to {}.", result.tasks.len(), status);
 
             Ok(())
         }

@@ -12,6 +12,7 @@
  */
 
 import Foundation
+import RalphCore
 
 /// Represents a command category for grouping in the palette
 enum CommandCategory: String, CaseIterable, Identifiable {
