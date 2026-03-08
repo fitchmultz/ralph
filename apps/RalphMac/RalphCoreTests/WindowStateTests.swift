@@ -26,6 +26,7 @@ final class WindowStateTests: XCTestCase {
         super.setUp()
         manager = WorkspaceManager.shared
         manager.resetWindowStateClaimPool()
+        manager.resetSceneRoutingForTests()
         for workspace in manager.workspaces {
             manager.closeWorkspace(workspace)
         }
@@ -39,6 +40,7 @@ final class WindowStateTests: XCTestCase {
             manager.closeWorkspace(workspace)
         }
         manager.resetWindowStateClaimPool()
+        manager.resetSceneRoutingForTests()
         UserDefaults.standard.removeObject(forKey: testRestorationKey)
         cleanupNavigationState()
         super.tearDown()
@@ -380,5 +382,63 @@ final class WindowStateTests: XCTestCase {
         XCTAssertEqual(state1, state2)
         XCTAssertNotEqual(state1, state3)
         XCTAssertNotEqual(state1, state4)
+    }
+
+    // MARK: - Scene Routing Tests
+
+    func test_route_toWorkspace_focusesContainingWindowAndExecutesSceneAction() {
+        let workspace = manager.createWorkspace()
+        let windowID = UUID()
+        var focusedWorkspaceID: UUID?
+        var persistedWindowState = false
+        var receivedRoute: WorkspaceSceneRoute?
+
+        manager.registerWindowRouteActions(
+            for: windowID,
+            actions: WindowRouteActions(
+                containsWorkspace: { $0 == workspace.id },
+                focusWorkspace: { focusedWorkspaceID = $0 },
+                appendWorkspace: { _ in XCTFail("existing workspace should not append into a new window") },
+                persistState: { persistedWindowState = true }
+            )
+        )
+        manager.registerWorkspaceRouteActions(for: workspace.id) { route in
+            receivedRoute = route
+        }
+
+        manager.route(.showTaskDetail(taskID: "RQ-123"), to: workspace.id)
+
+        XCTAssertEqual(focusedWorkspaceID, workspace.id)
+        XCTAssertEqual(receivedRoute, .showTaskDetail(taskID: "RQ-123"))
+        XCTAssertTrue(persistedWindowState)
+        XCTAssertEqual(manager.focusedWorkspace?.id, workspace.id)
+    }
+
+    func test_route_toWorkspace_replaysPendingRouteWhenWorkspaceSceneRegisters() {
+        let workspace = manager.createWorkspace()
+        let windowID = UUID()
+        var appendedWorkspaceID: UUID?
+        var focusedWorkspaceID: UUID?
+        var receivedRoutes: [WorkspaceSceneRoute] = []
+
+        manager.registerWindowRouteActions(
+            for: windowID,
+            actions: WindowRouteActions(
+                containsWorkspace: { _ in false },
+                focusWorkspace: { focusedWorkspaceID = $0 },
+                appendWorkspace: { appendedWorkspaceID = $0 },
+                persistState: {}
+            )
+        )
+
+        manager.route(.showTaskCreation, to: workspace.id)
+        XCTAssertEqual(appendedWorkspaceID, workspace.id)
+        XCTAssertEqual(focusedWorkspaceID, workspace.id)
+
+        manager.registerWorkspaceRouteActions(for: workspace.id) { route in
+            receivedRoutes.append(route)
+        }
+
+        XCTAssertEqual(receivedRoutes, [.showTaskCreation])
     }
 }

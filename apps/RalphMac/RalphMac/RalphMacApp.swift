@@ -6,6 +6,7 @@
  - Configure multi-window support with native macOS tab bar integration.
  - Handle window restoration on app relaunch.
  - Provide menu commands for window/tab management and navigation.
+ - Route app/menu/url actions through scene-scoped workspace/window contracts.
 
  Does not handle:
  - Individual workspace content or CLI operations (see Workspace and WindowView).
@@ -14,7 +15,6 @@
  Invariants/assumptions callers must respect:
  - The app can use either the bundled `ralph` binary or a launcher-provided override.
  - Window restoration state is stored in UserDefaults.
- - Navigation notifications are sent via NotificationCenter.
  */
 
 import SwiftUI
@@ -45,10 +45,6 @@ struct RalphMacApp: App {
                         .ignoresSafeArea()
                 )
                 .onOpenURL(perform: handleOpenURL)
-                .onReceive(NotificationCenter.default.publisher(for: .showMainAppFromMenuBar)) { _ in
-                    // Bring app to front when requested from menu bar
-                    NSApp.activate(ignoringOtherApps: true)
-                }
         }
         // Limit external event matching to the Ralph URL scheme route.
         .handlesExternalEvents(matching: ["ralph"])
@@ -138,30 +134,23 @@ struct RalphMacApp: App {
                 .resolvingSymlinksInPath()
                 .path == workspaceURL.path
         }) {
-            // Activate existing workspace - post notification for WindowView to handle
-            NotificationCenter.default.post(
-                name: .activateWorkspace,
-                object: existingWorkspace.id
-            )
+            manager.revealWorkspace(existingWorkspace.id)
+            NSApp.activate(ignoringOtherApps: true)
             RalphLogger.shared.info("Activated existing workspace: \(path)", category: .workspace)
         } else {
             // If this launch bootstrapped a default home workspace, repurpose it for the URL.
             if let bootstrapWorkspace = bootstrapWorkspaceForURLOpen() {
                 bootstrapWorkspace.setWorkingDirectory(workspaceURL)
-                NotificationCenter.default.post(
-                    name: .activateWorkspace,
-                    object: bootstrapWorkspace.id
-                )
+                manager.revealWorkspace(bootstrapWorkspace.id)
+                NSApp.activate(ignoringOtherApps: true)
                 RalphLogger.shared.info("Repurposed bootstrap workspace for URL: \(path)", category: .workspace)
                 return
             }
 
             // Create new workspace with the specified directory
             let workspace = manager.createWorkspace(workingDirectory: workspaceURL)
-            NotificationCenter.default.post(
-                name: .workspaceOpenedFromURL,
-                object: workspace.id
-            )
+            manager.revealWorkspace(workspace.id)
+            NSApp.activate(ignoringOtherApps: true)
             RalphLogger.shared.info("Created new workspace from URL: \(path)", category: .workspace)
         }
     }
@@ -431,10 +420,9 @@ private struct TaskCommands: Commands {
             Divider()
 
             Button("Check for CLI Updates") {
-                NotificationCenter.default.post(
-                    name: .checkForCLIUpdates,
-                    object: nil
-                )
+                Task { @MainActor in
+                    _ = await WorkspaceManager.shared.checkForCLIUpdates()
+                }
             }
         }
     }
@@ -698,6 +686,7 @@ private struct WorkspaceWindowAnchor: NSViewRepresentable {
 @MainActor
 protocol SettingsServiceProtocol {
     static func initialize()
+    static func showSettingsWindow()
 }
 
 /// Stub type that will be extended in ASettingsInfra.swift
@@ -708,18 +697,12 @@ enum SettingsService: SettingsServiceProtocol {
 
 // MARK: - Settings Button
 
-/// Notification to show the settings window.
-/// Posted by the settings button, observed by SettingsWindowController.
-extension Notification.Name {
-    static let showRalphSettings = Notification.Name("showRalphSettings")
-}
-
-/// Button that opens the settings window by posting a notification.
+/// Button that opens the settings window through the shared settings service.
 @MainActor
 struct OpenSettingsButton: View {
     var body: some View {
         Button("Settings...") {
-            NotificationCenter.default.post(name: .showRalphSettings, object: nil)
+            SettingsService.showSettingsWindow()
         }
         .keyboardShortcut(",", modifiers: .command)
     }

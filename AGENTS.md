@@ -226,7 +226,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 
 ### macOS App Window Routing
 - Active-window navigation/task commands should flow through focused scene values (`WorkspaceUIActions` / `WorkspaceWindowActions`), not process-wide `NotificationCenter` broadcasts.
-- Menu-bar initiated workspace/task routing must carry a `WorkspaceRouteRequest` and be filtered by `workspace.id` so non-target windows stay unchanged.
+- Unfocused surfaces (menu bar, URL open, app lifecycle) should register and target scene actions through `WorkspaceManager` route registries; queue pending workspace routes until the matching `WorkspaceView` registers.
 
 ### macOS Task Presentation
 - Shared task filtering/sorting for list + kanban lives in `WorkspaceTaskPresentation`; prefer `workspace.taskPresentation()` when a render pass needs both flat and grouped task sets.
@@ -234,6 +234,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 
 ### macOS Queue Refresh
 - Queue file watcher refreshes and CLI queue JSON decoding should use `WorkspaceQueueSnapshotLoader` so file IO + decode work stays off the main actor and only final publication happens on main.
+- External queue refresh reactions should read `Workspace.lastQueueRefreshEvent`; do not rebroadcast queue changes through process-wide notifications or view-local `.onReceive`.
 
 ### macOS Workspace Decomposition
 - Keep `Workspace.swift` focused on shared workspace state plus broad orchestration; move dense feature areas into `Workspace+...` files.

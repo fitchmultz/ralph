@@ -104,7 +104,8 @@ struct TaskDetailView: View {
                 hasConflict = false
                 conflictedExternalTask = nil
             }
-            .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { _ in
+            .task(id: workspace.lastQueueRefreshEvent?.id) {
+                guard workspace.lastQueueRefreshEvent?.source == .externalFileChange else { return }
                 checkForExternalChanges()
             }
     }

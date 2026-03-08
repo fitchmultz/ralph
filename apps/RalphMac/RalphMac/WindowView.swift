@@ -5,6 +5,7 @@
  - Manage the tab-based interface for a single window.
  - Handle workspace tab creation, closure, and switching.
  - Expose focused window actions so menu/keyboard commands mutate only the active window.
+ - Register scene-scoped routing actions so unfocused surfaces can target this window directly.
  - Persist window state for restoration.
 
  Does not handle:
@@ -47,6 +48,7 @@ struct WindowView: View {
         .focusedSceneValue(\.workspaceWindowActions, focusedWindowActions)
         .onChange(of: windowState.workspaceIDs) { _, _ in
             validateAndPersistState()
+            registerWindowRouteActions()
         }
         .onChange(of: windowState.selectedTabIndex) { _, _ in
             updateFocusedWorkspace()
@@ -54,17 +56,14 @@ struct WindowView: View {
         }
         .onAppear {
             updateFocusedWorkspace()
+            registerWindowRouteActions()
         }
-        .onReceive(manager.$workspaces) { _ in
-            // Defer cleanup to avoid state mutation during view update.
-            Task { @MainActor in
-                cleanupClosedWorkspaces()
-            }
+        .onChange(of: manager.workspaces.map(\.id)) { _, _ in
+            cleanupClosedWorkspaces()
         }
-        .modifier(WindowStateNotificationHandlers(
-            windowState: $windowState,
-            persistState: persistState
-        ))
+        .onDisappear {
+            manager.unregisterWindowRouteActions(for: windowState.id)
+        }
     }
 
     private var focusedWindowActions: WorkspaceWindowActions {
@@ -207,6 +206,27 @@ struct WindowView: View {
     private func updateFocusedWorkspace() {
         manager.focusedWorkspace = activeWorkspace()
     }
+
+    private func registerWindowRouteActions() {
+        manager.registerWindowRouteActions(
+            for: windowState.id,
+            actions: WindowRouteActions(
+                containsWorkspace: { workspaceID in
+                    windowState.workspaceIDs.contains(workspaceID)
+                },
+                focusWorkspace: { workspaceID in
+                    guard let index = windowState.workspaceIDs.firstIndex(of: workspaceID) else { return }
+                    windowState.selectedTabIndex = index
+                    updateFocusedWorkspace()
+                },
+                appendWorkspace: { workspaceID in
+                    guard !windowState.workspaceIDs.contains(workspaceID) else { return }
+                    windowState.workspaceIDs.append(workspaceID)
+                },
+                persistState: persistState
+            )
+        )
+    }
 }
 
 /// Exposes per-window tab metadata to UI tests without changing visible UI.
@@ -221,36 +241,5 @@ private struct WindowTabCountAccessibilityProbe: View {
             .accessibilityIdentifier("window-tab-count-probe")
             .accessibilityLabel("window-tab-count-\(tabCount)")
             .accessibilityValue("\(tabCount)")
-    }
-}
-
-// MARK: - State Notifications
-
-/// Notification handlers for global events that are not active-window command dispatch.
-@MainActor
-struct WindowStateNotificationHandlers: ViewModifier {
-    @Binding var windowState: WindowState
-    let persistState: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .onReceive(NotificationCenter.default.publisher(for: .activateWorkspace)) { notification in
-                if let workspaceID = notification.object as? UUID,
-                   let index = windowState.workspaceIDs.firstIndex(of: workspaceID) {
-                    windowState.selectedTabIndex = index
-                    persistState()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .workspaceOpenedFromURL)) { notification in
-                if let workspaceID = notification.object as? UUID,
-                   !windowState.workspaceIDs.contains(workspaceID) {
-                    windowState.workspaceIDs.append(workspaceID)
-                    windowState.selectedTabIndex = windowState.workspaceIDs.count - 1
-                    persistState()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .saveAllWindowStatesRequested)) { _ in
-                persistState()
-            }
     }
 }

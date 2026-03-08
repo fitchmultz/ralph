@@ -3,12 +3,12 @@
 
  Responsibilities:
  - Monitor `.ralph/queue.{json,jsonc}`, `.ralph/done.{json,jsonc}`, and `.ralph/config.{json,jsonc}` for external changes using FSEvents.
- - Emit notifications when files change with debouncing to batch rapid changes.
+ - Invoke workspace callbacks when files change with debouncing to batch rapid changes.
  - Handle file system events efficiently with minimal resource usage.
  - Retry FSEvent stream creation on transient failures (up to 3 attempts with exponential backoff).
 
  Does not handle:
- - Direct UI updates (delegates via NotificationCenter).
+ - Direct UI updates (delegates via workspace-owned callbacks).
  - Parsing or interpreting file contents.
 
  Invariants/assumptions callers must respect:

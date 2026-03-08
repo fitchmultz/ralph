@@ -327,4 +327,45 @@ final class QueueDirectParseTests: XCTestCase {
         // Verify updated at is after created at
         XCTAssertGreaterThan(task.updatedAt!, task.createdAt!)
     }
+
+    func test_queueRefreshEvent_tracksAddedAndChangedTaskIDs() {
+        let previousTasks = [
+            RalphTask(
+                id: "RQ-001",
+                status: .todo,
+                title: "Original title",
+                priority: .medium,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+        ]
+        let currentTasks = [
+            RalphTask(
+                id: "RQ-001",
+                status: .doing,
+                title: "Original title",
+                priority: .medium,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            RalphTask(
+                id: "RQ-002",
+                status: .todo,
+                title: "New task",
+                priority: .high,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+        ]
+
+        let event = Workspace.QueueRefreshEvent(
+            source: .externalFileChange,
+            previousTasks: previousTasks,
+            currentTasks: currentTasks
+        )
+
+        XCTAssertEqual(event.highlightedTaskIDs, Set(["RQ-001", "RQ-002"]))
+        XCTAssertEqual(event.previousTasks, previousTasks)
+        XCTAssertEqual(event.currentTasks, currentTasks)
+    }
 }

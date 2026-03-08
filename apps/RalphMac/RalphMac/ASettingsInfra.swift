@@ -2,9 +2,9 @@
  ASettingsInfra
 
  Responsibilities:
- - Settings window infrastructure (observer, window management).
+ - Settings window infrastructure (window management and reuse).
  - Named with 'A' prefix to ensure compilation before RalphMacApp.swift.
- - Provides the implementation for SettingsService.initialize().
+ - Provides the implementation for SettingsService APIs.
 
  Does not handle:
  - Settings UI content (defined in AppSettings.swift).
@@ -19,34 +19,27 @@ import RalphCore
 
 extension SettingsService {
     /// Initializes the settings window system.
-    /// Overrides the default no-op implementation in RalphMacApp.swift
+    /// Overrides the default no-op implementation in RalphMacApp.swift.
     static func initialize() {
-        _ = SettingsWindowObserver.shared
+        _ = SettingsWindowController.shared
+    }
+
+    static func showSettingsWindow() {
+        SettingsWindowController.shared.show()
     }
 }
 
-// MARK: - Settings Window Observer
+// MARK: - Settings Window Controller
 
-/// Observer that listens for settings show notifications and displays the window
 @MainActor
-final class SettingsWindowObserver: NSObject {
-    static let shared = SettingsWindowObserver()
+final class SettingsWindowController {
+    static let shared = SettingsWindowController()
     
     private var window: NSWindow?
     
-    private override init() {
-        super.init()
-        
-        // Register for settings window show notification
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showSettingsWindow),
-            name: .showRalphSettings,
-            object: nil
-        )
-    }
-    
-    @objc private func showSettingsWindow() {
+    private init() {}
+
+    func show() {
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)

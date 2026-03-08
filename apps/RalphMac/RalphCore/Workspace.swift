@@ -64,6 +64,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     @Published public var tasks: [RalphTask] = []
     @Published public var tasksLoading: Bool = false
     @Published public var tasksErrorMessage: String?
+    @Published public var lastQueueRefreshEvent: QueueRefreshEvent?
 
     // Task filtering/sorting state
     @Published public var taskFilterText: String = ""
@@ -250,6 +251,35 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         public init() {}
     }
 
+    public struct QueueRefreshEvent: Identifiable, Sendable, Equatable {
+        public enum Source: String, Sendable, Equatable {
+            case externalFileChange
+        }
+
+        public let id: UUID
+        public let source: Source
+        public let previousTasks: [RalphTask]
+        public let currentTasks: [RalphTask]
+        public let highlightedTaskIDs: Set<String>
+
+        public init(
+            id: UUID = UUID(),
+            source: Source,
+            previousTasks: [RalphTask],
+            currentTasks: [RalphTask]
+        ) {
+            let changes = TaskChanges.diff(previous: previousTasks, current: currentTasks)
+            var highlightedTaskIDs = Set(changes.changed.map(\.id))
+            highlightedTaskIDs.formUnion(changes.added.map(\.id))
+
+            self.id = id
+            self.source = source
+            self.previousTasks = previousTasks
+            self.currentTasks = currentTasks
+            self.highlightedTaskIDs = highlightedTaskIDs
+        }
+    }
+
     var client: RalphCLIClient?
     private var cancellables = Set<AnyCancellable>()
     var fileWatcher: QueueFileWatcher?
@@ -415,11 +445,4 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
         loadState()
     }
-}
-
-// MARK: - Notification Names
-
-public extension Notification.Name {
-    /// Posted when queue files are changed externally (via CLI or another process)
-    static let queueFilesExternallyChanged = Notification.Name("queueFilesExternallyChanged")
 }

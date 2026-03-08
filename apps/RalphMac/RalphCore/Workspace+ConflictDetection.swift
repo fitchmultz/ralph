@@ -44,31 +44,35 @@ public extension Workspace {
         public var hasChanges: Bool {
             !added.isEmpty || !removed.isEmpty || !changed.isEmpty
         }
+
+        public static func diff(previous: [RalphTask], current: [RalphTask]) -> Self {
+            let previousIDs = Set(previous.map(\.id))
+            let currentIDs = Set(current.map(\.id))
+
+            let added = current.filter { !previousIDs.contains($0.id) }
+            let removed = previous.filter { !currentIDs.contains($0.id) }
+            let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+
+            var changed: [RalphTask] = []
+            changed.reserveCapacity(current.count)
+
+            for task in current {
+                guard let previousTask = previousByID[task.id] else { continue }
+                if task.status != previousTask.status ||
+                    task.title != previousTask.title ||
+                    task.priority != previousTask.priority ||
+                    task.tags != previousTask.tags ||
+                    task.agent != previousTask.agent {
+                    changed.append(task)
+                }
+            }
+
+            return TaskChanges(added: added, removed: removed, changed: changed)
+        }
     }
 
     func detectTaskChanges(previous: [RalphTask], current: [RalphTask]) -> TaskChanges {
-        let previousIDs = Set(previous.map(\.id))
-        let currentIDs = Set(current.map(\.id))
-
-        let added = current.filter { !previousIDs.contains($0.id) }
-        let removed = previous.filter { !currentIDs.contains($0.id) }
-        let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
-
-        var changed: [RalphTask] = []
-        changed.reserveCapacity(current.count)
-
-        for task in current {
-            guard let previousTask = previousByID[task.id] else { continue }
-            if task.status != previousTask.status ||
-                task.title != previousTask.title ||
-                task.priority != previousTask.priority ||
-                task.tags != previousTask.tags ||
-                task.agent != previousTask.agent {
-                changed.append(task)
-            }
-        }
-
-        return TaskChanges(added: added, removed: removed, changed: changed)
+        TaskChanges.diff(previous: previous, current: current)
     }
 
     func checkForConflict(taskID: String, originalUpdatedAt: Date?) -> RalphTask? {

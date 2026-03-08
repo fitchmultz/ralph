@@ -56,6 +56,7 @@ struct KanbanBoardView: View {
                             focusedTaskID = taskID
                             focusedColumnStatus = status
                         },
+                        highlightedTaskIDs: recentlyChangedTaskIDs,
                         focusedTaskID: focusedTaskID,
                         isFocusedColumn: focusedColumnStatus == status
                     )
@@ -122,25 +123,8 @@ struct KanbanBoardView: View {
         .task { @MainActor in
             await workspace.loadTasks()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { notification in
-            if let userInfo = notification.userInfo,
-               let previousTasks = userInfo["previousTasks"] as? [RalphTask],
-               let currentTasks = userInfo["currentTasks"] as? [RalphTask] {
-                let changes = workspace.detectTaskChanges(previous: previousTasks, current: currentTasks)
-                
-                var changedIDs = Set(changes.changed.map { $0.id })
-                changedIDs.formUnion(changes.added.map { $0.id })
-                
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    recentlyChangedTaskIDs = changedIDs
-                }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    withAnimation(.easeInOut(duration: 0.5)) {
-                        recentlyChangedTaskIDs.removeAll()
-                    }
-                }
-            }
+        .task(id: workspace.lastQueueRefreshEvent?.id) {
+            await handleQueueRefreshEvent()
         }
     }
 
@@ -161,6 +145,26 @@ struct KanbanBoardView: View {
                 isUpdating = false
                 updateError = error.localizedDescription
             }
+        }
+    }
+
+    private func handleQueueRefreshEvent() async {
+        guard let refreshEvent = workspace.lastQueueRefreshEvent,
+              refreshEvent.source == .externalFileChange else {
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.3)) {
+            recentlyChangedTaskIDs = refreshEvent.highlightedTaskIDs
+        }
+
+        do {
+            try await Task.sleep(for: .milliseconds(2000))
+            withAnimation(.easeInOut(duration: 0.5)) {
+                recentlyChangedTaskIDs.removeAll()
+            }
+        } catch {
+            return
         }
     }
     

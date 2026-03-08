@@ -18,6 +18,7 @@
  */
 
 import SwiftUI
+import RalphCore
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -30,12 +31,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.tabbingMode = .disallowed
         }
         
-        // Settings window observer is auto-initialized via SettingsWindowObserver.shared
-        // defined in ASettingsInfra.swift
+        // Settings infrastructure is initialized from the SwiftUI app entry point.
     }
     
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Disable tabbing before any windows are created
         NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        WorkspaceManager.shared.persistRegisteredWindowStates()
     }
 }

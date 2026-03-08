@@ -31,7 +31,6 @@ struct TaskListView: View {
     let showTaskDecompose: (String?) -> Void
     let showTaskDetail: (String) -> Void
     @State private var showingBulkActions = false
-    @State private var isRefreshingFromExternalChange = false
     @State private var recentlyChangedTaskIDs: Set<String> = []
     @State private var showExternalUpdateBanner = false
     
@@ -104,8 +103,8 @@ struct TaskListView: View {
                 }
             )
         }
-        .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { notification in
-            handleExternalChange(notification)
+        .task(id: workspace.lastQueueRefreshEvent?.id) {
+            await handleQueueRefreshEvent()
         }
         .onChange(of: selectedTaskIDs) { _, newSelection in
             syncPrimarySelection(with: newSelection)
@@ -510,49 +509,33 @@ struct TaskListView: View {
     
     // MARK: - External Change Handling
     
-    private func handleExternalChange(_ notification: Notification) {
+    private func handleQueueRefreshEvent() async {
+        guard let refreshEvent = workspace.lastQueueRefreshEvent,
+              refreshEvent.source == .externalFileChange else {
+            return
+        }
+
         // Show banner notification
         withAnimation(.easeInOut(duration: 0.3)) {
             showExternalUpdateBanner = true
         }
-        
-        // Hide banner after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            recentlyChangedTaskIDs = refreshEvent.highlightedTaskIDs
+        }
+
+        do {
+            try await Task.sleep(for: .milliseconds(2000))
+            withAnimation(.easeInOut(duration: 0.5)) {
+                recentlyChangedTaskIDs.removeAll()
+            }
+
+            try await Task.sleep(for: .milliseconds(1000))
             withAnimation(.easeInOut(duration: 0.3)) {
                 showExternalUpdateBanner = false
             }
-        }
-        
-        // Track changed tasks for animation
-        if let userInfo = notification.userInfo,
-           let previousTasks = userInfo["previousTasks"] as? [RalphTask],
-           let currentTasks = userInfo["currentTasks"] as? [RalphTask] {
-            let changes = workspace.detectTaskChanges(previous: previousTasks, current: currentTasks)
-            
-            // Mark changed tasks for visual feedback
-            var changedIDs = Set(changes.changed.map { $0.id })
-            changedIDs.formUnion(changes.added.map { $0.id })
-            
-            withAnimation(.easeInOut(duration: 0.3)) {
-                recentlyChangedTaskIDs = changedIDs
-            }
-            
-            // Clear highlight after animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    recentlyChangedTaskIDs.removeAll()
-                }
-            }
-        }
-        
-        // Pulse animation effect
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isRefreshingFromExternalChange = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isRefreshingFromExternalChange = false
-            }
+        } catch {
+            return
         }
     }
     

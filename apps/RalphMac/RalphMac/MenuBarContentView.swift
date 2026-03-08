@@ -7,6 +7,7 @@
  - Provide quick action buttons.
  - Show task counts by status.
  - List recent tasks for quick access.
+ - Route menu bar actions into a specific workspace scene without global broadcasts.
 
  Does not handle:
  - Menu bar icon rendering (see MenuBarIconView).
@@ -14,7 +15,6 @@
 
  Invariants/assumptions:
  - Observes WorkspaceManager.shared and MenuBarManager.shared.
- - Uses NotificationCenter to communicate with main app.
  - Must run on MainActor.
  */
 
@@ -131,18 +131,12 @@ struct MenuBarContentView: View {
             .disabled(workspace.nextTask() == nil || workspace.isRunning)
             
             Button("Quick Add Task...") {
-                NotificationCenter.default.post(
-                    name: .quickAddTaskFromMenuBar,
-                    object: WorkspaceRouteRequest(workspaceID: workspace.id)
-                )
+                manager.route(.showTaskCreation, to: workspace.id)
                 activateMainApp()
             }
 
             Button("Decompose Task...") {
-                NotificationCenter.default.post(
-                    name: .showTaskDecompose,
-                    object: WorkspaceRouteRequest(workspaceID: workspace.id)
-                )
+                manager.route(.showTaskDecompose(taskID: nil), to: workspace.id)
                 activateMainApp()
             }
         }
@@ -179,7 +173,7 @@ struct MenuBarContentView: View {
             
             Button("Settings...") {
                 activateMainApp()
-                NotificationCenter.default.post(name: .showRalphSettings, object: nil)
+                SettingsService.showSettingsWindow()
             }
             .keyboardShortcut(",", modifiers: .command)
             
@@ -235,17 +229,7 @@ struct MenuBarContentView: View {
     
     /// Activate the main app and show task detail
     private func showTaskDetail(_ taskID: String, workspaceID: UUID) {
-        NotificationCenter.default.post(
-            name: .showTaskDetailFromMenuBar,
-            object: WorkspaceRouteRequest(workspaceID: workspaceID, taskID: taskID)
-        )
-        
-        // Activate the workspace
-        NotificationCenter.default.post(
-            name: .activateWorkspace,
-            object: workspaceID
-        )
-        
+        manager.route(.showTaskDetail(taskID: taskID), to: workspaceID)
         // Bring app to front
         activateMainApp()
     }
@@ -253,12 +237,6 @@ struct MenuBarContentView: View {
     /// Activate the main app window
     private func activateMainApp() {
         NSApp.activate(ignoringOtherApps: true)
-        
-        // Post notification to show main app
-        NotificationCenter.default.post(
-            name: .showMainAppFromMenuBar,
-            object: nil
-        )
     }
 }
 

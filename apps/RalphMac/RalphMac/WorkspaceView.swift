@@ -18,6 +18,7 @@
  - Workspace is injected via @ObservedObject.
  - NavigationViewModel manages sidebar state.
  - View updates when workspace state changes.
+ - Scene-scoped route actions are registered while the workspace view is visible.
  */
 
 import SwiftUI
@@ -32,6 +33,7 @@ struct WorkspaceView: View {
     @State private var showingTaskDecompose: Bool = false
     @State private var taskDecomposeContext = TaskDecomposeView.PresentationContext()
     @FocusedValue(\.workspaceWindowActions) private var workspaceWindowActions
+    private let manager = WorkspaceManager.shared
 
     init(workspace: Workspace) {
         self._workspace = ObservedObject(wrappedValue: workspace)
@@ -66,24 +68,11 @@ struct WorkspaceView: View {
         .sheet(isPresented: $showingTaskDecompose) {
             TaskDecomposeView(workspace: workspace, context: taskDecomposeContext)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .showTaskDetailFromMenuBar)) { notification in
-            if let request = notification.object as? WorkspaceRouteRequest,
-               request.workspaceID == workspace.id,
-               let taskID = request.taskID {
-                showTaskDetail(taskID)
-            }
+        .onAppear {
+            registerWorkspaceRouteActions()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .quickAddTaskFromMenuBar)) { notification in
-            if let request = notification.object as? WorkspaceRouteRequest,
-               request.workspaceID == workspace.id {
-                showTaskCreation()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showTaskDecompose)) { notification in
-            if let request = notification.object as? WorkspaceRouteRequest {
-                guard request.workspaceID == workspace.id else { return }
-                showTaskDecompose(selectedTaskID: request.taskID)
-            }
+        .onDisappear {
+            manager.unregisterWorkspaceRouteActions(for: workspace.id)
         }
     }
 
@@ -117,6 +106,19 @@ struct WorkspaceView: View {
                 handleStartWork()
             }
         )
+    }
+
+    private func registerWorkspaceRouteActions() {
+        manager.registerWorkspaceRouteActions(for: workspace.id) { route in
+            switch route {
+            case .showTaskCreation:
+                showTaskCreation()
+            case .showTaskDecompose(let taskID):
+                showTaskDecompose(selectedTaskID: taskID)
+            case .showTaskDetail(let taskID):
+                showTaskDetail(taskID)
+            }
+        }
     }
 
     // MARK: - Columns

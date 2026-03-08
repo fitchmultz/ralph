@@ -3,7 +3,7 @@
 //! Responsibilities:
 //! - Load queue tasks through the Ralph CLI.
 //! - Parse queue snapshots directly from disk for watcher-triggered refreshes.
-//! - Coordinate queue file watching and external-change publication.
+//! - Coordinate queue file watching and workspace-local refresh state.
 //!
 //! Does not handle:
 //! - Task mutations or task creation.
@@ -13,7 +13,7 @@
 //! Invariants/assumptions callers must respect:
 //! - The workspace must point at a Ralph-initialized directory to load tasks.
 //! - Direct file parsing is a fast path and may fall back to the CLI.
-//! - Queue change notifications include previous and current task snapshots.
+//! - Queue refresh events retain previous and current task snapshots for view-local reactions.
 
 import Foundation
 
@@ -149,13 +149,10 @@ private extension Workspace {
 
         await loadRunnerConfiguration(retryConfiguration: .minimal)
 
-        NotificationCenter.default.post(
-            name: .queueFilesExternallyChanged,
-            object: self,
-            userInfo: [
-                "previousTasks": lastTasksSnapshot,
-                "currentTasks": tasks,
-            ]
+        lastQueueRefreshEvent = QueueRefreshEvent(
+            source: .externalFileChange,
+            previousTasks: lastTasksSnapshot,
+            currentTasks: tasks
         )
     }
 }
