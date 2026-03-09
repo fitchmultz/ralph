@@ -125,6 +125,44 @@
 		UITESTSBB0012345678901234 /* RalphMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UITESTSFF1123456789012345 /* RalphMacUITests.swift */; };
 		UITESTSBB2234567890123456 /* RalphMacUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UITESTSFF3345678901234567 /* RalphMacUITestsLaunchTests.swift */; };
 		WCROUTEBLD1234567890ABCD /* WindowCommandRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = WCROUTEFREF1234567890ABC /* WindowCommandRouting.swift */; };
+		1BF9E79F4485071E68C96DFC /* GraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD3850ED3FCAE584917AB31A /* GraphLayoutEngine.swift */; };
+		90AE38428DE5F70186892FFF /* GraphPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D730C2592B7B52A7F996C839 /* GraphPresentation.swift */; };
+		7F1B247EC44BEFF10FE578F5 /* RalphCLIArgumentBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123A9B4844CFDE99F3671FCD /* RalphCLIArgumentBuilder.swift */; };
+		74A1AB3F4B8F7300319739AE /* RalphCLISpecModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F8A199B3EEF4A2CB97AD30 /* RalphCLISpecModels.swift */; };
+		4E15E48DECEEA59204E69A22 /* RalphJSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E11C62C03A57EA8ABB947A /* RalphJSONValue.swift */; };
+		C66DB99F2915374BB62733FA /* RalphTaskModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3894EB508C519DFC807F920 /* RalphTaskModels.swift */; };
+		2A8D4CCD7E76823C47CE55D4 /* WorkspaceManager+AppDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B59F7F19FEAA7840EE5B3D /* WorkspaceManager+AppDefaults.swift */; };
+		5627775BA49A3867A6F779F6 /* WorkspaceManager+Lifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99289B4BD3F8A85A15A3EB85 /* WorkspaceManager+Lifecycle.swift */; };
+		0D895B7046CFDB71021376D8 /* WorkspaceManager+Restoration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E0879001AE71A6C4482AB6 /* WorkspaceManager+Restoration.swift */; };
+		3CD97ED5492F1998861E643B /* WorkspaceManager+Routing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F41DB5F428B9C899D2DC3B6 /* WorkspaceManager+Routing.swift */; };
+		D13CD904D39A1EF601369C12 /* WorkspaceManager+Versioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80B0725819CFCF3ECA230201 /* WorkspaceManager+Versioning.swift */; };
+		3DC376DB93E9E2696CDF5493 /* DependencyGraphAccessibilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA48F75E84AD1531DC4D4BB9 /* DependencyGraphAccessibilityView.swift */; };
+		2310E3C54261CF15EBDF9E50 /* DependencyGraphCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D78AE2B0A8821C361BC7247 /* DependencyGraphCanvasView.swift */; };
+		96C8149938BD26BC5D7AEDC2 /* DependencyGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB97FA944D6D29C68F8839A /* DependencyGraphViewModel.swift */; };
+		90CEB62C49910ADBCC6E08F7 /* KanbanTransientState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEA88CA3C1D19F77EE6FDD31 /* KanbanTransientState.swift */; };
+		42E952AA6330EAF1A5FCB51B /* RalphMacApp+Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2A6FA188F5AC6CE2F53870 /* RalphMacApp+Support.swift */; };
+		63AE5C2175CE9D4B3395BA5B /* RalphMacApp+URLRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = D829F0927C6E804F11768DBB /* RalphMacApp+URLRouting.swift */; };
+		016793D1DBF90AA9EB4BFDE7 /* RalphMacCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1763D1C75A9390D695AB8C40 /* RalphMacCommands.swift */; };
+		A216D62658610CB568691F35 /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDE5AEE63017EB9E3B311E0 /* SettingsService.swift */; };
+		EB014802778C130BF234E981 /* TaskDetailEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7100D4A32B0E1C4AA77D7093 /* TaskDetailEditorState.swift */; };
+		84875E094931F8B72CE837A8 /* TaskDetailPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E524E23088631B600921358 /* TaskDetailPresentation.swift */; };
+		E244CD8201DECCF668192D1C /* TaskDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE3542090D89C223E29D5DD5 /* TaskDetailSections.swift */; };
+		560A0DB833FE2C06D56D4EEB /* TaskListSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E544D263EEC94822C2BD83E /* TaskListSections.swift */; };
+		C2511BE3E3F3E921526C80C2 /* TaskListTransientState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498242EF7D786E99993EC742 /* TaskListTransientState.swift */; };
+		D1F3590976853815B9AB283C /* WindowViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA2742DF0B3AF124E467C28 /* WindowViewContainer.swift */; };
+		AD182128A9C76DC60BA7ED7E /* WorkspaceWindowAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E244DB04759B1EF7B8AA9990 /* WorkspaceWindowAnchor.swift */; };
+		94A6A25C9EFCB2C4BA2EAEB5 /* CLIHealthCheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E8D3607BFD28F72C5E9344 /* CLIHealthCheckerTests.swift */; };
+		8845939354C5005EA32BF0BB /* ErrorRecoveryCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */; };
+		DC16DAA1BDC57EE79483F12A /* TimeoutConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C739A307267F8D9F41171236 /* TimeoutConfigurationTests.swift */; };
+		BA4DAD1BA3631E1351694BEB /* WorkspaceCorePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A3F5A71B329E532B37574E /* WorkspaceCorePerformanceTests.swift */; };
+		A694F3F0E2099C84A74C6E8F /* WorkspaceOfflineCachingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F87AC97D36BA700C78EB3D /* WorkspaceOfflineCachingTests.swift */; };
+		F8E9C54A0D15DA15A90B7403 /* WorkspaceRunControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2C5883E22BDB9AE4683A0C /* WorkspaceRunControlTests.swift */; };
+		A8D48D6992FD8E5F56018280 /* WorkspaceRunnerConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13E5C2ED7D03FC4696F7E341 /* WorkspaceRunnerConfigurationTests.swift */; };
+		A23FD428E057C0453557DD4A /* WorkspaceTaskMutationAgentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30412AD055A0A3EA93DF756C /* WorkspaceTaskMutationAgentTests.swift */; };
+		06BA76F596A10AC6CFB3053A /* RalphMacUIConflictTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38AF699276C60CB8F9BE71F3 /* RalphMacUIConflictTests.swift */; };
+		B9B5C4321751543C95899B9C /* RalphMacUILaunchAndTaskFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A3280F3774A438F9AF9EA5 /* RalphMacUILaunchAndTaskFlowTests.swift */; };
+		84D2C60236102E8F761A2C09 /* RalphMacUINavigationAndKeyboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B457CE53E5E32E8183834647 /* RalphMacUINavigationAndKeyboardTests.swift */; };
+		554C4F857BF6D0FF1B81D765 /* RalphMacUIWindowRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DFECF0F188EABB3DF0A8522 /* RalphMacUIWindowRoutingTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -286,6 +324,44 @@
 		UITESTSFF1123456789012345 /* RalphMacUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUITests.swift; sourceTree = "<group>"; };
 		UITESTSFF3345678901234567 /* RalphMacUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		WCROUTEFREF1234567890ABC /* WindowCommandRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCommandRouting.swift; sourceTree = "<group>"; };
+		AD3850ED3FCAE584917AB31A /* GraphLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphLayoutEngine.swift; sourceTree = "<group>"; };
+		D730C2592B7B52A7F996C839 /* GraphPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphPresentation.swift; sourceTree = "<group>"; };
+		123A9B4844CFDE99F3671FCD /* RalphCLIArgumentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIArgumentBuilder.swift; sourceTree = "<group>"; };
+		D0F8A199B3EEF4A2CB97AD30 /* RalphCLISpecModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLISpecModels.swift; sourceTree = "<group>"; };
+		17E11C62C03A57EA8ABB947A /* RalphJSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphJSONValue.swift; sourceTree = "<group>"; };
+		D3894EB508C519DFC807F920 /* RalphTaskModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphTaskModels.swift; sourceTree = "<group>"; };
+		82B59F7F19FEAA7840EE5B3D /* WorkspaceManager+AppDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceManager+AppDefaults.swift"; sourceTree = "<group>"; };
+		99289B4BD3F8A85A15A3EB85 /* WorkspaceManager+Lifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceManager+Lifecycle.swift"; sourceTree = "<group>"; };
+		E9E0879001AE71A6C4482AB6 /* WorkspaceManager+Restoration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceManager+Restoration.swift"; sourceTree = "<group>"; };
+		9F41DB5F428B9C899D2DC3B6 /* WorkspaceManager+Routing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceManager+Routing.swift"; sourceTree = "<group>"; };
+		80B0725819CFCF3ECA230201 /* WorkspaceManager+Versioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceManager+Versioning.swift"; sourceTree = "<group>"; };
+		AA48F75E84AD1531DC4D4BB9 /* DependencyGraphAccessibilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyGraphAccessibilityView.swift; sourceTree = "<group>"; };
+		8D78AE2B0A8821C361BC7247 /* DependencyGraphCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyGraphCanvasView.swift; sourceTree = "<group>"; };
+		1AB97FA944D6D29C68F8839A /* DependencyGraphViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyGraphViewModel.swift; sourceTree = "<group>"; };
+		CEA88CA3C1D19F77EE6FDD31 /* KanbanTransientState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbanTransientState.swift; sourceTree = "<group>"; };
+		6B2A6FA188F5AC6CE2F53870 /* RalphMacApp+Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RalphMacApp+Support.swift"; sourceTree = "<group>"; };
+		D829F0927C6E804F11768DBB /* RalphMacApp+URLRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RalphMacApp+URLRouting.swift"; sourceTree = "<group>"; };
+		1763D1C75A9390D695AB8C40 /* RalphMacCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacCommands.swift; sourceTree = "<group>"; };
+		8FDE5AEE63017EB9E3B311E0 /* SettingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsService.swift; sourceTree = "<group>"; };
+		7100D4A32B0E1C4AA77D7093 /* TaskDetailEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailEditorState.swift; sourceTree = "<group>"; };
+		6E524E23088631B600921358 /* TaskDetailPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailPresentation.swift; sourceTree = "<group>"; };
+		CE3542090D89C223E29D5DD5 /* TaskDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailSections.swift; sourceTree = "<group>"; };
+		1E544D263EEC94822C2BD83E /* TaskListSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListSections.swift; sourceTree = "<group>"; };
+		498242EF7D786E99993EC742 /* TaskListTransientState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListTransientState.swift; sourceTree = "<group>"; };
+		AFA2742DF0B3AF124E467C28 /* WindowViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewContainer.swift; sourceTree = "<group>"; };
+		E244DB04759B1EF7B8AA9990 /* WorkspaceWindowAnchor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceWindowAnchor.swift; sourceTree = "<group>"; };
+		58E8D3607BFD28F72C5E9344 /* CLIHealthCheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIHealthCheckerTests.swift; sourceTree = "<group>"; };
+		87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRecoveryCategoryTests.swift; sourceTree = "<group>"; };
+		C739A307267F8D9F41171236 /* TimeoutConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeoutConfigurationTests.swift; sourceTree = "<group>"; };
+		57A3F5A71B329E532B37574E /* WorkspaceCorePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCorePerformanceTests.swift; sourceTree = "<group>"; };
+		E8F87AC97D36BA700C78EB3D /* WorkspaceOfflineCachingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOfflineCachingTests.swift; sourceTree = "<group>"; };
+		2E2C5883E22BDB9AE4683A0C /* WorkspaceRunControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunControlTests.swift; sourceTree = "<group>"; };
+		13E5C2ED7D03FC4696F7E341 /* WorkspaceRunnerConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunnerConfigurationTests.swift; sourceTree = "<group>"; };
+		30412AD055A0A3EA93DF756C /* WorkspaceTaskMutationAgentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskMutationAgentTests.swift; sourceTree = "<group>"; };
+		38AF699276C60CB8F9BE71F3 /* RalphMacUIConflictTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUIConflictTests.swift; sourceTree = "<group>"; };
+		88A3280F3774A438F9AF9EA5 /* RalphMacUILaunchAndTaskFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUILaunchAndTaskFlowTests.swift; sourceTree = "<group>"; };
+		B457CE53E5E32E8183834647 /* RalphMacUINavigationAndKeyboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUINavigationAndKeyboardTests.swift; sourceTree = "<group>"; };
+		1DFECF0F188EABB3DF0A8522 /* RalphMacUIWindowRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUIWindowRoutingTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -377,6 +453,17 @@
 				A24E80C16889B4FDE88205DC /* CrashReporter.swift */,
 				0787D37F56E4D3F3585C3CAE /* MenuBarManager.swift */,
 				CONFIGMODELSREF001234567890 /* ConfigModels.swift */,
+				AD3850ED3FCAE584917AB31A /* GraphLayoutEngine.swift */,
+				D730C2592B7B52A7F996C839 /* GraphPresentation.swift */,
+				123A9B4844CFDE99F3671FCD /* RalphCLIArgumentBuilder.swift */,
+				D0F8A199B3EEF4A2CB97AD30 /* RalphCLISpecModels.swift */,
+				17E11C62C03A57EA8ABB947A /* RalphJSONValue.swift */,
+				D3894EB508C519DFC807F920 /* RalphTaskModels.swift */,
+				82B59F7F19FEAA7840EE5B3D /* WorkspaceManager+AppDefaults.swift */,
+				99289B4BD3F8A85A15A3EB85 /* WorkspaceManager+Lifecycle.swift */,
+				E9E0879001AE71A6C4482AB6 /* WorkspaceManager+Restoration.swift */,
+				9F41DB5F428B9C899D2DC3B6 /* WorkspaceManager+Routing.swift */,
+				80B0725819CFCF3ECA230201 /* WorkspaceManager+Versioning.swift */,
 			);
 			path = RalphCore;
 			sourceTree = "<group>";
@@ -402,6 +489,14 @@
 				A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */,
 				WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */,
 				WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */,
+				58E8D3607BFD28F72C5E9344 /* CLIHealthCheckerTests.swift */,
+				87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */,
+				C739A307267F8D9F41171236 /* TimeoutConfigurationTests.swift */,
+				57A3F5A71B329E532B37574E /* WorkspaceCorePerformanceTests.swift */,
+				E8F87AC97D36BA700C78EB3D /* WorkspaceOfflineCachingTests.swift */,
+				2E2C5883E22BDB9AE4683A0C /* WorkspaceRunControlTests.swift */,
+				13E5C2ED7D03FC4696F7E341 /* WorkspaceRunnerConfigurationTests.swift */,
+				30412AD055A0A3EA93DF756C /* WorkspaceTaskMutationAgentTests.swift */,
 			);
 			path = RalphCoreTests;
 			sourceTree = "<group>";
@@ -470,6 +565,21 @@
 				94E7D1BF4A91545A54A06C1A /* ConsoleView.swift */,
 				A0C8497F9C98D1E54DE2DBF0 /* TaskExecutionOverridesSection.swift */,
 				D09515AC14F94350B766E15468824B54 /* TaskDecomposeView.swift */,
+				AA48F75E84AD1531DC4D4BB9 /* DependencyGraphAccessibilityView.swift */,
+				8D78AE2B0A8821C361BC7247 /* DependencyGraphCanvasView.swift */,
+				1AB97FA944D6D29C68F8839A /* DependencyGraphViewModel.swift */,
+				CEA88CA3C1D19F77EE6FDD31 /* KanbanTransientState.swift */,
+				6B2A6FA188F5AC6CE2F53870 /* RalphMacApp+Support.swift */,
+				D829F0927C6E804F11768DBB /* RalphMacApp+URLRouting.swift */,
+				1763D1C75A9390D695AB8C40 /* RalphMacCommands.swift */,
+				8FDE5AEE63017EB9E3B311E0 /* SettingsService.swift */,
+				7100D4A32B0E1C4AA77D7093 /* TaskDetailEditorState.swift */,
+				6E524E23088631B600921358 /* TaskDetailPresentation.swift */,
+				CE3542090D89C223E29D5DD5 /* TaskDetailSections.swift */,
+				1E544D263EEC94822C2BD83E /* TaskListSections.swift */,
+				498242EF7D786E99993EC742 /* TaskListTransientState.swift */,
+				AFA2742DF0B3AF124E467C28 /* WindowViewContainer.swift */,
+				E244DB04759B1EF7B8AA9990 /* WorkspaceWindowAnchor.swift */,
 			);
 			path = RalphMac;
 			sourceTree = "<group>";
@@ -479,6 +589,10 @@
 			children = (
 				UITESTSFF1123456789012345 /* RalphMacUITests.swift */,
 				UITESTSFF3345678901234567 /* RalphMacUITestsLaunchTests.swift */,
+				38AF699276C60CB8F9BE71F3 /* RalphMacUIConflictTests.swift */,
+				88A3280F3774A438F9AF9EA5 /* RalphMacUILaunchAndTaskFlowTests.swift */,
+				B457CE53E5E32E8183834647 /* RalphMacUINavigationAndKeyboardTests.swift */,
+				1DFECF0F188EABB3DF0A8522 /* RalphMacUIWindowRoutingTests.swift */,
 			);
 			path = RalphMacUITests;
 			sourceTree = "<group>";
@@ -694,6 +808,17 @@
 				3BCD64DD1FD0B5B8CCFD9875 /* CrashReporter.swift in Sources */,
 				A2AF6EF569D7C2ADDD8414C5 /* MenuBarManager.swift in Sources */,
 				CONFIGMODELS001234567890 /* ConfigModels.swift in Sources */,
+				1BF9E79F4485071E68C96DFC /* GraphLayoutEngine.swift in Sources */,
+				90AE38428DE5F70186892FFF /* GraphPresentation.swift in Sources */,
+				7F1B247EC44BEFF10FE578F5 /* RalphCLIArgumentBuilder.swift in Sources */,
+				74A1AB3F4B8F7300319739AE /* RalphCLISpecModels.swift in Sources */,
+				4E15E48DECEEA59204E69A22 /* RalphJSONValue.swift in Sources */,
+				C66DB99F2915374BB62733FA /* RalphTaskModels.swift in Sources */,
+				2A8D4CCD7E76823C47CE55D4 /* WorkspaceManager+AppDefaults.swift in Sources */,
+				5627775BA49A3867A6F779F6 /* WorkspaceManager+Lifecycle.swift in Sources */,
+				0D895B7046CFDB71021376D8 /* WorkspaceManager+Restoration.swift in Sources */,
+				3CD97ED5492F1998861E643B /* WorkspaceManager+Routing.swift in Sources */,
+				D13CD904D39A1EF601369C12 /* WorkspaceManager+Versioning.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -719,6 +844,14 @@
 				A9011001B2C3D4E5F6071805 /* TaskConflictResolutionTests.swift in Sources */,
 				WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */,
 				WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */,
+				94A6A25C9EFCB2C4BA2EAEB5 /* CLIHealthCheckerTests.swift in Sources */,
+				8845939354C5005EA32BF0BB /* ErrorRecoveryCategoryTests.swift in Sources */,
+				DC16DAA1BDC57EE79483F12A /* TimeoutConfigurationTests.swift in Sources */,
+				BA4DAD1BA3631E1351694BEB /* WorkspaceCorePerformanceTests.swift in Sources */,
+				A694F3F0E2099C84A74C6E8F /* WorkspaceOfflineCachingTests.swift in Sources */,
+				F8E9C54A0D15DA15A90B7403 /* WorkspaceRunControlTests.swift in Sources */,
+				A8D48D6992FD8E5F56018280 /* WorkspaceRunnerConfigurationTests.swift in Sources */,
+				A23FD428E057C0453557DD4A /* WorkspaceTaskMutationAgentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -774,6 +907,21 @@
 				E0A06224A60DB52B85109E99 /* WorkingDirectoryHeader.swift in Sources */,
 				D9F46037BDEF60ADEEF6EEA9 /* ConsoleView.swift in Sources */,
 				B46FBE1A725EA09170363A82 /* TaskExecutionOverridesSection.swift in Sources */,
+				3DC376DB93E9E2696CDF5493 /* DependencyGraphAccessibilityView.swift in Sources */,
+				2310E3C54261CF15EBDF9E50 /* DependencyGraphCanvasView.swift in Sources */,
+				96C8149938BD26BC5D7AEDC2 /* DependencyGraphViewModel.swift in Sources */,
+				90CEB62C49910ADBCC6E08F7 /* KanbanTransientState.swift in Sources */,
+				42E952AA6330EAF1A5FCB51B /* RalphMacApp+Support.swift in Sources */,
+				63AE5C2175CE9D4B3395BA5B /* RalphMacApp+URLRouting.swift in Sources */,
+				016793D1DBF90AA9EB4BFDE7 /* RalphMacCommands.swift in Sources */,
+				A216D62658610CB568691F35 /* SettingsService.swift in Sources */,
+				EB014802778C130BF234E981 /* TaskDetailEditorState.swift in Sources */,
+				84875E094931F8B72CE837A8 /* TaskDetailPresentation.swift in Sources */,
+				E244CD8201DECCF668192D1C /* TaskDetailSections.swift in Sources */,
+				560A0DB833FE2C06D56D4EEB /* TaskListSections.swift in Sources */,
+				C2511BE3E3F3E921526C80C2 /* TaskListTransientState.swift in Sources */,
+				D1F3590976853815B9AB283C /* WindowViewContainer.swift in Sources */,
+				AD182128A9C76DC60BA7ED7E /* WorkspaceWindowAnchor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -783,6 +931,10 @@
 			files = (
 				UITESTSBB0012345678901234 /* RalphMacUITests.swift in Sources */,
 				UITESTSBB2234567890123456 /* RalphMacUITestsLaunchTests.swift in Sources */,
+				06BA76F596A10AC6CFB3053A /* RalphMacUIConflictTests.swift in Sources */,
+				B9B5C4321751543C95899B9C /* RalphMacUILaunchAndTaskFlowTests.swift in Sources */,
+				84D2C60236102E8F761A2C09 /* RalphMacUINavigationAndKeyboardTests.swift in Sources */,
+				554C4F857BF6D0FF1B81D765 /* RalphMacUIWindowRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

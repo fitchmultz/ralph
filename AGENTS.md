@@ -247,6 +247,17 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 ### macOS App Window Routing
 - Active-window navigation/task commands should flow through focused scene values (`WorkspaceUIActions` / `WorkspaceWindowActions`), not process-wide `NotificationCenter` broadcasts.
 - Unfocused surfaces (menu bar, URL open, app lifecycle) should register and target scene actions through `WorkspaceSceneRouter`; queue pending workspace routes until the matching `WorkspaceView` registers.
+- `RalphMacApp.swift` is a thin shell only; keep menu commands in `RalphMacCommands.swift`, URL routing in `RalphMacApp+URLRouting.swift`, bootstrap/helpers in `RalphMacApp+Support.swift`, window root composition in `WindowViewContainer.swift`, and UI-test window policy in `WorkspaceWindowAnchor.swift`.
+- Settings-window orchestration belongs to `SettingsService.swift` + `ASettingsInfra.swift`; app/menu surfaces should call the service instead of constructing settings windows directly.
+
+### macOS App Surface Decomposition
+- `DependencyGraphView.swift` is presentation-only; graph data shaping lives in `RalphCore/GraphPresentation.swift`, layout simulation lives in `RalphCore/GraphLayoutEngine.swift`, and async view state lives in `DependencyGraphViewModel.swift`.
+- `TaskListView.swift` and `TaskDetailView.swift` should stay orchestration-only; move reusable subsections into `TaskListSections.swift` / `TaskDetailSections.swift` and transient edit/UI timing state into dedicated `*TransientState` or `*EditorState` owners.
+- `RalphModels.swift` is a facade only; CLI spec models, generic JSON values, argument-building helpers, and task-domain models live in dedicated `Ralph*.swift` files.
+- `WorkspaceManager.swift` is a facade over focused `WorkspaceManager+...` files for app defaults, lifecycle, restoration, routing, and versioning; avoid re-accumulating those concerns in the root type.
+
+### macOS Test Boundaries
+- Large app/UI suites should stay split by behavior area: launch/task-flow, navigation/keyboard, conflict handling, window routing, runner config/control, offline caching, performance, and error-recovery categories each belong in dedicated test files.
 
 ### macOS Task Presentation
 - Shared task filtering/sorting for list + kanban lives in `WorkspaceTaskPresentation`; prefer `workspace.taskPresentation()` when a render pass needs both flat and grouped task sets.

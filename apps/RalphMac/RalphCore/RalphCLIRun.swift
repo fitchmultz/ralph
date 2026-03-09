@@ -73,6 +73,10 @@ public actor RalphCLIRun {
     }
 
     public func cancel() {
+        cancel(gracePeriod: 2)
+    }
+
+    func cancel(gracePeriod: TimeInterval) {
         guard !didRequestCancel else { return }
         didRequestCancel = true
 
@@ -81,7 +85,7 @@ public actor RalphCLIRun {
 
         #if canImport(Darwin)
         let pid = process.processIdentifier
-        ioQueue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+        ioQueue.asyncAfter(deadline: .now() + gracePeriod) { [weak self] in
             guard let self else { return }
             Task { [weak self] in
                 await self?.killIfStillRunning(pid: pid)

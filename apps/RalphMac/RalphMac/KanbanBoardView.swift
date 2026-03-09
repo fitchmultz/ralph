@@ -27,10 +27,10 @@ struct KanbanBoardView: View {
     @Binding var selectedTaskID: String?
     let showTaskDetail: (String) -> Void
 
+    @StateObject private var transientState = KanbanTransientState()
     @State private var isUpdating = false
     @State private var updateError: String?
-    @State private var recentlyChangedTaskIDs: Set<String> = []
-    
+
     // MARK: - Keyboard Navigation State
     @State private var focusedColumnStatus: RalphTaskStatus = .todo
     @State private var focusedTaskID: String?
@@ -56,7 +56,7 @@ struct KanbanBoardView: View {
                             focusedTaskID = taskID
                             focusedColumnStatus = status
                         },
-                        highlightedTaskIDs: recentlyChangedTaskIDs,
+                        highlightedTaskIDs: transientState.highlightedTaskIDs,
                         focusedTaskID: focusedTaskID,
                         isFocusedColumn: focusedColumnStatus == status
                     )
@@ -124,7 +124,7 @@ struct KanbanBoardView: View {
             await workspace.loadTasks()
         }
         .task(id: workspace.lastQueueRefreshEvent?.id) {
-            await handleQueueRefreshEvent()
+            transientState.handleQueueRefreshEvent(workspace.lastQueueRefreshEvent)
         }
     }
 
@@ -148,26 +148,6 @@ struct KanbanBoardView: View {
         }
     }
 
-    private func handleQueueRefreshEvent() async {
-        guard let refreshEvent = workspace.lastQueueRefreshEvent,
-              refreshEvent.source == .externalFileChange else {
-            return
-        }
-
-        withAnimation(.easeInOut(duration: 0.3)) {
-            recentlyChangedTaskIDs = refreshEvent.highlightedTaskIDs
-        }
-
-        do {
-            try await Task.sleep(for: .milliseconds(2000))
-            withAnimation(.easeInOut(duration: 0.5)) {
-                recentlyChangedTaskIDs.removeAll()
-            }
-        } catch {
-            return
-        }
-    }
-    
     // MARK: - Keyboard Navigation
     
     private func navigateColumn(direction: Int) {

@@ -204,8 +204,7 @@ public struct RalphCLIClient: Sendable {
 
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(configuration.timeout * 1_000_000_000))
-                await run.cancel()
-                try await Task.sleep(nanoseconds: UInt64(configuration.terminationGracePeriod * 1_000_000_000))
+                await run.cancel(gracePeriod: configuration.terminationGracePeriod)
                 throw TimeoutError()
             }
 

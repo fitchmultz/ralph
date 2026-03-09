@@ -15,20 +15,6 @@ import SwiftUI
 import AppKit
 import RalphCore
 
-// MARK: - Settings Service Extension
-
-extension SettingsService {
-    /// Initializes the settings window system.
-    /// Overrides the default no-op implementation in RalphMacApp.swift.
-    static func initialize() {
-        _ = SettingsWindowController.shared
-    }
-
-    static func showSettingsWindow() {
-        SettingsWindowController.shared.show()
-    }
-}
-
 // MARK: - Settings Window Controller
 
 @MainActor

@@ -187,10 +187,30 @@ public extension RecoveryError {
                     ],
                     workspaceURL: workspaceURL
                 )
+            case .processError(let exitCode, let stderr):
+                let trimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return classifyProcessFailure(
+                        description: trimmed,
+                        operation: operation,
+                        workspaceURL: workspaceURL
+                    )
+                }
+
+                return RecoveryError(
+                    category: .unknown,
+                    message: "CLI command failed with exit code \(exitCode)",
+                    underlyingError: nil,
+                    operation: operation,
+                    suggestions: [
+                        "Check the logs for more details",
+                        "Try the operation again",
+                        "If the problem persists, consider reporting the issue"
+                    ],
+                    workspaceURL: workspaceURL
+                )
             case .underlying(let underlying):
                 return classify(error: underlying, operation: operation, workspaceURL: workspaceURL)
-            default:
-                break
             }
         }
 
@@ -203,6 +223,7 @@ public extension RecoveryError {
                     underlyingError: cliError.localizedDescription,
                     operation: operation,
                     suggestions: [
+                        "Ensure Ralph is installed correctly",
                         "Reinstall Ralph",
                         "Verify the app bundle contains the CLI",
                         "Check file permissions"
@@ -224,6 +245,20 @@ public extension RecoveryError {
             }
         }
 
+        if error is DecodingError {
+            return RecoveryError(
+                category: .parseError,
+                message: "Unable to parse CLI output",
+                underlyingError: error.localizedDescription,
+                operation: operation,
+                suggestions: [
+                    "Validate the queue file",
+                    "Check whether the CLI and app versions match"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
         let description = error.localizedDescription.lowercased()
         if description.contains("permission denied") {
             return RecoveryError(
@@ -234,6 +269,94 @@ public extension RecoveryError {
                 suggestions: [
                     "Check workspace directory permissions",
                     "Ensure Ralph can access the selected folder"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if description.contains("queue file") && description.contains("no such file") {
+            return RecoveryError(
+                category: .queueCorrupted,
+                message: "No Ralph queue file found",
+                underlyingError: error.localizedDescription,
+                operation: operation,
+                suggestions: [
+                    "Run `ralph init --non-interactive` to create queue files",
+                    "Verify you opened the correct workspace",
+                    "Restore the queue from backup if it was deleted unexpectedly"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if description.contains("queue") && (description.contains("corrupt") || description.contains("invalid")) {
+            return RecoveryError(
+                category: .queueCorrupted,
+                message: "Queue data appears corrupted",
+                underlyingError: error.localizedDescription,
+                operation: operation,
+                suggestions: [
+                    "Run queue validation",
+                    "Inspect recent manual edits to queue files",
+                    "Restore the queue from backup if needed"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if description.contains("version")
+            && (
+                description.contains("minimum supported version")
+                    || description.contains("newer than supported")
+                    || description.contains("too old")
+                    || description.contains("too new")
+            )
+        {
+            return RecoveryError(
+                category: .versionMismatch,
+                message: "Ralph CLI version is incompatible with this app",
+                underlyingError: error.localizedDescription,
+                operation: operation,
+                suggestions: [
+                    "Reinstall Ralph",
+                    "Verify the bundled CLI version matches the app"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if (error as NSError).domain == NSURLErrorDomain
+            || description.contains("network")
+            || description.contains("connection")
+            || description.contains("timed out")
+        {
+            return RecoveryError(
+                category: .networkError,
+                message: "Network operation failed",
+                underlyingError: error.localizedDescription,
+                operation: operation,
+                suggestions: [
+                    "Check your network connection",
+                    "Try the operation again",
+                    "If this persists, inspect logs for blocked operations"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if description.contains("resource temporarily unavailable")
+            || description.contains("resource busy")
+            || description.contains("file locked")
+        {
+            return RecoveryError(
+                category: .resourceBusy,
+                message: "Resource temporarily unavailable",
+                underlyingError: error.localizedDescription,
+                operation: operation,
+                suggestions: [
+                    "Wait a moment and retry",
+                    "Check if another process is using Ralph",
+                    "Close other Ralph windows that may be using the same workspace"
                 ],
                 workspaceURL: workspaceURL
             )
@@ -253,15 +376,66 @@ public extension RecoveryError {
             )
         }
 
-        if description.contains("queue") && (description.contains("corrupt") || description.contains("invalid")) {
+        return RecoveryError(
+            category: .unknown,
+            message: error.localizedDescription,
+            underlyingError: nil,
+            operation: operation,
+            suggestions: [
+                "Check the logs for more details",
+                "Try the operation again",
+                "If the problem persists, consider reporting the issue"
+            ],
+            workspaceURL: workspaceURL
+        )
+    }
+
+    private static func classifyProcessFailure(
+        description: String,
+        operation: String,
+        workspaceURL: URL?
+    ) -> RecoveryError {
+        let normalized = description.lowercased()
+
+        if normalized.contains("queue file") && normalized.contains("no such file") {
+            return RecoveryError(
+                category: .queueCorrupted,
+                message: "No Ralph queue file found",
+                underlyingError: description,
+                operation: operation,
+                suggestions: [
+                    "Run `ralph init --non-interactive` to create queue files",
+                    "Verify you opened the correct workspace",
+                    "Restore the queue from backup if it was deleted unexpectedly"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if normalized.contains("queue") && (normalized.contains("corrupt") || normalized.contains("invalid")) {
             return RecoveryError(
                 category: .queueCorrupted,
                 message: "Queue data appears corrupted",
-                underlyingError: error.localizedDescription,
+                underlyingError: description,
                 operation: operation,
                 suggestions: [
                     "Run queue validation",
-                    "Inspect recent manual edits to queue files"
+                    "Inspect recent manual edits to queue files",
+                    "Restore the queue from backup if needed"
+                ],
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if normalized.contains("parse") || normalized.contains("decode") || normalized.contains("json") {
+            return RecoveryError(
+                category: .parseError,
+                message: "Unable to parse CLI output",
+                underlyingError: description,
+                operation: operation,
+                suggestions: [
+                    "Validate the queue file",
+                    "Check whether the CLI and app versions match"
                 ],
                 workspaceURL: workspaceURL
             )
@@ -269,7 +443,7 @@ public extension RecoveryError {
 
         return RecoveryError(
             category: .unknown,
-            message: error.localizedDescription,
+            message: description,
             underlyingError: nil,
             operation: operation,
             suggestions: [
