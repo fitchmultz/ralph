@@ -2,25 +2,24 @@
  ConnectionStatusViews
 
  Responsibilities:
- - Display offline/connection status indicators for CLI availability.
- - Provide inline banner when CLI is unavailable or workspace is inaccessible.
- - Provide smaller inline indicator for sidebars and toolbars.
+ - Display workspace operational-health indicators for CLI, watcher, and persistence state.
+ - Provide inline banner when the workspace has degraded or failed runtime health.
+ - Provide smaller inline indicator for sidebars and toolbars plus a detailed health sheet.
 
  Does not handle:
- - Connection retry logic (delegated to parent via closures).
- - Health checking (handled by Workspace).
+ - Health repair logic (delegated to parent via closures).
+ - Computing operational-health summaries (handled by RalphCore).
 
  Invariants/assumptions callers must respect:
- - Status is passed in as CLIHealthStatus.
+ - Summary and issue lists are passed in from RalphCore.
  - Actions are provided via closures for retry/dismiss.
  */
 
 import SwiftUI
 import RalphCore
 
-/// Inline banner when CLI is unavailable or workspace is inaccessible
-struct OfflineStatusView: View {
-    let status: CLIHealthStatus
+struct OperationalStatusBannerView: View {
+    let summary: WorkspaceOperationalSummary
     let onRetry: () -> Void
     let onDismiss: (() -> Void)?
 
@@ -88,44 +87,30 @@ struct OfflineStatusView: View {
     }
 
     private var iconName: String {
-        switch status.availability {
-        case .available:
+        switch summary.primaryIssue?.source {
+        case .cli:
+            return "terminal.fill"
+        case .watcher:
+            return "dot.scope.display"
+        case .workspacePersistence, .appPersistence:
+            return "internaldrive.fill.badge.exclamationmark"
+        case .crashReporting:
+            return "waveform.path.ecg.rectangle.fill"
+        case nil:
             return "checkmark.circle.fill"
-        case .unavailable(let reason):
-            switch reason {
-            case .cliNotFound, .cliNotExecutable:
-                return "terminal.fill"
-            case .workspaceInaccessible:
-                return "folder.badge.questionmark"
-            case .permissionDenied:
-                return "lock.fill"
-            case .timeout:
-                return "clock.badge.exclamationmark.fill"
-            case .unknown:
-                return "exclamationmark.triangle.fill"
-            }
-        case .unknown:
-            return "questionmark.circle.fill"
         }
     }
 
     private var iconColor: Color {
-        switch status.availability {
-        case .available:
+        switch summary.severity {
+        case .error:
+            return .red
+        case .warning:
+            return .orange
+        case .info:
+            return .blue
+        case nil:
             return .green
-        case .unavailable(let reason):
-            switch reason {
-            case .cliNotFound, .cliNotExecutable:
-                return .orange
-            case .workspaceInaccessible, .permissionDenied:
-                return .red
-            case .timeout:
-                return .yellow
-            case .unknown:
-                return .gray
-            }
-        case .unknown:
-            return .gray
         }
     }
 
@@ -133,70 +118,143 @@ struct OfflineStatusView: View {
     private var borderColor: Color { iconColor }
 
     private var title: String {
-        switch status.availability {
-        case .available:
-            return "Connected"
-        case .unavailable(let reason):
-            switch reason {
-            case .cliNotFound, .cliNotExecutable:
-                return "Ralph CLI Unavailable"
-            case .workspaceInaccessible:
-                return "Workspace Inaccessible"
-            case .permissionDenied:
-                return "Permission Denied"
-            case .timeout:
-                return "Connection Timed Out"
-            case .unknown:
-                return "Connection Issue"
-            }
-        case .unknown:
-            return "Checking Connection..."
-        }
+        summary.title
     }
 
     private var subtitle: String? {
-        switch status.availability {
-        case .available:
-            return "All systems operational"
-        case .unavailable(let reason):
-            switch reason {
-            case .cliNotFound:
-                return "The ralph executable could not be found"
-            case .cliNotExecutable:
-                return "The ralph executable is not runnable"
-            case .workspaceInaccessible:
-                return "Cannot access the workspace directory"
-            case .permissionDenied:
-                return "Check file permissions for this workspace"
-            case .timeout:
-                return "The operation took too long to respond"
-            case .unknown(let description):
-                return description
-            }
-        case .unknown:
-            return nil
-        }
+        summary.subtitle
     }
 }
 
 /// Smaller inline indicator for use in sidebars/toolbars
 struct ConnectionStatusIndicator: View {
-    let isAvailable: Bool
+    let summary: WorkspaceOperationalSummary
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
                 Circle()
-                    .fill(isAvailable ? Color.green : Color.orange)
+                    .fill(statusColor)
                     .frame(width: 8, height: 8)
 
-                Text(isAvailable ? "Connected" : "Offline")
+                Text(statusLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .buttonStyle(.plain)
-        .help(isAvailable ? "CLI is available" : "CLI is unavailable - click for details")
+        .help(summary.isHealthy ? "Workspace operational health is healthy" : "Workspace has active operational issues")
+    }
+
+    private var statusColor: Color {
+        switch summary.severity {
+        case .error:
+            return .red
+        case .warning:
+            return .orange
+        case .info:
+            return .blue
+        case nil:
+            return .green
+        }
+    }
+
+    private var statusLabel: String {
+        switch summary.severity {
+        case .error:
+            return "Degraded"
+        case .warning:
+            return "Watching"
+        case .info:
+            return "Starting"
+        case nil:
+            return "Healthy"
+        }
+    }
+}
+
+struct OperationalHealthSheet: View {
+    let workspaceName: String
+    let summary: WorkspaceOperationalSummary
+    let issues: [WorkspaceOperationalIssue]
+    let watcherHealth: QueueWatcherHealth
+    let cliHealthStatus: CLIHealthStatus?
+    let onRepair: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Summary") {
+                    LabeledContent("Workspace", value: workspaceName)
+                    LabeledContent("Status", value: summary.severity?.statusText ?? "Healthy")
+                    LabeledContent("Watcher", value: watcherStatusText)
+                    LabeledContent("CLI", value: cliStatusText)
+                }
+
+                Section("Active Issues") {
+                    if issues.isEmpty {
+                        Text("No active operational issues.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(issues) { issue in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(issue.title)
+                                    .font(.headline)
+                                Text(issue.message)
+                                    .font(.subheadline)
+                                if let recoverySuggestion = issue.recoverySuggestion {
+                                    Text(recoverySuggestion)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Operational Health")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Repair") { onRepair() }
+                }
+            }
+        }
+        .frame(minWidth: 520, minHeight: 360)
+    }
+
+    private var watcherStatusText: String {
+        switch watcherHealth.state {
+        case .idle:
+            return "Idle"
+        case .starting(let attempt):
+            return "Starting (attempt \(attempt))"
+        case .watching:
+            return "Watching"
+        case .degraded(_, let retryCount, _):
+            return "Retrying (\(retryCount))"
+        case .failed(_, let attempts):
+            return "Failed after \(attempts)"
+        case .stopped:
+            return "Stopped"
+        }
+    }
+
+    private var cliStatusText: String {
+        guard let cliHealthStatus else { return "Unknown" }
+        switch cliHealthStatus.availability {
+        case .available:
+            return "Available"
+        case .unavailable:
+            return "Unavailable"
+        case .unknown:
+            return "Unknown"
+        }
     }
 }

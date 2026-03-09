@@ -572,6 +572,88 @@ final class WorkspacePerformanceTests: XCTestCase {
         XCTAssertEqual(workspace.stopAfterCurrent, true)
     }
 
+    func test_startLoop_schedulesNextRunWithoutSleepDelay() async throws {
+        let tempDir = try Self.makeTempDir(prefix: "ralph-workspace-loop-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let stateURL = tempDir.appendingPathComponent("loop-state.txt")
+
+        let script = """
+            #!/bin/sh
+            state_file="\(stateURL.path)"
+
+            if [ "$2" = "config" ] && [ "$3" = "show" ]; then
+              echo '{"agent":{"model":"model-test","iterations":2}}'
+              exit 0
+            fi
+
+            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--dry-run" ]; then
+              if [ ! -f "$state_file" ]; then
+                echo "Dry run: would run RQ-LOOP-1"
+              else
+                echo "Dry run: would run RQ-LOOP-2"
+              fi
+              exit 0
+            fi
+
+            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--id" ] && [ "$5" = "RQ-LOOP-1" ]; then
+              echo "running first"
+              echo "done" > "$state_file"
+              exit 0
+            fi
+
+            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--id" ] && [ "$5" = "RQ-LOOP-2" ]; then
+              echo "running second"
+              exit 64
+            fi
+
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try Self.makeExecutableScript(
+            in: tempDir,
+            name: "mock-ralph-loop",
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        let workspace = Workspace(workingDirectoryURL: tempDir, client: client)
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+
+        let startedAt = Date()
+        workspace.startLoop()
+
+        await Self.waitFor(timeout: 0.75) {
+            workspace.output.contains("running second")
+        }
+
+        XCTAssertLessThan(Date().timeIntervalSince(startedAt), 0.9)
+
+        await Self.waitFor(timeout: 2.0) {
+            !workspace.isRunning
+        }
+
+        XCTAssertTrue(workspace.output.contains("running first"))
+        XCTAssertTrue(workspace.output.contains("running second"))
+        XCTAssertEqual(workspace.lastExitStatus?.code, 64)
+        XCTAssertFalse(workspace.isLoopMode)
+    }
+
+    func test_updateWatcherHealth_surfacesOperationalIssue() {
+        let workspace = Workspace(
+            workingDirectoryURL: URL(fileURLWithPath: "/tmp/ralph-operational-\(UUID().uuidString)")
+        )
+
+        workspace.updateWatcherHealth(
+            QueueWatcherHealth(
+                state: .failed(reason: "stream bootstrap failed", attempts: 3),
+                workingDirectoryURL: workspace.workingDirectoryURL
+            )
+        )
+
+        XCTAssertEqual(workspace.operationalSummary.severity, .error)
+        XCTAssertEqual(workspace.operationalIssues.first?.source, .watcher)
+        XCTAssertEqual(workspace.operationalIssues.first?.title, "Queue watcher failed")
+    }
+
     // MARK: - Task Mutation Agent Override Tests
 
     func test_updateTask_agentOverride_emitsAgentEditCommand() async throws {

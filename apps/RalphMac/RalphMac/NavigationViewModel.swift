@@ -187,19 +187,16 @@ public final class NavigationViewModel: ObservableObject {
     }
 
     private func saveNavigationState() {
-        // Debounce saves to avoid excessive writes during rapid changes
-        Task { @MainActor in
-            let state = NavigationState(
-                version: navigationStateVersion,
-                selectedSection: selectedSection,
-                taskViewMode: taskViewMode,
-                selectedTaskID: selectedTaskID,
-                selectedTaskIDs: Array(selectedTaskIDs)
-            )
+        let state = NavigationState(
+            version: navigationStateVersion,
+            selectedSection: selectedSection,
+            taskViewMode: taskViewMode,
+            selectedTaskID: selectedTaskID,
+            selectedTaskIDs: Array(selectedTaskIDs)
+        )
 
-            if let data = try? JSONEncoder().encode(state) {
-                RalphAppDefaults.userDefaults.set(data, forKey: stateKey)
-            }
+        if let data = try? JSONEncoder().encode(state) {
+            RalphAppDefaults.userDefaults.set(data, forKey: stateKey)
         }
     }
 

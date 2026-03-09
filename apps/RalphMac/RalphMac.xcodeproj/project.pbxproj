@@ -92,6 +92,10 @@
 		A9011001B2C3D4E5F6071803 /* WorkspaceDiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */; };
 		A9011001B2C3D4E5F6071804 /* AnalyticsDashboardStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */; };
 		A9011001B2C3D4E5F6071805 /* TaskConflictResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */; };
+		A9020001B2C3D4E5F6071801 /* WorkspaceOperationalHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9020001B2C3D4E5F6071811 /* WorkspaceOperationalHealth.swift */; };
+		A9020001B2C3D4E5F6071802 /* WorkspaceQueueRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9020001B2C3D4E5F6071812 /* WorkspaceQueueRuntime.swift */; };
+		A9020001B2C3D4E5F6071803 /* WorkspaceRunnerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9020001B2C3D4E5F6071813 /* WorkspaceRunnerController.swift */; };
+		A9020001B2C3D4E5F6071804 /* WorkspaceSceneRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9020001B2C3D4E5F6071814 /* WorkspaceSceneRouter.swift */; };
 		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
 		D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1144436E84A467CACB42516A /* NavigationViewModel.swift */; };
 		D9F46037BDEF60ADEEF6EEA9 /* ConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E7D1BF4A91545A54A06C1A /* ConsoleView.swift */; };
@@ -226,6 +230,10 @@
 		A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiagnosticsService.swift; sourceTree = "<group>"; };
 		A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardStateTests.swift; sourceTree = "<group>"; };
 		A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolutionTests.swift; sourceTree = "<group>"; };
+		A9020001B2C3D4E5F6071811 /* WorkspaceOperationalHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOperationalHealth.swift; sourceTree = "<group>"; };
+		A9020001B2C3D4E5F6071812 /* WorkspaceQueueRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueRuntime.swift; sourceTree = "<group>"; };
+		A9020001B2C3D4E5F6071813 /* WorkspaceRunnerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunnerController.swift; sourceTree = "<group>"; };
+		A9020001B2C3D4E5F6071814 /* WorkspaceSceneRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSceneRouter.swift; sourceTree = "<group>"; };
 		ASETTINGSINFRAREF0012345678900 /* ASettingsInfra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASettingsInfra.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueFileWatcher.swift; sourceTree = "<group>"; };
 		B2C3D4E5F60718G9H0I1J2K3 /* BulkActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BulkActionsView.swift; path = RalphMac/BulkActionsView.swift; sourceTree = "<group>"; };
@@ -356,6 +364,10 @@
 				A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */,
 				0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */,
 				0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */,
+				A9020001B2C3D4E5F6071811 /* WorkspaceOperationalHealth.swift */,
+				A9020001B2C3D4E5F6071812 /* WorkspaceQueueRuntime.swift */,
+				A9020001B2C3D4E5F6071813 /* WorkspaceRunnerController.swift */,
+				A9020001B2C3D4E5F6071814 /* WorkspaceSceneRouter.swift */,
 				C52C942A1CA040208A1757FF /* WorkspaceManager.swift */,
 				4501A6DA17EA418787F9BC9C /* WindowState.swift */,
 				B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */,
@@ -668,6 +680,10 @@
 				A9011001B2C3D4E5F6071803 /* WorkspaceDiagnosticsService.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F904 /* WorkspaceQueueSnapshotLoader.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */,
+				A9020001B2C3D4E5F6071801 /* WorkspaceOperationalHealth.swift in Sources */,
+				A9020001B2C3D4E5F6071802 /* WorkspaceQueueRuntime.swift in Sources */,
+				A9020001B2C3D4E5F6071803 /* WorkspaceRunnerController.swift in Sources */,
+				A9020001B2C3D4E5F6071804 /* WorkspaceSceneRouter.swift in Sources */,
 				5B9E3F2A9C4D5E67B8F90123 /* WorkspaceManager.swift in Sources */,
 				6CAF4A3B0D5E6F78C9012345 /* WindowState.swift in Sources */,
 				A1234567890ABCDEF1234567 /* QueueFileWatcher.swift in Sources */,

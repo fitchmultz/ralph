@@ -3,342 +3,399 @@
 
  Responsibilities:
  - Monitor `.ralph/queue.{json,jsonc}`, `.ralph/done.{json,jsonc}`, and `.ralph/config.{json,jsonc}` for external changes using FSEvents.
- - Invoke workspace callbacks when files change with debouncing to batch rapid changes.
- - Handle file system events efficiently with minimal resource usage.
- - Retry FSEvent stream creation on transient failures (up to 3 attempts with exponential backoff).
+ - Emit typed watcher health and file-change events through a single async event stream.
+ - Retry FSEvent stream creation on transient failures without exposing unsafe shared mutable state.
 
  Does not handle:
- - Direct UI updates (delegates via workspace-owned callbacks).
- - Parsing or interpreting file contents.
+ - Parsing or interpreting queue contents.
+ - Main-actor UI updates.
+ - Workspace retry/recovery policy beyond watcher startup retries.
 
  Invariants/assumptions callers must respect:
- - start() must be called to begin monitoring; stop() to clean up.
- - Debounce interval batches multiple rapid changes into single notification.
- - Callbacks occur on the main actor.
- - Stream creation failures are retried automatically; max retries will result in silent failure.
+ - Call `start()` before consuming live file-change events.
+ - Stop or drop the watcher when the owning workspace no longer needs observation.
+ - Event consumers should treat `.failed` watcher health as a stale-data risk that needs surfaced remediation.
  */
 
 public import Foundation
 import CoreServices
-import OSLog
 
-@MainActor
 public final class QueueFileWatcher: Sendable {
-    // MARK: - Types
+    public struct FileChangeBatch: Sendable, Equatable {
+        public let fileNames: Set<String>
 
-    private final class CallbackContext: @unchecked Sendable {
-        weak var watcher: QueueFileWatcher?
+        public init(fileNames: Set<String>) {
+            self.fileNames = fileNames
+        }
 
-        init(watcher: QueueFileWatcher) {
-            self.watcher = watcher
+        public var affectsQueueSnapshot: Bool {
+            !fileNames.isDisjoint(with: ["queue.json", "queue.jsonc", "done.json", "done.jsonc"])
+        }
+
+        public var affectsRunnerConfiguration: Bool {
+            !fileNames.isDisjoint(with: ["config.json", "config.jsonc"])
+        }
+
+        func merged(with other: FileChangeBatch) -> FileChangeBatch {
+            FileChangeBatch(fileNames: fileNames.union(other.fileNames))
         }
     }
 
-    public struct ChangeEvent: Sendable {
-        public let fileURL: URL
-        public let changeType: ChangeType
+    public enum Event: Sendable, Equatable {
+        case healthChanged(QueueWatcherHealth)
+        case filesChanged(FileChangeBatch)
+    }
 
-        public enum ChangeType: Sendable {
-            case modified
-            case renamed
-            case deleted
+    public struct Configuration: Sendable {
+        public let debounceInterval: Duration
+        public let retryBaseDelay: Duration
+        public let maxStartAttempts: Int
+        public let streamLatency: CFTimeInterval
+
+        public init(
+            debounceInterval: Duration = .milliseconds(500),
+            retryBaseDelay: Duration = .milliseconds(500),
+            maxStartAttempts: Int = 3,
+            streamLatency: CFTimeInterval = 0.1
+        ) {
+            self.debounceInterval = debounceInterval
+            self.retryBaseDelay = retryBaseDelay
+            self.maxStartAttempts = maxStartAttempts
+            self.streamLatency = streamLatency
         }
     }
 
-    // MARK: - Properties
+    struct StreamSystem: Sendable {
+        let create: @Sendable (
+            FSEventStreamCallback,
+            UnsafeMutablePointer<FSEventStreamContext>,
+            [NSString],
+            CFTimeInterval,
+            FSEventStreamCreateFlags
+        ) -> FSEventStreamRef?
+        let setDispatchQueue: @Sendable (FSEventStreamRef, DispatchQueue) -> Void
+        let start: @Sendable (FSEventStreamRef) -> Bool
+        let stop: @Sendable (FSEventStreamRef) -> Void
+        let invalidate: @Sendable (FSEventStreamRef) -> Void
 
-    // FSEvents state is accessed from callback queue and main actor
-    private nonisolated(unsafe) var stream: FSEventStreamRef?
-    // Mutable working directory - accessed only from callbackQueue.sync blocks
-    // Marked as nonisolated(unsafe) because access is serialized via callbackQueue
-    private nonisolated(unsafe) var workingDirectoryURL: URL
-    private nonisolated let debounceInterval: TimeInterval = 0.5  // 500ms debounce
+        static let live = StreamSystem(
+            create: { callback, context, paths, latency, flags in
+                FSEventStreamCreate(
+                    kCFAllocatorDefault,
+                    callback,
+                    context,
+                    paths as CFArray,
+                    FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+                    latency,
+                    flags
+                )
+            },
+            setDispatchQueue: { stream, queue in
+                FSEventStreamSetDispatchQueue(stream, queue)
+            },
+            start: { stream in
+                FSEventStreamStart(stream)
+            },
+            stop: { stream in
+                FSEventStreamStop(stream)
+            },
+            invalidate: { stream in
+                FSEventStreamInvalidate(stream)
+            }
+        )
+    }
 
-    // Shared state protected by lock (accessed from callback queue and main actor via debounce)
-    private let lock = NSLock()
-    private nonisolated(unsafe) var pendingChanges: Set<String> = []
-    private nonisolated(unsafe) var debounceWorkItem: DispatchWorkItem?
-    private nonisolated(unsafe) var callbackContext: CallbackContext?
-    private nonisolated(unsafe) var shouldWatch = false
+    public let events: AsyncStream<Event>
 
-    // Dispatch queue for FSEvents callbacks (must be nonisolated for C callback compatibility)
-    private nonisolated let callbackQueue: DispatchQueue
-    private nonisolated static let callbackQueueKey = DispatchSpecificKey<UInt8>()
-    private nonisolated static let streamRetainCallback: CFAllocatorRetainCallBack = { info in
+    private let continuation: AsyncStream<Event>.Continuation
+    private let runtime: QueueFileWatcherRuntime
+
+    public convenience init(
+        workingDirectoryURL: URL,
+        configuration: Configuration = Configuration()
+    ) {
+        self.init(
+            workingDirectoryURL: workingDirectoryURL,
+            configuration: configuration,
+            system: .live
+        )
+    }
+
+    init(
+        workingDirectoryURL: URL,
+        configuration: Configuration,
+        system: StreamSystem
+    ) {
+        let stream = AsyncStream.makeStream(of: Event.self)
+        self.events = stream.stream
+        self.continuation = stream.continuation
+        self.runtime = QueueFileWatcherRuntime(
+            workingDirectoryURL: workingDirectoryURL,
+            configuration: configuration,
+            system: system,
+            emit: { stream.continuation.yield($0) }
+        )
+    }
+
+    deinit {
+        let runtime = self.runtime
+        continuation.finish()
+        Task {
+            await runtime.stop()
+        }
+    }
+
+    public func start() async {
+        await runtime.start()
+    }
+
+    public func stop() async {
+        await runtime.stop()
+    }
+
+    public func updateWorkingDirectory(_ url: URL) async {
+        await runtime.updateWorkingDirectory(url)
+    }
+}
+
+private final class CallbackContext: @unchecked Sendable {
+    let forward: @Sendable ([String], [FSEventStreamEventFlags]) -> Void
+
+    init(forward: @escaping @Sendable ([String], [FSEventStreamEventFlags]) -> Void) {
+        self.forward = forward
+    }
+}
+
+private actor QueueFileWatcherRuntime {
+    private static let callback: FSEventStreamCallback = { _, info, numEvents, eventPaths, eventFlags, _ in
+        guard let info else { return }
+        let context = Unmanaged<CallbackContext>.fromOpaque(info).takeUnretainedValue()
+        guard let paths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as? [String] else {
+            return
+        }
+        let flags = (0..<numEvents).map { eventFlags[$0] }
+        context.forward(paths, flags)
+    }
+
+    private static let retainCallback: CFAllocatorRetainCallBack = { info in
         guard let info else { return nil }
         _ = Unmanaged<CallbackContext>.fromOpaque(info).retain()
         return UnsafeRawPointer(info)
     }
-    private nonisolated static let streamReleaseCallback: CFAllocatorReleaseCallBack = { info in
+
+    private static let releaseCallback: CFAllocatorReleaseCallBack = { info in
         guard let info else { return }
         Unmanaged<CallbackContext>.fromOpaque(info).release()
     }
 
-    /// Callback invoked on MainActor when file changes are detected (after debounce)
-    public var onFileChanged: (@MainActor () -> Void)?
+    private let configuration: QueueFileWatcher.Configuration
+    private let system: QueueFileWatcher.StreamSystem
+    private let callbackQueue: DispatchQueue
+    private let emit: @Sendable (QueueFileWatcher.Event) -> Void
+    private let relevantFiles = Set([
+        "queue.json", "queue.jsonc",
+        "done.json", "done.jsonc",
+        "config.json", "config.jsonc",
+    ])
 
-    /// Whether the watcher is currently active
-    public private(set) var isWatching = false
-    
-    // Retry state for stream creation
-    private nonisolated(unsafe) var streamStartAttempts = 0
-    private nonisolated let maxStreamStartAttempts = 3
+    private var workingDirectoryURL: URL
+    private var stream: FSEventStreamRef?
+    private var callbackContext: CallbackContext?
+    private var shouldWatch = false
+    private var pendingChanges = Set<String>()
+    private var debounceTask: Task<Void, Never>?
+    private var retryTask: Task<Void, Never>?
+    private var startAttempts = 0
 
-    // MARK: - Initialization
-
-    public init(workingDirectoryURL: URL) {
+    init(
+        workingDirectoryURL: URL,
+        configuration: QueueFileWatcher.Configuration,
+        system: QueueFileWatcher.StreamSystem,
+        emit: @escaping @Sendable (QueueFileWatcher.Event) -> Void
+    ) {
         self.workingDirectoryURL = workingDirectoryURL
-        self.callbackQueue = DispatchQueue(label: "com.mitchfultz.ralph.filewatcher.\(workingDirectoryURL.lastPathComponent)")
-        self.callbackQueue.setSpecific(key: Self.callbackQueueKey, value: 1)
+        self.configuration = configuration
+        self.system = system
+        self.callbackQueue = DispatchQueue(
+            label: "com.mitchfultz.ralph.filewatcher.\(workingDirectoryURL.lastPathComponent)"
+        )
+        self.emit = emit
     }
 
-    deinit {
-        // Ensure teardown runs serialized on callbackQueue to avoid data races.
-        if DispatchQueue.getSpecific(key: Self.callbackQueueKey) != nil {
-            stopInternal()
-        } else {
-            callbackQueue.sync { [self] in
-                stopInternal()
-            }
-        }
-    }
-
-    // MARK: - Public Methods
-
-    /// Start watching the queue files for changes
-    public func start() {
-        callbackQueue.sync { [weak self] in
-            guard let self else { return }
-            self.startInternal()
-        }
-    }
-
-    /// Stop watching and clean up resources
-    public func stop() {
-        callbackQueue.sync { [weak self] in
-            guard let self else { return }
-            self.stopInternal()
-        }
-    }
-
-    /// Update the working directory and restart watching if active
-    public func updateWorkingDirectory(_ url: URL) {
-        callbackQueue.sync { [weak self] in
-            guard let self else { return }
-            let wasWatching = self.stream != nil
-            self.stopInternal()
-            self.workingDirectoryURL = url
-            if wasWatching {
-                self.startInternal()
-            }
-        }
-    }
-
-    // MARK: - Internal Methods (called from callbackQueue.sync blocks)
-
-    private nonisolated func startInternal() {
+    func start() {
+        guard !shouldWatch else { return }
         shouldWatch = true
-        guard stream == nil else { return }
-
-        attemptStreamStart()
+        emitHealth(.starting(attempt: max(startAttempts + 1, 1)))
+        attemptStart()
     }
-    
-    private nonisolated func attemptStreamStart() {
-        guard shouldWatch else { return }
 
-        let queueDir = workingDirectoryURL.appendingPathComponent(".ralph")
-        let pathsToWatch = [queueDir.path as NSString]
-        let callbackContext = CallbackContext(watcher: self)
-        self.callbackContext = callbackContext
+    func stop() {
+        shouldWatch = false
+        startAttempts = 0
+        retryTask?.cancel()
+        retryTask = nil
+        debounceTask?.cancel()
+        debounceTask = nil
+        pendingChanges.removeAll()
 
-        // Create context with self reference
-        var context = FSEventStreamContext(
+        if let stream {
+            system.stop(stream)
+            system.invalidate(stream)
+        }
+        stream = nil
+        callbackContext = nil
+        emitHealth(.stopped)
+    }
+
+    func updateWorkingDirectory(_ url: URL) {
+        let wasWatching = shouldWatch
+        stop()
+        workingDirectoryURL = url
+        if wasWatching {
+            start()
+        } else {
+            emitHealth(.idle)
+        }
+    }
+
+    private func attemptStart() {
+        guard shouldWatch, stream == nil else { return }
+
+        let queueDir = workingDirectoryURL.appendingPathComponent(".ralph", isDirectory: true)
+        let context = CallbackContext { [weak self] paths, flags in
+            guard let self else { return }
+            Task {
+                await self.handleFSEvents(paths: paths, flags: flags)
+            }
+        }
+        callbackContext = context
+
+        var streamContext = FSEventStreamContext(
             version: 0,
-            info: Unmanaged.passRetained(callbackContext).toOpaque(),
-            retain: Self.streamRetainCallback,
-            release: Self.streamReleaseCallback,
+            info: Unmanaged.passRetained(context).toOpaque(),
+            retain: Self.retainCallback,
+            release: Self.releaseCallback,
             copyDescription: nil
         )
 
-        // Create the event stream
-        self.stream = FSEventStreamCreate(
-            kCFAllocatorDefault,
-            { (_, clientCallBackInfo, numEvents, eventPaths, eventFlags, _) in
-                guard let info = clientCallBackInfo else { return }
-                let callbackContext = Unmanaged<CallbackContext>.fromOpaque(info).takeUnretainedValue()
-                guard let watcher = callbackContext.watcher else { return }
-                watcher.handleFSEvents(
-                    numEvents: numEvents,
-                    eventPaths: eventPaths,
-                    eventFlags: eventFlags
-                )
-            },
-            &context,
-            pathsToWatch as CFArray,
-            FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
-            0.1,  // Latency in seconds
-            FSEventStreamCreateFlags(
-                kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
+        let flags = FSEventStreamCreateFlags(
+            kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes
         )
-
-        guard let stream = self.stream else {
-            handleStreamCreationFailure("Failed to create FSEvent stream")
+        guard let createdStream = system.create(
+            Self.callback,
+            &streamContext,
+            [queueDir.path as NSString],
+            configuration.streamLatency,
+            flags
+        ) else {
+            handleStartFailure(reason: "Failed to create FSEvent stream")
             return
         }
 
-        // Use dispatch queue instead of run loop (modern approach)
-        FSEventStreamSetDispatchQueue(stream, self.callbackQueue)
-
-        guard FSEventStreamStart(stream) else {
-            handleStreamStartFailure(stream, reason: "Failed to start FSEvent stream")
+        system.setDispatchQueue(createdStream, callbackQueue)
+        guard system.start(createdStream) else {
+            system.invalidate(createdStream)
+            handleStartFailure(reason: "Failed to start FSEvent stream")
             return
         }
 
-        // Reset attempts on success
-        streamStartAttempts = 0
-
-        // Update isWatching on main actor
-        Task { @MainActor [weak self] in
-            self?.isWatching = true
-        }
+        stream = createdStream
+        startAttempts = 0
+        retryTask?.cancel()
+        retryTask = nil
+        emitHealth(.watching)
         RalphLogger.shared.info("Started watching \(queueDir.path)", category: .fileWatching)
     }
-    
-    private nonisolated func handleStreamCreationFailure(_ reason: String) {
+
+    private func handleStartFailure(reason: String) {
+        stream = nil
+        callbackContext = nil
+        startAttempts += 1
+
         guard shouldWatch else { return }
-
-        streamStartAttempts += 1
-        
-        if streamStartAttempts < maxStreamStartAttempts {
-            let delay = Double(streamStartAttempts) * 0.5 // 0.5s, 1s, 1.5s
-            RalphLogger.shared.info("FSEvent stream creation failed: \(reason). Retrying in \(delay)s (attempt \(streamStartAttempts)/\(maxStreamStartAttempts))", category: .fileWatching)
-            
-            callbackQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let self, self.shouldWatch else { return }
-                self.attemptStreamStart()
-            }
-        } else {
-            RalphLogger.shared.error("FSEvent stream creation failed: \(reason). Max retries exceeded.", category: .fileWatching)
-        }
-    }
-    
-    private nonisolated func handleStreamStartFailure(_ stream: FSEventStreamRef, reason: String) {
-        FSEventStreamInvalidate(stream)
-        self.stream = nil
-        self.callbackContext = nil
-        handleStreamCreationFailure(reason)
-    }
-    
-
-    private nonisolated func stopInternal() {
-        shouldWatch = false
-        streamStartAttempts = 0
-
-        if let stream = self.stream {
-            FSEventStreamStop(stream)
-            FSEventStreamInvalidate(stream)
-            // Don't release since we're using dispatch queue
+        guard startAttempts < configuration.maxStartAttempts else {
+            emitHealth(.failed(reason: reason, attempts: startAttempts))
+            RalphLogger.shared.error(
+                "Queue watcher failed after \(startAttempts) attempts: \(reason)",
+                category: .fileWatching
+            )
+            return
         }
 
-        self.stream = nil
-        self.callbackContext = nil
+        let delay = configuration.retryBaseDelay * startAttempts
+        let nextRetryAt = Date().addingTimeInterval(delay.timeInterval)
+        emitHealth(.degraded(reason: reason, retryCount: startAttempts, nextRetryAt: nextRetryAt))
+        RalphLogger.shared.info(
+            "Queue watcher retrying after failure: \(reason) (attempt \(startAttempts)/\(configuration.maxStartAttempts))",
+            category: .fileWatching
+        )
 
-        // Update isWatching on main actor
-        Task { @MainActor [weak self] in
-            self?.isWatching = false
-        }
-
-        // Clean up debounce work item
-        lock.withLock {
-            self.debounceWorkItem?.cancel()
-            self.debounceWorkItem = nil
-            self.pendingChanges.removeAll()
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: delay)
+            await self.attemptStart()
         }
     }
 
-    // MARK: - Private Methods
-
-    private nonisolated func handleFSEvents(
-        numEvents: Int, eventPaths: UnsafeMutableRawPointer,
-        eventFlags: UnsafePointer<FSEventStreamEventFlags>
+    private func handleFSEvents(
+        paths: [String],
+        flags: [FSEventStreamEventFlags]
     ) {
         guard shouldWatch, stream != nil else { return }
 
-        guard let paths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as? [String]
-        else {
-            return
+        for (path, flag) in zip(paths, flags) {
+            let fileName = URL(fileURLWithPath: path).lastPathComponent
+            guard relevantFiles.contains(fileName) else { continue }
+            guard isRelevantChange(flag) else { continue }
+            pendingChanges.insert(fileName)
         }
 
-        let relevantFiles = ["queue.json", "queue.jsonc", "done.json", "done.jsonc", "config.json", "config.jsonc"]
-        var hasRelevantChange = false
+        guard !pendingChanges.isEmpty else { return }
+        scheduleDebounce()
+    }
 
-        for i in 0..<numEvents {
-            let path = paths[i]
-            let flags = eventFlags[i]
-
-            // Check if this is one of our target files
-            guard relevantFiles.contains(where: { path.hasSuffix($0) }) else {
-                continue
-            }
-
-            // Check for modification or creation events
-            let isModified = (flags & UInt32(kFSEventStreamEventFlagItemModified)) != 0
-            let isCreated = (flags & UInt32(kFSEventStreamEventFlagItemCreated)) != 0
-            let isRenamed = (flags & UInt32(kFSEventStreamEventFlagItemRenamed)) != 0
-            let isRemoved = (flags & UInt32(kFSEventStreamEventFlagItemRemoved)) != 0
-
-            if isModified || isCreated || isRenamed || isRemoved {
-                hasRelevantChange = true
-                _ = lock.withLock {
-                    pendingChanges.insert(path)
-                }
-            }
-        }
-
-        if hasRelevantChange {
-            scheduleDebouncedNotification()
+    private func scheduleDebounce() {
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: configuration.debounceInterval)
+            await self.flushPendingChanges()
         }
     }
 
-    private nonisolated func scheduleDebouncedNotification() {
-        guard shouldWatch else { return }
+    private func flushPendingChanges() {
+        guard shouldWatch, !pendingChanges.isEmpty else { return }
+        let batch = QueueFileWatcher.FileChangeBatch(fileNames: pendingChanges)
+        pendingChanges.removeAll()
+        emit(.filesChanged(batch))
+    }
 
-        // Cancel existing work item
-        lock.withLock {
-            debounceWorkItem?.cancel()
-            debounceWorkItem = nil
-        }
+    private func emitHealth(_ state: QueueWatcherHealth.State) {
+        emit(.healthChanged(QueueWatcherHealth(state: state, workingDirectoryURL: workingDirectoryURL)))
+    }
 
-        // Create new work item
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self, self.shouldWatch else { return }
-
-            self.lock.withLock {
-                self.debounceWorkItem = nil
-                self.pendingChanges.removeAll()
-            }
-
-            // Notify on main actor
-            Task { @MainActor [weak self] in
-                self?.onFileChanged?()
-            }
-        }
-
-        lock.withLock {
-            debounceWorkItem = workItem
-        }
-
-        // Schedule after debounce interval
-        callbackQueue.asyncAfter(deadline: .now() + debounceInterval, execute: workItem)
+    private func isRelevantChange(_ flag: FSEventStreamEventFlags) -> Bool {
+        (flag & UInt32(kFSEventStreamEventFlagItemModified)) != 0
+            || (flag & UInt32(kFSEventStreamEventFlagItemCreated)) != 0
+            || (flag & UInt32(kFSEventStreamEventFlagItemRenamed)) != 0
+            || (flag & UInt32(kFSEventStreamEventFlagItemRemoved)) != 0
     }
 }
 
-// MARK: - NSLock Helper
+private extension Duration {
+    static func * (lhs: Duration, rhs: Int) -> Duration {
+        lhs * Double(rhs)
+    }
 
-private extension NSLock {
-    func withLock<T>(_ body: () -> T) -> T {
-        lock()
-        defer { unlock() }
-        return body()
+    static func * (lhs: Duration, rhs: Double) -> Duration {
+        .seconds(lhs.timeInterval * rhs)
+    }
+
+    var timeInterval: TimeInterval {
+        let components = components
+        let seconds = Double(components.seconds)
+        let attoseconds = Double(components.attoseconds) / 1_000_000_000_000_000_000
+        return seconds + attoseconds
     }
 }

@@ -27,8 +27,17 @@ public final class WorkspaceDiagnosticsState: ObservableObject {
     @Published public var isCheckingHealth = false
     @Published public var cachedTasks: [RalphTask] = []
     @Published public var persistenceIssue: PersistenceIssue?
+    @Published public var watcherHealth: QueueWatcherHealth
+    @Published public var operationalIssues: [WorkspaceOperationalIssue] = []
+    @Published public var operationalSummary: WorkspaceOperationalSummary = .healthy
 
-    public init() {}
+    public init(
+        watcherHealth: QueueWatcherHealth = .idle(
+            for: FileManager.default.homeDirectoryForCurrentUser
+        )
+    ) {
+        self.watcherHealth = watcherHealth
+    }
 }
 
 public extension Workspace {
@@ -49,6 +58,8 @@ public extension Workspace {
         if status.isAvailable {
             refreshCachedTasks()
         }
+
+        refreshOperationalHealth()
 
         return status
     }
@@ -81,6 +92,7 @@ public extension Workspace {
                 )
             )
         }
+        refreshOperationalHealth()
     }
 
     @MainActor
@@ -104,6 +116,7 @@ public extension Workspace {
             )
             cachedTasks = []
         }
+        refreshOperationalHealth()
     }
 
     @MainActor
@@ -119,5 +132,70 @@ public extension Workspace {
         cachedTasks = []
         RalphAppDefaults.userDefaults.removeObject(forKey: defaultsKey("cachedTasks"))
         clearPersistenceIssue(domain: .cachedTasks)
+        refreshOperationalHealth()
+    }
+
+    @MainActor
+    func updateWatcherHealth(_ health: QueueWatcherHealth) {
+        watcherHealth = health
+        refreshOperationalHealth()
+    }
+
+    @MainActor
+    func refreshOperationalHealth() {
+        var issues: [WorkspaceOperationalIssue] = []
+
+        if let cliIssue = cliHealthStatus.flatMap(WorkspaceOperationalIssue.fromCLIStatus) {
+            issues.append(cliIssue)
+        }
+
+        if let persistenceIssue {
+            issues.append(
+                .fromPersistenceIssue(
+                    persistenceIssue,
+                    source: .workspacePersistence
+                )
+            )
+        }
+
+        if let watcherIssue = WorkspaceOperationalIssue.fromWatcherHealth(watcherHealth) {
+            issues.append(watcherIssue)
+        }
+
+        if let managerIssue = WorkspaceManager.shared.persistenceIssue {
+            issues.append(
+                .fromPersistenceIssue(
+                    managerIssue,
+                    source: .appPersistence
+                )
+            )
+        }
+
+        issues.append(
+            contentsOf: CrashReporter.shared.operationalIssues.map {
+                .fromPersistenceIssue($0, source: .crashReporting)
+            }
+        )
+
+        issues.sort {
+            if $0.severity != $1.severity {
+                return $0.severity > $1.severity
+            }
+            return $0.timestamp > $1.timestamp
+        }
+
+        operationalIssues = issues
+        operationalSummary = WorkspaceOperationalSummary(issues: issues)
+    }
+
+    @MainActor
+    func repairOperationalHealth() async {
+        queueRuntime.repairWatching()
+        let status = await checkHealth()
+        if status.isAvailable {
+            await loadTasks()
+        } else {
+            loadCachedTasks()
+        }
     }
 }

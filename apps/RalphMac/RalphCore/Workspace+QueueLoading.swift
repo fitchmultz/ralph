@@ -81,6 +81,7 @@ public extension Workspace {
         }
 
         guard hasRalphQueueFile else {
+            stopFileWatching()
             tasks = []
             tasksErrorMessage = "No Ralph queue found in this directory. Run `ralph init --non-interactive` in \(workingDirectoryURL.path)."
             showErrorRecovery = false
@@ -88,9 +89,7 @@ public extension Workspace {
             return
         }
 
-        if fileWatcher == nil {
-            startFileWatching()
-        }
+        startFileWatching()
 
         tasksLoading = true
         tasksErrorMessage = nil
@@ -143,72 +142,12 @@ public extension Workspace {
     }
 
     func stopFileWatching() {
-        fileWatcher?.stop()
-        fileWatcher = nil
+        queueRuntime.stopWatching()
     }
 }
 
 extension Workspace {
     func startFileWatching() {
-        fileWatcher?.stop()
-        fileWatcher = nil
-
-        guard hasRalphQueueFile else { return }
-
-        let watcher = QueueFileWatcher(workingDirectoryURL: workingDirectoryURL)
-        watcher.onFileChanged = { [weak self] in
-            Task { @MainActor [weak self] in
-                await self?.handleExternalFileChange()
-            }
-        }
-        watcher.start()
-        fileWatcher = watcher
-    }
-}
-
-private extension Workspace {
-    enum DirectParseResult {
-        case success(tasks: [RalphTask])
-        case failure(any Error)
-    }
-
-    func attemptDirectQueueParse() async -> DirectParseResult {
-        do {
-            let tasks = try await WorkspaceQueueSnapshotLoader.loadQueueTasks(from: queueFileURL)
-            return .success(tasks: tasks)
-        } catch {
-            return .failure(error)
-        }
-    }
-
-    func handleExternalFileChange() async {
-        lastTasksSnapshot = tasks
-
-        switch await attemptDirectQueueParse() {
-        case .success(let parsedTasks):
-            tasks = parsedTasks
-            sanitizeRunControlSelection()
-            tasksErrorMessage = nil
-
-            RalphLogger.shared.debug(
-                "Direct queue parse succeeded: \(parsedTasks.count) tasks",
-                category: .fileWatching
-            )
-
-        case .failure(let error):
-            RalphLogger.shared.info(
-                "Direct parse failed, falling back to CLI: \(error.localizedDescription)",
-                category: .fileWatching
-            )
-            await loadTasks()
-        }
-
-        await loadRunnerConfiguration(retryConfiguration: .minimal)
-
-        lastQueueRefreshEvent = QueueRefreshEvent(
-            source: .externalFileChange,
-            previousTasks: lastTasksSnapshot,
-            currentTasks: tasks
-        )
+        queueRuntime.startWatchingIfNeeded()
     }
 }

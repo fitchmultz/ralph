@@ -236,8 +236,8 @@ public extension Workspace {
         identityState.recentWorkingDirectories = newRecents
 
         persistState()
-        startFileWatching()
-        lastTasksSnapshot.removeAll()
+        queueRuntime.restartWatching()
+        refreshOperationalHealth()
 
         if client != nil {
             Task { @MainActor [weak self] in
@@ -274,6 +274,7 @@ extension Workspace {
 
     func recordPersistenceIssue(_ issue: PersistenceIssue) {
         diagnosticsState.persistenceIssue = issue
+        refreshOperationalHealth()
         RalphLogger.shared.error(
             "Persistence \(issue.domain.rawValue) \(issue.operation.rawValue) failed for \(issue.context): \(issue.message)",
             category: .workspace
@@ -283,6 +284,7 @@ extension Workspace {
     func clearPersistenceIssue(domain: PersistenceIssue.Domain) {
         guard diagnosticsState.persistenceIssue?.domain == domain else { return }
         diagnosticsState.persistenceIssue = nil
+        refreshOperationalHealth()
     }
 
     static func directoryExists(_ url: URL) -> Bool {

@@ -181,10 +181,7 @@ public final class WorkspaceManager: ObservableObject {
     private let versionCheckCacheKey = "com.mitchfultz.ralph.versionCheckCache"
     private var unclaimedWindowStates: [WindowState] = []
     private var restorationPoolInitialized = false
-    private var registeredWindowRouteActions: [UUID: WindowRouteActions] = [:]
-    private var windowRouteRegistrationOrder: [UUID] = []
-    private var registeredWorkspaceRouteActions: [UUID: (WorkspaceSceneRoute) -> Void] = [:]
-    private var pendingWorkspaceRoutes: [UUID: [WorkspaceSceneRoute]] = [:]
+    private let sceneRouter = WorkspaceSceneRouter()
 
     private init() {
         let preparation = RalphAppDefaults.prepareForLaunch()
@@ -693,120 +690,46 @@ public final class WorkspaceManager: ObservableObject {
     }
 }
 
-public enum WorkspaceSceneRoute: Equatable {
-    case showTaskCreation
-    case showTaskDecompose(taskID: String?)
-    case showTaskDetail(taskID: String)
-}
-
-public struct WindowRouteActions {
-    public let containsWorkspace: (UUID) -> Bool
-    public let focusWorkspace: (UUID) -> Void
-    public let appendWorkspace: (UUID) -> Void
-    public let persistState: () -> Void
-
-    public init(
-        containsWorkspace: @escaping (UUID) -> Bool,
-        focusWorkspace: @escaping (UUID) -> Void,
-        appendWorkspace: @escaping (UUID) -> Void,
-        persistState: @escaping () -> Void
-    ) {
-        self.containsWorkspace = containsWorkspace
-        self.focusWorkspace = focusWorkspace
-        self.appendWorkspace = appendWorkspace
-        self.persistState = persistState
-    }
-}
-
 public extension WorkspaceManager {
     func registerWindowRouteActions(for windowID: UUID, actions: WindowRouteActions) {
-        registeredWindowRouteActions[windowID] = actions
-        if !windowRouteRegistrationOrder.contains(windowID) {
-            windowRouteRegistrationOrder.append(windowID)
-        }
+        sceneRouter.registerWindowRouteActions(for: windowID, actions: actions)
     }
 
     func unregisterWindowRouteActions(for windowID: UUID) {
-        registeredWindowRouteActions.removeValue(forKey: windowID)
-        windowRouteRegistrationOrder.removeAll { $0 == windowID }
+        sceneRouter.unregisterWindowRouteActions(for: windowID)
     }
 
     func registerWorkspaceRouteActions(
         for workspaceID: UUID,
         perform: @escaping (WorkspaceSceneRoute) -> Void
     ) {
-        registeredWorkspaceRouteActions[workspaceID] = perform
-        let queuedRoutes = pendingWorkspaceRoutes.removeValue(forKey: workspaceID) ?? []
-        for route in queuedRoutes {
-            perform(route)
-        }
+        sceneRouter.registerWorkspaceRouteActions(for: workspaceID, perform: perform)
     }
 
     func unregisterWorkspaceRouteActions(for workspaceID: UUID) {
-        registeredWorkspaceRouteActions.removeValue(forKey: workspaceID)
+        sceneRouter.unregisterWorkspaceRouteActions(for: workspaceID)
     }
 
     func route(_ route: WorkspaceSceneRoute, to workspaceID: UUID) {
         revealWorkspace(workspaceID)
-
-        if let perform = registeredWorkspaceRouteActions[workspaceID] {
-            perform(route)
-        } else {
-            pendingWorkspaceRoutes[workspaceID, default: []].append(route)
-        }
+        sceneRouter.route(route, to: workspaceID)
     }
 
     func revealWorkspace(_ workspaceID: UUID) {
-        if let actions = windowRouteActions(containing: workspaceID) {
-            actions.focusWorkspace(workspaceID)
+        if sceneRouter.focusWorkspace(
+            workspaceID,
+            focusedWorkspaceID: focusedWorkspace?.id
+        ) {
             focusedWorkspace = workspaces.first(where: { $0.id == workspaceID })
-            actions.persistState()
             return
         }
-
-        guard let actions = preferredWindowRouteActions() else { return }
-
-        actions.appendWorkspace(workspaceID)
-        actions.focusWorkspace(workspaceID)
-        focusedWorkspace = workspaces.first(where: { $0.id == workspaceID })
-        actions.persistState()
     }
 
     func persistRegisteredWindowStates() {
-        for windowID in windowRouteRegistrationOrder {
-            registeredWindowRouteActions[windowID]?.persistState()
-        }
+        sceneRouter.persistRegisteredWindowStates()
     }
 
     func resetSceneRoutingForTests() {
-        registeredWindowRouteActions.removeAll()
-        windowRouteRegistrationOrder.removeAll()
-        registeredWorkspaceRouteActions.removeAll()
-        pendingWorkspaceRoutes.removeAll()
-    }
-
-    private func windowRouteActions(containing workspaceID: UUID) -> WindowRouteActions? {
-        for windowID in windowRouteRegistrationOrder {
-            guard let actions = registeredWindowRouteActions[windowID] else { continue }
-            if actions.containsWorkspace(workspaceID) {
-                return actions
-            }
-        }
-        return nil
-    }
-
-    private func preferredWindowRouteActions() -> WindowRouteActions? {
-        if let focusedWorkspaceID = focusedWorkspace?.id,
-           let actions = windowRouteActions(containing: focusedWorkspaceID) {
-            return actions
-        }
-
-        for windowID in windowRouteRegistrationOrder {
-            if let actions = registeredWindowRouteActions[windowID] {
-                return actions
-            }
-        }
-
-        return nil
+        sceneRouter.resetForTests()
     }
 }

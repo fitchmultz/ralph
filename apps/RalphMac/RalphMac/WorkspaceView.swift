@@ -31,6 +31,7 @@ struct WorkspaceView: View {
     @State private var showingCommandPalette: Bool = false
     @State private var showingTaskCreation: Bool = false
     @State private var showingTaskDecompose: Bool = false
+    @State private var showingOperationalHealth = false
     @State private var taskDecomposeContext = TaskDecomposeView.PresentationContext()
     @FocusedValue(\.workspaceWindowActions) private var workspaceWindowActions
     private let manager = WorkspaceManager.shared
@@ -68,6 +69,7 @@ struct WorkspaceView: View {
         .sheet(isPresented: $showingTaskDecompose) {
             TaskDecomposeView(workspace: workspace, context: taskDecomposeContext)
         }
+        .sheet(isPresented: $showingOperationalHealth) { operationalHealthSheet() }
         .onAppear {
             registerWorkspaceRouteActions()
         }
@@ -142,10 +144,10 @@ struct WorkspaceView: View {
     @ViewBuilder
     private func contentColumn() -> some View {
         VStack(spacing: 0) {
-            if workspace.showOfflineBanner, let status = workspace.cliHealthStatus {
-                OfflineStatusView(
-                    status: status,
-                    onRetry: { handleRetryConnection() },
+            if workspace.showsOperationalBanner {
+                OperationalStatusBannerView(
+                    summary: workspace.operationalSummary,
+                    onRetry: { handleRepairOperationalHealth() },
                     onDismiss: nil
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -266,31 +268,34 @@ struct WorkspaceView: View {
 
     @ViewBuilder
     private func connectionStatusFooter() -> some View {
-        if let status = workspace.cliHealthStatus {
-            Divider()
-            HStack {
-                ConnectionStatusIndicator(
-                    isAvailable: status.isAvailable,
-                    onTap: {
-                        if !status.isAvailable {
-                            workspace.showErrorRecovery = true
-                        }
-                    }
-                )
-
-                Spacer()
-
-                if workspace.isShowingCachedTasks {
-                    Label("Cached", systemImage: "archivebox")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .help("Showing cached task list")
+        Divider()
+        HStack {
+            ConnectionStatusIndicator(
+                summary: workspace.operationalSummary,
+                onTap: {
+                    showingOperationalHealth = true
                 }
+            )
+
+            Spacer()
+
+            if workspace.isShowingCachedTasks {
+                Label("Cached", systemImage: "archivebox")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .help("Showing cached task list")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+
+            if case .failed = workspace.watcherHealth.state {
+                Label("Watcher", systemImage: "dot.scope.display")
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .help("Queue watching failed and needs repair.")
+            }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Sheets
@@ -316,6 +321,18 @@ struct WorkspaceView: View {
             .frame(minWidth: 640, minHeight: 300)
     }
 
+    @ViewBuilder
+    private func operationalHealthSheet() -> some View {
+        OperationalHealthSheet(
+            workspaceName: workspace.projectDisplayName,
+            summary: workspace.operationalSummary,
+            issues: workspace.operationalIssues,
+            watcherHealth: workspace.watcherHealth,
+            cliHealthStatus: workspace.cliHealthStatus,
+            onRepair: { handleRepairOperationalHealth() }
+        )
+    }
+
     // MARK: - Actions
 
     private func handleRetryConnection() {
@@ -324,6 +341,12 @@ struct WorkspaceView: View {
             if let newStatus = workspace.cliHealthStatus, newStatus.isAvailable {
                 await workspace.loadTasks()
             }
+        }
+    }
+
+    private func handleRepairOperationalHealth() {
+        Task { @MainActor in
+            await workspace.repairOperationalHealth()
         }
     }
 

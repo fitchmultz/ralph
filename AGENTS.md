@@ -240,7 +240,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 
 ### macOS App Window Routing
 - Active-window navigation/task commands should flow through focused scene values (`WorkspaceUIActions` / `WorkspaceWindowActions`), not process-wide `NotificationCenter` broadcasts.
-- Unfocused surfaces (menu bar, URL open, app lifecycle) should register and target scene actions through `WorkspaceManager` route registries; queue pending workspace routes until the matching `WorkspaceView` registers.
+- Unfocused surfaces (menu bar, URL open, app lifecycle) should register and target scene actions through `WorkspaceSceneRouter`; queue pending workspace routes until the matching `WorkspaceView` registers.
 
 ### macOS Task Presentation
 - Shared task filtering/sorting for list + kanban lives in `WorkspaceTaskPresentation`; prefer `workspace.taskPresentation()` when a render pass needs both flat and grouped task sets.
@@ -254,14 +254,17 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 ### macOS Queue Refresh
 - Queue file watcher refreshes and CLI queue JSON decoding should use `WorkspaceQueueSnapshotLoader` so file IO + decode work stays off the main actor and only final publication happens on main.
 - External queue refresh reactions should read `Workspace.lastQueueRefreshEvent`; do not rebroadcast queue changes through process-wide notifications or view-local `.onReceive`.
+- Live watcher orchestration belongs to `WorkspaceQueueRuntime`; keep `QueueFileWatcher` as the low-level async event source and surface watcher degradation through `QueueWatcherHealth` / `WorkspaceOperationalHealth`, not logs alone.
 
 ### macOS Workspace Decomposition
 - Keep `Workspace.swift` focused on shared workspace state plus broad orchestration; move dense feature areas into `Workspace+...` files.
 - `Workspace` is `@MainActor` only and acts as a facade over domain owners (`WorkspaceIdentityState`, `WorkspaceCommandState`, `WorkspaceTaskState`, `WorkspaceInsightsState`, `WorkspaceDiagnosticsState`, `WorkspaceRunState`); do not reintroduce `@unchecked Sendable`.
-- Runner lifecycle/loop/cancel state lives in `Workspace+RunnerState.swift`; task edit/bulk-create flows live in `Workspace+TaskMutations.swift`.
+- Runner lifecycle/loop/cancel orchestration lives in `WorkspaceRunnerController`; `Workspace+RunnerState.swift` owns published run state and the workspace-facing API surface. Loop continuation must be explicitly scheduled, not sleep-polled.
+- Task edit/bulk-create flows live in `Workspace+TaskMutations.swift`.
 - Workspace persistence and working-directory path resolution live in `Workspace+Persistence.swift`; workspace recovery UI state lives in `Workspace+ErrorRecovery.swift`.
 - Workspace identity persistence is a single `.snapshot` payload per workspace via `WorkspaceStateStore`; persistence failures must surface as `PersistenceIssue` state instead of `try?` drops.
 - Window restoration/version-cache/app-default cleanup must also surface `PersistenceIssue` through `WorkspaceManager`; crash-report storage failures surface through `CrashReporter.operationalIssues`.
+- Operational visibility is unified through `WorkspaceOperationalHealth`: watcher, persistence, crash-report, and CLI health should publish there so banners/indicators/sheets share one severity model.
 - Console stream parsing is incremental: hot-path chunks must flow through `consumeStreamTextChunk(_:)` / `WorkspaceStreamProcessor` rather than reparsing full accumulated output.
 
 ### macOS CLI Client Decomposition

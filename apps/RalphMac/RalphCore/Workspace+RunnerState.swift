@@ -54,16 +54,23 @@ public final class WorkspaceRunState: ObservableObject {
         self.outputBuffer = outputBuffer
     }
 
-    func prepareForNewRun() {
-        output = ""
-        outputBuffer.clear()
-        attributedOutput = []
+    func prepareForNewRun(preservingConsole: Bool = false) {
+        if preservingConsole {
+            if !outputBuffer.content.hasSuffix("\n"), !outputBuffer.content.isEmpty {
+                outputBuffer.append("\n")
+            }
+            output = outputBuffer.content
+        } else {
+            output = ""
+            outputBuffer.clear()
+            attributedOutput = []
+            streamProcessor.reset()
+        }
         lastExitStatus = nil
         errorMessage = nil
         isRunning = true
         executionStartTime = Date()
         currentPhase = nil
-        streamProcessor.reset()
     }
 }
 
@@ -148,228 +155,39 @@ public extension Workspace {
 
 public extension Workspace {
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
-        runnerConfigLoading = true
-        runnerConfigErrorMessage = nil
-
-        guard let client else {
-            currentRunnerConfig = nil
-            runnerConfigErrorMessage = "CLI client not available."
-            runnerConfigLoading = false
-            return
-        }
-
-        do {
-            let helper = RetryHelper(configuration: retryConfiguration)
-            let collected = try await helper.execute(
-                operation: { [self] in
-                    let result = try await client.runAndCollect(
-                        arguments: ["--no-color", "config", "show", "--format", "json"],
-                        currentDirectoryURL: workingDirectoryURL
-                    )
-                    if result.status.code != 0 {
-                        throw result.toError()
-                    }
-                    return result
-                }
-            )
-
-            let data = Data(collected.stdout.utf8)
-            let decoded = try JSONDecoder().decode(ResolvedRunnerConfigDocument.self, from: data)
-            currentRunnerConfig = RunnerConfig(
-                model: decoded.agent?.model,
-                phases: decoded.agent?.phases,
-                maxIterations: decoded.agent?.iterations
-            )
-            runnerConfigErrorMessage = nil
-        } catch {
-            currentRunnerConfig = nil
-            runnerConfigErrorMessage = "Failed to load resolved runner configuration."
-            RalphLogger.shared.error(
-                "Failed to load runner configuration: \(error)",
-                category: .workspace
-            )
-        }
-
-        runnerConfigLoading = false
+        await runnerController.loadRunnerConfiguration(retryConfiguration: retryConfiguration)
     }
 
-    func run(arguments: [String]) {
-        guard let client else {
-            errorMessage = "CLI client not available."
-            return
-        }
-        guard !isRunning else { return }
-
-        runState.prepareForNewRun()
-        cancelRequested = false
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            do {
-                let run = try client.start(
-                    arguments: arguments,
-                    currentDirectoryURL: workingDirectoryURL
-                )
-                activeRun = run
-
-                for await event in run.events {
-                    outputBuffer.append(event.text)
-                    output = outputBuffer.content
-                    consumeStreamTextChunk(event.text)
-                }
-
-                let status = await run.waitUntilExit()
-
-                lastExitStatus = status
-                isRunning = false
-
-                if let startTime = executionStartTime {
-                    let record = ExecutionRecord(
-                        id: UUID(),
-                        taskID: currentTaskID,
-                        startTime: startTime,
-                        endTime: Date(),
-                        exitCode: cancelRequested ? nil : Int(status.code),
-                        wasCancelled: cancelRequested
-                    )
-                    addToHistory(record)
-                }
-
-                if isLoopMode && !stopAfterCurrent && !cancelRequested && status.code == 0 {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    if isLoopMode && !stopAfterCurrent && !cancelRequested {
-                        activeRun = nil
-                        cancelRequested = false
-                        runNextTask(forceDirtyRepo: runControlForceDirtyRepo)
-                        return
-                    }
-                }
-
-                if status.code != 0 {
-                    isLoopMode = false
-                }
-
-                activeRun = nil
-                cancelRequested = false
-                resetExecutionState()
-            } catch {
-                let recoveryError = RecoveryError.classify(
-                    error: error,
-                    operation: "run",
-                    workspaceURL: workingDirectoryURL
-                )
-                errorMessage = recoveryError.message
-                lastRecoveryError = recoveryError
-                showErrorRecovery = true
-                isRunning = false
-                activeRun = nil
-                cancelRequested = false
-                resetExecutionState()
-            }
-        }
+    func run(arguments: [String], preservingConsole: Bool = false) {
+        runnerController.run(arguments: arguments, preservingConsole: preservingConsole)
     }
 
     func cancel() {
-        guard isRunning else {
-            isLoopMode = false
-            stopAfterCurrent = true
-            return
-        }
-
-        cancelRequested = true
-        isLoopMode = false
-        stopAfterCurrent = true
-
-        guard let run = activeRun else { return }
-        Task {
-            await run.cancel()
-        }
+        runnerController.cancel()
     }
 
-    func runNextTask(taskIDOverride: String? = nil, forceDirtyRepo: Bool = false) {
-        guard !isRunning else { return }
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            resetExecutionState()
-
-            let requestedTaskID = taskIDOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let selectedTaskID = requestedTaskID.flatMap { $0.isEmpty ? nil : $0 }
-            let resolvedTaskID: String?
-            if let selectedTaskID {
-                resolvedTaskID = selectedTaskID
-            } else {
-                resolvedTaskID = await resolveNextRunnableTaskID()
-            }
-            currentTaskID = resolvedTaskID
-
-            var arguments = ["--no-color", "run", "one"]
-            if forceDirtyRepo {
-                arguments.append("--force")
-            }
-            if let resolvedTaskID {
-                arguments.append(contentsOf: ["--id", resolvedTaskID])
-            }
-
-            run(arguments: arguments)
-        }
+    func runNextTask(
+        taskIDOverride: String? = nil,
+        forceDirtyRepo: Bool = false,
+        preservingConsole: Bool = false
+    ) {
+        runnerController.runNextTask(
+            taskIDOverride: taskIDOverride,
+            forceDirtyRepo: forceDirtyRepo,
+            preservingConsole: preservingConsole
+        )
     }
 
     func startLoop(forceDirtyRepo: Bool? = nil) {
-        isLoopMode = true
-        stopAfterCurrent = false
-        let shouldForceDirtyRepo = forceDirtyRepo ?? runControlForceDirtyRepo
-        runNextTask(forceDirtyRepo: shouldForceDirtyRepo)
+        runnerController.startLoop(forceDirtyRepo: forceDirtyRepo)
     }
 
     func stopLoop() {
-        isLoopMode = false
-        stopAfterCurrent = true
+        runnerController.stopLoop()
     }
 }
 
-private extension Workspace {
-    struct ResolvedRunnerConfigDocument: Decodable, Sendable {
-        let agent: AgentConfig?
-
-        struct AgentConfig: Decodable, Sendable {
-            let model: String?
-            let phases: Int?
-            let iterations: Int?
-        }
-    }
-
-    static func extractTaskID(from text: String) -> String? {
-        for token in text.split(whereSeparator: { $0.isWhitespace || $0 == "(" || $0 == ")" || $0 == ":" || $0 == "," }) {
-            let candidate = String(token)
-            if candidate.hasPrefix("RQ-") {
-                return candidate
-            }
-        }
-        return nil
-    }
-
-    func resolveNextRunnableTaskID() async -> String? {
-        guard let client else { return nextTask()?.id }
-
-        do {
-            let dryRun = try await client.runAndCollect(
-                arguments: ["--no-color", "run", "one", "--dry-run", "--non-interactive"],
-                currentDirectoryURL: workingDirectoryURL
-            )
-            let combined = dryRun.stdout + "\n" + dryRun.stderr
-            if let id = Self.extractTaskID(from: combined) {
-                return id
-            }
-        } catch {
-            RalphLogger.shared.debug("Failed to resolve runnable task ID: \(error)", category: .workspace)
-        }
-
-        return nextTask()?.id
-    }
-
+extension Workspace {
     func resetExecutionState() {
         currentPhase = nil
         executionStartTime = nil

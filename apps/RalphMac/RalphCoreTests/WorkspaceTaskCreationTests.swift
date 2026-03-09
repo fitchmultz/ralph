@@ -70,11 +70,17 @@ final class WorkspaceTaskCreationTests: XCTestCase {
                 let watcher = QueueFileWatcher(workingDirectoryURL: workspaceURL)
                 let notification = expectation(description: "watcher-notification-\(index)")
                 notification.assertForOverFulfill = false
-                watcher.onFileChanged = {
-                    notification.fulfill()
+                let eventTask = Task {
+                    for await event in watcher.events {
+                        if case .filesChanged(let batch) = event,
+                           batch.fileNames.contains("queue.jsonc") {
+                            notification.fulfill()
+                            return
+                        }
+                    }
                 }
 
-                watcher.start()
+                await watcher.start()
                 let queueURL = ralphURL.appendingPathComponent("queue.jsonc", isDirectory: false)
                 try """
                 [
@@ -83,7 +89,8 @@ final class WorkspaceTaskCreationTests: XCTestCase {
                 """.write(to: queueURL, atomically: true, encoding: .utf8)
 
                 await fulfillment(of: [notification], timeout: 5.0)
-                watcher.stop()
+                eventTask.cancel()
+                await watcher.stop()
             }
 
             // Let any queued FSEvents callback work drain before the next lifecycle.
@@ -111,11 +118,16 @@ final class WorkspaceTaskCreationTests: XCTestCase {
         let watcher = QueueFileWatcher(workingDirectoryURL: workspaceURL)
         let invertedNotification = expectation(description: "watcher-stopped-before-debounce")
         invertedNotification.isInverted = true
-        watcher.onFileChanged = {
-            invertedNotification.fulfill()
+        let eventTask = Task {
+            for await event in watcher.events {
+                if case .filesChanged = event {
+                    invertedNotification.fulfill()
+                    return
+                }
+            }
         }
 
-        watcher.start()
+        await watcher.start()
         try """
         [
           { "id": "RQ-STOP", "title": "stop before debounce", "status": "todo" }
@@ -125,9 +137,50 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             atomically: true,
             encoding: .utf8
         )
-        watcher.stop()
+        await watcher.stop()
+        eventTask.cancel()
 
         await fulfillment(of: [invertedNotification], timeout: 1.0)
+    }
+
+    func test_queueFileWatcher_surfacesFailureAfterRetryExhaustion() async throws {
+        let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-watcher-fail-")
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
+
+        let watcher = QueueFileWatcher(
+            workingDirectoryURL: workspaceURL,
+            configuration: QueueFileWatcher.Configuration(
+                debounceInterval: .milliseconds(10),
+                retryBaseDelay: .milliseconds(10),
+                maxStartAttempts: 2,
+                streamLatency: 0.01
+            ),
+            system: .init(
+                create: { _, _, _, _, _ in nil },
+                setDispatchQueue: { _, _ in },
+                start: { _ in false },
+                stop: { _ in },
+                invalidate: { _ in }
+            )
+        )
+
+        let failure = expectation(description: "watcher-failed")
+        let eventTask = Task {
+            for await event in watcher.events {
+                if case .healthChanged(let health) = event,
+                   case .failed(let reason, let attempts) = health.state {
+                    XCTAssertEqual(reason, "Failed to create FSEvent stream")
+                    XCTAssertEqual(attempts, 2)
+                    failure.fulfill()
+                    return
+                }
+            }
+        }
+
+        await watcher.start()
+        await fulfillment(of: [failure], timeout: 2.0)
+        eventTask.cancel()
+        await watcher.stop()
     }
 
     private static func runChecked(

@@ -33,6 +33,8 @@ public final class Workspace: ObservableObject, Identifiable {
     public let insightsState: WorkspaceInsightsState
     public let diagnosticsState: WorkspaceDiagnosticsState
     public let runState: WorkspaceRunState
+    lazy var queueRuntime = WorkspaceQueueRuntime(workspace: self)
+    lazy var runnerController = WorkspaceRunnerController(workspace: self)
 
     public var name: String {
         get { identityState.name }
@@ -234,6 +236,21 @@ public final class Workspace: ObservableObject, Identifiable {
         set { diagnosticsState.persistenceIssue = newValue }
     }
 
+    public var watcherHealth: QueueWatcherHealth {
+        get { diagnosticsState.watcherHealth }
+        set { diagnosticsState.watcherHealth = newValue }
+    }
+
+    public var operationalIssues: [WorkspaceOperationalIssue] {
+        get { diagnosticsState.operationalIssues }
+        set { diagnosticsState.operationalIssues = newValue }
+    }
+
+    public var operationalSummary: WorkspaceOperationalSummary {
+        get { diagnosticsState.operationalSummary }
+        set { diagnosticsState.operationalSummary = newValue }
+    }
+
     public var showOfflineBanner: Bool {
         guard let status = cliHealthStatus else { return false }
         return !status.isAvailable
@@ -241,6 +258,10 @@ public final class Workspace: ObservableObject, Identifiable {
 
     public var isShowingCachedTasks: Bool {
         showOfflineBanner && !cachedTasks.isEmpty
+    }
+
+    public var showsOperationalBanner: Bool {
+        !operationalSummary.isHealthy
     }
 
     public var currentTaskID: String? {
@@ -315,10 +336,7 @@ public final class Workspace: ObservableObject, Identifiable {
 
     var client: RalphCLIClient?
     private var relayCancellables = Set<AnyCancellable>()
-    var fileWatcher: QueueFileWatcher?
-    var activeRun: RalphCLIRun?
-    var cancelRequested = false
-    var lastTasksSnapshot: [RalphTask] = []
+    private var operationalDependencyCancellables = Set<AnyCancellable>()
 
     public init(
         id: UUID = UUID(),
@@ -335,14 +353,18 @@ public final class Workspace: ObservableObject, Identifiable {
         commandState = WorkspaceCommandState()
         taskState = WorkspaceTaskState()
         insightsState = WorkspaceInsightsState()
-        diagnosticsState = WorkspaceDiagnosticsState()
+        diagnosticsState = WorkspaceDiagnosticsState(
+            watcherHealth: .idle(for: workingDirectoryURL)
+        )
         runState = WorkspaceRunState(outputBuffer: ConsoleOutputBuffer.loadFromUserDefaults())
         self.client = client
 
         bindDomainStateChanges()
+        bindOperationalDependencies()
         loadState()
         persistState()
         startFileWatching()
+        refreshOperationalHealth()
 
         if client != nil {
             Task { @MainActor [weak self] in
@@ -356,19 +378,20 @@ public final class Workspace: ObservableObject, Identifiable {
         Task { @MainActor in
             await loadCLISpec()
             await loadRunnerConfiguration(retryConfiguration: .minimal)
+            refreshOperationalHealth()
         }
     }
 
     public func runVersion() {
-        run(arguments: ["--no-color", "version"])
+        runnerController.run(arguments: ["--no-color", "version"])
     }
 
     public func runInit() {
-        run(arguments: ["--no-color", "init", "--force", "--non-interactive"])
+        runnerController.run(arguments: ["--no-color", "init", "--force", "--non-interactive"])
     }
 
     public func runQueueListJSON() {
-        run(arguments: ["--no-color", "queue", "list", "--format", "json"])
+        runnerController.run(arguments: ["--no-color", "queue", "list", "--format", "json"])
     }
 
     public func nextTask() -> RalphTask? {
@@ -440,5 +463,23 @@ public final class Workspace: ObservableObject, Identifiable {
                 }
                 .store(in: &relayCancellables)
         }
+    }
+
+    private func bindOperationalDependencies() {
+        WorkspaceManager.shared.objectWillChange
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.refreshOperationalHealth()
+                }
+            }
+            .store(in: &operationalDependencyCancellables)
+
+        CrashReporter.shared.objectWillChange
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.refreshOperationalHealth()
+                }
+            }
+            .store(in: &operationalDependencyCancellables)
     }
 }
