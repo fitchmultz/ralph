@@ -99,6 +99,7 @@ Every source file MUST start with `//!` docs covering:
 ### Managed Subprocesses
 - Non-runner operational subprocesses (CI, git/gh, doctor probes, processor hooks, integration sync checks) should flow through `runutil::shell` managed execution with timeout classes, bounded capture, and SIGINT-before-SIGKILL escalation. Do not reintroduce raw `Command::output()` in those paths.
 - Managed subprocess and runner wait paths should prefer exit-event waiters plus deadline scheduling over fixed `try_wait` polling loops; if a control slice is unavoidable, keep it centralized and short-lived.
+- Use `execute_checked_command` for non-runner subprocesses that must succeed, and classify them with the narrowest timeout bucket (`MetadataProbe`, `AppLaunch`, `MediaPlayback`, etc.) so status handling stays centralized instead of being reimplemented in leaf modules.
 
 ### Runtime Module Boundaries
 - `runner.rs` is a thin facade only; shared invocation/resume dispatch lives in `runner/invoke.rs`, and external plugin registry/bootstrap lives in `runner/plugin_dispatch.rs`.

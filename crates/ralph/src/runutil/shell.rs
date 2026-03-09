@@ -15,7 +15,7 @@
 //! - On unix, managed subprocesses execute in isolated process groups so SIGINT/SIGKILL can
 //!   target the full subtree rather than only the immediate child.
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output, Stdio};
@@ -42,9 +42,12 @@ pub(crate) enum SafeCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TimeoutClass {
     Probe,
+    MetadataProbe,
     Git,
     GitHubCli,
     PluginHook,
+    AppLaunch,
+    MediaPlayback,
     CiGate,
 }
 
@@ -52,9 +55,12 @@ impl TimeoutClass {
     pub(crate) fn timeout(self) -> Duration {
         match self {
             Self::Probe => timeouts::MANAGED_SUBPROCESS_PROBE_TIMEOUT,
+            Self::MetadataProbe => timeouts::MANAGED_SUBPROCESS_METADATA_TIMEOUT,
             Self::Git => timeouts::MANAGED_SUBPROCESS_GIT_TIMEOUT,
             Self::GitHubCli => timeouts::MANAGED_SUBPROCESS_GH_TIMEOUT,
             Self::PluginHook => timeouts::MANAGED_SUBPROCESS_PLUGIN_TIMEOUT,
+            Self::AppLaunch => timeouts::MANAGED_SUBPROCESS_APP_LAUNCH_TIMEOUT,
+            Self::MediaPlayback => timeouts::MANAGED_SUBPROCESS_MEDIA_PLAYBACK_TIMEOUT,
             Self::CiGate => timeouts::MANAGED_SUBPROCESS_CI_TIMEOUT,
         }
     }
@@ -143,6 +149,14 @@ impl ManagedOutput {
             stdout: self.stdout,
             stderr: self.stderr,
         }
+    }
+
+    pub(crate) fn stdout_lossy(&self) -> String {
+        String::from_utf8_lossy(&self.stdout).trim().to_string()
+    }
+
+    pub(crate) fn stderr_lossy(&self) -> String {
+        String::from_utf8_lossy(&self.stderr).trim().to_string()
     }
 }
 
@@ -355,6 +369,39 @@ pub(crate) fn execute_managed_command(
         stdout_truncated: stdout_capture.truncated,
         stderr_truncated: stderr_capture.truncated,
     })
+}
+
+pub(crate) fn execute_checked_command(managed: ManagedCommand) -> anyhow::Result<ManagedOutput> {
+    let description = managed.description.clone();
+    let output = execute_managed_command(managed)
+        .with_context(|| format!("execute managed subprocess `{description}`"))?;
+    ensure_success_status(&description, &output)?;
+    Ok(output)
+}
+
+pub(crate) fn ensure_success_status(
+    description: &str,
+    output: &ManagedOutput,
+) -> anyhow::Result<()> {
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = output.stderr_lossy();
+    let stdout = output.stdout_lossy();
+    let detail = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        "process exited without output".to_string()
+    };
+
+    bail!(
+        "{description} failed (exit status: {}). {}",
+        output.status,
+        detail
+    )
 }
 
 pub(crate) fn sleep_with_cancellation(
@@ -672,5 +719,38 @@ mod tests {
         .expect_err("managed command should time out");
 
         assert!(matches!(err, ManagedProcessError::TimedOut { .. }));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn execute_checked_command_returns_stdout_on_success() {
+        let mut command = Command::new("/bin/sh");
+        command.arg("-c").arg("printf 'ok'");
+        let output = execute_checked_command(ManagedCommand::new(
+            command,
+            "checked success",
+            TimeoutClass::MetadataProbe,
+        ))
+        .expect("managed command should succeed");
+
+        assert_eq!(output.stdout_lossy(), "ok");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn execute_checked_command_includes_stderr_on_failure() {
+        let mut command = Command::new("/bin/sh");
+        command.arg("-c").arg("printf 'boom' >&2; exit 7");
+        let err = execute_checked_command(ManagedCommand::new(
+            command,
+            "checked failure",
+            TimeoutClass::AppLaunch,
+        ))
+        .expect_err("managed command should fail");
+
+        let text = err.to_string();
+        assert!(text.contains("checked failure failed"));
+        assert!(text.contains("exit status"));
+        assert!(text.contains("boom"));
     }
 }

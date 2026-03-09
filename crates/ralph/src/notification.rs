@@ -20,6 +20,8 @@
 
 use std::path::Path;
 
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_checked_command};
+
 /// CLI overrides for notification settings.
 /// Fields are `Option<bool>` to distinguish "not set" from explicit false.
 #[derive(Debug, Clone, Default)]
@@ -497,17 +499,11 @@ fn play_macos_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("Sound file not found: {}", sound_path));
     }
 
-    let output = std::process::Command::new("afplay")
-        .arg(&sound_path)
-        .output()
-        .map_err(|e| anyhow::anyhow!("Failed to execute afplay: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!("afplay failed: {}", stderr));
-    }
-
-    Ok(())
+    run_media_command(
+        "afplay",
+        &[sound_path.as_str()],
+        "play notification sound with afplay",
+    )
 }
 
 #[cfg(target_os = "linux")]
@@ -515,38 +511,26 @@ fn play_linux_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
     if let Some(path) = custom_path {
         // Try paplay first (PulseAudio), fall back to aplay (ALSA)
         if Path::new(path).exists() {
-            let result = std::process::Command::new("paplay").arg(path).output();
-            if let Ok(output) = result {
-                if output.status.success() {
-                    return Ok(());
-                }
+            if run_media_command("paplay", &[path], "play notification sound with paplay").is_ok() {
+                return Ok(());
             }
 
             // Fall back to aplay
-            let output = std::process::Command::new("aplay")
-                .arg(path)
-                .output()
-                .map_err(|e| anyhow::anyhow!("Failed to execute aplay: {}", e))?;
-
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(anyhow::anyhow!("aplay failed: {}", stderr));
-            }
-            return Ok(());
+            return run_media_command("aplay", &[path], "play notification sound with aplay");
         } else {
             return Err(anyhow::anyhow!("Sound file not found: {}", path));
         }
     }
 
     // No custom path - try to play default notification sound via canberra-gtk-play
-    let result = std::process::Command::new("canberra-gtk-play")
-        .arg("--id=message")
-        .output();
-
-    if let Ok(output) = result {
-        if output.status.success() {
-            return Ok(());
-        }
+    if run_media_command(
+        "canberra-gtk-play",
+        &["--id=message"],
+        "play default notification sound",
+    )
+    .is_ok()
+    {
+        return Ok(());
     }
 
     // If canberra-gtk-play fails or isn't available, that's okay - just log it
@@ -554,6 +538,17 @@ fn play_linux_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
         "Could not play default notification sound (canberra-gtk-play not available or failed)"
     );
     Ok(())
+}
+
+fn run_media_command(program: &str, args: &[&str], description: &str) -> anyhow::Result<()> {
+    let mut command = std::process::Command::new(program);
+    command.args(args);
+    execute_checked_command(ManagedCommand::new(
+        command,
+        description,
+        TimeoutClass::MediaPlayback,
+    ))
+    .map(|_| ())
 }
 
 #[cfg(target_os = "windows")]
@@ -741,6 +736,21 @@ mod tests {
         };
         let result = build_notification_config(&config, &overrides);
         assert!(result.enabled);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_media_command_surfaces_process_failure() {
+        let err = run_media_command(
+            "/bin/sh",
+            &["-c", "printf 'media failed' >&2; exit 4"],
+            "play test media",
+        )
+        .expect_err("expected media failure");
+
+        let text = err.to_string();
+        assert!(text.contains("play test media failed"));
+        assert!(text.contains("media failed"));
     }
 
     #[cfg(target_os = "windows")]

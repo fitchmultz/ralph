@@ -24,6 +24,7 @@ use std::process::Command;
 use std::os::unix::ffi::OsStrExt;
 
 use crate::cli::app::AppOpenArgs;
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_checked_command};
 
 const DEFAULT_BUNDLE_ID: &str = "com.mitchfultz.ralph";
 const GUI_CLI_BIN_ENV: &str = "RALPH_BIN_PATH";
@@ -40,6 +41,16 @@ impl OpenCommandSpec {
         cmd.args(&self.args);
         cmd
     }
+}
+
+fn execute_open_command(spec: &OpenCommandSpec) -> Result<()> {
+    execute_checked_command(ManagedCommand::new(
+        spec.to_command(),
+        "launch macOS app with open",
+        TimeoutClass::AppLaunch,
+    ))
+    .context("spawn macOS `open` command for app launch")?;
+    Ok(())
 }
 
 fn plan_open_command(
@@ -180,29 +191,12 @@ pub fn open(args: AppOpenArgs) -> Result<()> {
         plan_open_command(cfg!(target_os = "macos"), &args, cli_executable.as_deref())?
     };
 
-    let output = spec
-        .to_command()
-        .output()
-        .context("spawn macOS `open` command for app launch")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!(
-            "Failed to launch app (exit status: {}). {}",
-            output.status,
-            stderr.trim()
-        );
-    }
-
-    Ok(())
+    execute_open_command(&spec)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        DEFAULT_BUNDLE_ID, GUI_CLI_BIN_ENV, env_assignment_for_path, percent_encode,
-        percent_encode_path, plan_open_command, plan_url_command, resolve_workspace_path,
-    };
+    use super::*;
     use crate::cli::app::AppOpenArgs;
     use std::ffi::{OsStr, OsString};
     use std::path::PathBuf;
@@ -401,6 +395,23 @@ mod tests {
         let text = assignment.to_string_lossy();
         assert!(text.starts_with(&format!("{GUI_CLI_BIN_ENV}=")));
         assert!(text.ends_with(&*cli.to_string_lossy()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn execute_open_command_surfaces_launcher_failure() {
+        let spec = OpenCommandSpec {
+            program: OsString::from("/bin/sh"),
+            args: vec![
+                OsString::from("-c"),
+                OsString::from("printf 'launch failed' >&2; exit 9"),
+            ],
+        };
+
+        let err = execute_open_command(&spec).expect_err("expected launcher failure");
+        let text = format!("{err:#}");
+        assert!(text.contains("spawn macOS `open` command for app launch"));
+        assert!(text.contains("launch failed"));
     }
 
     #[test]

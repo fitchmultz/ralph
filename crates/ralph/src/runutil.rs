@@ -42,7 +42,8 @@ pub(crate) use retry::{
     FixedBackoffSchedule, RunnerRetryPolicy, SeededRng, compute_backoff, format_duration,
 };
 pub(crate) use shell::{
-    ManagedCommand, TimeoutClass, execute_managed_command, sleep_with_cancellation,
+    ManagedCommand, TimeoutClass, execute_checked_command, execute_managed_command,
+    sleep_with_cancellation,
 };
 
 #[cfg(test)]

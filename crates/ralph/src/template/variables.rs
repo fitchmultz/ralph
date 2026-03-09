@@ -21,6 +21,8 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use regex::Regex;
 
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_checked_command};
+
 /// Context for template variable substitution
 #[derive(Debug, Clone, Default)]
 pub struct TemplateContext {
@@ -301,21 +303,26 @@ fn detect_git_branch(repo_root: &Path) -> Result<Option<String>> {
     let head_path = repo_root.join(".git/HEAD");
 
     if !head_path.exists() {
-        // Try to find .git in parent directories using git command
-        let output = std::process::Command::new("git")
-            .args(["rev-parse", "--abbrev-ref", "HEAD"])
-            .current_dir(repo_root)
-            .output()
-            .context("failed to execute git command")?;
+        // Worktrees and submodules may expose `.git` as a file, so fall back to git itself.
+        let mut command = std::process::Command::new("git");
+        command
+            .arg("-c")
+            .arg("core.fsmonitor=false")
+            .arg("rev-parse")
+            .arg("--abbrev-ref")
+            .arg("HEAD")
+            .current_dir(repo_root);
 
-        if output.status.success() {
-            let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if branch != "HEAD" {
-                return Ok(Some(branch));
-            }
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("git rev-parse failed: {}", stderr.trim()));
+        let output = execute_checked_command(ManagedCommand::new(
+            command,
+            format!("git rev-parse --abbrev-ref HEAD in {}", repo_root.display()),
+            TimeoutClass::MetadataProbe,
+        ))
+        .context("failed to detect template git branch")?;
+
+        let branch = output.stdout_lossy();
+        if branch != "HEAD" {
+            return Ok(Some(branch));
         }
         return Ok(None);
     }
@@ -403,6 +410,7 @@ pub fn substitute_variables_in_task(task: &mut crate::contracts::Task, context: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testsupport::git as git_test;
 
     #[test]
     fn test_substitute_variables_all_vars() {
@@ -479,12 +487,7 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let repo_root = temp_dir.path();
 
-        // Initialize a git repo
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(repo_root)
-            .output()
-            .expect("Failed to init git repo");
+        git_test::init_repo(repo_root).expect("Failed to init git repo");
 
         let context = detect_context(Some("src/cli/task.rs"), repo_root);
 
@@ -693,6 +696,21 @@ mod tests {
         assert!(context.branch.is_none());
         // Should have no warnings since we didn't try git detection
         assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_detect_context_warns_when_branch_lookup_fails() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let repo_root = temp_dir.path();
+
+        let (context, warnings) = detect_context_with_warnings(None, repo_root, true);
+
+        assert!(context.branch.is_none());
+        assert_eq!(warnings.len(), 1);
+        assert!(matches!(
+            warnings.first(),
+            Some(TemplateWarning::GitBranchDetectionFailed { .. })
+        ));
     }
 
     #[test]

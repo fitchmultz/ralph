@@ -122,6 +122,9 @@ pub mod timeouts {
     /// Managed subprocess timeout for short probes (doctor, availability checks).
     pub const MANAGED_SUBPROCESS_PROBE_TIMEOUT: Duration = Duration::from_secs(15);
 
+    /// Managed subprocess timeout for short-lived metadata probes.
+    pub const MANAGED_SUBPROCESS_METADATA_TIMEOUT: Duration = Duration::from_secs(10);
+
     /// Managed subprocess timeout for standard git operations.
     pub const MANAGED_SUBPROCESS_GIT_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -130,6 +133,12 @@ pub mod timeouts {
 
     /// Managed subprocess timeout for processor plugin hooks.
     pub const MANAGED_SUBPROCESS_PLUGIN_TIMEOUT: Duration = Duration::from_secs(300);
+
+    /// Managed subprocess timeout for app launches routed through platform launchers.
+    pub const MANAGED_SUBPROCESS_APP_LAUNCH_TIMEOUT: Duration = Duration::from_secs(20);
+
+    /// Managed subprocess timeout for notification media playback commands.
+    pub const MANAGED_SUBPROCESS_MEDIA_PLAYBACK_TIMEOUT: Duration = Duration::from_secs(20);
 
     /// Managed subprocess timeout for CI gate execution.
     pub const MANAGED_SUBPROCESS_CI_TIMEOUT: Duration = Duration::from_secs(60 * 30);

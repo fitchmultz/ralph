@@ -22,6 +22,7 @@ use anyhow::{Context, Result};
 use crate::constants::paths::SESSION_FILENAME;
 use crate::contracts::{QueueFile, SessionState, TaskStatus};
 use crate::fsutil;
+use crate::runutil::{ManagedCommand, TimeoutClass, execute_checked_command};
 use crate::timeutil;
 
 /// Get the path to the session file.
@@ -373,25 +374,29 @@ fn pad_right(s: &str, width: usize) -> String {
 
 /// Get the git HEAD commit hash for session tracking.
 pub fn get_git_head_commit(repo_root: &Path) -> Option<String> {
-    let output = std::process::Command::new("git")
+    let mut command = std::process::Command::new("git");
+    command
+        .arg("-c")
+        .arg("core.fsmonitor=false")
         .arg("-C")
         .arg(repo_root)
         .arg("rev-parse")
-        .arg("HEAD")
-        .output()
-        .ok()?;
+        .arg("HEAD");
 
-    if output.status.success() {
-        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    } else {
-        None
-    }
+    execute_checked_command(ManagedCommand::new(
+        command,
+        format!("git rev-parse HEAD in {}", repo_root.display()),
+        TimeoutClass::MetadataProbe,
+    ))
+    .ok()
+    .map(|output| output.stdout_lossy())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::contracts::{Task, TaskPriority};
+    use crate::testsupport::git as git_test;
     use tempfile::TempDir;
     use time::Duration;
 
@@ -448,6 +453,20 @@ mod tests {
 
     fn test_session(task_id: &str) -> SessionState {
         test_session_with_time(task_id, TEST_NOW)
+    }
+
+    #[test]
+    fn get_git_head_commit_returns_current_head() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        git_test::init_repo(temp_dir.path())?;
+        std::fs::write(temp_dir.path().join("README.md"), "session commit")?;
+        git_test::commit_all(temp_dir.path(), "init")?;
+
+        let commit = get_git_head_commit(temp_dir.path());
+        let expected = git_test::git_output(temp_dir.path(), &["rev-parse", "HEAD"])?;
+
+        assert_eq!(commit.as_deref(), Some(expected.as_str()));
+        Ok(())
     }
 
     #[test]
