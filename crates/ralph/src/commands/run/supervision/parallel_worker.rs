@@ -26,6 +26,15 @@ use super::PushPolicy;
 use super::enforce_post_run_ci_gate;
 use super::git_ops::{finalize_git_state, warn_if_modified_lfs};
 
+const RESTORED_BOOKKEEPING_FILES: [&str; 6] = [
+    ".ralph/queue.json",
+    ".ralph/queue.jsonc",
+    ".ralph/done.json",
+    ".ralph/done.jsonc",
+    ".ralph/cache/productivity.json",
+    ".ralph/cache/productivity.jsonc",
+];
+
 const PARALLEL_BOOKKEEPING_PATHS: [&str; 14] = [
     ".ralph/queue.json",
     ".ralph/queue.jsonc",
@@ -41,6 +50,16 @@ const PARALLEL_BOOKKEEPING_PATHS: [&str; 14] = [
     ".ralph/cache/migrations.jsonc",
     ".ralph/cache/parallel/",
     ".ralph/logs/",
+];
+
+const GENERATED_PARALLEL_PATHS: [&str; 7] = [
+    ".ralph/cache/phase2_final",
+    ".ralph/cache/session.json",
+    ".ralph/cache/session.jsonc",
+    ".ralph/cache/migrations.json",
+    ".ralph/cache/migrations.jsonc",
+    ".ralph/cache/parallel",
+    ".ralph/logs",
 ];
 
 /// Post-run supervision for parallel workers.
@@ -132,14 +151,19 @@ fn task_title_from_queue_or_done(
     task_id: &str,
 ) -> Result<Option<String>> {
     let queue_file = queue::load_queue(&resolved.queue_path)?;
-    if let Some(task) = queue_file.tasks.iter().find(|t| t.id.trim() == task_id) {
-        return Ok(Some(task.title.clone()));
+    if let Some(title) = find_task_title(&queue_file, task_id) {
+        return Ok(Some(title));
     }
     let done_file = queue::load_queue_or_default(&resolved.done_path)?;
-    if let Some(task) = done_file.tasks.iter().find(|t| t.id.trim() == task_id) {
-        return Ok(Some(task.title.clone()));
-    }
-    Ok(None)
+    Ok(find_task_title(&done_file, task_id))
+}
+
+fn find_task_title(queue_file: &crate::contracts::QueueFile, task_id: &str) -> Option<String> {
+    queue_file
+        .tasks
+        .iter()
+        .find(|task| task.id.trim() == task_id)
+        .map(|task| task.title.clone())
 }
 
 fn restore_parallel_worker_bookkeeping(
@@ -148,28 +172,7 @@ fn restore_parallel_worker_bookkeeping(
 ) -> Result<()> {
     // Always restore workspace-local bookkeeping files so they are excluded
     // from worker commits and rebases.
-    let workspace_queue_path = resolved.repo_root.join(".ralph").join("queue.json");
-    let workspace_queue_jsonc_path = resolved.repo_root.join(".ralph").join("queue.jsonc");
-    let workspace_done_path = resolved.repo_root.join(".ralph").join("done.json");
-    let workspace_done_jsonc_path = resolved.repo_root.join(".ralph").join("done.jsonc");
-    let productivity_path = resolved
-        .repo_root
-        .join(".ralph")
-        .join("cache")
-        .join("productivity.json");
-    let productivity_jsonc_path = resolved
-        .repo_root
-        .join(".ralph")
-        .join("cache")
-        .join("productivity.jsonc");
-    let paths = vec![
-        workspace_queue_path,
-        workspace_queue_jsonc_path,
-        workspace_done_path,
-        workspace_done_jsonc_path,
-        productivity_path,
-        productivity_jsonc_path,
-    ];
+    let paths = repo_paths(&resolved.repo_root, &RESTORED_BOOKKEEPING_FILES);
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
     remove_parallel_worker_generated_artifacts(&resolved.repo_root, task_id)?;
@@ -182,27 +185,8 @@ fn remove_parallel_worker_generated_artifacts(
 ) -> Result<()> {
     cleanup_plan_cache(repo_root, task_id)?;
 
-    let generated_paths = [
-        repo_root.join(".ralph/cache/phase2_final"),
-        repo_root.join(".ralph/cache/session.json"),
-        repo_root.join(".ralph/cache/session.jsonc"),
-        repo_root.join(".ralph/cache/migrations.json"),
-        repo_root.join(".ralph/cache/migrations.jsonc"),
-        repo_root.join(".ralph/cache/parallel"),
-        repo_root.join(".ralph/logs"),
-    ];
-
-    for path in generated_paths {
-        if !path.exists() {
-            continue;
-        }
-        if path.is_dir() {
-            std::fs::remove_dir_all(&path)
-                .with_context(|| format!("remove generated directory {}", path.display()))?;
-        } else {
-            std::fs::remove_file(&path)
-                .with_context(|| format!("remove generated file {}", path.display()))?;
-        }
+    for path in repo_paths(repo_root, &GENERATED_PARALLEL_PATHS) {
+        remove_path_if_exists(&path)?;
     }
 
     Ok(())
@@ -228,6 +212,29 @@ fn cleanup_plan_cache(repo_root: &std::path::Path, task_id: &str) -> Result<()> 
 
     git::restore_tracked_paths_to_head(repo_root, &[plan_path])
         .context("restore tracked plan cache to HEAD")?;
+
+    Ok(())
+}
+
+fn repo_paths(repo_root: &std::path::Path, relative_paths: &[&str]) -> Vec<std::path::PathBuf> {
+    relative_paths
+        .iter()
+        .map(|relative_path| repo_root.join(relative_path))
+        .collect()
+}
+
+fn remove_path_if_exists(path: &std::path::Path) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    if path.is_dir() {
+        std::fs::remove_dir_all(path)
+            .with_context(|| format!("remove generated directory {}", path.display()))?;
+    } else {
+        std::fs::remove_file(path)
+            .with_context(|| format!("remove generated file {}", path.display()))?;
+    }
 
     Ok(())
 }
