@@ -15,6 +15,15 @@ use crate::constants::buffers::{OUTPUT_TAIL_LINE_MAX_CHARS, OUTPUT_TAIL_LINES};
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
 use crate::runutil::execution::{RunnerBackend, run_prompt_with_handling_backend};
 
+#[path = "tests/fixtures.rs"]
+mod fixtures;
+#[path = "tests/revert.rs"]
+mod revert;
+#[path = "tests/runner_handling.rs"]
+mod runner_handling;
+#[path = "tests/validation.rs"]
+mod validation;
+
 #[test]
 fn log_stderr_tail_redacts_api_keys_via_redact_text() {
     let stderr = "Error occurred\nAPI_KEY=secret12345\nMore output";

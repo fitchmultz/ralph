@@ -69,9 +69,6 @@ pub(crate) mod debuglog;
 mod prompts_internal;
 
 #[cfg(test)]
-mod runutil_tests;
-
-#[cfg(test)]
 pub(crate) mod testsupport;
 
 /// Test synchronization utilities for managing global state across tests.
