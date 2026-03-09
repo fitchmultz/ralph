@@ -41,10 +41,10 @@ public extension Workspace {
         let recoveryError = RecoveryError.classify(
             error: error,
             operation: operation,
-            workspaceURL: workingDirectoryURL
+            workspaceURL: identityState.workingDirectoryURL
         )
-        lastRecoveryError = recoveryError
-        showErrorRecovery = true
+        diagnosticsState.lastRecoveryError = recoveryError
+        diagnosticsState.showErrorRecovery = true
 
         RalphLogger.shared.error(
             "Operation '\(operation)' failed: \(recoveryError.message)",
@@ -54,8 +54,8 @@ public extension Workspace {
 
     /// Clear error recovery state.
     func clearErrorRecovery() {
-        lastRecoveryError = nil
-        showErrorRecovery = false
-        retryState = nil
+        diagnosticsState.lastRecoveryError = nil
+        diagnosticsState.showErrorRecovery = false
+        diagnosticsState.retryState = nil
     }
 }

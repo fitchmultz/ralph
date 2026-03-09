@@ -55,7 +55,7 @@ struct DependencyGraphView: View {
             viewModel.applySelection(taskID: newValue)
         }
         .overlay {
-            if workspace.graphDataLoading {
+            if workspace.insightsState.graphDataLoading {
                 ProgressView("Loading graph...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.ultraThinMaterial)
@@ -71,16 +71,16 @@ struct DependencyGraphView: View {
                 }
             }
         }
-        .alert("Graph Error", isPresented: .constant(workspace.graphDataErrorMessage != nil)) {
-            Button("OK") { workspace.graphDataErrorMessage = nil }
+        .alert("Graph Error", isPresented: .constant(workspace.insightsState.graphDataErrorMessage != nil)) {
+            Button("OK") { workspace.insightsState.graphDataErrorMessage = nil }
         } message: {
-            Text(workspace.graphDataErrorMessage ?? "")
+            Text(workspace.insightsState.graphDataErrorMessage ?? "")
         }
     }
 
     private var graphRefreshKey: String {
-        let graphTasks = workspace.graphData?.tasks.map(\.id).joined(separator: "|") ?? "no-graph"
-        let taskVersions = workspace.tasks.map {
+        let graphTasks = workspace.insightsState.graphData?.tasks.map(\.id).joined(separator: "|") ?? "no-graph"
+        let taskVersions = workspace.taskState.tasks.map {
             "\($0.id):\($0.updatedAt?.timeIntervalSince1970 ?? 0)"
         }.joined(separator: "|")
         return "\(graphTasks)#\(taskVersions)#\(selectedTaskID ?? "none")"

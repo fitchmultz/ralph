@@ -36,10 +36,22 @@ struct WorkspaceView: View {
     @FocusedValue(\.workspaceWindowActions) private var workspaceWindowActions
     private let manager = WorkspaceManager.shared
 
+    private var showErrorRecoveryBinding: Binding<Bool> {
+        Binding(
+            get: { workspace.diagnosticsState.showErrorRecovery },
+            set: { workspace.diagnosticsState.showErrorRecovery = $0 }
+        )
+    }
+
     init(workspace: Workspace) {
         self._workspace = ObservedObject(wrappedValue: workspace)
         self._navigation = StateObject(
-            wrappedValue: NavigationViewModel(workspaceID: workspace.id)
+            wrappedValue: NavigationViewModel(
+                workspaceID: workspace.id,
+                issueSink: { issue in
+                    workspace.updateNavigationPersistenceIssue(issue)
+                }
+            )
         )
     }
 
@@ -61,7 +73,7 @@ struct WorkspaceView: View {
         .frame(minWidth: 1200, minHeight: 640)
         .background(.clear)
         .focusedSceneValue(\.workspaceUIActions, focusedWorkspaceUIActions)
-        .sheet(isPresented: $workspace.showErrorRecovery) { errorRecoverySheet() }
+        .sheet(isPresented: showErrorRecoveryBinding) { errorRecoverySheet() }
         .sheet(isPresented: $showingCommandPalette) { commandPaletteSheet() }
         .sheet(isPresented: $showingTaskCreation) {
             TaskCreationView(workspace: workspace)
@@ -144,9 +156,9 @@ struct WorkspaceView: View {
     @ViewBuilder
     private func contentColumn() -> some View {
         VStack(spacing: 0) {
-            if workspace.showsOperationalBanner {
+            if !workspace.diagnosticsState.operationalSummary.isHealthy {
                 OperationalStatusBannerView(
-                    summary: workspace.operationalSummary,
+                    summary: workspace.diagnosticsState.operationalSummary,
                     onRetry: { handleRepairOperationalHealth() },
                     onDismiss: nil
                 )
@@ -247,7 +259,7 @@ struct WorkspaceView: View {
     @ViewBuilder
     private func queueDetailColumn() -> some View {
         if let taskID = navigation.selectedTaskID,
-           let task = workspace.tasks.first(where: { $0.id == taskID }) {
+           let task = workspace.taskState.tasks.first(where: { $0.id == taskID }) {
             TaskDetailView(
                 workspace: workspace,
                 task: task,
@@ -271,7 +283,7 @@ struct WorkspaceView: View {
         Divider()
         HStack {
             ConnectionStatusIndicator(
-                summary: workspace.operationalSummary,
+                summary: workspace.diagnosticsState.operationalSummary,
                 onTap: {
                     showingOperationalHealth = true
                 }
@@ -279,14 +291,14 @@ struct WorkspaceView: View {
 
             Spacer()
 
-            if workspace.isShowingCachedTasks {
+            if workspace.diagnosticsState.cliHealthStatus?.isAvailable == false && !workspace.diagnosticsState.cachedTasks.isEmpty {
                 Label("Cached", systemImage: "archivebox")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .help("Showing cached task list")
             }
 
-            if case .failed = workspace.watcherHealth.state {
+            if case .failed = workspace.diagnosticsState.watcherHealth.state {
                 Label("Watcher", systemImage: "dot.scope.display")
                     .font(.caption2)
                     .foregroundStyle(.red)
@@ -302,7 +314,7 @@ struct WorkspaceView: View {
 
     @ViewBuilder
     private func errorRecoverySheet() -> some View {
-        if let error = workspace.lastRecoveryError {
+        if let error = workspace.diagnosticsState.lastRecoveryError {
             ErrorRecoverySheet(
                 error: error,
                 workspace: workspace,
@@ -325,10 +337,10 @@ struct WorkspaceView: View {
     private func operationalHealthSheet() -> some View {
         OperationalHealthSheet(
             workspaceName: workspace.projectDisplayName,
-            summary: workspace.operationalSummary,
-            issues: workspace.operationalIssues,
-            watcherHealth: workspace.watcherHealth,
-            cliHealthStatus: workspace.cliHealthStatus,
+            summary: workspace.diagnosticsState.operationalSummary,
+            issues: workspace.diagnosticsState.operationalIssues,
+            watcherHealth: workspace.diagnosticsState.watcherHealth,
+            cliHealthStatus: workspace.diagnosticsState.cliHealthStatus,
             onRepair: { handleRepairOperationalHealth() }
         )
     }
@@ -338,7 +350,7 @@ struct WorkspaceView: View {
     private func handleRetryConnection() {
         Task { @MainActor in
             _ = await workspace.checkHealth()
-            if let newStatus = workspace.cliHealthStatus, newStatus.isAvailable {
+            if let newStatus = workspace.diagnosticsState.cliHealthStatus, newStatus.isAvailable {
                 await workspace.loadTasks()
             }
         }
@@ -361,7 +373,7 @@ struct WorkspaceView: View {
         case "loadCLISpec":
             Task { @MainActor in await workspace.loadCLISpec() }
         case "run", "runVersion", "runInit":
-            if workspace.isRunning { workspace.cancel() }
+            if workspace.runState.isRunning { workspace.cancel() }
             if navigation.selectedSection == .quickActions {
                 workspace.runVersion()
             }

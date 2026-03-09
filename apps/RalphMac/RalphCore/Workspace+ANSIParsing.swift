@@ -11,7 +11,7 @@
 //! - Console view rendering.
 //!
 //! Invariants/assumptions callers must respect:
-//! - Parsed state is stored in `workspace.attributedOutput`.
+//! - Parsed state is stored in `workspace.runState.attributedOutput`.
 //! - Background colors are parsed for correctness but not yet rendered in `ANSISegment`.
 //! - Truncation keeps the newest parsed segments.
 
@@ -108,22 +108,24 @@ public extension Workspace {
 
     func parseANSICodes(from rawOutput: String, appendToExisting: Bool = false) {
         if appendToExisting {
-            attributedOutput = runState.streamProcessor.append(
+            runState.attributedOutput = runState.streamProcessor.append(
                 chunk: rawOutput,
-                maxSegments: maxANSISegments,
+                maxSegments: runState.maxANSISegments,
                 finalizeTrailingEscape: true
             ).segments
         } else {
-            attributedOutput = runState.streamProcessor.replace(
+            runState.attributedOutput = runState.streamProcessor.replace(
                 content: rawOutput,
-                maxSegments: maxANSISegments,
+                maxSegments: runState.maxANSISegments,
                 finalizeTrailingEscape: true
             ).segments
         }
     }
 
     func enforceANSISegmentLimit() {
-        attributedOutput = runState.streamProcessor.displaySegments(maxSegments: maxANSISegments)
+        runState.attributedOutput = runState.streamProcessor.displaySegments(
+            maxSegments: runState.maxANSISegments
+        )
     }
 }
 
@@ -131,18 +133,18 @@ extension Workspace {
     func consumeStreamTextChunk(_ text: String) {
         let snapshot = runState.streamProcessor.append(
             chunk: text,
-            maxSegments: maxANSISegments,
+            maxSegments: runState.maxANSISegments,
             finalizeTrailingEscape: false
         )
-        attributedOutput = snapshot.segments
+        runState.attributedOutput = snapshot.segments
         if let detectedPhase = snapshot.detectedPhase {
-            currentPhase = detectedPhase
+            runState.currentPhase = detectedPhase
         }
     }
 
     func resetStreamProcessingState() {
         runState.streamProcessor.reset()
-        attributedOutput = []
+        runState.attributedOutput = []
     }
 }
 

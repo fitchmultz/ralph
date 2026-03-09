@@ -67,8 +67,8 @@ struct TaskDetailView: View {
             .onChange(of: task.updatedAt) { _, _ in
                 editorState.synchronizeIfNoLocalChanges(with: task)
             }
-            .task(id: workspace.lastQueueRefreshEvent?.id) {
-                guard workspace.lastQueueRefreshEvent?.source == .externalFileChange else { return }
+            .task(id: workspace.taskState.lastQueueRefreshEvent?.id) {
+                guard workspace.taskState.lastQueueRefreshEvent?.source == .externalFileChange else { return }
                 editorState.checkForExternalChanges(in: workspace, taskID: task.id)
             }
     }

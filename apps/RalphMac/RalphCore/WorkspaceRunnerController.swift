@@ -32,13 +32,13 @@ final class WorkspaceRunnerController {
     }
 
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
-        workspace.runnerConfigLoading = true
-        workspace.runnerConfigErrorMessage = nil
+        workspace.runState.runnerConfigLoading = true
+        workspace.runState.runnerConfigErrorMessage = nil
 
         guard let client = workspace.client else {
-            workspace.currentRunnerConfig = nil
-            workspace.runnerConfigErrorMessage = "CLI client not available."
-            workspace.runnerConfigLoading = false
+            workspace.runState.currentRunnerConfig = nil
+            workspace.runState.runnerConfigErrorMessage = "CLI client not available."
+            workspace.runState.runnerConfigLoading = false
             return
         }
 
@@ -48,7 +48,7 @@ final class WorkspaceRunnerController {
                 operation: { [workspace] in
                     let result = try await client.runAndCollect(
                         arguments: ["--no-color", "config", "show", "--format", "json"],
-                        currentDirectoryURL: workspace.workingDirectoryURL
+                        currentDirectoryURL: workspace.identityState.workingDirectoryURL
                     )
                     if result.status.code != 0 {
                         throw result.toError()
@@ -59,30 +59,30 @@ final class WorkspaceRunnerController {
 
             let data = Data(collected.stdout.utf8)
             let decoded = try JSONDecoder().decode(ResolvedRunnerConfigDocument.self, from: data)
-            workspace.currentRunnerConfig = Workspace.RunnerConfig(
+            workspace.runState.currentRunnerConfig = Workspace.RunnerConfig(
                 model: decoded.agent?.model,
                 phases: decoded.agent?.phases,
                 maxIterations: decoded.agent?.iterations
             )
-            workspace.runnerConfigErrorMessage = nil
+            workspace.runState.runnerConfigErrorMessage = nil
         } catch {
-            workspace.currentRunnerConfig = nil
-            workspace.runnerConfigErrorMessage = "Failed to load resolved runner configuration."
+            workspace.runState.currentRunnerConfig = nil
+            workspace.runState.runnerConfigErrorMessage = "Failed to load resolved runner configuration."
             RalphLogger.shared.error(
                 "Failed to load runner configuration: \(error)",
                 category: .workspace
             )
         }
 
-        workspace.runnerConfigLoading = false
+        workspace.runState.runnerConfigLoading = false
     }
 
     func run(arguments: [String], preservingConsole: Bool = false) {
         guard let client = workspace.client else {
-            workspace.errorMessage = "CLI client not available."
+            workspace.runState.errorMessage = "CLI client not available."
             return
         }
-        guard !workspace.isRunning else { return }
+        guard !workspace.runState.isRunning else { return }
 
         loopContinuationTask?.cancel()
         loopContinuationTask = nil
@@ -95,13 +95,13 @@ final class WorkspaceRunnerController {
             do {
                 let run = try client.start(
                     arguments: arguments,
-                    currentDirectoryURL: workspace.workingDirectoryURL
+                    currentDirectoryURL: workspace.identityState.workingDirectoryURL
                 )
                 activeRun = run
 
                 for await event in run.events {
-                    workspace.outputBuffer.append(event.text)
-                    workspace.output = workspace.outputBuffer.content
+                    workspace.runState.outputBuffer.append(event.text)
+                    workspace.runState.output = workspace.runState.outputBuffer.content
                     workspace.consumeStreamTextChunk(event.text)
                 }
 
@@ -111,12 +111,12 @@ final class WorkspaceRunnerController {
                 let recoveryError = RecoveryError.classify(
                     error: error,
                     operation: "run",
-                    workspaceURL: workspace.workingDirectoryURL
+                    workspaceURL: workspace.identityState.workingDirectoryURL
                 )
-                workspace.errorMessage = recoveryError.message
-                workspace.lastRecoveryError = recoveryError
-                workspace.showErrorRecovery = true
-                workspace.isRunning = false
+                workspace.runState.errorMessage = recoveryError.message
+                workspace.diagnosticsState.lastRecoveryError = recoveryError
+                workspace.diagnosticsState.showErrorRecovery = true
+                workspace.runState.isRunning = false
                 activeRun = nil
                 cancelRequested = false
                 workspace.resetExecutionState()
@@ -125,15 +125,15 @@ final class WorkspaceRunnerController {
     }
 
     func cancel() {
-        guard workspace.isRunning else {
-            workspace.isLoopMode = false
-            workspace.stopAfterCurrent = true
+        guard workspace.runState.isRunning else {
+            workspace.runState.isLoopMode = false
+            workspace.runState.stopAfterCurrent = true
             return
         }
 
         cancelRequested = true
-        workspace.isLoopMode = false
-        workspace.stopAfterCurrent = true
+        workspace.runState.isLoopMode = false
+        workspace.runState.stopAfterCurrent = true
 
         guard let run = activeRun else { return }
         Task {
@@ -146,7 +146,7 @@ final class WorkspaceRunnerController {
         forceDirtyRepo: Bool = false,
         preservingConsole: Bool = false
     ) {
-        guard !workspace.isRunning else { return }
+        guard !workspace.runState.isRunning else { return }
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -161,7 +161,7 @@ final class WorkspaceRunnerController {
             } else {
                 resolvedTaskID = await resolveNextRunnableTaskID()
             }
-            workspace.currentTaskID = resolvedTaskID
+            workspace.runState.currentTaskID = resolvedTaskID
 
             var arguments = ["--no-color", "run", "one"]
             if forceDirtyRepo {
@@ -176,27 +176,27 @@ final class WorkspaceRunnerController {
     }
 
     func startLoop(forceDirtyRepo: Bool? = nil) {
-        workspace.isLoopMode = true
-        workspace.stopAfterCurrent = false
-        loopForceDirtyRepo = forceDirtyRepo ?? workspace.runControlForceDirtyRepo
+        workspace.runState.isLoopMode = true
+        workspace.runState.stopAfterCurrent = false
+        loopForceDirtyRepo = forceDirtyRepo ?? workspace.runState.runControlForceDirtyRepo
         runNextTask(forceDirtyRepo: loopForceDirtyRepo)
     }
 
     func stopLoop() {
-        workspace.isLoopMode = false
-        workspace.stopAfterCurrent = true
+        workspace.runState.isLoopMode = false
+        workspace.runState.stopAfterCurrent = true
         loopContinuationTask?.cancel()
         loopContinuationTask = nil
     }
 
     private func finalizeRun(status: RalphCLIExitStatus) {
-        workspace.lastExitStatus = status
-        workspace.isRunning = false
+        workspace.runState.lastExitStatus = status
+        workspace.runState.isRunning = false
 
-        if let startTime = workspace.executionStartTime {
+        if let startTime = workspace.runState.executionStartTime {
             let record = Workspace.ExecutionRecord(
                 id: UUID(),
-                taskID: workspace.currentTaskID,
+                taskID: workspace.runState.currentTaskID,
                 startTime: startTime,
                 endTime: Date(),
                 exitCode: cancelRequested ? nil : Int(status.code),
@@ -205,13 +205,13 @@ final class WorkspaceRunnerController {
             workspace.addToHistory(record)
         }
 
-        let shouldContinueLoop = workspace.isLoopMode
-            && !workspace.stopAfterCurrent
+        let shouldContinueLoop = workspace.runState.isLoopMode
+            && !workspace.runState.stopAfterCurrent
             && !cancelRequested
             && status.code == 0
 
         if status.code != 0 {
-            workspace.isLoopMode = false
+            workspace.runState.isLoopMode = false
         }
 
         activeRun = nil
@@ -228,7 +228,7 @@ final class WorkspaceRunnerController {
         loopContinuationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             loopContinuationTask = nil
-            guard workspace.isLoopMode, !workspace.stopAfterCurrent else { return }
+            guard workspace.runState.isLoopMode, !workspace.runState.stopAfterCurrent else { return }
             runNextTask(forceDirtyRepo: loopForceDirtyRepo, preservingConsole: true)
         }
     }
@@ -239,7 +239,7 @@ final class WorkspaceRunnerController {
         do {
             let dryRun = try await client.runAndCollect(
                 arguments: ["--no-color", "run", "one", "--dry-run", "--non-interactive"],
-                currentDirectoryURL: workspace.workingDirectoryURL
+                currentDirectoryURL: workspace.identityState.workingDirectoryURL
             )
             let combined = dryRun.stdout + "\n" + dryRun.stderr
             if let id = Self.extractTaskID(from: combined) {

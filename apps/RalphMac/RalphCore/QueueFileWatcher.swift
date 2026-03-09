@@ -333,7 +333,7 @@ private actor QueueFileWatcherRuntime {
         retryTask?.cancel()
         retryTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(for: delay)
+            guard await self.sleepUnlessCancelled(for: delay) else { return }
             await self.attemptStart()
         }
     }
@@ -359,7 +359,7 @@ private actor QueueFileWatcherRuntime {
         debounceTask?.cancel()
         debounceTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(for: configuration.debounceInterval)
+            guard await self.sleepUnlessCancelled(for: configuration.debounceInterval) else { return }
             await self.flushPendingChanges()
         }
     }
@@ -380,6 +380,26 @@ private actor QueueFileWatcherRuntime {
             || (flag & UInt32(kFSEventStreamEventFlagItemCreated)) != 0
             || (flag & UInt32(kFSEventStreamEventFlagItemRenamed)) != 0
             || (flag & UInt32(kFSEventStreamEventFlagItemRemoved)) != 0
+    }
+
+    private func sleepUnlessCancelled(for duration: Duration) async -> Bool {
+        do {
+            try await Task.sleep(for: duration)
+            return !Task.isCancelled
+        } catch is CancellationError {
+            return false
+        } catch {
+            emitHealth(.degraded(
+                reason: "Queue watcher timer failed: \(error.localizedDescription)",
+                retryCount: startAttempts,
+                nextRetryAt: nil
+            ))
+            RalphLogger.shared.error(
+                "Queue watcher timer failed: \(error.localizedDescription)",
+                category: .fileWatching
+            )
+            return false
+        }
     }
 }
 

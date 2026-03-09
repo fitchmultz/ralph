@@ -78,7 +78,7 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
 
         XCTAssertEqual(result.parentTaskID, "RQ-0007")
         XCTAssertEqual(result.createdIDs, ["RQ-0101", "RQ-0102"])
-        XCTAssertEqual(workspace.tasks.map(\.id), ["RQ-0007", "RQ-0101", "RQ-0102"])
+        XCTAssertEqual(workspace.taskState.tasks.map(\.id), ["RQ-0007", "RQ-0101", "RQ-0102"])
 
         let log = try String(contentsOf: fixture.logURL, encoding: .utf8)
         XCTAssertTrue(log.contains("task decompose RQ-0007 --format json --max-depth 3 --max-children 4 --max-nodes 25 --status draft --child-policy fail --write"))

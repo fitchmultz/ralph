@@ -100,29 +100,19 @@ public final class RalphLogger: @unchecked Sendable {
     
     // MARK: - Log Export
     
-    /// Export recent logs for the Ralph subsystem
-    /// - Parameters:
-    ///   - hours: Number of hours of logs to export (default 24)
-    ///   - completion: Callback with the exported log string or nil if unavailable
     @available(macOS 12.0, *)
-    public func exportLogs(hours: Int = 24, completion: @escaping @Sendable (String?) -> Void) {
-        Task {
-            do {
-                let store = try OSLogStore(scope: .currentProcessIdentifier)
-                let startDate = Date().addingTimeInterval(-TimeInterval(hours * 3600))
-                let position = store.position(date: startDate)
-                
-                let entries = try store.getEntries(at: position)
-                    .compactMap { $0 as? OSLogEntryLog }
-                    .filter { $0.subsystem == RalphLogger.subsystem }
-                    .map { "[\($0.date.formatted())] [\($0.category)] \($0.composedMessage)" }
-                
-                let logOutput = entries.joined(separator: "\n")
-                completion(logOutput.isEmpty ? "No logs found for the specified time period." : logOutput)
-            } catch {
-                completion("Failed to export logs: \(error.localizedDescription)")
-            }
-        }
+    public func exportLogs(hours: Int = 24) async throws -> String {
+        let store = try OSLogStore(scope: .currentProcessIdentifier)
+        let startDate = Date().addingTimeInterval(-TimeInterval(hours * 3600))
+        let position = store.position(date: startDate)
+
+        let entries = try store.getEntries(at: position)
+            .compactMap { $0 as? OSLogEntryLog }
+            .filter { $0.subsystem == RalphLogger.subsystem }
+            .map { "[\($0.date.formatted())] [\($0.category)] \($0.composedMessage)" }
+
+        let logOutput = entries.joined(separator: "\n")
+        return logOutput.isEmpty ? "No logs found for the specified time period." : logOutput
     }
     
     /// Check if log export is available (macOS 12+)
@@ -133,4 +123,3 @@ public final class RalphLogger: @unchecked Sendable {
         return false
     }
 }
-

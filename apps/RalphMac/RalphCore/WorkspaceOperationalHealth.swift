@@ -301,6 +301,10 @@ private extension PersistenceIssue.Domain {
             return "Workspace persistence failed"
         case .cachedTasks:
             return "Cached task persistence failed"
+        case .navigationState:
+            return "Navigation persistence failed"
+        case .temporaryFiles:
+            return "Temporary file cleanup failed"
         case .windowRestoration:
             return "Window restoration failed"
         case .versionCache:
@@ -314,7 +318,7 @@ private extension PersistenceIssue.Domain {
 
     var recoverySuggestion: String? {
         switch self {
-        case .workspaceState, .cachedTasks:
+        case .workspaceState, .cachedTasks, .navigationState, .temporaryFiles:
             return "Retry the action after checking local app-storage permissions."
         case .windowRestoration, .appDefaultsPreparation:
             return "Restart the app if window or defaults state remains inconsistent."

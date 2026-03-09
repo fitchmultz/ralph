@@ -33,7 +33,7 @@ struct AdvancedRunnerContentColumn: View {
 
             commandList()
         }
-        .onChange(of: workspace.advancedSelectedCommandID) { _, _ in
+        .onChange(of: workspace.commandState.advancedSelectedCommandID) { _, _ in
             workspace.resetAdvancedInputs()
         }
     }
@@ -44,18 +44,27 @@ struct AdvancedRunnerContentColumn: View {
             WorkingDirectoryHeader(workspace: workspace)
 
             HStack(spacing: 16) {
-                Toggle("No Color", isOn: $workspace.advancedIncludeNoColor)
+                Toggle("No Color", isOn: Binding(
+                    get: { workspace.commandState.advancedIncludeNoColor },
+                    set: { workspace.commandState.advancedIncludeNoColor = $0 }
+                ))
                     .toggleStyle(.switch)
 
-                Toggle("Show Hidden", isOn: $workspace.advancedShowHiddenCommands)
+                Toggle("Show Hidden", isOn: Binding(
+                    get: { workspace.commandState.advancedShowHiddenCommands },
+                    set: { workspace.commandState.advancedShowHiddenCommands = $0 }
+                ))
                     .toggleStyle(.switch)
 
-                Toggle("Hidden Args", isOn: $workspace.advancedShowHiddenArgs)
+                Toggle("Hidden Args", isOn: Binding(
+                    get: { workspace.commandState.advancedShowHiddenArgs },
+                    set: { workspace.commandState.advancedShowHiddenArgs = $0 }
+                ))
                     .toggleStyle(.switch)
 
                 Spacer()
 
-                if workspace.cliSpecIsLoading {
+                if workspace.commandState.cliSpecIsLoading {
                     ProgressView()
                         .scaleEffect(0.75)
                         .controlSize(.small)
@@ -71,7 +80,7 @@ struct AdvancedRunnerContentColumn: View {
                 .buttonStyle(GlassButtonStyle())
             }
 
-            if let err = workspace.cliSpecErrorMessage {
+            if let err = workspace.commandState.cliSpecErrorMessage {
                 Text(err)
                     .foregroundStyle(.red)
                     .font(.system(.caption))
@@ -84,7 +93,13 @@ struct AdvancedRunnerContentColumn: View {
     private func commandList() -> some View {
         let commands = filteredCommands()
 
-        List(commands, selection: $workspace.advancedSelectedCommandID) { cmd in
+        List(
+            commands,
+            selection: Binding(
+                get: { workspace.commandState.advancedSelectedCommandID },
+                set: { workspace.commandState.advancedSelectedCommandID = $0 }
+            )
+        ) { cmd in
             VStack(alignment: .leading, spacing: 2) {
                 Text(cmd.displayPath)
                     .font(.system(.body, design: .monospaced))
@@ -98,13 +113,19 @@ struct AdvancedRunnerContentColumn: View {
             .tag(cmd.id)
         }
         .listStyle(.plain)
-        .searchable(text: $workspace.advancedSearchText, placement: .toolbar)
+        .searchable(
+            text: Binding(
+                get: { workspace.commandState.advancedSearchText },
+                set: { workspace.commandState.advancedSearchText = $0 }
+            ),
+            placement: .toolbar
+        )
         .navigationTitle(navTitle("Advanced Runner"))
     }
 
     private func filteredCommands() -> [RalphCLICommandSpec] {
         let commands = workspace.advancedCommands()
-        let query = workspace.advancedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = workspace.commandState.advancedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return commands }
 
         return commands.filter { cmd in
@@ -133,7 +154,7 @@ struct AdvancedRunnerDetailColumn: View {
             VStack(alignment: .leading, spacing: 20) {
                 commandHeader(cmd: cmd)
 
-                let args = cmd.args.filter { workspace.advancedShowHiddenArgs || !$0.hidden }
+                let args = cmd.args.filter { workspace.commandState.advancedShowHiddenArgs || !$0.hidden }
                 let (positional, options) = splitArgs(args)
 
                 if !positional.isEmpty {
@@ -206,10 +227,10 @@ struct AdvancedRunnerDetailColumn: View {
                             workspace.run(arguments: argv)
                         }
                     }
-                    .disabled(workspace.isRunning)
+                    .disabled(workspace.runState.isRunning)
                     .buttonStyle(GlassButtonStyle())
 
-                    if workspace.isRunning {
+                    if workspace.runState.isRunning {
                         Button(action: { workspace.cancel() }) {
                             Label("Stop", systemImage: "stop.circle.fill")
                                 .foregroundStyle(.red)
@@ -285,12 +306,12 @@ struct AdvancedArgRow: View {
         if arg.isCountFlag {
             Stepper(
                 value: Binding(
-                    get: { workspace.advancedCountValues[arg.id] ?? 0 },
-                    set: { workspace.advancedCountValues[arg.id] = $0 }
+                    get: { workspace.commandState.advancedCountValues[arg.id] ?? 0 },
+                    set: { workspace.commandState.advancedCountValues[arg.id] = $0 }
                 ),
                 in: 0...20
             ) {
-                Text("\(workspace.advancedCountValues[arg.id] ?? 0)")
+                Text("\(workspace.commandState.advancedCountValues[arg.id] ?? 0)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -299,8 +320,8 @@ struct AdvancedArgRow: View {
             Toggle(
                 "",
                 isOn: Binding(
-                    get: { workspace.advancedBoolValues[arg.id] ?? false },
-                    set: { workspace.advancedBoolValues[arg.id] = $0 }
+                    get: { workspace.commandState.advancedBoolValues[arg.id] ?? false },
+                    set: { workspace.commandState.advancedBoolValues[arg.id] = $0 }
                 )
             )
             .labelsHidden()
@@ -309,8 +330,8 @@ struct AdvancedArgRow: View {
             if arg.allowsMultipleValues {
                 TextEditor(
                     text: Binding(
-                        get: { workspace.advancedMultiValues[arg.id] ?? "" },
-                        set: { workspace.advancedMultiValues[arg.id] = $0 }
+                        get: { workspace.commandState.advancedMultiValues[arg.id] ?? "" },
+                        set: { workspace.commandState.advancedMultiValues[arg.id] = $0 }
                     )
                 )
                 .font(.system(.caption, design: .monospaced))
@@ -319,8 +340,8 @@ struct AdvancedArgRow: View {
                 TextField(
                     "",
                     text: Binding(
-                        get: { workspace.advancedSingleValues[arg.id] ?? "" },
-                        set: { workspace.advancedSingleValues[arg.id] = $0 }
+                        get: { workspace.commandState.advancedSingleValues[arg.id] ?? "" },
+                        set: { workspace.commandState.advancedSingleValues[arg.id] = $0 }
                     )
                 )
                 .textFieldStyle(.roundedBorder)
@@ -377,7 +398,7 @@ struct ExitStatusBadge: View {
     @ObservedObject var workspace: Workspace
 
     var body: some View {
-        if let status = workspace.lastExitStatus {
+        if let status = workspace.runState.lastExitStatus {
             Text("Exit: \(status.code) [\(status.reason.rawValue)]")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(status.code == 0 ? Color.secondary : Color.red)

@@ -67,7 +67,7 @@ public extension Workspace {
             },
             onProgress: { [weak self] attempt, maxAttempts, _ in
                 await MainActor.run { [weak self] in
-                    self?.errorMessage = "Retrying create task (attempt \(attempt)/\(maxAttempts))..."
+                    self?.runState.errorMessage = "Retrying create task (attempt \(attempt)/\(maxAttempts))..."
                 }
             }
         )
@@ -86,7 +86,7 @@ private extension Workspace {
     func reserveNextTaskID(using client: RalphCLIClient) async throws -> String {
         let nextIDResult = try await client.runAndCollect(
             arguments: ["--no-color", "queue", "next-id"],
-            currentDirectoryURL: workingDirectoryURL
+            currentDirectoryURL: identityState.workingDirectoryURL
         )
         guard nextIDResult.status.code == 0 else {
             throw nextIDResult.toError()
@@ -117,7 +117,7 @@ private extension Workspace {
 
         let result = try await client.runAndCollect(
             arguments: arguments,
-            currentDirectoryURL: workingDirectoryURL
+            currentDirectoryURL: identityState.workingDirectoryURL
         )
         if result.status.code != 0 {
             throw result.toError()
@@ -173,30 +173,27 @@ private extension Workspace {
             updatedAt: timestamp
         )]
 
-        let tempFileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ralph-task-import-\(UUID().uuidString)", isDirectory: false)
-            .appendingPathExtension("json")
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(payload).write(to: tempFileURL, options: .atomic)
-        defer { try? FileManager.default.removeItem(at: tempFileURL) }
-
-        let result = try await client.runAndCollect(
-            arguments: [
-                "--no-color",
-                "queue",
-                "import",
-                "--format",
-                "json",
-                "--input",
-                tempFileURL.path
-            ],
-            currentDirectoryURL: workingDirectoryURL
-        )
-        if result.status.code != 0 {
-            throw result.toError()
+        return try await withTemporaryJSONFile(
+            prefix: "ralph-task-import",
+            payload: payload,
+            operationName: "import structured task"
+        ) { tempFileURL in
+            let result = try await client.runAndCollect(
+                arguments: [
+                    "--no-color",
+                    "queue",
+                    "import",
+                    "--format",
+                    "json",
+                    "--input",
+                    tempFileURL.path,
+                ],
+                currentDirectoryURL: identityState.workingDirectoryURL
+            )
+            if result.status.code != 0 {
+                throw result.toError()
+            }
+            return result
         }
-
-        return result
     }
 }

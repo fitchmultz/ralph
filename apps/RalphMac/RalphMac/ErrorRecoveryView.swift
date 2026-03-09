@@ -227,7 +227,7 @@ struct ErrorRecoveryView: View {
     }
 
     private func checkPermissions() {
-        if let url = error.workspaceURL ?? workspace?.workingDirectoryURL {
+        if let url = error.workspaceURL ?? workspace?.identityState.workingDirectoryURL {
             NSWorkspace.shared.open(url)
         }
     }

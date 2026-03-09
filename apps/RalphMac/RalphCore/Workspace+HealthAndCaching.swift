@@ -27,6 +27,7 @@ public final class WorkspaceDiagnosticsState: ObservableObject {
     @Published public var isCheckingHealth = false
     @Published public var cachedTasks: [RalphTask] = []
     @Published public var persistenceIssue: PersistenceIssue?
+    @Published public var navigationPersistenceIssue: PersistenceIssue?
     @Published public var watcherHealth: QueueWatcherHealth
     @Published public var operationalIssues: [WorkspaceOperationalIssue] = []
     @Published public var operationalSummary: WorkspaceOperationalSummary = .healthy
@@ -43,17 +44,17 @@ public final class WorkspaceDiagnosticsState: ObservableObject {
 public extension Workspace {
     @MainActor
     func checkHealth(timeout: TimeInterval = CLIHealthChecker.defaultTimeout) async -> CLIHealthStatus {
-        isCheckingHealth = true
-        defer { isCheckingHealth = false }
+        diagnosticsState.isCheckingHealth = true
+        defer { diagnosticsState.isCheckingHealth = false }
 
         let checker = CLIHealthChecker()
         let status = await checker.checkHealth(
             workspaceID: id,
-            workspaceURL: workingDirectoryURL,
+            workspaceURL: identityState.workingDirectoryURL,
             timeout: timeout,
             executableURL: client?.executableURL
         )
-        cliHealthStatus = status
+        diagnosticsState.cliHealthStatus = status
 
         if status.isAvailable {
             refreshCachedTasks()
@@ -66,7 +67,7 @@ public extension Workspace {
 
     @MainActor
     func checkHealthIfNeeded() async {
-        if let status = cliHealthStatus,
+        if let status = diagnosticsState.cliHealthStatus,
             Date().timeIntervalSince(status.lastChecked) < 30 {
             return
         }
@@ -76,10 +77,10 @@ public extension Workspace {
 
     @MainActor
     func refreshCachedTasks() {
-        cachedTasks = tasks
+        diagnosticsState.cachedTasks = taskState.tasks
 
         do {
-            let data = try JSONEncoder().encode(tasks)
+            let data = try JSONEncoder().encode(taskState.tasks)
             RalphAppDefaults.userDefaults.set(data, forKey: defaultsKey("cachedTasks"))
             clearPersistenceIssue(domain: .cachedTasks)
         } catch {
@@ -98,12 +99,12 @@ public extension Workspace {
     @MainActor
     func loadCachedTasks() {
         guard let data = RalphAppDefaults.userDefaults.data(forKey: defaultsKey("cachedTasks")) else {
-            cachedTasks = []
+            diagnosticsState.cachedTasks = []
             return
         }
 
         do {
-            cachedTasks = try JSONDecoder().decode([RalphTask].self, from: data)
+            diagnosticsState.cachedTasks = try JSONDecoder().decode([RalphTask].self, from: data)
             clearPersistenceIssue(domain: .cachedTasks)
         } catch {
             recordPersistenceIssue(
@@ -114,22 +115,23 @@ public extension Workspace {
                     error: error
                 )
             )
-            cachedTasks = []
+            diagnosticsState.cachedTasks = []
         }
         refreshOperationalHealth()
     }
 
     @MainActor
     func displayTasks() -> [RalphTask] {
-        if showOfflineBanner && !cachedTasks.isEmpty {
-            return cachedTasks
+        if diagnosticsState.cliHealthStatus?.isAvailable == false,
+            !diagnosticsState.cachedTasks.isEmpty {
+            return diagnosticsState.cachedTasks
         }
-        return tasks
+        return taskState.tasks
     }
 
     @MainActor
     func clearCachedTasks() {
-        cachedTasks = []
+        diagnosticsState.cachedTasks = []
         RalphAppDefaults.userDefaults.removeObject(forKey: defaultsKey("cachedTasks"))
         clearPersistenceIssue(domain: .cachedTasks)
         refreshOperationalHealth()
@@ -137,7 +139,7 @@ public extension Workspace {
 
     @MainActor
     func updateWatcherHealth(_ health: QueueWatcherHealth) {
-        watcherHealth = health
+        diagnosticsState.watcherHealth = health
         refreshOperationalHealth()
     }
 
@@ -145,11 +147,11 @@ public extension Workspace {
     func refreshOperationalHealth() {
         var issues: [WorkspaceOperationalIssue] = []
 
-        if let cliIssue = cliHealthStatus.flatMap(WorkspaceOperationalIssue.fromCLIStatus) {
+        if let cliIssue = diagnosticsState.cliHealthStatus.flatMap(WorkspaceOperationalIssue.fromCLIStatus) {
             issues.append(cliIssue)
         }
 
-        if let persistenceIssue {
+        if let persistenceIssue = diagnosticsState.persistenceIssue {
             issues.append(
                 .fromPersistenceIssue(
                     persistenceIssue,
@@ -158,7 +160,16 @@ public extension Workspace {
             )
         }
 
-        if let watcherIssue = WorkspaceOperationalIssue.fromWatcherHealth(watcherHealth) {
+        if let navigationPersistenceIssue = diagnosticsState.navigationPersistenceIssue {
+            issues.append(
+                .fromPersistenceIssue(
+                    navigationPersistenceIssue,
+                    source: .workspacePersistence
+                )
+            )
+        }
+
+        if let watcherIssue = WorkspaceOperationalIssue.fromWatcherHealth(diagnosticsState.watcherHealth) {
             issues.append(watcherIssue)
         }
 
@@ -184,8 +195,8 @@ public extension Workspace {
             return $0.timestamp > $1.timestamp
         }
 
-        operationalIssues = issues
-        operationalSummary = WorkspaceOperationalSummary(issues: issues)
+        diagnosticsState.operationalIssues = issues
+        diagnosticsState.operationalSummary = WorkspaceOperationalSummary(issues: issues)
     }
 
     @MainActor

@@ -17,12 +17,12 @@ import Foundation
 public extension Workspace {
     func loadGraphData(retryConfiguration: RetryConfiguration = .default) async {
         guard let client else {
-            graphDataErrorMessage = "CLI client not available."
+            insightsState.graphDataErrorMessage = "CLI client not available."
             return
         }
 
-        graphDataLoading = true
-        graphDataErrorMessage = nil
+        insightsState.graphDataLoading = true
+        insightsState.graphDataErrorMessage = nil
 
         do {
             let helper = RetryHelper(configuration: retryConfiguration)
@@ -30,7 +30,7 @@ public extension Workspace {
                 operation: { [self] in
                     let result = try await client.runAndCollect(
                         arguments: ["--no-color", "queue", "graph", "--format", "json"],
-                        currentDirectoryURL: workingDirectoryURL
+                        currentDirectoryURL: identityState.workingDirectoryURL
                     )
                     if result.status.code != 0 {
                         throw result.toError()
@@ -39,31 +39,35 @@ public extension Workspace {
                 },
                 onProgress: { [weak self] attempt, maxAttempts, _ in
                     await MainActor.run { [weak self] in
-                        self?.graphDataErrorMessage = "Retrying load graph (attempt \(attempt)/\(maxAttempts))..."
+                        self?.insightsState.graphDataErrorMessage =
+                            "Retrying load graph (attempt \(attempt)/\(maxAttempts))..."
                     }
                 }
             )
 
             guard collected.status.code == 0 else {
-                graphDataErrorMessage = collected.stderr.isEmpty
+                insightsState.graphDataErrorMessage = collected.stderr.isEmpty
                     ? "Failed to load graph data (exit \(collected.status.code))."
                     : collected.stderr
-                graphDataLoading = false
+                insightsState.graphDataLoading = false
                 return
             }
 
-            graphData = try JSONDecoder().decode(RalphGraphDocument.self, from: Data(collected.stdout.utf8))
+            insightsState.graphData = try JSONDecoder().decode(
+                RalphGraphDocument.self,
+                from: Data(collected.stdout.utf8)
+            )
         } catch {
             let recoveryError = RecoveryError.classify(
                 error: error,
                 operation: "loadGraphData",
-                workspaceURL: workingDirectoryURL
+                workspaceURL: identityState.workingDirectoryURL
             )
-            graphDataErrorMessage = recoveryError.message
-            lastRecoveryError = recoveryError
-            showErrorRecovery = true
+            insightsState.graphDataErrorMessage = recoveryError.message
+            diagnosticsState.lastRecoveryError = recoveryError
+            diagnosticsState.showErrorRecovery = true
         }
 
-        graphDataLoading = false
+        insightsState.graphDataLoading = false
     }
 }

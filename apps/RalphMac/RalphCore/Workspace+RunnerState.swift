@@ -189,16 +189,16 @@ public extension Workspace {
 
 extension Workspace {
     func resetExecutionState() {
-        currentPhase = nil
-        executionStartTime = nil
-        currentTaskID = nil
+        runState.currentPhase = nil
+        runState.executionStartTime = nil
+        runState.currentTaskID = nil
         resetStreamProcessingState()
     }
 
     func addToHistory(_ record: ExecutionRecord) {
-        executionHistory.insert(record, at: 0)
-        if executionHistory.count > 50 {
-            executionHistory = Array(executionHistory.prefix(50))
+        runState.executionHistory.insert(record, at: 0)
+        if runState.executionHistory.count > 50 {
+            runState.executionHistory = Array(runState.executionHistory.prefix(50))
         }
     }
 }

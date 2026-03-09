@@ -1,22 +1,24 @@
-/**
- NavigationViewModel
-
- Responsibilities:
- - Manage the selected sidebar section (Queue, Quick Actions, Advanced Runner)
- - Track the selected task ID for the Queue section
- - Track the selected command ID for the Advanced section
- - Control sidebar visibility state (collapsed/expanded)
- - Persist window-local navigation state for the active workspace tab.
-
- Does not handle:
- - Window-level tab state (see WindowState)
- - Workspace data/content (see Workspace)
- - Direct UI rendering
-
- Invariants/assumptions callers must respect:
- - Must be created as @StateObject at the view level that needs navigation state
- - Navigation mutations should flow through the owning workspace scene actions.
- */
+//!
+//! NavigationViewModel
+//!
+//! Purpose:
+//! - Own workspace-local navigation state for the macOS workspace surface.
+//!
+//! Responsibilities:
+//! - Track the selected sidebar section, task selection, and queue presentation mode.
+//! - Persist and restore navigation state through `NavigationStateStore`.
+//! - Surface persistence failures so workspace operational health can report them.
+//!
+//! Scope:
+//! - Window-local navigation only. Workspace data, routing, and rendering live elsewhere.
+//!
+//! Usage:
+//! - Construct as `@StateObject` from the owning workspace view and provide an issue sink when
+//!   navigation persistence should participate in workspace operational health.
+//!
+//! Invariants/Assumptions:
+//! - Navigation mutations occur on the main actor.
+//! - Version mismatches reset to defaults rather than attempting compatibility shims.
 
 public import SwiftUI
 
@@ -96,71 +98,62 @@ public enum TaskViewMode: String, CaseIterable, Identifiable, Codable {
 
 @MainActor
 public final class NavigationViewModel: ObservableObject {
-    // MARK: - Published Properties
-
     @Published public var selectedSection: SidebarSection = .queue {
-        didSet { saveNavigationState() }
+        didSet { persistNavigationState() }
     }
     @Published public var selectedTaskID: String? = nil {
-        didSet { saveNavigationState() }
+        didSet { persistNavigationState() }
     }
-    /// Set of task IDs for multi-select mode (Cmd+click selection)
     @Published public var selectedTaskIDs: Set<String> = [] {
-        didSet { saveNavigationState() }
+        didSet { persistNavigationState() }
     }
     @Published public var sidebarVisibility: NavigationSplitViewVisibility = .automatic
     @Published public var taskViewMode: TaskViewMode = .list {
-        didSet { saveNavigationState() }
+        didSet { persistNavigationState() }
     }
-    
-    /// Whether multi-select mode is active (has more than one selection)
+    @Published public private(set) var persistenceIssue: PersistenceIssue?
+
     public var isMultiSelectActive: Bool {
         selectedTaskIDs.count > 1
     }
-    
-    /// Clear all task selections
+
+    private let workspaceID: UUID?
+    private let store: NavigationStateStore
+    private let issueSink: (PersistenceIssue?) -> Void
+
+    public init(
+        workspaceID: UUID? = nil,
+        store: NavigationStateStore = NavigationStateStore(),
+        issueSink: @escaping (PersistenceIssue?) -> Void = { _ in }
+    ) {
+        self.workspaceID = workspaceID
+        self.store = store
+        self.issueSink = issueSink
+        loadNavigationState()
+    }
+
     public func clearAllTaskSelections() {
         selectedTaskID = nil
         selectedTaskIDs.removeAll()
     }
 
-    // MARK: - Private Properties
-
-    private let workspaceID: UUID?
-
-    // MARK: - Initialization
-
-    /// Creates a new NavigationViewModel, optionally loading persisted state for a specific workspace
-    /// - Parameter workspaceID: The ID of the workspace to load/save state for, or nil for generic state
-    public init(workspaceID: UUID? = nil) {
-        self.workspaceID = workspaceID
-        loadNavigationState()
-    }
-
-    // MARK: - Public Methods
-
-    /// Navigate to a specific sidebar section
     public func navigate(to section: SidebarSection) {
         selectedSection = section
     }
 
-    /// Toggle sidebar visibility between automatic and detail-only
     public func toggleSidebar() {
         sidebarVisibility = sidebarVisibility == .detailOnly ? .automatic : .detailOnly
     }
 
-    /// Select a task by ID (clears if already selected)
     public func selectTask(_ taskID: String?) {
         selectedTaskID = taskID
     }
 
-    /// Clear the current task selection
     public func clearTaskSelection() {
         selectedTaskID = nil
         selectedTaskIDs.removeAll()
     }
 
-    /// Toggle between list, kanban, and graph view modes
     public func toggleTaskViewMode() {
         switch taskViewMode {
         case .list:
@@ -171,22 +164,19 @@ public final class NavigationViewModel: ObservableObject {
             taskViewMode = .list
         }
     }
-    
-    /// Switch to a specific view mode
+
     public func setTaskViewMode(_ mode: TaskViewMode) {
         taskViewMode = mode
     }
 
-    // MARK: - Persistence
-
     private var stateKey: String {
-        if let workspaceID = workspaceID {
+        if let workspaceID {
             return "\(navigationStateKey).\(workspaceID.uuidString)"
         }
         return navigationStateKey
     }
 
-    private func saveNavigationState() {
+    private func persistNavigationState() {
         let state = NavigationState(
             version: navigationStateVersion,
             selectedSection: selectedSection,
@@ -195,24 +185,54 @@ public final class NavigationViewModel: ObservableObject {
             selectedTaskIDs: Array(selectedTaskIDs)
         )
 
-        if let data = try? JSONEncoder().encode(state) {
-            RalphAppDefaults.userDefaults.set(data, forKey: stateKey)
+        do {
+            try store.saveState(state, forKey: stateKey)
+            updatePersistenceIssue(nil)
+        } catch {
+            updatePersistenceIssue(
+                PersistenceIssue(
+                    domain: .navigationState,
+                    operation: .save,
+                    context: stateKey,
+                    error: error
+                )
+            )
         }
     }
 
     private func loadNavigationState() {
-        guard let data = RalphAppDefaults.userDefaults.data(forKey: stateKey),
-              let state = try? JSONDecoder().decode(NavigationState.self, from: data),
-              state.version == navigationStateVersion else {
-            // Use defaults if no saved state or version mismatch
-            return
-        }
+        do {
+            guard let state = try store.loadState(forKey: stateKey) else {
+                updatePersistenceIssue(nil)
+                return
+            }
 
-        selectedSection = state.selectedSection
-        taskViewMode = state.taskViewMode
-        selectedTaskID = state.selectedTaskID
-        if let taskIDs = state.selectedTaskIDs {
-            selectedTaskIDs = Set(taskIDs)
+            guard state.version == navigationStateVersion else {
+                store.removeState(forKey: stateKey)
+                updatePersistenceIssue(nil)
+                return
+            }
+
+            selectedSection = state.selectedSection
+            taskViewMode = state.taskViewMode
+            selectedTaskID = state.selectedTaskID
+            selectedTaskIDs = Set(state.selectedTaskIDs ?? [])
+            updatePersistenceIssue(nil)
+        } catch {
+            store.removeState(forKey: stateKey)
+            updatePersistenceIssue(
+                PersistenceIssue(
+                    domain: .navigationState,
+                    operation: .load,
+                    context: stateKey,
+                    error: error
+                )
+            )
         }
+    }
+
+    private func updatePersistenceIssue(_ issue: PersistenceIssue?) {
+        persistenceIssue = issue
+        issueSink(issue)
     }
 }

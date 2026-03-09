@@ -115,7 +115,7 @@ struct TaskDecomposeView: View {
     }
 
     private var availableTasks: [RalphTask] {
-        workspace.tasks.sorted { lhs, rhs in
+        workspace.taskState.tasks.sorted { lhs, rhs in
             if lhs.status != rhs.status {
                 return lhs.status.displayName < rhs.status.displayName
             }
@@ -448,7 +448,7 @@ struct TaskDecomposeView: View {
         recoveryError = RecoveryError.classify(
             error: error,
             operation: operation,
-            workspaceURL: workspace.workingDirectoryURL
+            workspaceURL: workspace.identityState.workingDirectoryURL
         )
         showingRecoverySheet = true
     }

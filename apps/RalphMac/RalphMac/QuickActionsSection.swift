@@ -72,18 +72,18 @@ struct QuickActionsDetailColumn: View {
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(workspace.name)
+                Text(workspace.identityState.name)
                     .font(.subheadline)
-                Text(workspace.workingDirectoryURL.path)
+                Text(workspace.identityState.workingDirectoryURL.path)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
 
             HStack {
-                if !workspace.recentWorkingDirectories.isEmpty {
+                if !workspace.identityState.recentWorkingDirectories.isEmpty {
                     Menu("Recents") {
-                        ForEach(workspace.recentWorkingDirectories, id: \.path) { url in
+                        ForEach(workspace.identityState.recentWorkingDirectories, id: \.path) { url in
                             Button(url.path) {
                                 workspace.selectRecentWorkingDirectory(url)
                             }
@@ -111,7 +111,7 @@ struct QuickActionsDetailColumn: View {
 
                 Spacer()
 
-                if workspace.isRunning {
+                if workspace.runState.isRunning {
                     Button(action: { workspace.cancel() }) {
                         Label("Stop", systemImage: "stop.circle.fill")
                             .foregroundStyle(.red)
@@ -129,7 +129,7 @@ struct QuickActionsDetailColumn: View {
                 .font(.headline)
 
             HStack(spacing: 16) {
-                if let status = workspace.lastExitStatus {
+                if let status = workspace.runState.lastExitStatus {
                     HStack(spacing: 6) {
                         Image(systemName: status.code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundStyle(status.code == 0 ? .green : .red)
@@ -148,7 +148,7 @@ struct QuickActionsDetailColumn: View {
 
     @ViewBuilder
     private func errorSection() -> some View {
-        if let error = workspace.errorMessage {
+        if let error = workspace.runState.errorMessage {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -160,9 +160,9 @@ struct QuickActionsDetailColumn: View {
 
                     Spacer()
 
-                    if workspace.lastRecoveryError != nil {
+                    if workspace.diagnosticsState.lastRecoveryError != nil {
                         Button("Show Recovery Options") {
-                            workspace.showErrorRecovery = true
+                            workspace.diagnosticsState.showErrorRecovery = true
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)

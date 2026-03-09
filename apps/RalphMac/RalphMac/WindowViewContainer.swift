@@ -95,7 +95,7 @@ struct WindowViewContainer: View {
 
         Task { @MainActor in
             _ = await workspace.checkHealth()
-            if workspace.showOfflineBanner {
+            if workspace.diagnosticsState.cliHealthStatus?.isAvailable == false {
                 workspace.loadCachedTasks()
             }
         }

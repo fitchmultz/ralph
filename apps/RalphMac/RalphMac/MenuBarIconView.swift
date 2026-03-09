@@ -37,7 +37,7 @@ struct MenuBarIconView: View {
         let iconName: String
         let color: Color
         
-        if workspace.isRunning {
+        if workspace.runState.isRunning {
             // Running state - animated checklist or RTL version
             iconName = "checklist.rtl"
             color = .orange
@@ -45,7 +45,7 @@ struct MenuBarIconView: View {
             // Has pending tasks
             iconName = "checklist"
             color = .primary
-        } else if !workspace.tasks.isEmpty {
+        } else if !workspace.taskState.tasks.isEmpty {
             // All tasks done (tasks exist but none are todo)
             iconName = "checkmark.square.fill"
             color = .green

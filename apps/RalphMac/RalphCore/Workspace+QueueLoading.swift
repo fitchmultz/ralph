@@ -76,23 +76,25 @@ public extension Workspace {
 public extension Workspace {
     func loadTasks(retryConfiguration: RetryConfiguration = .default) async {
         guard let client else {
-            tasksErrorMessage = "CLI client not available."
+            taskState.tasksErrorMessage = "CLI client not available."
             return
         }
 
         guard hasRalphQueueFile else {
             stopFileWatching()
-            tasks = []
-            tasksErrorMessage = "No Ralph queue found in this directory. Run `ralph init --non-interactive` in \(workingDirectoryURL.path)."
-            showErrorRecovery = false
-            lastRecoveryError = nil
+            taskState.tasks = []
+            taskState.tasksErrorMessage = """
+            No Ralph queue found in this directory. Run `ralph init --non-interactive` in \(identityState.workingDirectoryURL.path).
+            """
+            diagnosticsState.showErrorRecovery = false
+            diagnosticsState.lastRecoveryError = nil
             return
         }
 
         startFileWatching()
 
-        tasksLoading = true
-        tasksErrorMessage = nil
+        taskState.tasksLoading = true
+        taskState.tasksErrorMessage = nil
 
         do {
             let helper = RetryHelper(configuration: retryConfiguration)
@@ -100,7 +102,7 @@ public extension Workspace {
                 operation: { [self] in
                     let result = try await client.runAndCollect(
                         arguments: ["--no-color", "queue", "list", "--format", "json"],
-                        currentDirectoryURL: workingDirectoryURL
+                        currentDirectoryURL: identityState.workingDirectoryURL
                     )
                     if result.status.code != 0 {
                         throw result.toError()
@@ -109,36 +111,37 @@ public extension Workspace {
                 },
                 onProgress: { [weak self] attempt, maxAttempts, _ in
                     await MainActor.run { [weak self] in
-                        self?.tasksErrorMessage = "Retrying load tasks (attempt \(attempt)/\(maxAttempts))..."
+                        self?.taskState.tasksErrorMessage =
+                            "Retrying load tasks (attempt \(attempt)/\(maxAttempts))..."
                     }
                 }
             )
 
             guard collected.status.code == 0 else {
-                tasksErrorMessage = collected.stderr.isEmpty
+                taskState.tasksErrorMessage = collected.stderr.isEmpty
                     ? "Failed to load tasks (exit \(collected.status.code))."
                     : collected.stderr
-                tasksLoading = false
+                taskState.tasksLoading = false
                 return
             }
 
-            tasks = try await WorkspaceQueueSnapshotLoader.decodeQueueTasks(
+            taskState.tasks = try await WorkspaceQueueSnapshotLoader.decodeQueueTasks(
                 fromCLIOutput: collected.stdout
             )
             sanitizeRunControlSelection()
-            tasksErrorMessage = nil
+            taskState.tasksErrorMessage = nil
         } catch {
             let recoveryError = RecoveryError.classify(
                 error: error,
                 operation: "loadTasks",
-                workspaceURL: workingDirectoryURL
+                workspaceURL: identityState.workingDirectoryURL
             )
-            tasksErrorMessage = recoveryError.message
-            lastRecoveryError = recoveryError
-            showErrorRecovery = true
+            taskState.tasksErrorMessage = recoveryError.message
+            diagnosticsState.lastRecoveryError = recoveryError
+            diagnosticsState.showErrorRecovery = true
         }
 
-        tasksLoading = false
+        taskState.tasksLoading = false
     }
 
     func stopFileWatching() {

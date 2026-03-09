@@ -45,14 +45,14 @@ final class WorkspaceQueueRuntime {
     func startWatchingIfNeeded() {
         guard watcher == nil, workspace.hasRalphQueueFile else {
             if !workspace.hasRalphQueueFile {
-                workspace.updateWatcherHealth(.idle(for: workspace.workingDirectoryURL))
+                workspace.updateWatcherHealth(.idle(for: workspace.identityState.workingDirectoryURL))
             }
             return
         }
 
-        let watcher = QueueFileWatcher(workingDirectoryURL: workspace.workingDirectoryURL)
+        let watcher = QueueFileWatcher(workingDirectoryURL: workspace.identityState.workingDirectoryURL)
         self.watcher = watcher
-        workspace.updateWatcherHealth(.idle(for: workspace.workingDirectoryURL))
+        workspace.updateWatcherHealth(.idle(for: workspace.identityState.workingDirectoryURL))
 
         watcherEventsTask = Task { [weak self, watcher] in
             for await event in watcher.events {
@@ -78,7 +78,7 @@ final class WorkspaceQueueRuntime {
 
         let activeWatcher = watcher
         watcher = nil
-        workspace.updateWatcherHealth(.stopped(for: workspace.workingDirectoryURL))
+        workspace.updateWatcherHealth(.stopped(for: workspace.identityState.workingDirectoryURL))
 
         if let activeWatcher {
             Task {
@@ -128,14 +128,14 @@ final class WorkspaceQueueRuntime {
 
     private func process(batch: QueueFileWatcher.FileChangeBatch) async {
         if batch.affectsQueueSnapshot {
-            lastTasksSnapshot = workspace.tasks
+            lastTasksSnapshot = workspace.taskState.tasks
 
             switch await attemptDirectQueueParse() {
             case .success(let parsedTasks):
-                workspace.tasks = parsedTasks
+                workspace.taskState.tasks = parsedTasks
                 workspace.sanitizeRunControlSelection()
-                workspace.tasksErrorMessage = nil
-                workspace.lastRecoveryError = nil
+                workspace.taskState.tasksErrorMessage = nil
+                workspace.diagnosticsState.lastRecoveryError = nil
                 RalphLogger.shared.debug(
                     "Direct queue parse succeeded: \(parsedTasks.count) tasks",
                     category: .fileWatching
@@ -148,10 +148,10 @@ final class WorkspaceQueueRuntime {
                 await workspace.loadTasks()
             }
 
-            workspace.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
+            workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
                 source: .externalFileChange,
                 previousTasks: lastTasksSnapshot,
-                currentTasks: workspace.tasks
+                currentTasks: workspace.taskState.tasks
             )
         }
 

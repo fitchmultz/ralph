@@ -43,7 +43,7 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             scope: ["apps/RalphMac/RalphMac/TaskCreationView.swift"]
         )
 
-        let tasks = workspace.tasks
+        let tasks = workspace.taskState.tasks
         XCTAssertEqual(tasks.count, 1)
         let task = try XCTUnwrap(tasks.first)
         XCTAssertEqual(task.title, "UI-created task")

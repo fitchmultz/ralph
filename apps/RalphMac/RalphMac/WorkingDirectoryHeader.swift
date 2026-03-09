@@ -25,21 +25,21 @@ struct WorkingDirectoryHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(workspace.name)
+                Text(workspace.identityState.name)
                     .font(.headline)
-                    .accessibilityLabel("Workspace: \(workspace.name)")
-                Text(workspace.workingDirectoryURL.path)
+                    .accessibilityLabel("Workspace: \(workspace.identityState.name)")
+                Text(workspace.identityState.workingDirectoryURL.path)
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-                    .accessibilityLabel("Working directory: \(workspace.workingDirectoryURL.path)")
+                    .accessibilityLabel("Working directory: \(workspace.identityState.workingDirectoryURL.path)")
             }
 
             Spacer()
 
-            if !workspace.recentWorkingDirectories.isEmpty {
+            if !workspace.identityState.recentWorkingDirectories.isEmpty {
                 Menu("Recents") {
-                    ForEach(workspace.recentWorkingDirectories, id: \.path) { url in
+                    ForEach(workspace.identityState.recentWorkingDirectories, id: \.path) { url in
                         Button(url.path) {
                             workspace.selectRecentWorkingDirectory(url)
                         }

@@ -99,11 +99,13 @@ public extension WorkspaceManager {
         let states = loadAllWindowStates()
 
         if states.isEmpty {
-            let restorableExisting = workspaces.filter { workspaceIsRestorable($0.workingDirectoryURL) }
+            let restorableExisting = workspaces.filter {
+                workspaceIsRestorable($0.identityState.workingDirectoryURL)
+            }
             if !restorableExisting.isEmpty {
                 return [
                     WindowState(
-                        workspaceIDs: restorableExisting.map(\.id),
+                        workspaceIDs: restorableExisting.map { $0.id },
                         selectedTabIndex: 0
                     )
                 ]
@@ -118,10 +120,10 @@ public extension WorkspaceManager {
             var rebuiltState = state
             rebuiltState.workspaceIDs = state.workspaceIDs.filter { workspaceID in
                 if let existing = workspaces.first(where: { $0.id == workspaceID }) {
-                    return workspaceIsRestorable(existing.workingDirectoryURL)
+                    return workspaceIsRestorable(existing.identityState.workingDirectoryURL)
                 }
                 guard let restored = restoreWorkspace(id: workspaceID) else { return false }
-                return workspaceIsRestorable(restored.workingDirectoryURL)
+                return workspaceIsRestorable(restored.identityState.workingDirectoryURL)
             }
             rebuiltState.validateSelection()
             if !rebuiltState.workspaceIDs.isEmpty {

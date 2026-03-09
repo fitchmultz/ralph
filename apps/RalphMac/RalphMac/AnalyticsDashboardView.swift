@@ -109,7 +109,7 @@ struct AnalyticsDashboardView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .disabled(workspace.analytics.isLoading)
+            .disabled(workspace.insightsState.analytics.isLoading)
             .accessibilityLabel("Refresh analytics")
         }
         .padding()
@@ -119,34 +119,34 @@ struct AnalyticsDashboardView: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 16) {
             metricCard(
                 title: "Total Completed",
-                value: workspace.analytics.productivitySummaryValue.map { String($0.totalCompleted) } ?? placeholderValue(for: workspace.analytics.productivitySummaryRenderState),
+                value: workspace.insightsState.analytics.productivitySummaryValue.map { String($0.totalCompleted) } ?? placeholderValue(for: workspace.insightsState.analytics.productivitySummaryRenderState),
                 icon: "checkmark.circle.fill",
                 color: .green,
-                renderState: workspace.analytics.productivitySummaryRenderState
+                renderState: workspace.insightsState.analytics.productivitySummaryRenderState
             )
 
             metricCard(
                 title: "Current Streak",
-                value: workspace.analytics.productivitySummaryValue.map { "\($0.currentStreak) days" } ?? placeholderValue(for: workspace.analytics.productivitySummaryRenderState),
+                value: workspace.insightsState.analytics.productivitySummaryValue.map { "\($0.currentStreak) days" } ?? placeholderValue(for: workspace.insightsState.analytics.productivitySummaryRenderState),
                 icon: "flame.fill",
                 color: .orange,
-                renderState: workspace.analytics.productivitySummaryRenderState
+                renderState: workspace.insightsState.analytics.productivitySummaryRenderState
             )
 
             metricCard(
                 title: "Completion Rate",
-                value: workspace.analytics.queueStatsValue.map { String(format: "%.1f%%", $0.summary.terminalRate) } ?? placeholderValue(for: workspace.analytics.queueStatsRenderState),
+                value: workspace.insightsState.analytics.queueStatsValue.map { String(format: "%.1f%%", $0.summary.terminalRate) } ?? placeholderValue(for: workspace.insightsState.analytics.queueStatsRenderState),
                 icon: "percent",
                 color: .blue,
-                renderState: workspace.analytics.queueStatsRenderState
+                renderState: workspace.insightsState.analytics.queueStatsRenderState
             )
 
             metricCard(
                 title: "Active Tasks",
-                value: workspace.analytics.queueStatsValue.map { String($0.summary.active) } ?? placeholderValue(for: workspace.analytics.queueStatsRenderState),
+                value: workspace.insightsState.analytics.queueStatsValue.map { String($0.summary.active) } ?? placeholderValue(for: workspace.insightsState.analytics.queueStatsRenderState),
                 icon: "list.bullet",
                 color: .purple,
-                renderState: workspace.analytics.queueStatsRenderState
+                renderState: workspace.insightsState.analytics.queueStatsRenderState
             )
         }
     }
@@ -169,10 +169,10 @@ struct AnalyticsDashboardView: View {
 
     private var secondaryMetrics: some View {
         HStack(alignment: .top, spacing: 20) {
-            PriorityDistributionCard(tasks: workspace.tasks)
+            PriorityDistributionCard(tasks: workspace.taskState.tasks)
                 .frame(maxWidth: .infinity)
 
-            TaskAgingCard(tasks: workspace.tasks)
+            TaskAgingCard(tasks: workspace.taskState.tasks)
                 .frame(maxWidth: .infinity)
 
             velocityDetailsCard
@@ -182,12 +182,12 @@ struct AnalyticsDashboardView: View {
 
     @ViewBuilder
     private var velocityDetailsCard: some View {
-        switch workspace.analytics.productivityVelocityRenderState {
+        switch workspace.insightsState.analytics.productivityVelocityRenderState {
         case .content:
-            VelocityDetailsCard(velocity: workspace.analytics.productivityVelocityValue)
+            VelocityDetailsCard(velocity: workspace.insightsState.analytics.productivityVelocityValue)
         case .loading(_, let hasPreviousData):
             if hasPreviousData {
-                VelocityDetailsCard(velocity: workspace.analytics.productivityVelocityValue)
+                VelocityDetailsCard(velocity: workspace.insightsState.analytics.productivityVelocityValue)
             } else {
                 AnalyticsStatusCard(title: "Loading Velocity", message: "Fetching velocity analytics.", systemImage: "hourglass")
             }
@@ -198,7 +198,7 @@ struct AnalyticsDashboardView: View {
         case .failed(let message, let hasPreviousData):
             if hasPreviousData {
                 VStack(spacing: 12) {
-                    VelocityDetailsCard(velocity: workspace.analytics.productivityVelocityValue)
+                    VelocityDetailsCard(velocity: workspace.insightsState.analytics.productivityVelocityValue)
                     failureBanner(message: message)
                 }
             } else {
@@ -212,48 +212,48 @@ struct AnalyticsDashboardView: View {
         switch chart {
         case .burndown:
             sectionContent(
-                renderState: workspace.analytics.burndownRenderState,
+                renderState: workspace.insightsState.analytics.burndownRenderState,
                 loadedContent: {
-                    BurndownChartView(burndown: workspace.analytics.burndownValue)
+                    BurndownChartView(burndown: workspace.insightsState.analytics.burndownValue)
                 },
                 staleContent: {
-                    BurndownChartView(burndown: workspace.analytics.burndownValue)
+                    BurndownChartView(burndown: workspace.insightsState.analytics.burndownValue)
                 },
                 emptyTitle: "Burndown Empty",
                 failedTitle: "Burndown Failed"
             )
         case .velocity:
             sectionContent(
-                renderState: workspace.analytics.historyRenderState,
+                renderState: workspace.insightsState.analytics.historyRenderState,
                 loadedContent: {
-                    VelocityChartView(history: workspace.analytics.historyValue)
+                    VelocityChartView(history: workspace.insightsState.analytics.historyValue)
                 },
                 staleContent: {
-                    VelocityChartView(history: workspace.analytics.historyValue)
+                    VelocityChartView(history: workspace.insightsState.analytics.historyValue)
                 },
                 emptyTitle: "Velocity Empty",
                 failedTitle: "Velocity Failed"
             )
         case .tags:
             sectionContent(
-                renderState: workspace.analytics.queueStatsRenderState,
+                renderState: workspace.insightsState.analytics.queueStatsRenderState,
                 loadedContent: {
-                    TagBreakdownChart(tagBreakdown: workspace.analytics.queueStatsValue?.tagBreakdown ?? [])
+                    TagBreakdownChart(tagBreakdown: workspace.insightsState.analytics.queueStatsValue?.tagBreakdown ?? [])
                 },
                 staleContent: {
-                    TagBreakdownChart(tagBreakdown: workspace.analytics.queueStatsValue?.tagBreakdown ?? [])
+                    TagBreakdownChart(tagBreakdown: workspace.insightsState.analytics.queueStatsValue?.tagBreakdown ?? [])
                 },
                 emptyTitle: "Tag Breakdown Empty",
                 failedTitle: "Tag Breakdown Failed"
             )
         case .history:
             sectionContent(
-                renderState: workspace.analytics.historyRenderState,
+                renderState: workspace.insightsState.analytics.historyRenderState,
                 loadedContent: {
-                    CompletionHistoryChart(history: workspace.analytics.historyValue)
+                    CompletionHistoryChart(history: workspace.insightsState.analytics.historyValue)
                 },
                 staleContent: {
-                    CompletionHistoryChart(history: workspace.analytics.historyValue)
+                    CompletionHistoryChart(history: workspace.insightsState.analytics.historyValue)
                 },
                 emptyTitle: "History Empty",
                 failedTitle: "History Failed"

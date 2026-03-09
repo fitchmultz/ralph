@@ -39,12 +39,12 @@ public final class WorkspaceCommandState: ObservableObject {
 public extension Workspace {
     func loadCLISpec(retryConfiguration: RetryConfiguration = .minimal) async {
         guard let client else {
-            cliSpecErrorMessage = "CLI client not available."
+            commandState.cliSpecErrorMessage = "CLI client not available."
             return
         }
 
-        cliSpecIsLoading = true
-        cliSpecErrorMessage = nil
+        commandState.cliSpecIsLoading = true
+        commandState.cliSpecErrorMessage = nil
 
         do {
             let helper = RetryHelper(configuration: retryConfiguration)
@@ -52,7 +52,7 @@ public extension Workspace {
                 operation: { [self] in
                     let result = try await client.runAndCollect(
                         arguments: ["--no-color", "__cli-spec", "--format", "json"],
-                        currentDirectoryURL: workingDirectoryURL
+                        currentDirectoryURL: identityState.workingDirectoryURL
                     )
                     if result.status.code != 0 {
                         throw result.toError()
@@ -62,49 +62,52 @@ public extension Workspace {
             )
 
             guard collected.status.code == 0 else {
-                cliSpec = nil
-                cliSpecErrorMessage = collected.stderr.isEmpty
+                commandState.cliSpec = nil
+                commandState.cliSpecErrorMessage = collected.stderr.isEmpty
                     ? "Failed to load CLI spec (exit \(collected.status.code))."
                     : collected.stderr
-                cliSpecIsLoading = false
+                commandState.cliSpecIsLoading = false
                 return
             }
 
-            cliSpec = try JSONDecoder().decode(RalphCLISpecDocument.self, from: Data(collected.stdout.utf8))
+            commandState.cliSpec = try JSONDecoder().decode(
+                RalphCLISpecDocument.self,
+                from: Data(collected.stdout.utf8)
+            )
         } catch {
-            cliSpec = nil
+            commandState.cliSpec = nil
             let recoveryError = RecoveryError.classify(
                 error: error,
                 operation: "loadCLISpec",
-                workspaceURL: workingDirectoryURL
+                workspaceURL: identityState.workingDirectoryURL
             )
-            cliSpecErrorMessage = recoveryError.message
-            lastRecoveryError = recoveryError
-            showErrorRecovery = true
+            commandState.cliSpecErrorMessage = recoveryError.message
+            diagnosticsState.lastRecoveryError = recoveryError
+            diagnosticsState.showErrorRecovery = true
         }
 
-        cliSpecIsLoading = false
+        commandState.cliSpecIsLoading = false
     }
 
     func advancedCommands() -> [RalphCLICommandSpec] {
-        guard let cliSpec else { return [] }
+        guard let cliSpec = commandState.cliSpec else { return [] }
         var out: [RalphCLICommandSpec] = []
         for sub in cliSpec.root.subcommands {
-            collectCommands(sub, includeHidden: advancedShowHiddenCommands, into: &out)
+            collectCommands(sub, includeHidden: commandState.advancedShowHiddenCommands, into: &out)
         }
         return out
     }
 
     func selectedAdvancedCommand() -> RalphCLICommandSpec? {
-        guard let id = advancedSelectedCommandID else { return nil }
+        guard let id = commandState.advancedSelectedCommandID else { return nil }
         return advancedCommands().first(where: { $0.id == id })
     }
 
     func resetAdvancedInputs() {
-        advancedBoolValues.removeAll(keepingCapacity: false)
-        advancedCountValues.removeAll(keepingCapacity: false)
-        advancedSingleValues.removeAll(keepingCapacity: false)
-        advancedMultiValues.removeAll(keepingCapacity: false)
+        commandState.advancedBoolValues.removeAll(keepingCapacity: false)
+        commandState.advancedCountValues.removeAll(keepingCapacity: false)
+        commandState.advancedSingleValues.removeAll(keepingCapacity: false)
+        commandState.advancedMultiValues.removeAll(keepingCapacity: false)
     }
 
     func buildAdvancedArguments() -> [String] {
@@ -114,7 +117,7 @@ public extension Workspace {
 
         for arg in cmd.args {
             if arg.isCountFlag {
-                let n = advancedCountValues[arg.id] ?? 0
+                let n = commandState.advancedCountValues[arg.id] ?? 0
                 if n > 0 {
                     selections[arg.id] = .count(n)
                 }
@@ -122,7 +125,7 @@ public extension Workspace {
             }
 
             if arg.isBooleanFlag {
-                let present = advancedBoolValues[arg.id] ?? false
+                let present = commandState.advancedBoolValues[arg.id] ?? false
                 selections[arg.id] = .flag(present)
                 continue
             }
@@ -130,16 +133,16 @@ public extension Workspace {
             guard arg.takesValue else { continue }
 
             if arg.positional || arg.allowsMultipleValues {
-                let raw = advancedMultiValues[arg.id] ?? ""
+                let raw = commandState.advancedMultiValues[arg.id] ?? ""
                 let values = raw.split(whereSeparator: \.isNewline)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .map { $0.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }
                     .filter { !$0.isEmpty }
                 if !values.isEmpty {
                     selections[arg.id] = .values(values)
                 }
             } else {
-                let raw = (advancedSingleValues[arg.id] ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let raw = (commandState.advancedSingleValues[arg.id] ?? "")
+                    .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 if !raw.isEmpty {
                     selections[arg.id] = .values([raw])
                 }
@@ -147,7 +150,7 @@ public extension Workspace {
         }
 
         var globals: [String] = []
-        if advancedIncludeNoColor {
+        if commandState.advancedIncludeNoColor {
             globals.append("--no-color")
         }
 

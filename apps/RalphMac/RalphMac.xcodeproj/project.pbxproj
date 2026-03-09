@@ -141,6 +141,15 @@
 		96C8149938BD26BC5D7AEDC2 /* DependencyGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB97FA944D6D29C68F8839A /* DependencyGraphViewModel.swift */; };
 		90CEB62C49910ADBCC6E08F7 /* KanbanTransientState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEA88CA3C1D19F77EE6FDD31 /* KanbanTransientState.swift */; };
 		42E952AA6330EAF1A5FCB51B /* RalphMacApp+Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2A6FA188F5AC6CE2F53870 /* RalphMacApp+Support.swift */; };
+		C1AB00010000000000000001 /* NavigationStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AA00010000000000000001 /* NavigationStateStore.swift */; };
+		C1AB00020000000000000002 /* RalphCLIRecoveryClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AA00020000000000000002 /* RalphCLIRecoveryClassifier.swift */; };
+		C1AB00030000000000000003 /* WorkspaceTemporaryFileSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AA00030000000000000003 /* WorkspaceTemporaryFileSupport.swift */; };
+		D1AB00010000000000000001 /* RunControlDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AA00010000000000000001 /* RunControlDetailSections.swift */; };
+		D1AB00020000000000000002 /* RunControlSupportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AA00020000000000000002 /* RunControlSupportViews.swift */; };
+		D1AB00030000000000000003 /* TaskExecutionOverrideSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AA00030000000000000003 /* TaskExecutionOverrideSections.swift */; };
+		D1AB00040000000000000004 /* TaskExecutionOverrideSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AA00040000000000000004 /* TaskExecutionOverrideSupport.swift */; };
+		D1AB00050000000000000005 /* TaskListContentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AA00050000000000000005 /* TaskListContentViews.swift */; };
+		D1AB00060000000000000006 /* TaskListSupportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AA00060000000000000006 /* TaskListSupportViews.swift */; };
 		63AE5C2175CE9D4B3395BA5B /* RalphMacApp+URLRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = D829F0927C6E804F11768DBB /* RalphMacApp+URLRouting.swift */; };
 		016793D1DBF90AA9EB4BFDE7 /* RalphMacCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1763D1C75A9390D695AB8C40 /* RalphMacCommands.swift */; };
 		A216D62658610CB568691F35 /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDE5AEE63017EB9E3B311E0 /* SettingsService.swift */; };
@@ -342,6 +351,15 @@
 		1AB97FA944D6D29C68F8839A /* DependencyGraphViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyGraphViewModel.swift; sourceTree = "<group>"; };
 		CEA88CA3C1D19F77EE6FDD31 /* KanbanTransientState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbanTransientState.swift; sourceTree = "<group>"; };
 		6B2A6FA188F5AC6CE2F53870 /* RalphMacApp+Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RalphMacApp+Support.swift"; sourceTree = "<group>"; };
+		C1AA00010000000000000001 /* NavigationStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationStateStore.swift; sourceTree = "<group>"; };
+		C1AA00020000000000000002 /* RalphCLIRecoveryClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIRecoveryClassifier.swift; sourceTree = "<group>"; };
+		C1AA00030000000000000003 /* WorkspaceTemporaryFileSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTemporaryFileSupport.swift; sourceTree = "<group>"; };
+		D1AA00010000000000000001 /* RunControlDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunControlDetailSections.swift; sourceTree = "<group>"; };
+		D1AA00020000000000000002 /* RunControlSupportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunControlSupportViews.swift; sourceTree = "<group>"; };
+		D1AA00030000000000000003 /* TaskExecutionOverrideSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskExecutionOverrideSections.swift; sourceTree = "<group>"; };
+		D1AA00040000000000000004 /* TaskExecutionOverrideSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskExecutionOverrideSupport.swift; sourceTree = "<group>"; };
+		D1AA00050000000000000005 /* TaskListContentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListContentViews.swift; sourceTree = "<group>"; };
+		D1AA00060000000000000006 /* TaskListSupportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListSupportViews.swift; sourceTree = "<group>"; };
 		D829F0927C6E804F11768DBB /* RalphMacApp+URLRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RalphMacApp+URLRouting.swift"; sourceTree = "<group>"; };
 		1763D1C75A9390D695AB8C40 /* RalphMacCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacCommands.swift; sourceTree = "<group>"; };
 		8FDE5AEE63017EB9E3B311E0 /* SettingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsService.swift; sourceTree = "<group>"; };
@@ -416,6 +434,7 @@
 			children = (
 				31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */,
 				31B301E8A7CC431E930E753A /* RalphCLIClient+Recovery.swift */,
+				C1AA00020000000000000002 /* RalphCLIRecoveryClassifier.swift */,
 				31B301E8A7CC431E930E753B /* RalphCLIRun.swift */,
 				31B301E8A7CC431E930E753C /* RalphCLIClient+Retry.swift */,
 				31B301E8A7CC431E930E753D /* RalphCLIHealthChecker.swift */,
@@ -442,6 +461,8 @@
 				0B651F8A746C4387B1F9D437 /* Workspace+HealthAndCaching.swift */,
 				A9011001B2C3D4E5F6071812 /* TaskConflictResolution.swift */,
 				A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */,
+				C1AA00030000000000000003 /* WorkspaceTemporaryFileSupport.swift */,
+				C1AA00010000000000000001 /* NavigationStateStore.swift */,
 				0B651F8A746C4387B1F9D42D /* WorkspaceQueueSnapshotLoader.swift */,
 				0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */,
 				A9020001B2C3D4E5F6071811 /* WorkspaceOperationalHealth.swift */,
@@ -563,12 +584,16 @@
 				ASETTINGSINFRAREF0012345678900 /* ASettingsInfra.swift */,
 				9DB332D2325D439859B8655F /* QuickActionsSection.swift */,
 				4605921734E20A09AA113523 /* RunControlSection.swift */,
+				D1AA00010000000000000001 /* RunControlDetailSections.swift */,
+				D1AA00020000000000000002 /* RunControlSupportViews.swift */,
 				CBD57BF49B1F7D43DD51BEBE /* AdvancedRunnerSection.swift */,
 				47BB33D4574BC2AE48AE95A5 /* AnalyticsSection.swift */,
 				85F21ECB14C15455214EB21E /* ConnectionStatusViews.swift */,
 				3298F69D10A0636C5327AF65 /* WorkingDirectoryHeader.swift */,
 				94E7D1BF4A91545A54A06C1A /* ConsoleView.swift */,
 				A0C8497F9C98D1E54DE2DBF0 /* TaskExecutionOverridesSection.swift */,
+				D1AA00030000000000000003 /* TaskExecutionOverrideSections.swift */,
+				D1AA00040000000000000004 /* TaskExecutionOverrideSupport.swift */,
 				D09515AC14F94350B766E15468824B54 /* TaskDecomposeView.swift */,
 				AA48F75E84AD1531DC4D4BB9 /* DependencyGraphAccessibilityView.swift */,
 				8D78AE2B0A8821C361BC7247 /* DependencyGraphCanvasView.swift */,
@@ -583,6 +608,8 @@
 				6E524E23088631B600921358 /* TaskDetailPresentation.swift */,
 				CE3542090D89C223E29D5DD5 /* TaskDetailSections.swift */,
 				1E544D263EEC94822C2BD83E /* TaskListSections.swift */,
+				D1AA00050000000000000005 /* TaskListContentViews.swift */,
+				D1AA00060000000000000006 /* TaskListSupportViews.swift */,
 				498242EF7D786E99993EC742 /* TaskListTransientState.swift */,
 				AFA2742DF0B3AF124E467C28 /* WindowViewContainer.swift */,
 				E244DB04759B1EF7B8AA9990 /* WorkspaceWindowAnchor.swift */,
@@ -771,6 +798,7 @@
 			files = (
 				EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */,
 				EE9BBA22346A4F6089F70336 /* RalphCLIClient+Recovery.swift in Sources */,
+				C1AB00020000000000000002 /* RalphCLIRecoveryClassifier.swift in Sources */,
 				EE9BBA22346A4F6089F70337 /* RalphCLIRun.swift in Sources */,
 				EE9BBA22346A4F6089F70338 /* RalphCLIClient+Retry.swift in Sources */,
 				EE9BBA22346A4F6089F70339 /* RalphCLIHealthChecker.swift in Sources */,
@@ -798,6 +826,8 @@
 				4A8D2E1F8B3C4D56A7E8F90E /* Workspace+HealthAndCaching.swift in Sources */,
 				A9011001B2C3D4E5F6071802 /* TaskConflictResolution.swift in Sources */,
 				A9011001B2C3D4E5F6071803 /* WorkspaceDiagnosticsService.swift in Sources */,
+				C1AB00030000000000000003 /* WorkspaceTemporaryFileSupport.swift in Sources */,
+				C1AB00010000000000000001 /* NavigationStateStore.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F904 /* WorkspaceQueueSnapshotLoader.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */,
 				A9020001B2C3D4E5F6071801 /* WorkspaceOperationalHealth.swift in Sources */,
@@ -908,12 +938,16 @@
 				ASETTINGSINFRA0012345678900 /* ASettingsInfra.swift in Sources */,
 				F840487D12000534308C7AE2 /* QuickActionsSection.swift in Sources */,
 				0A91540F767F0B72B29548E4 /* RunControlSection.swift in Sources */,
+				D1AB00010000000000000001 /* RunControlDetailSections.swift in Sources */,
+				D1AB00020000000000000002 /* RunControlSupportViews.swift in Sources */,
 				EECED51732D072929E614B2F /* AdvancedRunnerSection.swift in Sources */,
 				0FFC498DAD0AE8456CBC8A74 /* AnalyticsSection.swift in Sources */,
 				85D7368B7EF304C513724E22 /* ConnectionStatusViews.swift in Sources */,
 				E0A06224A60DB52B85109E99 /* WorkingDirectoryHeader.swift in Sources */,
 				D9F46037BDEF60ADEEF6EEA9 /* ConsoleView.swift in Sources */,
 				B46FBE1A725EA09170363A82 /* TaskExecutionOverridesSection.swift in Sources */,
+				D1AB00030000000000000003 /* TaskExecutionOverrideSections.swift in Sources */,
+				D1AB00040000000000000004 /* TaskExecutionOverrideSupport.swift in Sources */,
 				3DC376DB93E9E2696CDF5493 /* DependencyGraphAccessibilityView.swift in Sources */,
 				2310E3C54261CF15EBDF9E50 /* DependencyGraphCanvasView.swift in Sources */,
 				96C8149938BD26BC5D7AEDC2 /* DependencyGraphViewModel.swift in Sources */,
@@ -927,6 +961,8 @@
 				84875E094931F8B72CE837A8 /* TaskDetailPresentation.swift in Sources */,
 				E244CD8201DECCF668192D1C /* TaskDetailSections.swift in Sources */,
 				560A0DB833FE2C06D56D4EEB /* TaskListSections.swift in Sources */,
+				D1AB00050000000000000005 /* TaskListContentViews.swift in Sources */,
+				D1AB00060000000000000006 /* TaskListSupportViews.swift in Sources */,
 				C2511BE3E3F3E921526C80C2 /* TaskListTransientState.swift in Sources */,
 				D1F3590976853815B9AB283C /* WindowViewContainer.swift in Sources */,
 				AD182128A9C76DC60BA7ED7E /* WorkspaceWindowAnchor.swift in Sources */,

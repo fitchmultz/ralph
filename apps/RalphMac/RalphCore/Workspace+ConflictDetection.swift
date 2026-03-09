@@ -76,7 +76,7 @@ public extension Workspace {
     }
 
     func checkForConflict(taskID: String, originalUpdatedAt: Date?) -> RalphTask? {
-        guard let currentTask = tasks.first(where: { $0.id == taskID }) else {
+        guard let currentTask = taskState.tasks.first(where: { $0.id == taskID }) else {
             return nil
         }
 

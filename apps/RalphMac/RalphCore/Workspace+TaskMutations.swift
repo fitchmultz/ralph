@@ -45,7 +45,7 @@ public extension Workspace {
 
     /// Update task status via one CLI transaction.
     func updateTaskStatus(taskID: String, to newStatus: RalphTaskStatus) async throws {
-        guard let task = tasks.first(where: { $0.id == taskID }) else {
+        guard let task = taskState.tasks.first(where: { $0.id == taskID }) else {
             throw WorkspaceError.cliError("Task not found: \(taskID)")
         }
 
@@ -202,24 +202,22 @@ private extension Workspace {
             throw WorkspaceError.cliClientUnavailable
         }
 
-        let tempFileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ralph-task-mutation-\(UUID().uuidString)", isDirectory: false)
-            .appendingPathExtension("json")
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(request).write(to: tempFileURL, options: .atomic)
-        defer { try? FileManager.default.removeItem(at: tempFileURL) }
-
         do {
-            let collected = try await client.runAndCollectWithRetry(
-                arguments: ["--no-color", "task", "mutate", "--input", tempFileURL.path],
-                currentDirectoryURL: workingDirectoryURL,
-                onRetry: { [weak self] attempt, maxAttempts, _ in
-                    await MainActor.run { [weak self] in
-                        self?.errorMessage = "Retrying \(operationDescription) (attempt \(attempt)/\(maxAttempts))..."
+            let collected = try await withTemporaryJSONFile(
+                prefix: "ralph-task-mutation",
+                payload: request,
+                operationName: operationDescription
+            ) { tempFileURL in
+                try await client.runAndCollectWithRetry(
+                    arguments: ["--no-color", "task", "mutate", "--input", tempFileURL.path],
+                    currentDirectoryURL: identityState.workingDirectoryURL,
+                    onRetry: { [weak self] attempt, maxAttempts, _ in
+                        await MainActor.run { [weak self] in
+                            self?.runState.errorMessage = "Retrying \(operationDescription) (attempt \(attempt)/\(maxAttempts))..."
+                        }
                     }
-                }
-            )
+                )
+            }
 
             let reportData = Data(collected.stdout.utf8)
             let report = try JSONDecoder().decode(WorkspaceTaskMutationReport.self, from: reportData)
@@ -246,7 +244,7 @@ private extension Workspace {
 
         var selected: [RalphTask] = []
         for taskID in requested {
-            guard let task = tasks.first(where: { $0.id == taskID }) else {
+            guard let task = taskState.tasks.first(where: { $0.id == taskID }) else {
                 throw WorkspaceError.cliError("Task not found: \(taskID)")
             }
             selected.append(task)
@@ -265,7 +263,7 @@ private extension Workspace {
         }
 
         await loadTasks(retryConfiguration: .minimal)
-        return tasks.first(where: { $0.id == request.tasks[0].taskID })
+        return taskState.tasks.first(where: { $0.id == request.tasks[0].taskID })
     }
 
     func encodeExpectedUpdatedAt(_ date: Date?) -> String? {

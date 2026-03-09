@@ -69,7 +69,7 @@ extension TaskDetailView {
     func buildExistingEdges() -> [GraphEdge] {
         var edges: [GraphEdge] = []
 
-        for task in workspace.tasks {
+        for task in workspace.taskState.tasks {
             for depId in task.dependsOn ?? [] {
                 edges.append(GraphEdge(from: task.id, to: depId, type: .dependency))
             }

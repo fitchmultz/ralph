@@ -43,8 +43,8 @@ private struct LegacyAnalyticsFetchResult {
 
 public extension Workspace {
     func loadAnalytics(timeRange: TimeRange = .sevenDays) async {
-        let previousState = analytics
-        analytics = AnalyticsDashboardState(
+        let previousState = insightsState.analytics
+        insightsState.analytics = AnalyticsDashboardState(
             timeRange: timeRange,
             lastRefreshedAt: previousState.lastRefreshedAt,
             productivitySummary: .loading(previous: previousState.productivitySummaryValue),
@@ -55,7 +55,7 @@ public extension Workspace {
         )
 
         guard let client else {
-            analytics = analyticsFailureState(
+            insightsState.analytics = analyticsFailureState(
                 previous: previousState,
                 timeRange: timeRange,
                 message: "CLI client not available."
@@ -66,7 +66,7 @@ public extension Workspace {
         let days = timeRange.days ?? 30
 
         if let dashboard = await loadDashboardAggregated(client: client, days: days) {
-            analytics = analyticsState(
+            insightsState.analytics = analyticsState(
                 from: dashboard,
                 timeRange: timeRange,
                 previous: previousState
@@ -75,7 +75,7 @@ public extension Workspace {
         }
 
         let legacyResult = await loadLegacyAnalytics(client: client, days: days)
-        analytics = analyticsState(
+        insightsState.analytics = analyticsState(
             from: legacyResult,
             timeRange: timeRange,
             previous: previousState
@@ -232,7 +232,7 @@ private extension Workspace {
                 operation: { [self] in
                     let result = try await client.runAndCollect(
                         arguments: ["--no-color", "queue", "dashboard", "--days", String(days)],
-                        currentDirectoryURL: workingDirectoryURL
+                        currentDirectoryURL: identityState.workingDirectoryURL
                     )
                     if result.status.code != 0 {
                         throw result.toError()
@@ -304,7 +304,7 @@ private extension Workspace {
                 operation: { [self] in
                     let result = try await client.runAndCollect(
                         arguments: arguments,
-                        currentDirectoryURL: workingDirectoryURL
+                        currentDirectoryURL: identityState.workingDirectoryURL
                     )
                     if result.status.code != 0 {
                         throw result.toError()
@@ -314,7 +314,7 @@ private extension Workspace {
             )
 
             guard collected.status.code == 0 else {
-                let message = collected.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                let message = collected.stderr.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 return .failed(
                     message.isEmpty
                         ? "Failed to load \(kind.displayName.lowercased()) (exit \(collected.status.code))."

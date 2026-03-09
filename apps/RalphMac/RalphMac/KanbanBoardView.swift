@@ -123,14 +123,14 @@ struct KanbanBoardView: View {
         .task { @MainActor in
             await workspace.loadTasks()
         }
-        .task(id: workspace.lastQueueRefreshEvent?.id) {
-            transientState.handleQueueRefreshEvent(workspace.lastQueueRefreshEvent)
+        .task(id: workspace.taskState.lastQueueRefreshEvent?.id) {
+            transientState.handleQueueRefreshEvent(workspace.taskState.lastQueueRefreshEvent)
         }
     }
 
     private func handleTaskDrop(taskID: String, to status: RalphTaskStatus) {
         // Find the task
-        guard let task = workspace.tasks.first(where: { $0.id == taskID }) else { return }
+        guard let task = workspace.taskState.tasks.first(where: { $0.id == taskID }) else { return }
 
         // Skip if status hasn't changed
         guard task.status != status else { return }

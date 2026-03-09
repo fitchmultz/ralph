@@ -177,7 +177,7 @@ final class RalphCLIClientTests: XCTestCase {
         )
 
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let collected = try await client.runAndCollect(arguments: [])
+        let collected = try await client.runAndCollect(arguments: ["--version"])
 
         let versionString = collected.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         let validator = VersionValidator()
@@ -203,7 +203,7 @@ final class RalphCLIClientTests: XCTestCase {
         )
 
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let collected = try await client.runAndCollect(arguments: [])
+        let collected = try await client.runAndCollect(arguments: ["--version"])
 
         let versionString = collected.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         let validator = VersionValidator()

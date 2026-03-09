@@ -81,7 +81,8 @@ struct WindowView: View {
     // MARK: - Tab Management
 
     private func addNewTab() {
-        let preferredDirectory = activeWorkspace()?.workingDirectoryURL ?? manager.workspaces.last?.workingDirectoryURL
+        let preferredDirectory = activeWorkspace()?.identityState.workingDirectoryURL
+            ?? manager.workspaces.last?.identityState.workingDirectoryURL
         let newWorkspace = manager.createWorkspace(workingDirectory: preferredDirectory)
         windowState.workspaceIDs.append(newWorkspace.id)
         windowState.selectedTabIndex = windowState.workspaceIDs.count - 1
@@ -99,8 +100,8 @@ struct WindowView: View {
 
         // Check if workspace has running operations.
         if let workspace = manager.workspaces.first(where: { $0.id == workspaceID }) {
-            fallbackDirectory = workspace.workingDirectoryURL
-            if workspace.isRunning {
+            fallbackDirectory = workspace.identityState.workingDirectoryURL
+            if workspace.runState.isRunning {
                 // Show alert before closing - for now, just cancel.
                 workspace.cancel()
             }
@@ -188,7 +189,9 @@ struct WindowView: View {
 
             // If no workspaces left, create a new one.
             if windowState.workspaceIDs.isEmpty {
-                let newWorkspace = manager.createWorkspace(workingDirectory: manager.workspaces.last?.workingDirectoryURL)
+                let newWorkspace = manager.createWorkspace(
+                    workingDirectory: manager.workspaces.last?.identityState.workingDirectoryURL
+                )
                 windowState.workspaceIDs.append(newWorkspace.id)
                 windowState.selectedTabIndex = 0
                 persistState()

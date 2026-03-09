@@ -90,7 +90,7 @@ struct TaskListView: View {
                 }) {
                     Label("Decompose", systemImage: "square.split.2x2")
                 }
-                .disabled(selectedTaskID == nil && workspace.tasks.isEmpty)
+                .disabled(selectedTaskID == nil && workspace.taskState.tasks.isEmpty)
                 .accessibilityIdentifier("task-decompose-toolbar-button")
             }
             
@@ -116,8 +116,8 @@ struct TaskListView: View {
                 }
             )
         }
-        .task(id: workspace.lastQueueRefreshEvent?.id) {
-            transientState.handleQueueRefreshEvent(workspace.lastQueueRefreshEvent)
+        .task(id: workspace.taskState.lastQueueRefreshEvent?.id) {
+            transientState.handleQueueRefreshEvent(workspace.taskState.lastQueueRefreshEvent)
         }
         .onChange(of: selectedTaskIDs) { _, newSelection in
             syncPrimarySelection(with: newSelection)

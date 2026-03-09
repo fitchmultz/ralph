@@ -89,7 +89,7 @@ final class SettingsViewModel {
         do {
             let result = try await client.runAndCollect(
                 arguments: ["--no-color", "config", "show", "--format", "json"],
-                currentDirectoryURL: workspace.workingDirectoryURL
+                currentDirectoryURL: workspace.identityState.workingDirectoryURL
             )
 
             guard result.status.code == 0 else {
@@ -170,7 +170,7 @@ final class SettingsViewModel {
             ]
         ]
 
-        let configURL = workspace.workingDirectoryURL.appendingPathComponent(".ralph/config.jsonc")
+        let configURL = workspace.identityState.workingDirectoryURL.appendingPathComponent(".ralph/config.jsonc")
 
         do {
             // Ensure .ralph directory exists

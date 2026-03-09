@@ -23,7 +23,7 @@ import Foundation
 public enum WorkspaceDiagnosticsService {
     public static func queueValidationOutput(for workspace: Workspace) async -> String {
         guard workspace.hasRalphQueueFile else {
-            return "Queue validation skipped\n\nNo `.ralph/queue.jsonc` found in \(workspace.workingDirectoryURL.path).\nRun `ralph init --non-interactive` in this directory first."
+            return "Queue validation skipped\n\nNo `.ralph/queue.jsonc` found in \(workspace.identityState.workingDirectoryURL.path).\nRun `ralph init --non-interactive` in this directory first."
         }
 
         do {
@@ -36,7 +36,7 @@ public enum WorkspaceDiagnosticsService {
 
             let result = try await client.runAndCollect(
                 arguments: ["--no-color", "queue", "validate"],
-                currentDirectoryURL: workspace.workingDirectoryURL
+                currentDirectoryURL: workspace.identityState.workingDirectoryURL
             )
 
             if result.status.code == 0 {
@@ -62,10 +62,10 @@ public enum WorkspaceDiagnosticsService {
             return "Log export requires macOS 12.0+"
         }
 
-        return await withCheckedContinuation { continuation in
-            RalphLogger.shared.exportLogs(hours: hours) { logs in
-                continuation.resume(returning: logs ?? "No logs available")
-            }
+        do {
+            return try await RalphLogger.shared.exportLogs(hours: hours)
+        } catch {
+            return "Failed to export logs: \(error.localizedDescription)"
         }
     }
 }

@@ -31,9 +31,9 @@ public struct WorkspaceTaskPresentation: Sendable {
 
 public extension Workspace {
     func taskPresentation() -> WorkspaceTaskPresentation {
-        var result = tasks
+        var result = taskState.tasks
 
-        let filterText = taskFilterText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filterText = taskState.taskFilterText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         if !filterText.isEmpty {
             result = result.filter { task in
                 let matchesTitle = task.title.localizedCaseInsensitiveContains(filterText)
@@ -43,21 +43,21 @@ public extension Workspace {
             }
         }
 
-        if let statusFilter = taskStatusFilter {
+        if let statusFilter = taskState.taskStatusFilter {
             result = result.filter { $0.status == statusFilter }
         }
 
-        if let priorityFilter = taskPriorityFilter {
+        if let priorityFilter = taskState.taskPriorityFilter {
             result = result.filter { $0.priority == priorityFilter }
         }
 
-        if let tagFilter = taskTagFilter, !tagFilter.isEmpty {
+        if let tagFilter = taskState.taskTagFilter, !tagFilter.isEmpty {
             result = result.filter { $0.tags.contains(tagFilter) }
         }
 
         result.sort { lhs, rhs in
             let forward = self.compareTasks(lhs, rhs)
-            if self.taskSortAscending {
+            if self.taskState.taskSortAscending {
                 return forward == .orderedAscending
             }
             return forward == .orderedDescending
@@ -70,7 +70,7 @@ public extension Workspace {
     }
 
     private func compareTasks(_ lhs: RalphTask, _ rhs: RalphTask) -> ComparisonResult {
-        let primaryResult: ComparisonResult = switch taskSortBy {
+        let primaryResult: ComparisonResult = switch taskState.taskSortBy {
         case .priority:
             compare(lhs.priority.sortOrder, rhs.priority.sortOrder)
         case .created:

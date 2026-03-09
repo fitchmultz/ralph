@@ -37,9 +37,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
-        XCTAssertEqual(workspace.currentRunnerConfig?.model, "kimi-code/kimi-for-coding")
-        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 2)
-        XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 3)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "kimi-code/kimi-for-coding")
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.phases, 2)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.maxIterations, 3)
     }
 
     func test_loadRunnerConfiguration_onFailure_clearsCurrentRunnerConfig() async throws {
@@ -62,9 +62,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
         let successClient = try RalphCLIClient(executableURL: successScriptURL)
         let workspace = Workspace(workingDirectoryURL: tempDir, client: successClient)
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
-        XCTAssertEqual(workspace.currentRunnerConfig?.model, "kimi-initial")
-        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 3)
-        XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 2)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "kimi-initial")
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.phases, 3)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.maxIterations, 2)
 
         let failScript = """
             #!/bin/sh
@@ -80,11 +80,11 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
         workspace.injectClient(failClient)
 
         let clearedRunnerConfig = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
-            workspace.currentRunnerConfig == nil
+            workspace.runState.currentRunnerConfig == nil
         }
         XCTAssertTrue(clearedRunnerConfig)
 
-        XCTAssertNil(workspace.currentRunnerConfig)
+        XCTAssertNil(workspace.runState.currentRunnerConfig)
     }
 
     func test_setWorkingDirectory_refreshesRunnerConfiguration() async throws {
@@ -122,22 +122,22 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
         let workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
-        XCTAssertEqual(workspace.currentRunnerConfig?.model, "model-a")
-        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 1)
-        XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 1)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "model-a")
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.phases, 1)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.maxIterations, 1)
 
         workspace.setWorkingDirectory(workspaceBDir)
 
         let switchedRunnerConfig = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
-            workspace.currentRunnerConfig?.model == "model-b"
-                && workspace.currentRunnerConfig?.phases == 2
-                && workspace.currentRunnerConfig?.maxIterations == 4
+            workspace.runState.currentRunnerConfig?.model == "model-b"
+                && workspace.runState.currentRunnerConfig?.phases == 2
+                && workspace.runState.currentRunnerConfig?.maxIterations == 4
         }
         XCTAssertTrue(switchedRunnerConfig)
 
-        XCTAssertEqual(workspace.currentRunnerConfig?.model, "model-b")
-        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 2)
-        XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 4)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "model-b")
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.phases, 2)
+        XCTAssertEqual(workspace.runState.currentRunnerConfig?.maxIterations, 4)
     }
 
     func test_workspaceManager_adoptCLIExecutable_rejectsValidPathOverride() async throws {

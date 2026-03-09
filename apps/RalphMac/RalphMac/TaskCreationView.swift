@@ -396,7 +396,7 @@ struct TaskCreationView: View {
                 let classifiedError = RecoveryError.classify(
                     error: error,
                     operation: "createTask",
-                    workspaceURL: workspace.workingDirectoryURL
+                    workspaceURL: workspace.identityState.workingDirectoryURL
                 )
                 recoveryError = classifiedError
                 showingRecoverySheet = true

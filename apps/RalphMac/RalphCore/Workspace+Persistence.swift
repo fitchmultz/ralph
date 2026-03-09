@@ -39,6 +39,8 @@ public struct PersistenceIssue: Identifiable, Equatable, Sendable {
     public enum Domain: String, Sendable {
         case workspaceState
         case cachedTasks
+        case navigationState
+        case temporaryFiles
         case windowRestoration
         case versionCache
         case appDefaultsPreparation
@@ -127,17 +129,17 @@ public extension Workspace {
     }
 
     var hasRalphQueueFile: Bool {
-        Self.existingQueueFileURL(in: workingDirectoryURL) != nil
+        Self.existingQueueFileURL(in: identityState.workingDirectoryURL) != nil
     }
 
     var projectDisplayName: String {
-        let pathName = workingDirectoryURL.standardizedFileURL.lastPathComponent
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let pathName = identityState.workingDirectoryURL.standardizedFileURL.lastPathComponent
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         if !pathName.isEmpty, pathName != "/" {
             return pathName
         }
 
-        let storedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let storedName = identityState.name.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         if !storedName.isEmpty {
             return storedName
         }
@@ -146,7 +148,7 @@ public extension Workspace {
     }
 
     var queueFileURL: URL {
-        Self.preferredQueueFileURL(in: workingDirectoryURL)
+        Self.preferredQueueFileURL(in: identityState.workingDirectoryURL)
     }
 
     static func existingQueueFileURL(in workingDirectoryURL: URL) -> URL? {
@@ -281,10 +283,24 @@ extension Workspace {
         )
     }
 
-    func clearPersistenceIssue(domain: PersistenceIssue.Domain) {
+    func clearPersistenceIssue(domain: PersistenceIssue.Domain, matchingContext: String? = nil) {
         guard diagnosticsState.persistenceIssue?.domain == domain else { return }
+        if let matchingContext, diagnosticsState.persistenceIssue?.context != matchingContext {
+            return
+        }
         diagnosticsState.persistenceIssue = nil
         refreshOperationalHealth()
+    }
+
+    public func updateNavigationPersistenceIssue(_ issue: PersistenceIssue?) {
+        diagnosticsState.navigationPersistenceIssue = issue
+        refreshOperationalHealth()
+        if let issue {
+            RalphLogger.shared.error(
+                "Navigation persistence \(issue.operation.rawValue) failed for \(issue.context): \(issue.message)",
+                category: .workspace
+            )
+        }
     }
 
     static func directoryExists(_ url: URL) -> Bool {

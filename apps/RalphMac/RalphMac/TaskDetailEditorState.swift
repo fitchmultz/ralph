@@ -98,7 +98,7 @@ final class TaskDetailEditorState: ObservableObject {
                     to: draftTask,
                     originalUpdatedAt: force ? nil : originalUpdatedAt
                 )
-                let persistedTask = workspace.tasks.first(where: { $0.id == draftTask.id }) ?? draftTask
+                let persistedTask = workspace.taskState.tasks.first(where: { $0.id == draftTask.id }) ?? draftTask
                 isSaving = false
                 hasConflict = false
                 conflictedExternalTask = nil
@@ -127,7 +127,7 @@ final class TaskDetailEditorState: ObservableObject {
         guard !isSaving else { return }
 
         guard hasChanges else {
-            if let currentTask = workspace.tasks.first(where: { $0.id == taskID }) {
+            if let currentTask = workspace.taskState.tasks.first(where: { $0.id == taskID }) {
                 resetForLoadedTask(currentTask)
             }
             return

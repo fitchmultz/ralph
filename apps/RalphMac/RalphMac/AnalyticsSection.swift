@@ -37,7 +37,7 @@ struct AnalyticsDetailColumn: View {
 
     @ViewBuilder
     private var detailContent: some View {
-        switch workspace.analytics.productivitySummaryRenderState {
+        switch workspace.insightsState.analytics.productivitySummaryRenderState {
         case .idle(let message):
             AnalyticsStatusCard(
                 title: "Analytics Not Loaded",
@@ -45,7 +45,7 @@ struct AnalyticsDetailColumn: View {
                 systemImage: "chart.bar"
             )
         case .loading(_, let hasPreviousData):
-            if let report = workspace.analytics.productivitySummaryValue, hasPreviousData {
+            if let report = workspace.insightsState.analytics.productivitySummaryValue, hasPreviousData {
                 productivityContent(report: report, showsStaleBadge: true)
             } else {
                 AnalyticsStatusCard(
@@ -55,7 +55,7 @@ struct AnalyticsDetailColumn: View {
                 )
             }
         case .failed(let message, let hasPreviousData):
-            if let report = workspace.analytics.productivitySummaryValue, hasPreviousData {
+            if let report = workspace.insightsState.analytics.productivitySummaryValue, hasPreviousData {
                 productivityContent(report: report, showsStaleBadge: true)
                 AnalyticsStatusCard(
                     title: "Summary Load Failed",
@@ -76,7 +76,7 @@ struct AnalyticsDetailColumn: View {
                 systemImage: "chart.bar"
             )
         case .content:
-            if let report = workspace.analytics.productivitySummaryValue {
+            if let report = workspace.insightsState.analytics.productivitySummaryValue {
                 productivityContent(report: report, showsStaleBadge: false)
             }
         }

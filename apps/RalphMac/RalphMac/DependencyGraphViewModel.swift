@@ -37,7 +37,7 @@ final class DependencyGraphViewModel: ObservableObject {
         self.selectedTaskID = selectedTaskID
         layoutTask?.cancel()
 
-        guard let graphData = workspace.graphData else {
+        guard let graphData = workspace.insightsState.graphData else {
             nodes = []
             edges = []
             cycleResult = .noCycles
@@ -48,7 +48,7 @@ final class DependencyGraphViewModel: ObservableObject {
 
         let presentation = RalphGraphPresentationBuilder.build(
             graphData: graphData,
-            tasks: workspace.tasks,
+            tasks: workspace.taskState.tasks,
             selectedTaskID: selectedTaskID
         )
 

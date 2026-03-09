@@ -39,7 +39,7 @@ struct TaskDetailFormSections: View {
             TaskDetailRelationshipsSection(
                 draftTask: $draftTask,
                 currentTaskID: taskID,
-                workspaceTasks: workspace.tasks
+                workspaceTasks: workspace.taskState.tasks
             )
             TaskDetailMetadataSection(task: draftTask)
         }

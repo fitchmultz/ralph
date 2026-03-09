@@ -56,7 +56,7 @@ struct RunControlConsoleView: View {
                 .accessibilityHint("Copies all console text to clipboard")
 
                 // Clear button (only when not running)
-                if !workspace.isRunning && !workspace.output.isEmpty {
+                if !workspace.runState.isRunning && !workspace.runState.output.isEmpty {
                     Button(action: clearOutput) {
                         Image(systemName: "xmark.circle")
                     }
@@ -71,9 +71,9 @@ struct RunControlConsoleView: View {
             // Console content
             ScrollViewReader { proxy in
                 ScrollView {
-                    if workspace.attributedOutput.isEmpty {
+                    if workspace.runState.attributedOutput.isEmpty {
                         // Plain text fallback
-                        Text(workspace.output.isEmpty ? "(no output yet)" : workspace.output)
+                        Text(workspace.runState.output.isEmpty ? "(no output yet)" : workspace.runState.output)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
@@ -92,7 +92,7 @@ struct RunControlConsoleView: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .strokeBorder(.separator.opacity(0.3), lineWidth: 0.5)
                 )
-                .onChange(of: workspace.output) { _, _ in
+                .onChange(of: workspace.runState.output) { _, _ in
                     if autoScroll {
                         withAnimation(.easeOut(duration: 0.1)) {
                             proxy.scrollTo("console-bottom", anchor: .bottom)
@@ -106,7 +106,7 @@ struct RunControlConsoleView: View {
 
             // Status bar
             HStack {
-                if workspace.isRunning {
+                if workspace.runState.isRunning {
                     HStack(spacing: 6) {
                         ProgressView()
                             .scaleEffect(0.6)
@@ -117,7 +117,7 @@ struct RunControlConsoleView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Command is running")
-                } else if let status = workspace.lastExitStatus {
+                } else if let status = workspace.runState.lastExitStatus {
                     HStack(spacing: 6) {
                         Image(systemName: status.code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundStyle(status.code == 0 ? .green : .red)
@@ -133,28 +133,28 @@ struct RunControlConsoleView: View {
 
                 // Character count with truncation indicator
                 HStack(spacing: 4) {
-                    if workspace.outputBuffer.isTruncated {
+                    if workspace.runState.outputBuffer.isTruncated {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                             .help("Output has been truncated to prevent memory exhaustion")
                     }
-                    Text("\(workspace.output.count) chars")
+                    Text("\(workspace.runState.output.count) chars")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                .accessibilityLabel(workspace.outputBuffer.isTruncated
-                    ? "Console contains \(workspace.output.count) characters, content truncated"
-                    : "Console contains \(workspace.output.count) characters")
+                .accessibilityLabel(workspace.runState.outputBuffer.isTruncated
+                    ? "Console contains \(workspace.runState.output.count) characters, content truncated"
+                    : "Console contains \(workspace.runState.output.count) characters")
             }
         }
     }
 
     private func consoleAccessibilityValue() -> String {
-        if workspace.output.isEmpty {
+        if workspace.runState.output.isEmpty {
             return "Console is empty"
         }
-        let lines = workspace.output.split(separator: "\n", omittingEmptySubsequences: false)
-        return "Console has \(lines.count) lines, \(workspace.output.count) characters"
+        let lines = workspace.runState.output.split(separator: "\n", omittingEmptySubsequences: false)
+        return "Console has \(lines.count) lines, \(workspace.runState.output.count) characters"
     }
 
     @ViewBuilder
@@ -163,7 +163,7 @@ struct RunControlConsoleView: View {
         // Note: In a real implementation, you might use Text concatenation
         // or NSAttributedString bridging for complex cases
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(workspace.attributedOutput) { segment in
+            ForEach(workspace.runState.attributedOutput) { segment in
                 Text(segment.text)
                     .foregroundStyle(segment.color.swiftUIColor)
                     .font(.system(.body, design: .monospaced)
@@ -176,14 +176,14 @@ struct RunControlConsoleView: View {
 
     private func copyOutput() {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(workspace.output, forType: .string)
+        NSPasteboard.general.setString(workspace.runState.output, forType: .string)
         announceForAccessibility("Console output copied to clipboard")
     }
 
     private func clearOutput() {
-        workspace.output = ""
-        workspace.outputBuffer.clear()
-        workspace.attributedOutput = []
+        workspace.runState.output = ""
+        workspace.runState.outputBuffer.clear()
+        workspace.runState.attributedOutput = []
         announceForAccessibility("Console cleared")
     }
 
@@ -201,7 +201,7 @@ struct RunControlConsoleView: View {
 
 #Preview {
     let workspace = PreviewWorkspaceSupport.makeWorkspace(label: "run-control-console")
-    workspace.output = "Sample console output line 1\nSample console output line 2\n"
+    workspace.runState.output = "Sample console output line 1\nSample console output line 2\n"
     return RunControlConsoleView(workspace: workspace)
         .padding()
         .frame(width: 600, height: 400)

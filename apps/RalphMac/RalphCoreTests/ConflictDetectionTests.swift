@@ -46,7 +46,7 @@ final class ConflictDetectionTests: XCTestCase {
         )
         
         // Set workspace tasks
-        workspace.tasks = [task]
+        workspace.taskState.tasks = [task]
         
         // Check with same timestamp - should return nil (no conflict)
         let conflict = workspace.checkForConflict(taskID: "RQ-TEST-001", originalUpdatedAt: timestamp)
@@ -65,7 +65,7 @@ final class ConflictDetectionTests: XCTestCase {
             updatedAt: newTimestamp
         )
         
-        workspace.tasks = [task]
+        workspace.taskState.tasks = [task]
         
         // Check with old timestamp - should return the current task (conflict detected)
         let conflict = workspace.checkForConflict(taskID: "RQ-TEST-002", originalUpdatedAt: originalTimestamp)
@@ -75,7 +75,7 @@ final class ConflictDetectionTests: XCTestCase {
     
     func testCheckForConflict_TaskDeleted() {
         let timestamp = Date()
-        workspace.tasks = [] // Empty - task was deleted
+        workspace.taskState.tasks = [] // Empty - task was deleted
         
         let conflict = workspace.checkForConflict(taskID: "RQ-TEST-003", originalUpdatedAt: timestamp)
         XCTAssertNil(conflict) // Returns nil when task is deleted
@@ -90,7 +90,7 @@ final class ConflictDetectionTests: XCTestCase {
             updatedAt: Date()
         )
         
-        workspace.tasks = [task]
+        workspace.taskState.tasks = [task]
         
         // Check with nil timestamp - should return nil (can't detect conflict)
         let conflict = workspace.checkForConflict(taskID: "RQ-TEST-004", originalUpdatedAt: nil)
@@ -108,7 +108,7 @@ final class ConflictDetectionTests: XCTestCase {
             updatedAt: nil // No timestamp on external task
         )
         
-        workspace.tasks = [task]
+        workspace.taskState.tasks = [task]
         
         // Check with original timestamp but external has none - should return nil
         let conflict = workspace.checkForConflict(taskID: "RQ-TEST-005", originalUpdatedAt: originalTimestamp)

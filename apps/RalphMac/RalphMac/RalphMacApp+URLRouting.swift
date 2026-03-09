@@ -58,7 +58,7 @@ extension RalphMacApp {
         }
 
         if let existingWorkspace = manager.workspaces.first(where: {
-            $0.workingDirectoryURL
+            $0.identityState.workingDirectoryURL
                 .standardizedFileURL
                 .resolvingSymlinksInPath()
                 .path == workspaceURL.path
@@ -90,7 +90,7 @@ extension RalphMacApp {
             .standardizedFileURL
             .resolvingSymlinksInPath()
             .path
-        let workspacePath = workspace.workingDirectoryURL
+        let workspacePath = workspace.identityState.workingDirectoryURL
             .standardizedFileURL
             .resolvingSymlinksInPath()
             .path

@@ -31,7 +31,7 @@ struct ConsoleView: View {
 
                 Spacer()
 
-                if let error = workspace.errorMessage {
+                if let error = workspace.runState.errorMessage {
                     Text(error)
                         .foregroundStyle(.red)
                         .font(.system(.caption))
@@ -39,7 +39,7 @@ struct ConsoleView: View {
             }
 
             ScrollView {
-                Text(workspace.output.isEmpty ? "(no output yet)" : workspace.output)
+                Text(workspace.runState.output.isEmpty ? "(no output yet)" : workspace.runState.output)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .font(.system(.body, design: .monospaced))
                     .textSelection(.enabled)

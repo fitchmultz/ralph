@@ -171,6 +171,22 @@ final class ErrorRecoveryCategoryTests: XCTestCase {
         XCTAssertTrue(recoveryError.message.localizedCaseInsensitiveContains("queue"))
     }
 
+    func testCanonicalClassifierAlignsGenericAndProcessFailures() {
+        let stderr = "Error: read queue file /tmp/.ralph/queue.json: No such file or directory (os error 2)"
+        let genericError = NSError(
+            domain: "RalphCore.CLIProcess",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: stderr]
+        )
+        let processError = RetryableError.processError(exitCode: 2, stderr: stderr)
+
+        let genericRecovery = RecoveryError.classify(error: genericError, operation: "loadTasks")
+        let processRecovery = RecoveryError.classify(error: processError, operation: "loadTasks")
+
+        XCTAssertEqual(genericRecovery.category, processRecovery.category)
+        XCTAssertEqual(genericRecovery.message, processRecovery.message)
+    }
+
     func testClassifyMissingQueueFileIsActionable() {
         let error = NSError(
             domain: "RalphCore.CLIProcess",

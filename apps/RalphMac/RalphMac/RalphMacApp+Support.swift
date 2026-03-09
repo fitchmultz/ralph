@@ -24,23 +24,23 @@ extension RalphMacApp {
             return
         }
 
-        RalphLogger.shared.exportLogs(hours: 24) { logContent in
-            guard let logContent else {
-                Task { @MainActor in
-                    showAlert(title: "Export Failed", message: "Could not retrieve logs.")
-                }
-                return
-            }
-
-            Task { @MainActor in
+        Task { @MainActor in
+            do {
+                let logContent = try await RalphLogger.shared.exportLogs(hours: 24)
                 let savePanel = NSSavePanel()
                 savePanel.nameFieldStringValue = "ralph-logs-\(Date().formatted(.iso8601.dateSeparator(.dash).timeSeparator(.omitted))).txt"
                 savePanel.allowedContentTypes = [.plainText]
 
                 let result = await savePanel.begin()
                 if result == .OK, let url = savePanel.url {
-                    try? logContent.write(to: url, atomically: true, encoding: .utf8)
+                    do {
+                        try logContent.write(to: url, atomically: true, encoding: .utf8)
+                    } catch {
+                        showAlert(title: "Export Failed", message: "Could not save logs: \(error.localizedDescription)")
+                    }
                 }
+            } catch {
+                showAlert(title: "Export Failed", message: "Could not retrieve logs: \(error.localizedDescription)")
             }
         }
     }

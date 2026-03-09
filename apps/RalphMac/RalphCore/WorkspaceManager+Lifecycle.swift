@@ -28,7 +28,7 @@ public extension WorkspaceManager {
             return existing
         }
 
-        let defaultDirectory = workspaces.last?.workingDirectoryURL
+        let defaultDirectory = workspaces.last?.identityState.workingDirectoryURL
             ?? FileManager.default.homeDirectoryForCurrentUser
         let directory = workingDirectory ?? defaultDirectory
 
@@ -50,8 +50,8 @@ public extension WorkspaceManager {
     }
 
     func duplicateWorkspace(_ workspace: Workspace) -> Workspace {
-        let newWorkspace = createWorkspace(workingDirectory: workspace.workingDirectoryURL)
-        newWorkspace.name = "\(workspace.name) Copy"
+        let newWorkspace = createWorkspace(workingDirectory: workspace.identityState.workingDirectoryURL)
+        newWorkspace.identityState.name = "\(workspace.identityState.name) Copy"
         return newWorkspace
     }
 
@@ -73,7 +73,7 @@ public extension WorkspaceManager {
                             var isDir: ObjCBool = false
                             return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
                         }
-                    workspace.recentWorkingDirectories = recents
+                    workspace.identityState.recentWorkingDirectories = recents
                 }
             }
 
@@ -116,7 +116,7 @@ public extension WorkspaceManager {
     @discardableResult
     func restoreWorkspace(id: UUID) -> Workspace? {
         if let existing = workspaces.first(where: { $0.id == id }) {
-            return workspaceIsRestorable(existing.workingDirectoryURL) ? existing : nil
+            return workspaceIsRestorable(existing.identityState.workingDirectoryURL) ? existing : nil
         }
         guard let directory = workspaceWorkingDirectory(id) else { return nil }
         return createWorkspace(id: id, workingDirectory: directory)

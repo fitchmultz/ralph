@@ -64,14 +64,14 @@ extension Workspace {
             operation: { [self] in
                 try await client.runAndCollect(
                     arguments: taskDecomposeArguments(source: source, options: options, write: write),
-                    currentDirectoryURL: workingDirectoryURL,
+                    currentDirectoryURL: identityState.workingDirectoryURL,
                     timeoutConfiguration: .longRunning
                 )
             },
             onProgress: { [weak self] attempt, maxAttempts, _ in
                 await MainActor.run { [weak self] in
                     let verb = write ? "write decomposition" : "preview decomposition"
-                    self?.errorMessage = "Retrying \(verb) (attempt \(attempt)/\(maxAttempts))..."
+                    self?.runState.errorMessage = "Retrying \(verb) (attempt \(attempt)/\(maxAttempts))..."
                 }
             }
         )

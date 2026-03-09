@@ -94,7 +94,7 @@ struct MenuBarContentView: View {
                     .font(.caption)
                     .foregroundStyle(.green)
                 
-                if workspace.tasks.isEmpty {
+                if workspace.taskState.tasks.isEmpty {
                     Text("No tasks in queue")
                         .font(.body)
                         .foregroundStyle(.secondary)
@@ -111,7 +111,7 @@ struct MenuBarContentView: View {
     /// Shows task counts by status (Todo/Doing/Done)
     @ViewBuilder
     private func taskCountsSection(for workspace: Workspace) -> some View {
-        let counts = taskCounts(from: workspace.tasks)
+        let counts = taskCounts(from: workspace.taskState.tasks)
         
         HStack(spacing: 12) {
             CountBadge(count: counts.todo, label: "Todo", color: .blue)
@@ -128,7 +128,7 @@ struct MenuBarContentView: View {
             Button("Run Next Task") {
                 workspace.runNextTask()
             }
-            .disabled(workspace.nextTask() == nil || workspace.isRunning)
+            .disabled(workspace.nextTask() == nil || workspace.runState.isRunning)
             
             Button("Quick Add Task...") {
                 manager.route(.showTaskCreation, to: workspace.id)
@@ -145,7 +145,7 @@ struct MenuBarContentView: View {
     /// Recent tasks list for quick access
     @ViewBuilder
     private func recentTasksSection(for workspace: Workspace) -> some View {
-        let recentTasks = getRecentTasks(from: workspace.tasks, limit: menuBarManager.maxRecentTasks)
+        let recentTasks = getRecentTasks(from: workspace.taskState.tasks, limit: menuBarManager.maxRecentTasks)
         
         if !recentTasks.isEmpty {
             Divider()

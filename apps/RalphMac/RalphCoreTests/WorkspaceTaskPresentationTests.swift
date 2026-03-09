@@ -22,20 +22,20 @@ final class WorkspaceTaskPresentationTests: XCTestCase {
         let workspace = Workspace(workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "task-presentation-priority"))
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
 
-        workspace.tasks = [
+        workspace.taskState.tasks = [
             RalphTask(id: "RQ-003", status: .todo, title: "Same", priority: .high, tags: [], createdAt: timestamp, updatedAt: timestamp),
             RalphTask(id: "RQ-001", status: .todo, title: "Same", priority: .high, tags: [], createdAt: timestamp, updatedAt: timestamp),
             RalphTask(id: "RQ-002", status: .todo, title: "Same", priority: .high, tags: [], createdAt: timestamp, updatedAt: timestamp),
         ]
-        workspace.taskSortBy = .priority
+        workspace.taskState.taskSortBy = .priority
 
-        workspace.taskSortAscending = true
+        workspace.taskState.taskSortAscending = true
         XCTAssertEqual(
             workspace.taskPresentation().orderedTaskIDs,
             ["RQ-001", "RQ-002", "RQ-003"]
         )
 
-        workspace.taskSortAscending = false
+        workspace.taskState.taskSortAscending = false
         XCTAssertEqual(
             workspace.taskPresentation().orderedTaskIDs,
             ["RQ-003", "RQ-002", "RQ-001"]
@@ -44,13 +44,13 @@ final class WorkspaceTaskPresentationTests: XCTestCase {
 
     func testTaskPresentation_groupsTasksByStatusWithoutReorderingColumns() {
         let workspace = Workspace(workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "task-presentation-grouping"))
-        workspace.tasks = [
+        workspace.taskState.tasks = [
             RalphTask(id: "RQ-010", status: .doing, title: "Doing B", priority: .medium, tags: [], createdAt: Date(timeIntervalSince1970: 20), updatedAt: Date(timeIntervalSince1970: 20)),
             RalphTask(id: "RQ-002", status: .todo, title: "Todo A", priority: .medium, tags: [], createdAt: Date(timeIntervalSince1970: 10), updatedAt: Date(timeIntervalSince1970: 10)),
             RalphTask(id: "RQ-011", status: .doing, title: "Doing A", priority: .medium, tags: [], createdAt: Date(timeIntervalSince1970: 15), updatedAt: Date(timeIntervalSince1970: 15)),
         ]
-        workspace.taskSortBy = .title
-        workspace.taskSortAscending = true
+        workspace.taskState.taskSortBy = .title
+        workspace.taskState.taskSortAscending = true
 
         let presentation = workspace.taskPresentation()
 

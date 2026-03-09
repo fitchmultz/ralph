@@ -103,20 +103,30 @@ final class NavigationViewModelTests: XCTestCase {
 
     @MainActor
     func test_navigationViewModel_versionMismatch_usesDefaults() throws {
-        struct InvalidState: Codable {
-            let version: Int
-            let selectedSection: String
-        }
-
         let workspaceID = UUID()
-        let invalidState = InvalidState(version: 999, selectedSection: "queue")
-        let data = try JSONEncoder().encode(invalidState)
-        RalphAppDefaults.userDefaults.set(data, forKey: "\(testNavigationKey).\(workspaceID.uuidString)")
+        let stateKey = "\(testNavigationKey).\(workspaceID.uuidString)"
+        var removedKeys: [String] = []
+        let store = NavigationStateStore(
+            loadData: { _ in
+                try JSONEncoder().encode(
+                    NavigationState(
+                        version: 999,
+                        selectedSection: .quickActions,
+                        taskViewMode: .kanban,
+                        selectedTaskID: "RQ-9999",
+                        selectedTaskIDs: ["RQ-9999"]
+                    )
+                )
+            },
+            saveData: { _, _ in },
+            removeData: { removedKeys.append($0) }
+        )
 
-        let viewModel = NavigationViewModel(workspaceID: workspaceID)
+        let viewModel = NavigationViewModel(workspaceID: workspaceID, store: store)
         XCTAssertEqual(viewModel.selectedSection, .queue)
         XCTAssertEqual(viewModel.taskViewMode, .list)
         XCTAssertNil(viewModel.selectedTaskID)
+        XCTAssertEqual(removedKeys, [stateKey])
     }
 
     @MainActor
@@ -161,6 +171,60 @@ final class NavigationViewModelTests: XCTestCase {
 
         let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
         XCTAssertEqual(loadedViewModel.taskViewMode, .graph)
+    }
+
+    @MainActor
+    func test_navigationViewModel_saveFailure_surfacesPersistenceIssue() {
+        struct ExpectedFailure: Error {}
+
+        var forwardedIssue: PersistenceIssue?
+        let store = NavigationStateStore(
+            loadData: { _ in nil },
+            saveData: { _, _ in throw ExpectedFailure() },
+            removeData: { _ in }
+        )
+
+        let viewModel = NavigationViewModel(
+            workspaceID: UUID(),
+            store: store,
+            issueSink: { forwardedIssue = $0 }
+        )
+        viewModel.selectedSection = .analytics
+
+        XCTAssertEqual(viewModel.persistenceIssue?.domain, .navigationState)
+        XCTAssertEqual(viewModel.persistenceIssue?.operation, .save)
+        XCTAssertEqual(forwardedIssue?.domain, .navigationState)
+        XCTAssertEqual(forwardedIssue?.operation, .save)
+    }
+
+    @MainActor
+    func test_navigationViewModel_loadFailure_surfacesIssueAndClearsStoredState() {
+        struct ExpectedFailure: Error {}
+
+        let workspaceID = UUID()
+        let stateKey = "\(testNavigationKey).\(workspaceID.uuidString)"
+        var removedKeys: [String] = []
+        var forwardedIssue: PersistenceIssue?
+        let store = NavigationStateStore(
+            loadData: { _ in throw ExpectedFailure() },
+            saveData: { _, _ in },
+            removeData: { removedKeys.append($0) }
+        )
+
+        let viewModel = NavigationViewModel(
+            workspaceID: workspaceID,
+            store: store,
+            issueSink: { forwardedIssue = $0 }
+        )
+
+        XCTAssertEqual(viewModel.selectedSection, .queue)
+        XCTAssertEqual(viewModel.taskViewMode, .list)
+        XCTAssertNil(viewModel.selectedTaskID)
+        XCTAssertEqual(viewModel.persistenceIssue?.domain, .navigationState)
+        XCTAssertEqual(viewModel.persistenceIssue?.operation, .load)
+        XCTAssertEqual(forwardedIssue?.domain, .navigationState)
+        XCTAssertEqual(forwardedIssue?.operation, .load)
+        XCTAssertEqual(removedKeys, [stateKey])
     }
 }
 
