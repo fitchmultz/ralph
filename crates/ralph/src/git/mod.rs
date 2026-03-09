@@ -22,6 +22,7 @@ pub mod branch;
 pub mod clean;
 pub mod commit;
 pub mod error;
+pub(crate) mod github_cli;
 pub mod issue;
 pub mod lfs;
 pub mod pr;

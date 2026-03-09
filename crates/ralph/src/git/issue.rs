@@ -16,9 +16,9 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::Path;
-use std::process::Command;
 
-use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
+use crate::git::github_cli::{extract_first_url, gh_command, run_gh_command};
+use crate::runutil::TimeoutClass;
 
 pub(crate) const GITHUB_ISSUE_SYNC_HASH_KEY: &str = "github_issue_sync_hash";
 
@@ -70,14 +70,6 @@ pub(crate) fn compute_issue_sync_hash(
     Ok(hex::encode(hasher.finalize()))
 }
 
-fn extract_first_url(output: &str) -> Option<String> {
-    output
-        .lines()
-        .map(str::trim)
-        .find(|line| line.starts_with("http://") || line.starts_with("https://"))
-        .map(|line| line.to_string())
-}
-
 pub(crate) fn parse_issue_number(url: &str) -> Option<u32> {
     let marker = "/issues/";
     let idx = url.find(marker)?;
@@ -99,10 +91,8 @@ pub(crate) fn create_issue(
         bail!("Issue title must be non-empty");
     }
 
-    let mut cmd = Command::new("gh");
-    cmd.current_dir(repo_root)
-        .env("GH_NO_UPDATE_NOTIFIER", "1")
-        .arg("issue")
+    let mut cmd = gh_command(repo_root);
+    cmd.arg("issue")
         .arg("create")
         .arg("--title")
         .arg(safe_title)
@@ -156,10 +146,8 @@ pub(crate) fn edit_issue(
         bail!("Issue title must be non-empty");
     }
 
-    let mut cmd = Command::new("gh");
-    cmd.current_dir(repo_root)
-        .env("GH_NO_UPDATE_NOTIFIER", "1")
-        .arg("issue")
+    let mut cmd = gh_command(repo_root);
+    cmd.arg("issue")
         .arg("edit")
         .arg(issue_selector)
         .arg("--title")
@@ -190,27 +178,16 @@ pub(crate) fn edit_issue(
 }
 
 fn run_gh_issue_command(
-    command: Command,
+    command: std::process::Command,
     description: impl Into<String>,
 ) -> Result<std::process::Output> {
-    execute_managed_command(ManagedCommand::new(
-        command,
-        description,
-        TimeoutClass::GitHubCli,
-    ))
-    .map(|output| {
-        let truncated = output.stdout_truncated || output.stderr_truncated;
-        if truncated {
-            log::debug!("managed gh issue capture truncated command output");
-        }
-        output.into_output()
-    })
-    .map_err(Into::into)
+    run_gh_command(command, description, TimeoutClass::GitHubCli, "gh issue")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_first_url, parse_issue_number};
+    use super::parse_issue_number;
+    use crate::git::github_cli::extract_first_url;
 
     #[test]
     fn extract_first_url_picks_first_url_line() {
