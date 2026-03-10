@@ -78,7 +78,7 @@ pub struct AgentArgs {
 #[derive(Args, Clone, Debug, Default)]
 pub struct RunAgentArgs {
     /// Named configuration profile to apply before resolving task/CLI overrides.
-    /// Examples: quick, thorough, quick-fix
+    /// Examples: fast-local, deep-review, quick-fix
     #[arg(long, value_name = "NAME")]
     pub profile: Option<String>,
 

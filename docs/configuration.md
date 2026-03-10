@@ -1,6 +1,6 @@
 # Configuration
 
-![Configuration Layers](assets/images/2026-02-07-config-layers.png)
+![Configuration Layers](assets/images/2026-03-10-12-00-08-config-layers.png)
 
 Purpose: Document Ralph's JSON configuration layout, defaults, and override precedence for global and project settings.
 
@@ -695,39 +695,23 @@ Configuration profiles enable quick switching between different workflow presets
 
 A profile is an `AgentConfig`-shaped patch that is applied over the base `agent` configuration when selected via `--profile <NAME>`.
 
-### Built-in Profiles
-
-Ralph includes two built-in profiles that are always available:
-
-- **`quick`**: Fast, single-pass execution
-  - `runner`: `codex`
-  - `model`: `gpt-5.4`
-  - `reasoning_effort`: `low`
-  - `phases`: `1`
-
-- **`thorough`**: Deep, multi-phase execution with powerful models
-  - `runner`: `codex`
-  - `model`: `gpt-5.4`
-  - `reasoning_effort`: `high`
-  - `phases`: `3`
-
-### Custom Profiles
-
 Define custom profiles in your config file under the `profiles` key:
 
 ```json
 {
   "version": 1,
   "profiles": {
-    "codex-review": {
+    "fast-local": {
       "runner": "codex",
       "model": "gpt-5.4",
-      "phases": 2
+      "phases": 1,
+      "reasoning_effort": "low"
     },
-    "gemini-audit": {
-      "runner": "gemini",
-      "model": "gemini-3-pro-preview",
-      "phases": 3
+    "deep-review": {
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "phases": 3,
+      "reasoning_effort": "high"
     }
   }
 }
@@ -739,33 +723,32 @@ When a profile is selected, the final configuration is computed in this order (h
 
 1. **CLI flags** (e.g., `--runner`, `--model`, `--phases`, `--effort`)
 2. **Task overrides** (`task.agent.*` in the queue)
-3. **Selected profile** (config-defined or built-in)
+3. **Selected profile** (config-defined)
 4. **Base config** (merged global + project config)
 
 This means:
 - CLI flags always win
 - A profile can be partially overridden by CLI flags
-- User-defined profiles with the same name as built-ins override the built-in
 
 ### Using Profiles
 
 Select a profile using the `--profile` flag:
 
 ```bash
-# Run with the quick profile
-ralph run one --profile quick
+# Run with a custom fast-local profile
+ralph run one --profile fast-local
 
-# Scan with the thorough profile
-ralph scan --profile thorough "security audit"
+# Scan with a deep-review profile
+ralph scan --profile deep-review "security audit"
 
 # Override specific settings while using a profile
-ralph run one --profile quick --phases 2 --runner claude
+ralph run one --profile fast-local --phases 2 --runner claude
 
 # List available profiles
 ralph config profiles list
 
 # Inspect a specific profile
-ralph config profiles show quick
+ralph config profiles show fast-local
 ```
 
 ### Profile Inheritance
@@ -780,7 +763,7 @@ This means a profile only needs to specify the fields it wants to change:
 ```json
 {
   "profiles": {
-    "fast-fix": {
+    "fast-local": {
       "phases": 1
     }
   }
@@ -788,3 +771,26 @@ This means a profile only needs to specify the fields it wants to change:
 ```
 
 The above profile only changes `phases`, leaving all other `agent` settings at their base values.
+
+### Migration from Retired Default Names
+
+`quick` and `thorough` are no longer built in. If you want those names back for your team, define them explicitly:
+
+```json
+{
+  "profiles": {
+    "quick": {
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "phases": 1,
+      "reasoning_effort": "low"
+    },
+    "thorough": {
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "phases": 3,
+      "reasoning_effort": "high"
+    }
+  }
+}
+```

@@ -1,5 +1,7 @@
 # Ralph Parallel Execution (Direct-Push Mode)
 
+![Parallel Direct Push](../assets/images/2026-03-10-12-15-29-parallel-direct-push.png)
+
 Parallel execution runs multiple tasks concurrently in isolated git workspace clones, with workers pushing directly to the target branch.
 
 > **CLI Only**: Parallel execution is available only via CLI (`ralph run loop --parallel [N]`).

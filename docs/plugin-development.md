@@ -1,6 +1,6 @@
 # Plugin Development Guide
 
-![Plugin Architecture](assets/images/2026-02-07-plugin-architecture.png)
+![Plugin Architecture](assets/images/2026-03-10-12-05-00-plugin-architecture.png)
 
 Purpose: Guide for developing custom Ralph plugins (runners and task processors).
 

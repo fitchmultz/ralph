@@ -85,8 +85,8 @@ Examples:\n\
  ralph run one\n\
  ralph run one --id RQ-0001\n\
  ralph run one --debug\n\
- ralph run one --profile quick (codex/gpt-5.4, 1-phase, low effort)\n\
- ralph run one --profile thorough (codex/gpt-5.4, 3-phase, high effort)\n\
+ ralph run one --profile fast-local\n\
+ ralph run one --profile deep-review\n\
  ralph run one --phases 3 (plan/implement+CI/review+complete)\n\
  ralph run one --phases 2 (plan/implement)\n\
  ralph run one --phases 1 (single-pass)\n\
@@ -110,8 +110,8 @@ Examples:\n\
 
 pub(super) const RUN_LOOP_AFTER_LONG_HELP: &str = "Examples:\n\
  ralph run loop --max-tasks 0\n\
- ralph run loop --profile quick --max-tasks 5 (codex/gpt-5.4, 1-phase, low effort)\n\
- ralph run loop --profile thorough --max-tasks 5 (codex/gpt-5.4, 3-phase, high effort)\n\
+ ralph run loop --profile fast-local --max-tasks 5\n\
+ ralph run loop --profile deep-review --max-tasks 5\n\
  ralph run loop --phases 3 --max-tasks 0 (plan/implement+CI/review+complete)\n\
  ralph run loop --phases 2 --max-tasks 0 (plan/implement)\n\
  ralph run loop --phases 1 --max-tasks 1 (single-pass)\n\

@@ -740,35 +740,28 @@ ralph plugin uninstall <id>          # Uninstall a plugin
 
 Profiles enable quick switching between workflow presets. A profile is an `AgentConfig`-shaped patch applied over the base config.
 
-### Built-in Profiles
-
-Ralph provides two built-in profiles:
-
-| Profile | Runner | Model | Phases | Use Case |
-|---------|--------|-------|--------|----------|
-| `quick` | `codex` | `gpt-5.4` | `1` | Fast single-pass execution |
-| `thorough` | `codex` | `gpt-5.4` | `3` | Deep multi-phase analysis |
-
 ### Defining Custom Profiles
 
 ```json
 {
   "version": 1,
   "profiles": {
-    "codex-review": {
+    "fast-local": {
       "runner": "codex",
       "model": "gpt-5.4",
-      "phases": 2,
+      "phases": 1,
+      "reasoning_effort": "low"
+    },
+    "deep-review": {
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "phases": 3,
       "reasoning_effort": "high"
     },
     "gemini-audit": {
       "runner": "gemini",
       "model": "gemini-3-pro-preview",
       "phases": 3
-    },
-    "fast-fix": {
-      "phases": 1,
-      "iterations": 1
     }
   }
 }
@@ -778,19 +771,19 @@ Ralph provides two built-in profiles:
 
 ```bash
 # Run with a profile
-ralph run one --profile quick
+ralph run one --profile fast-local
 
 # Scan with a profile
-ralph scan --profile thorough "security audit"
+ralph scan --profile deep-review "security audit"
 
 # Override settings while using a profile
-ralph run one --profile quick --phases 2
+ralph run one --profile fast-local --phases 2
 
 # List available profiles
 ralph config profiles list
 
 # Show profile details
-ralph config profiles show quick
+ralph config profiles show fast-local
 ```
 
 ### Profile Precedence
@@ -799,8 +792,6 @@ ralph config profiles show quick
 2. Task overrides (`task.agent.*`)
 3. Selected profile
 4. Base config (lowest)
-
-User-defined profiles with the same name as built-ins override the built-in.
 
 ---
 
@@ -1013,11 +1004,11 @@ Here's a comprehensive example demonstrating all configuration sections:
   
   // Custom profiles
   "profiles": {
-    "quick": {
+    "fast-local": {
       "runner": "kimi",
       "phases": 1
     },
-    "thorough": {
+    "deep-review": {
       "runner": "claude",
       "model": "opus",
       "phases": 3

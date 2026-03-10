@@ -306,8 +306,8 @@ Define standardized profiles for team consistency:
 Use base profile + CLI overrides for flexibility:
 
 ```bash
-# Start with thorough profile, override for speed
-ralph run one --profile thorough --phases 2 --runner kimi
+# Start with deep-review profile, override for speed
+ralph run one --profile deep-review --phases 2 --runner kimi
 
 # Use CI-safe profile but enable auto-push for this run
 ralph run loop --profile ci-safe --git-commit-push-on
@@ -1083,8 +1083,8 @@ ralph run one --no-ci-gate
 
 **Problem:** Slow task processing
 ```bash
-# Use quick profile for simple tasks
-ralph run one --profile quick
+# Use a fast-local profile for simple tasks
+ralph run one --profile fast-local
 
 # Skip phases when appropriate
 ralph run one --phases 1
@@ -1161,11 +1161,11 @@ rm -rf .ralph/logs/        # Secure deletion
 ### Common Command Patterns
 
 ```bash
-# Quick single task
-ralph run one --profile quick
+# Quick single task with your local profile
+ralph run one --profile fast-local
 
 # Full workflow with review
-ralph run one --profile thorough
+ralph run one --profile deep-review
 
 # Parallel execution
 ralph run loop --parallel 4 --max-tasks 10

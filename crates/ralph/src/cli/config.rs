@@ -3,9 +3,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
 
-use crate::{
-    agent, agent::profiles::BUILTIN_QUICK, agent::profiles::BUILTIN_THOROUGH, config, contracts,
-};
+use crate::{agent, config, contracts};
 
 /// Output format for `config show` command.
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -78,23 +76,21 @@ fn handle_profiles(args: ConfigProfilesArgs) -> Result<()> {
 
             if names.is_empty() {
                 println!("No profiles configured.");
-                println!("Built-in profiles: quick, thorough");
+                println!(
+                    "Define profiles under the `profiles` key in .ralph/config.jsonc or ~/.config/ralph/config.jsonc."
+                );
                 return Ok(());
             }
 
             println!("Available profiles:");
             for name in names {
-                let is_builtin = name == BUILTIN_QUICK || name == BUILTIN_THOROUGH;
-                let marker = if is_builtin { " (built-in)" } else { "" };
-
-                // Get effective patch for this profile
                 if let Some(patch) =
                     agent::resolve_profile_patch(&name, resolved.config.profiles.as_ref())
                 {
                     let details = format_profile_summary(&patch);
-                    println!("  {}{} - {}", name, marker, details);
+                    println!("  {} - {}", name, details);
                 } else {
-                    println!("  {}{}", name, marker);
+                    println!("  {}", name);
                 }
             }
         }
@@ -107,10 +103,7 @@ fn handle_profiles(args: ConfigProfilesArgs) -> Result<()> {
             match agent::resolve_profile_patch(name, resolved.config.profiles.as_ref()) {
                 Some(patch) => {
                     println!("Profile: {}", name);
-                    let is_builtin = name == BUILTIN_QUICK || name == BUILTIN_THOROUGH;
-                    if is_builtin {
-                        println!("Source: built-in");
-                    } else if resolved
+                    if resolved
                         .config
                         .profiles
                         .as_ref()
@@ -124,8 +117,13 @@ fn handle_profiles(args: ConfigProfilesArgs) -> Result<()> {
                 }
                 None => {
                     let names = agent::all_profile_names(resolved.config.profiles.as_ref());
+                    if names.is_empty() {
+                        anyhow::bail!(
+                            "Unknown profile: {name:?}. No profiles are configured. Define profiles under the `profiles` key in .ralph/config.jsonc or ~/.config/ralph/config.jsonc."
+                        );
+                    }
                     anyhow::bail!(
-                        "Unknown profile: {name:?}. Available profiles: {}",
+                        "Unknown profile: {name:?}. Available configured profiles: {}",
                         names.into_iter().collect::<Vec<_>>().join(", ")
                     );
                 }
@@ -171,7 +169,7 @@ fn format_reasoning_effort(effort: contracts::ReasoningEffort) -> &'static str {
 #[derive(Args)]
 #[command(
     about = "Inspect and manage Ralph configuration",
-    after_long_help = "Examples:\n  ralph config show\n  ralph config show --format json\n  ralph config paths\n  ralph config schema\n  ralph config profiles list\n  ralph config profiles show quick"
+    after_long_help = "Examples:\n  ralph config show\n  ralph config show --format json\n  ralph config paths\n  ralph config schema\n  ralph config profiles list\n  ralph config profiles show fast-local"
 )]
 pub struct ConfigArgs {
     #[command(subcommand)]
@@ -193,7 +191,7 @@ pub enum ConfigCommand {
     Schema,
     /// List and inspect configuration profiles.
     #[command(
-        after_long_help = "Examples:\n  ralph config profiles list\n  ralph config profiles show quick\n  ralph config profiles show thorough"
+        after_long_help = "Examples:\n  ralph config profiles list\n  ralph config profiles show fast-local\n  ralph config profiles show deep-review"
     )]
     Profiles(ConfigProfilesArgs),
 }
@@ -208,8 +206,8 @@ pub struct ConfigProfilesArgs {
 /// Subcommands for `ralph config profiles`.
 #[derive(Subcommand)]
 pub enum ConfigProfilesCommand {
-    /// List available profiles (built-in + configured).
+    /// List available configured profiles.
     List,
-    /// Show one profile (effective patch), falling back to built-ins.
+    /// Show one configured profile (effective patch).
     Show { name: String },
 }

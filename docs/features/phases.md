@@ -325,21 +325,21 @@ Configure the default number of phases in `.ralph/config.jsonc`:
 
 Valid values: `1`, `2`, or `3`
 
-### Built-in Profiles
+### Example Custom Profiles
 
-Ralph includes phase-optimized profiles:
+You can model phase-optimized workflows with custom profiles:
 
 ```bash
-# Quick profile: 1 phase, Codex low-effort runner
-ralph run one --profile quick
+# Fast local profile: 1 phase, Codex low-effort runner
+ralph run one --profile fast-local
 
-# Thorough profile: 3 phases, Codex high-effort runner
-ralph run one --profile thorough
+# Deep review profile: 3 phases, Codex high-effort runner
+ralph run one --profile deep-review
 ```
 
-Profile definitions (always available):
-- `quick`: `phases=1`, `runner=codex`, `model=gpt-5.4`, `reasoning_effort=low`
-- `thorough`: `phases=3`, `runner=codex`, `model=gpt-5.4`, `reasoning_effort=high`
+Example definitions:
+- `fast-local`: `phases=1`, `runner=codex`, `model=gpt-5.4`, `reasoning_effort=low`
+- `deep-review`: `phases=3`, `runner=codex`, `model=gpt-5.4`, `reasoning_effort=high`
 
 ### Custom Profiles
 

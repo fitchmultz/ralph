@@ -76,8 +76,8 @@ ralph scan --mode maintenance
 # Maintenance scan with specific focus
 ralph scan --mode maintenance "security vulnerabilities in authentication"
 
-# Quick maintenance check using quick profile
-ralph scan --mode maintenance --profile quick "CI workflow gaps"
+# Maintenance check using a fast-local profile
+ralph scan --mode maintenance --profile fast-local "CI workflow gaps"
 ```
 
 ### Innovation Mode (`--mode innovation`)
@@ -112,8 +112,8 @@ ralph scan --mode innovation
 # Innovation scan with specific focus
 ralph scan --mode innovation "CLI ergonomics and UX improvements"
 
-# Deep innovation analysis using thorough profile
-ralph scan --mode innovation --profile thorough "missing webhook integrations"
+# Deep innovation analysis using a deep-review profile
+ralph scan --mode innovation --profile deep-review "missing webhook integrations"
 ```
 
 ### General Mode (Default)
@@ -154,7 +154,7 @@ ralph scan [OPTIONS] [PROMPT]...
 |------|-------|-------------|
 | `--focus <TEXT>` | | Focus prompt to guide the scan (backward compatible) |
 | `--mode <MODE>` | `-m` | Scan mode: `maintenance`, `innovation`, or `general` |
-| `--profile <NAME>` | | Named config profile to apply (e.g., `quick`, `thorough`) |
+| `--profile <NAME>` | | Named config profile to apply (e.g., `fast-local`, `deep-review`) |
 | `--runner <RUNNER>` | | Override runner for this scan |
 | `--model <MODEL>` | | Override model for this scan |
 | `--effort <LEVEL>` | `-e` | Reasoning effort: `low`, `medium`, `high`, `xhigh` (Codex only) |
@@ -186,9 +186,9 @@ ralph scan --focus "security audit"                                 # Using --fo
 ralph scan --mode maintenance "security audit"                      # Maintenance + focus
 ralph scan --mode innovation "feature gaps for CLI"                 # Innovation + focus
 
-# With profiles
-ralph scan --profile quick "quick bug fixes"                        # Quick profile (faster)
-ralph scan --profile thorough "deep risk audit"                     # Thorough profile (deeper)
+# With configured profiles
+ralph scan --profile fast-local "quick bug fixes"                   # Fast custom profile
+ralph scan --profile deep-review "deep risk audit"                  # Deep custom profile
 
 # With runner overrides
 ralph scan --runner opencode --model gpt-5.3 "CI and safety gaps"
@@ -207,7 +207,7 @@ ralph scan --repo-prompt tools "Tool-guided scan"                   # Tools only
 ralph scan --repo-prompt off "Quick surface scan"                   # No RepoPrompt
 
 # Combining options
-ralph scan --mode maintenance --profile thorough --runner claude \
+ralph scan --mode maintenance --profile deep-review --runner claude \
            --model opus "comprehensive security audit"
 ```
 
@@ -295,11 +295,11 @@ Different runners have different strengths for scanning. Choose based on your ne
 - Feature gaps are often visible at surface level
 
 **Quick scans**:
-- Use `--profile quick` which typically uses faster models
+- Use a fast custom profile such as `fast-local`
 - Good for initial exploration or frequent scanning
 
 **Deep scans**:
-- Use `--profile thorough` which uses stronger models
+- Use a deep custom profile such as `deep-review`
 - Best for critical audits before releases
 
 ### Examples
@@ -536,33 +536,33 @@ ralph scan --mode maintenance "add null checks"
 
 1. **Initial scan** (when onboarding):
    ```bash
-   ralph scan --mode maintenance --profile thorough "comprehensive codebase review"
+   ralph scan --mode maintenance --profile deep-review "comprehensive codebase review"
    ```
 
 2. **Regular maintenance** (weekly/bi-weekly):
    ```bash
-   ralph scan --mode maintenance --profile quick "recent changes review"
+   ralph scan --mode maintenance --profile fast-local "recent changes review"
    ```
 
 3. **Pre-release audit**:
    ```bash
-   ralph scan --mode maintenance --profile thorough "release readiness"
-   ralph scan --mode innovation --profile thorough "missing features for launch"
+   ralph scan --mode maintenance --profile deep-review "release readiness"
+   ralph scan --mode innovation --profile deep-review "missing features for launch"
    ```
 
 4. **Roadmap planning** (quarterly):
    ```bash
-   ralph scan --mode innovation --profile thorough "strategic opportunities"
+   ralph scan --mode innovation --profile deep-review "strategic opportunities"
    ```
 
 ### Profile Selection
 
 | Goal | Profile | Why |
 |------|---------|-----|
-| Quick check | `quick` | Fast feedback, uses lighter models |
-| Deep audit | `thorough` | Comprehensive analysis, stronger models |
+| Quick check | `fast-local` | Fast feedback with a lightweight custom profile |
+| Deep audit | `deep-review` | Comprehensive analysis with a deeper custom profile |
 | Daily scan | None (default) | Balanced approach |
-| Critical path | `thorough` | Maximum thoroughness for important decisions |
+| Critical path | `deep-review` | Maximum thoroughness for important decisions |
 
 ### Safety Considerations
 
@@ -646,13 +646,13 @@ ralph run loop --max-tasks 5
 **Continuous Monitoring**:
 ```bash
 # Add to CI pipeline (dry-run to preview)
-ralph scan --mode maintenance --profile quick "CI health check"
+ralph scan --mode maintenance --profile fast-local "CI health check"
 ```
 
 ### Parallel Scanning (Future)
 
 While parallel execution is available for `ralph run loop --parallel`, scans are currently sequential. For large codebases, consider:
-- Using `--profile quick` for faster results
+- Using a fast custom profile such as `fast-local` for faster results
 - Focusing on specific subdirectories via focus prompt
 - Running separate scans for different subsystems
 
@@ -701,6 +701,6 @@ The Ralph Scan System is your **autonomous discovery engine** for codebase impro
 - Use `--mode maintenance` for bugs and technical debt
 - Use `--mode innovation` for features and improvements
 - Use focus prompts to guide exploration
-- Leverage profiles (`quick`, `thorough`) for appropriate depth
+- Leverage profiles such as `fast-local` and `deep-review` for appropriate depth
 - Review and prioritize scan results before execution
 - Integrate scanning into your regular workflow for continuous improvement

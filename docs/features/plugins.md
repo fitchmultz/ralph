@@ -1,5 +1,7 @@
 # Ralph Plugin System
 
+![Plugin Architecture](../assets/images/2026-03-10-12-05-00-plugin-architecture.png)
+
 Purpose: Comprehensive documentation for Ralph's plugin system, enabling custom runners and task processors.
 
 ---

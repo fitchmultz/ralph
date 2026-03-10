@@ -508,18 +508,18 @@ ralph config paths
 
 ### Configuration Profiles
 
-Ralph includes built-in profiles for quick workflow switching:
+Ralph supports custom profiles for quick workflow switching:
 
 | Profile | Runner | Model | Phases | Use Case |
 |---------|--------|-------|--------|----------|
-| `quick` | Codex | gpt-5.4 | 1 | Fast fixes |
-| `thorough` | Codex | gpt-5.4 | 3 | Deep review |
+| `fast-local` | Codex | gpt-5.4 | 1 | Fast local fixes |
+| `deep-review` | Codex | gpt-5.4 | 3 | Deep review |
 
 Use a profile:
 
 ```bash
-ralph run one --profile quick
-ralph scan --profile thorough "security audit"
+ralph run one --profile fast-local
+ralph scan --profile deep-review "security audit"
 ```
 
 Define custom profiles:
@@ -527,10 +527,16 @@ Define custom profiles:
 ```json
 {
   "profiles": {
-    "my-profile": {
+    "fast-local": {
       "runner": "codex",
       "model": "gpt-5.4",
-      "phases": 2,
+      "phases": 1,
+      "reasoning_effort": "low"
+    },
+    "deep-review": {
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "phases": 3,
       "reasoning_effort": "high"
     }
   }

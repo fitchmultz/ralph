@@ -130,7 +130,6 @@ fn resolve_from_cwd_internal(
 /// Apply a named profile patch to the resolved config.
 ///
 /// Profile values are merged into `cfg.agent` using leaf-wise merge semantics.
-/// Config-defined profiles take precedence over built-in profiles.
 fn apply_profile_patch(cfg: &mut Config, name: &str) -> Result<()> {
     let name = name.trim();
     if name.is_empty() {
@@ -140,10 +139,16 @@ fn apply_profile_patch(cfg: &mut Config, name: &str) -> Result<()> {
     let patch =
         crate::agent::resolve_profile_patch(name, cfg.profiles.as_ref()).ok_or_else(|| {
             let names = crate::agent::all_profile_names(cfg.profiles.as_ref());
-            anyhow::anyhow!(
-                "Unknown profile: {name:?}. Available profiles: {}",
-                names.into_iter().collect::<Vec<_>>().join(", ")
-            )
+            if names.is_empty() {
+                anyhow::anyhow!(
+                    "Unknown profile: {name:?}. No profiles are configured. Define profiles under the `profiles` key in .ralph/config.jsonc or ~/.config/ralph/config.jsonc."
+                )
+            } else {
+                anyhow::anyhow!(
+                    "Unknown profile: {name:?}. Available configured profiles: {}",
+                    names.into_iter().collect::<Vec<_>>().join(", ")
+                )
+            }
         })?;
 
     cfg.agent.merge_from(patch);
