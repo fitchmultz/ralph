@@ -327,14 +327,14 @@ final class ANSIParserTests: XCTestCase {
         XCTAssertEqual(workspace.attributedOutput[1].color, .default)
     }
 
-    func test_incrementalStreamParsing_detectsPhaseFromDeltaOnly() async {
+    func test_incrementalStreamParsing_doesNotInferRunPhaseFromText() async {
         workspace.resetStreamProcessingState()
         workspace.currentPhase = nil
 
         workspace.consumeStreamTextChunk("prelude\n")
         workspace.consumeStreamTextChunk("## Phase 2\nimplementing now\n")
 
-        XCTAssertEqual(workspace.currentPhase, .implement)
+        XCTAssertNil(workspace.currentPhase)
     }
 
     // MARK: - Complex/Real-World Cases

@@ -35,16 +35,18 @@ public enum WorkspaceDiagnosticsService {
             }
 
             let result = try await client.runAndCollect(
-                arguments: ["--no-color", "queue", "validate"],
+                arguments: ["--no-color", "machine", "queue", "validate"],
                 currentDirectoryURL: workspace.identityState.workingDirectoryURL
             )
 
             if result.status.code == 0 {
-                let stdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-                if stdout.isEmpty {
+                let decoder = JSONDecoder()
+                let document = try decoder.decode(MachineQueueValidationDocument.self, from: Data(result.stdout.utf8))
+                if document.warnings.isEmpty {
                     return "Queue validation passed."
                 }
-                return "Queue validation passed.\n\n\(stdout)"
+                let warningLines = document.warnings.map { "- [\($0.taskID)] \($0.message)" }.joined(separator: "\n")
+                return "Queue validation passed with warnings.\n\n\(warningLines)"
             }
 
             let stderr = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -66,6 +68,22 @@ public enum WorkspaceDiagnosticsService {
             return try await RalphLogger.shared.exportLogs(hours: hours)
         } catch {
             return "Failed to export logs: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct MachineQueueValidationDocument: Decodable {
+    let version: Int
+    let valid: Bool
+    let warnings: [Warning]
+
+    struct Warning: Decodable {
+        let taskID: String
+        let message: String
+
+        enum CodingKeys: String, CodingKey {
+            case taskID = "task_id"
+            case message
         }
     }
 }

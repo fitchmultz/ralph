@@ -43,6 +43,13 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             scope: ["apps/RalphMac/RalphMac/TaskCreationView.swift"]
         )
 
+        let loadedCreatedTask = await RalphCoreTestSupport.waitUntil(timeout: .seconds(5)) {
+            await MainActor.run {
+            workspace.taskState.tasks.count == 1
+            }
+        }
+        XCTAssertTrue(loadedCreatedTask)
+
         let tasks = workspace.taskState.tasks
         XCTAssertEqual(tasks.count, 1)
         let task = try XCTUnwrap(tasks.first)

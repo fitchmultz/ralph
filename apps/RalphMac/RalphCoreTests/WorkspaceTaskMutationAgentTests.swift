@@ -27,35 +27,34 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
             #!/bin/sh
             log_file="\(logURL.path)"
 
-            if [ "$1" = "--no-color" ] && [ "$2" = "__cli-spec" ] && [ "$3" = "--format" ] && [ "$4" = "json" ]; then
-              echo '{"version":2,"root":{"name":"ralph","about":"mock","subcommands":[]}}'
-              exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "config" ] && [ "$3" = "show" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
-              echo '{"agent":{"model":"gpt-5.3-codex","iterations":1}}'
-              exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "queue" ] && [ "$3" = "list" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
+            case "$*" in
+            *"--no-color machine config resolve"*)
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
-              echo '[]'
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"codex","phases":2,"iterations":1}}}'
               exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "mutate" ] && [ "$4" = "--input" ] && [ -n "$5" ]; then
+              ;;
+            *"--no-color machine queue read"*)
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
-              cat "$5" >> "$log_file"
-              printf '\n' >> "$log_file"
-              echo '{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9001","applied_edits":1}]}'
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":[]},"done":{"version":1,"tasks":[]},"next_runnable_task_id":null,"runnability":{}}'
               exit 0
-            fi
+              ;;
+            *"--no-color machine task mutate --input "*)
+              for arg in "$@"; do
+                printf '<%s>' "$arg" >> "$log_file"
+              done
+              printf '\n' >> "$log_file"
+              cat "$6" >> "$log_file"
+              printf '\n' >> "$log_file"
+              echo '{"version":1,"report":{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9001","applied_edits":1}]}}'
+              exit 0
+              ;;
+            esac
 
             echo "unexpected args: $*" 1>&2
             exit 64
@@ -94,10 +93,8 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         let lines = log.split(separator: "\n").map(String.init)
-        let mutateInvocationLine = lines.first { $0.contains("<--no-color><task><mutate><--input><") }
         let payloadLine = lines.first { $0.contains("\"task_id\" : \"RQ-9001\"") }
 
-        XCTAssertNotNil(mutateInvocationLine)
         XCTAssertNotNil(payloadLine)
         XCTAssertTrue(log.contains("\"field\" : \"agent\""))
         XCTAssertTrue(log.contains("\\\"runner\\\":\\\"codex\\\""))
@@ -106,7 +103,7 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
         XCTAssertTrue(log.contains("\\\"phases\\\":2"))
         XCTAssertTrue(log.contains("\\\"iterations\\\":1"))
         XCTAssertTrue(log.contains("\\\"phase_overrides\\\":{\\\"phase2\\\""))
-        XCTAssertTrue(lines.contains { $0.contains("<--no-color><queue><list><--format><json>") })
+        XCTAssertTrue(lines.contains { $0.contains("<--no-color><machine><queue><read>") })
     }
 
     func test_updateTask_clearingAgentOverride_emitsEmptyAgentValue() async throws {
@@ -119,35 +116,34 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
             #!/bin/sh
             log_file="\(logURL.path)"
 
-            if [ "$1" = "--no-color" ] && [ "$2" = "__cli-spec" ] && [ "$3" = "--format" ] && [ "$4" = "json" ]; then
-              echo '{"version":2,"root":{"name":"ralph","about":"mock","subcommands":[]}}'
-              exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "config" ] && [ "$3" = "show" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
-              echo '{"agent":{"model":"gpt-5.3-codex","iterations":1}}'
-              exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "queue" ] && [ "$3" = "list" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
+            case "$*" in
+            *"--no-color machine config resolve"*)
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
-              echo '[]'
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"codex","phases":2,"iterations":1}}}'
               exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "mutate" ] && [ "$4" = "--input" ] && [ -n "$5" ]; then
+              ;;
+            *"--no-color machine queue read"*)
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
-              cat "$5" >> "$log_file"
-              printf '\n' >> "$log_file"
-              echo '{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9002","applied_edits":1}]}'
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":[]},"done":{"version":1,"tasks":[]},"next_runnable_task_id":null,"runnability":{}}'
               exit 0
-            fi
+              ;;
+            *"--no-color machine task mutate --input "*)
+              for arg in "$@"; do
+                printf '<%s>' "$arg" >> "$log_file"
+              done
+              printf '\n' >> "$log_file"
+              cat "$6" >> "$log_file"
+              printf '\n' >> "$log_file"
+              echo '{"version":1,"report":{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9002","applied_edits":1}]}}'
+              exit 0
+              ;;
+            esac
 
             echo "unexpected args: $*" 1>&2
             exit 64
@@ -177,10 +173,6 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
         try await workspace.updateTask(from: original, to: updated)
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
-        let lines = log.split(separator: "\n").map(String.init)
-        let mutateInvocationLine = lines.first { $0.contains("<--no-color><task><mutate><--input><") }
-
-        XCTAssertNotNil(mutateInvocationLine)
         XCTAssertTrue(log.contains("\"task_id\" : \"RQ-9002\""))
         XCTAssertTrue(log.contains("\"field\" : \"agent\""))
         XCTAssertTrue(log.contains("\"value\" : \"\""))
@@ -196,35 +188,34 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
             #!/bin/sh
             log_file="\(logURL.path)"
 
-            if [ "$1" = "--no-color" ] && [ "$2" = "__cli-spec" ] && [ "$3" = "--format" ] && [ "$4" = "json" ]; then
-              echo '{"version":2,"root":{"name":"ralph","about":"mock","subcommands":[]}}'
-              exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "config" ] && [ "$3" = "show" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
-              echo '{"agent":{"model":"gpt-5.3-codex","iterations":1}}'
-              exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "queue" ] && [ "$3" = "list" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
+            case "$*" in
+            *"--no-color machine config resolve"*)
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
-              echo '[]'
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"codex","phases":2,"iterations":1}}}'
               exit 0
-            fi
-
-            if [ "$1" = "--no-color" ] && [ "$2" = "task" ] && [ "$3" = "mutate" ] && [ "$4" = "--input" ] && [ -n "$5" ]; then
+              ;;
+            *"--no-color machine queue read"*)
               for arg in "$@"; do
                 printf '<%s>' "$arg" >> "$log_file"
               done
               printf '\n' >> "$log_file"
-              cat "$5" >> "$log_file"
-              printf '\n' >> "$log_file"
-              echo '{"version":1,"atomic":true,"tasks":[]}'
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":[]},"done":{"version":1,"tasks":[]},"next_runnable_task_id":null,"runnability":{}}'
               exit 0
-            fi
+              ;;
+            *"--no-color machine task mutate --input "*)
+              for arg in "$@"; do
+                printf '<%s>' "$arg" >> "$log_file"
+              done
+              printf '\n' >> "$log_file"
+              cat "$6" >> "$log_file"
+              printf '\n' >> "$log_file"
+              echo '{"version":1,"report":{"version":1,"atomic":true,"tasks":[]}}'
+              exit 0
+              ;;
+            esac
 
             echo "unexpected args: $*" 1>&2
             exit 64
@@ -257,7 +248,7 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
         if FileManager.default.fileExists(atPath: logURL.path) {
             let log = try String(contentsOf: logURL, encoding: .utf8)
             let lines = log.split(separator: "\n").map(String.init)
-            XCTAssertFalse(lines.contains { $0.contains("<--no-color><task><mutate><--input><") })
+            XCTAssertFalse(lines.contains { $0.contains("<--no-color><machine><task><mutate><--input><") })
             XCTAssertFalse(log.contains("\"field\" : \"agent\""))
         }
     }

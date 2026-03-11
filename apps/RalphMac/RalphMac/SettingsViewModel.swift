@@ -85,10 +85,10 @@ final class SettingsViewModel {
             return
         }
 
-        // Load from ralph config show --format json
+        // Load from ralph machine config resolve
         do {
             let result = try await client.runAndCollect(
-                arguments: ["--no-color", "config", "show", "--format", "json"],
+                arguments: ["--no-color", "machine", "config", "resolve"],
                 currentDirectoryURL: workspace.identityState.workingDirectoryURL
             )
 
@@ -96,7 +96,14 @@ final class SettingsViewModel {
                 throw NSError(domain: "ConfigLoad", code: Int(result.status.code))
             }
 
-            if let rawConfig = try JSONSerialization.jsonObject(with: Data(result.stdout.utf8))
+            let document = try JSONDecoder().decode(MachineConfigResolveDocument.self, from: Data(result.stdout.utf8))
+            workspace.updateResolvedPaths(document.paths)
+
+            if let rawDocument = try JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: Any],
+               let rawConfig = rawDocument["config"] as? [String: Any]
+            {
+                self.loadedConfigDict = rawConfig
+            } else if let rawConfig = try JSONSerialization.jsonObject(with: Data(result.stdout.utf8))
                 as? [String: Any]
             {
                 self.loadedConfigDict = rawConfig
@@ -104,7 +111,7 @@ final class SettingsViewModel {
                 self.loadedConfigDict = [:]
             }
 
-            let config = try JSONDecoder().decode(RalphConfig.self, from: Data(result.stdout.utf8))
+            let config = document.config
 
             // Apply to properties
             if let agent = config.agent {
@@ -170,7 +177,8 @@ final class SettingsViewModel {
             ]
         ]
 
-        let configURL = workspace.identityState.workingDirectoryURL.appendingPathComponent(".ralph/config.jsonc")
+        let configURL = workspace.projectConfigFileURL
+            ?? workspace.identityState.workingDirectoryURL.appendingPathComponent(".ralph/config.jsonc")
 
         do {
             // Ensure .ralph directory exists
@@ -179,7 +187,7 @@ final class SettingsViewModel {
                 try FileManager.default.createDirectory(at: ralphDir, withIntermediateDirectories: true)
             }
 
-            // Merge against the last config payload from `ralph config show --format json`
+            // Merge against the last resolved machine config payload
             // so we preserve fields that Settings UI does not manage, even when the repo
             // uses JSONC comments on disk.
             var existingDict = loadedConfigDict

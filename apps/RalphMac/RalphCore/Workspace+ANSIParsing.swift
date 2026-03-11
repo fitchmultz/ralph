@@ -3,17 +3,19 @@
 //! Responsibilities:
 //! - Parse ANSI SGR escape sequences into styled console segments.
 //! - Retain a bounded attributed-output model for SwiftUI console rendering.
-//! - Support incremental/delta-aware parsing for hot stream paths.
+//! - Support incremental/delta-aware parsing for hot stream paths without deriving run state.
 //!
 //! Does not handle:
 //! - Raw output buffering.
 //! - CLI execution or stream collection.
 //! - Console view rendering.
+//! - Run phase detection from human-readable output.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Parsed state is stored in `workspace.runState.attributedOutput`.
 //! - Background colors are parsed for correctness but not yet rendered in `ANSISegment`.
 //! - Truncation keeps the newest parsed segments.
+//! - Run state must come from structured machine events, not ANSI/text parsing.
 
 public import Foundation
 public import SwiftUI
@@ -112,13 +114,13 @@ public extension Workspace {
                 chunk: rawOutput,
                 maxSegments: runState.maxANSISegments,
                 finalizeTrailingEscape: true
-            ).segments
+            )
         } else {
             runState.attributedOutput = runState.streamProcessor.replace(
                 content: rawOutput,
                 maxSegments: runState.maxANSISegments,
                 finalizeTrailingEscape: true
-            ).segments
+            )
         }
     }
 
@@ -131,15 +133,12 @@ public extension Workspace {
 
 extension Workspace {
     func consumeStreamTextChunk(_ text: String) {
-        let snapshot = runState.streamProcessor.append(
+        let segments = runState.streamProcessor.append(
             chunk: text,
             maxSegments: runState.maxANSISegments,
             finalizeTrailingEscape: false
         )
-        runState.attributedOutput = snapshot.segments
-        if let detectedPhase = snapshot.detectedPhase {
-            runState.currentPhase = detectedPhase
-        }
+        runState.attributedOutput = segments
     }
 
     func resetStreamProcessingState() {
@@ -148,25 +147,18 @@ extension Workspace {
     }
 }
 
-struct WorkspaceStreamSnapshot {
-    let segments: [Workspace.ANSISegment]
-    let detectedPhase: Workspace.ExecutionPhase?
-}
-
 final class WorkspaceStreamProcessor {
     private let ansiParser = WorkspaceANSIStreamParser()
-    private let phaseTracker = WorkspacePhaseTracker()
 
     func reset() {
         ansiParser.reset()
-        phaseTracker.reset()
     }
 
     func replace(
         content: String,
         maxSegments: Int,
         finalizeTrailingEscape: Bool
-    ) -> WorkspaceStreamSnapshot {
+    ) -> [Workspace.ANSISegment] {
         reset()
         return append(
             chunk: content,
@@ -179,45 +171,16 @@ final class WorkspaceStreamProcessor {
         chunk: String,
         maxSegments: Int,
         finalizeTrailingEscape: Bool
-    ) -> WorkspaceStreamSnapshot {
-        let detectedPhase = phaseTracker.append(text: chunk)
-        let segments = ansiParser.append(
+    ) -> [Workspace.ANSISegment] {
+        ansiParser.append(
             chunk: chunk,
             maxSegments: maxSegments,
             finalizeTrailingEscape: finalizeTrailingEscape
         )
-        return WorkspaceStreamSnapshot(segments: segments, detectedPhase: detectedPhase)
     }
 
     func displaySegments(maxSegments: Int) -> [Workspace.ANSISegment] {
         ansiParser.displaySegments(maxSegments: maxSegments)
-    }
-}
-
-private final class WorkspacePhaseTracker {
-    private static let phaseMarkers: [(Workspace.ExecutionPhase, [String])] = [
-        (.review, ["PHASE 3", "Phase 3", "REVIEWING", "Reviewing", "REVIEW", "# Phase 3", "## Phase 3"]),
-        (.implement, ["PHASE 2", "Phase 2", "IMPLEMENTING", "Implementing", "IMPLEMENTATION", "# Phase 2", "## Phase 2"]),
-        (.plan, ["PHASE 1", "Phase 1", "PLANNING", "Planning", "# Phase 1", "## Phase 1"]),
-    ]
-    private static let maxMarkerLength = phaseMarkers
-        .flatMap { $0.1 }
-        .map(\.count)
-        .max() ?? 0
-
-    private var rollingTail = ""
-
-    func reset() {
-        rollingTail = ""
-    }
-
-    func append(text: String) -> Workspace.ExecutionPhase? {
-        let scanWindow = rollingTail + text
-        let detected = Self.phaseMarkers.first { _, markers in
-            markers.contains { scanWindow.contains($0) }
-        }?.0
-        rollingTail = String(scanWindow.suffix(Self.maxMarkerLength))
-        return detected
     }
 }
 

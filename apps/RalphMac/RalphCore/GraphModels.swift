@@ -2,7 +2,7 @@
  GraphModels
 
  Responsibilities:
- - Define Codable models for parsing `ralph queue graph --format json` output.
+ - Define Codable models for parsing `ralph machine queue graph` output.
  - Represent graph nodes, edges, critical paths, and summary statistics.
 
  Does not handle:
@@ -13,7 +13,7 @@
 public import Foundation
 import CoreGraphics
 
-/// Represents the full graph data from `ralph queue graph --format json`
+/// Represents the graph payload nested inside `ralph machine queue graph`.
 public struct RalphGraphDocument: Codable, Sendable, Equatable {
     public let summary: RalphGraphSummary
     public let criticalPaths: [RalphCriticalPath]
@@ -22,6 +22,11 @@ public struct RalphGraphDocument: Codable, Sendable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case summary, criticalPaths = "critical_paths", tasks
     }
+}
+
+public struct MachineGraphReadDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let graph: RalphGraphDocument
 }
 
 public struct RalphGraphSummary: Codable, Sendable, Equatable {

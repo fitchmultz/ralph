@@ -12,7 +12,7 @@
 
  Invariants/assumptions callers must respect:
  - Only compatible version checks are cached.
- - `--version` is preferred, with `version` as the fallback compatibility path.
+ - Version checks use `ralph machine system info`.
  */
 
 import Foundation
@@ -58,10 +58,7 @@ public extension WorkspaceManager {
         }
 
         do {
-            var output = try await client.runAndCollect(arguments: ["--version"])
-            if output.status.code != 0 {
-                output = try await client.runAndCollect(arguments: ["version"])
-            }
+            let output = try await client.runAndCollect(arguments: ["--no-color", "machine", "system", "info"])
 
             guard output.status.code == 0 else {
                 let message = "CLI version check failed with exit code \(output.status.code)"
@@ -70,7 +67,8 @@ public extension WorkspaceManager {
                 return nil
             }
 
-            let versionString = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            let document = try JSONDecoder().decode(MachineSystemInfoDocument.self, from: Data(output.stdout.utf8))
+            let versionString = document.cliVersion.trimmingCharacters(in: .whitespacesAndNewlines)
             let validator = VersionValidator()
             return validator.validate(versionString)
         } catch {

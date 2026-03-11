@@ -16,6 +16,7 @@
 
 use crate::agent::AgentOverrides;
 use crate::commands::run::{
+    RunEvent, RunEventHandler,
     iteration::apply_followup_reasoning_effort,
     phases::{self, PhaseInvocation, PostRunMode},
     supervision::PushPolicy,
@@ -41,6 +42,7 @@ pub(crate) fn execute_iteration_phases(
     base_prompt: &str,
     policy: &promptflow::PromptPolicy,
     output_handler: Option<runner::OutputHandler>,
+    run_event_handler: Option<RunEventHandler>,
     output_stream: runner::OutputStream,
     project_type: crate::contracts::ProjectType,
     git_revert_mode: crate::contracts::GitRevertMode,
@@ -60,6 +62,7 @@ pub(crate) fn execute_iteration_phases(
         base_prompt,
         policy,
         output_handler,
+        run_event_handler,
         output_stream,
         project_type,
         git_revert_mode,
@@ -84,6 +87,7 @@ struct PhaseExecutionContext<'a> {
     base_prompt: &'a str,
     policy: &'a promptflow::PromptPolicy,
     output_handler: Option<runner::OutputHandler>,
+    run_event_handler: Option<RunEventHandler>,
     output_stream: runner::OutputStream,
     project_type: crate::contracts::ProjectType,
     git_revert_mode: crate::contracts::GitRevertMode,
@@ -108,6 +112,18 @@ struct IterationExecution<'a> {
 }
 
 impl<'a> PhaseExecutionContext<'a> {
+    fn emit_phase_entered(&self, phase: crate::progress::ExecutionPhase) {
+        if let Some(handler) = &self.run_event_handler {
+            handler(RunEvent::PhaseEntered { phase });
+        }
+    }
+
+    fn emit_phase_completed(&self, phase: crate::progress::ExecutionPhase) {
+        if let Some(handler) = &self.run_event_handler {
+            handler(RunEvent::PhaseCompleted { phase });
+        }
+    }
+
     fn execute(&self) -> Result<()> {
         for iteration_index in 1..=self.setup.iteration_settings.count {
             self.log_iteration(iteration_index);
@@ -201,8 +217,9 @@ impl<'a> PhaseExecutionContext<'a> {
 
     fn execute_single_phase_iteration(&self, iteration: &IterationExecution<'_>) -> Result<()> {
         let invocation = self.build_phase_invocation(iteration, &iteration.phase2_settings);
+        self.emit_phase_entered(crate::progress::ExecutionPhase::Implementation);
 
-        super::webhooks::execute_impl_phase_with_webhooks(
+        let result = super::webhooks::execute_impl_phase_with_webhooks(
             2,
             self.setup.phases,
             self.task_id,
@@ -213,7 +230,11 @@ impl<'a> PhaseExecutionContext<'a> {
             self.resolved,
             &invocation,
             phases::execute_single_phase,
-        )
+        );
+        if result.is_ok() {
+            self.emit_phase_completed(crate::progress::ExecutionPhase::Implementation);
+        }
+        result
     }
 
     fn execute_phase1(
@@ -222,7 +243,8 @@ impl<'a> PhaseExecutionContext<'a> {
         settings: &runner::AgentSettings,
     ) -> Result<String> {
         let invocation = self.build_phase_invocation(iteration, settings);
-        super::webhooks::execute_phase1_with_webhooks(
+        self.emit_phase_entered(crate::progress::ExecutionPhase::Planning);
+        let result = super::webhooks::execute_phase1_with_webhooks(
             self.setup.phases,
             self.task_id,
             &self.task.title,
@@ -231,7 +253,11 @@ impl<'a> PhaseExecutionContext<'a> {
             settings,
             self.resolved,
             &invocation,
-        )
+        );
+        if result.is_ok() {
+            self.emit_phase_completed(crate::progress::ExecutionPhase::Planning);
+        }
+        result
     }
 
     fn execute_phase2(
@@ -241,8 +267,9 @@ impl<'a> PhaseExecutionContext<'a> {
         plan_text: &str,
     ) -> Result<()> {
         let invocation = self.build_phase_invocation(iteration, settings);
+        self.emit_phase_entered(crate::progress::ExecutionPhase::Implementation);
 
-        super::webhooks::execute_impl_phase_with_webhooks(
+        let result = super::webhooks::execute_impl_phase_with_webhooks(
             2,
             self.setup.phases,
             self.task_id,
@@ -259,7 +286,11 @@ impl<'a> PhaseExecutionContext<'a> {
                     plan_text,
                 )
             },
-        )
+        );
+        if result.is_ok() {
+            self.emit_phase_completed(crate::progress::ExecutionPhase::Implementation);
+        }
+        result
     }
 
     fn execute_phase3(
@@ -268,8 +299,9 @@ impl<'a> PhaseExecutionContext<'a> {
         settings: &runner::AgentSettings,
     ) -> Result<()> {
         let invocation = self.build_phase_invocation(iteration, settings);
+        self.emit_phase_entered(crate::progress::ExecutionPhase::Review);
 
-        super::webhooks::execute_impl_phase_with_webhooks(
+        let result = super::webhooks::execute_impl_phase_with_webhooks(
             3,
             self.setup.phases,
             self.task_id,
@@ -280,7 +312,11 @@ impl<'a> PhaseExecutionContext<'a> {
             self.resolved,
             &invocation,
             phases::execute_phase3_review,
-        )
+        );
+        if result.is_ok() {
+            self.emit_phase_completed(crate::progress::ExecutionPhase::Review);
+        }
+        result
     }
 
     fn build_phase_invocation<'b>(

@@ -487,3 +487,8 @@ public struct DashboardReport: Codable, Sendable, Equatable {
         case sections
     }
 }
+
+public struct MachineDashboardReadDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let dashboard: DashboardReport
+}

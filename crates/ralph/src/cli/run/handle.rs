@@ -90,7 +90,7 @@ fn handle_run_one(args: RunOneArgs, force: bool, resolved: &config::Resolved) ->
     }
 
     if let Some(task_id) = args.id.as_deref() {
-        run_cmd::run_one_with_id(resolved, &overrides, force, task_id, None, None)?;
+        run_cmd::run_one_with_id(resolved, &overrides, force, task_id, None, None, None)?;
     } else {
         run_cmd::run_one(resolved, &overrides, force, None)?;
     }

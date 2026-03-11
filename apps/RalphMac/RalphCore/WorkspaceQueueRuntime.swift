@@ -149,25 +149,7 @@ final class WorkspaceQueueRuntime {
         if batch.affectsQueueSnapshot {
             lastTasksSnapshot = workspace.taskState.tasks
 
-            switch await attemptDirectQueueParse() {
-            case .success(let parsedTasks):
-                guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
-                workspace.taskState.tasks = parsedTasks
-                workspace.sanitizeRunControlSelection()
-                workspace.taskState.tasksErrorMessage = nil
-                workspace.diagnosticsState.lastRecoveryError = nil
-                RalphLogger.shared.debug(
-                    "Direct queue parse succeeded: \(parsedTasks.count) tasks",
-                    category: .fileWatching
-                )
-            case .failure(let error):
-                guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
-                RalphLogger.shared.info(
-                    "Direct parse failed, falling back to CLI: \(error.localizedDescription)",
-                    category: .fileWatching
-                )
-                await workspace.loadTasks()
-            }
+            await workspace.loadTasks(retryConfiguration: .minimal)
 
             guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
             workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
@@ -181,24 +163,5 @@ final class WorkspaceQueueRuntime {
             guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
             await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
         }
-    }
-
-    private func attemptDirectQueueParse() async -> DirectParseResult {
-        guard let workspace else {
-            return .failure(CancellationError())
-        }
-        do {
-            let tasks = try await WorkspaceQueueSnapshotLoader.loadQueueTasks(from: workspace.queueFileURL)
-            return .success(tasks: tasks)
-        } catch {
-            return .failure(error)
-        }
-    }
-}
-
-private extension WorkspaceQueueRuntime {
-    enum DirectParseResult {
-        case success(tasks: [RalphTask])
-        case failure(any Error)
     }
 }

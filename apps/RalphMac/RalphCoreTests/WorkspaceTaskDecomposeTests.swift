@@ -51,7 +51,7 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
         XCTAssertEqual(preview.attachTarget?.task.id, "RQ-0042")
 
         let log = try String(contentsOf: fixture.logURL, encoding: .utf8)
-        XCTAssertTrue(log.contains("task decompose Build OAuth login --format json --max-depth 4 --max-children 6 --max-nodes 40 --status todo --child-policy append --with-dependencies --attach-to RQ-0042"))
+        XCTAssertTrue(log.contains("machine task decompose Build OAuth login --max-depth 4 --max-children 6 --max-nodes 40 --status todo --child-policy append --with-dependencies --attach-to RQ-0042"))
         XCTAssertFalse(log.contains("--write"))
     }
 
@@ -81,8 +81,8 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
         XCTAssertEqual(workspace.taskState.tasks.map(\.id), ["RQ-0007", "RQ-0101", "RQ-0102"])
 
         let log = try String(contentsOf: fixture.logURL, encoding: .utf8)
-        XCTAssertTrue(log.contains("task decompose RQ-0007 --format json --max-depth 3 --max-children 4 --max-nodes 25 --status draft --child-policy fail --write"))
-        XCTAssertTrue(log.contains("queue list --format json"))
+        XCTAssertTrue(log.contains("machine task decompose RQ-0007 --max-depth 3 --max-children 4 --max-nodes 25 --status draft --child-policy fail --write"))
+        XCTAssertTrue(log.contains("machine queue read"))
     }
 
     private struct MockCLIFixture {
@@ -116,95 +116,101 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
         let previewJSON = """
         {
           "version": 1,
-          "mode": "preview",
-          "preview": {
-            "source": {"kind": "freeform", "request": "Build OAuth login"},
-            "attach_target": {
-              "task": {"id":"RQ-0042","status":"todo","title":"Auth program","priority":"high","tags":[]},
-              "has_existing_children": true
-            },
-            "plan": {
-              "root": {
-                "planner_key": "root",
-                "title": "Build OAuth login",
-                "description": "Plan auth integration",
-                "plan": ["Inspect current auth entry points"],
-                "tags": ["auth"],
-                "scope": ["src/auth"],
-                "depends_on_keys": [],
-                "children": [
-                  {
-                    "planner_key": "prepare-app",
-                    "title": "Prepare OAuth app",
-                    "description": null,
-                    "plan": [],
-                    "tags": [],
-                    "scope": [],
-                    "depends_on_keys": [],
-                    "children": []
-                  },
-                  {
-                    "planner_key": "wire-callback",
-                    "title": "Wire callback flow",
-                    "description": null,
-                    "plan": [],
-                    "tags": [],
-                    "scope": [],
-                    "depends_on_keys": ["prepare-app"],
-                    "children": []
-                  }
+          "result": {
+            "version": 1,
+            "mode": "preview",
+            "preview": {
+              "source": {"kind": "freeform", "request": "Build OAuth login"},
+              "attach_target": {
+                "task": {"id":"RQ-0042","status":"todo","title":"Auth program","priority":"high","tags":[]},
+                "has_existing_children": true
+              },
+              "plan": {
+                "root": {
+                  "planner_key": "root",
+                  "title": "Build OAuth login",
+                  "description": "Plan auth integration",
+                  "plan": ["Inspect current auth entry points"],
+                  "tags": ["auth"],
+                  "scope": ["src/auth"],
+                  "depends_on_keys": [],
+                  "children": [
+                    {
+                      "planner_key": "prepare-app",
+                      "title": "Prepare OAuth app",
+                      "description": null,
+                      "plan": [],
+                      "tags": [],
+                      "scope": [],
+                      "depends_on_keys": [],
+                      "children": []
+                    },
+                    {
+                      "planner_key": "wire-callback",
+                      "title": "Wire callback flow",
+                      "description": null,
+                      "plan": [],
+                      "tags": [],
+                      "scope": [],
+                      "depends_on_keys": ["prepare-app"],
+                      "children": []
+                    }
+                  ]
+                },
+                "warnings": ["Tree capped at two leaves for fixture output."],
+                "total_nodes": 3,
+                "leaf_nodes": 2,
+                "dependency_edges": [
+                  {"task_title": "Wire callback flow", "depends_on_title": "Prepare OAuth app"}
                 ]
               },
-              "warnings": ["Tree capped at two leaves for fixture output."],
-              "total_nodes": 3,
-              "leaf_nodes": 2,
-              "dependency_edges": [
-                {"task_title": "Wire callback flow", "depends_on_title": "Prepare OAuth app"}
-              ]
+              "write_blockers": [],
+              "child_status": "todo",
+              "child_policy": "append",
+              "with_dependencies": true
             },
-            "write_blockers": [],
-            "child_status": "todo",
-            "child_policy": "append",
-            "with_dependencies": true
+            "write": null
           },
-          "write": null
         }
         """
 
         let writeJSON = """
         {
           "version": 1,
-          "mode": "write",
-          "preview": {
-            "source": {"kind": "existing_task", "task": {"id":"RQ-0007","status":"todo","title":"Auth epic","priority":"high","tags":[]}},
-            "attach_target": null,
-            "plan": {
-              "root": {
-                "planner_key": "root",
-                "title": "Auth epic",
-                "description": null,
-                "plan": [],
-                "tags": [],
-                "scope": [],
-                "depends_on_keys": [],
-                "children": []
+          "result": {
+            "version": 1,
+            "mode": "write",
+            "preview": {
+              "source": {"kind": "existing_task", "task": {"id":"RQ-0007","status":"todo","title":"Auth epic","priority":"high","tags":[]}},
+              "attach_target": null,
+              "plan": {
+                "root": {
+                  "planner_key": "root",
+                  "title": "Auth epic",
+                  "description": null,
+                  "plan": [],
+                  "tags": [],
+                  "scope": [],
+                  "depends_on_keys": [],
+                  "children": []
+                },
+                "warnings": [],
+                "total_nodes": 1,
+                "leaf_nodes": 1,
+                "dependency_edges": []
               },
-              "warnings": [],
-              "total_nodes": 1,
-              "leaf_nodes": 1,
-              "dependency_edges": []
+              "write_blockers": [],
+              "child_status": "draft",
+              "child_policy": "fail",
+              "with_dependencies": false
             },
-            "write_blockers": [],
-            "child_status": "draft",
-            "child_policy": "fail",
-            "with_dependencies": false
-          },
-          "write": {
-            "root_task_id": null,
-            "parent_task_id": "RQ-0007",
-            "created_ids": ["RQ-0101", "RQ-0102"],
-            "replaced_ids": [],
-            "parent_annotated": true
+            "write": {
+              "root_task_id": null,
+              "parent_task_id": "RQ-0007",
+              "created_ids": ["RQ-0101", "RQ-0102"],
+              "replaced_ids": [],
+              "parent_annotated": true
+            }
           }
         }
         """
@@ -229,11 +235,11 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
         if [ "$1" = "--no-color" ]; then
           shift
         fi
-        if [ "$1" = "config" ] && [ "$2" = "show" ] && [ "$3" = "--format" ] && [ "$4" = "json" ]; then
-          echo '{"agent":{"model":"gpt-5.3-codex","phases":2,"iterations":3}}'
+        if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then
+          echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"gpt-5.3-codex","phases":2,"iterations":3}}}'
           exit 0
         fi
-        if [ "$1" = "task" ] && [ "$2" = "decompose" ]; then
+        if [ "$1" = "machine" ] && [ "$2" = "task" ] && [ "$3" = "decompose" ]; then
           if printf '%s\n' "$*" | grep -q -- '--write'; then
             cat <<'JSON'
         \(writeJSON)
@@ -245,9 +251,9 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
           fi
           exit 0
         fi
-        if [ "$1" = "queue" ] && [ "$2" = "list" ]; then
+        if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "read" ]; then
           cat <<'JSON'
-        \(queueListJSON)
+        {"version":1,"paths":{"repo_root":"REPO_ROOT","queue_path":"REPO_ROOT/.ralph/queue.jsonc","done_path":"REPO_ROOT/.ralph/done.jsonc","project_config_path":"REPO_ROOT/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":\(queueListJSON)},"done":{"version":1,"tasks":[]},"next_runnable_task_id":"RQ-0007","runnability":{}}
         JSON
           exit 0
         fi

@@ -2,7 +2,7 @@
  Workspace+TaskMutations
 
  Responsibilities:
- - Apply single-task and bulk task mutations through `ralph task mutate`.
+ - Apply single-task and bulk task mutations through `ralph machine task mutate`.
  - Build atomic mutation requests from app task state and user edits.
  - Surface optimistic-lock conflicts after refreshing workspace tasks from disk.
 
@@ -13,7 +13,7 @@
 
  Invariants/assumptions callers must respect:
  - The workspace must have a configured CLI client before mutations run.
- - Mutation requests are sent as atomic transactions through the CLI.
+ - Mutation requests are sent as atomic transactions through the machine CLI contract.
  - Expected timestamps are derived from the task snapshot the user edited.
  */
 
@@ -209,7 +209,7 @@ private extension Workspace {
                 operationName: operationDescription
             ) { tempFileURL in
                 try await client.runAndCollectWithRetry(
-                    arguments: ["--no-color", "task", "mutate", "--input", tempFileURL.path],
+                    arguments: ["--no-color", "machine", "task", "mutate", "--input", tempFileURL.path],
                     currentDirectoryURL: identityState.workingDirectoryURL,
                     onRetry: { [weak self] attempt, maxAttempts, _ in
                         await MainActor.run { [weak self] in
@@ -220,13 +220,13 @@ private extension Workspace {
             }
 
             let reportData = Data(collected.stdout.utf8)
-            let report = try JSONDecoder().decode(WorkspaceTaskMutationReport.self, from: reportData)
+            let report = try JSONDecoder().decode(MachineTaskMutationDocument.self, from: reportData)
 
             if reloadAfterSuccess {
                 await loadTasks()
             }
 
-            return report
+            return report.report
         } catch {
             if let conflict = await taskConflictFromMutationFailure(error, request: request) {
                 throw WorkspaceError.taskConflict(conflict)

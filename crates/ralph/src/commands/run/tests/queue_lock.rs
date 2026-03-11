@@ -65,6 +65,7 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
         "RQ-0001",
         None,
         None,
+        None,
     )
     .expect_err("expected runnable status error");
 

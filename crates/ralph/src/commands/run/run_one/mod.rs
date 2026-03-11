@@ -14,6 +14,7 @@
 //! - Parallel-worker mode resolves queue/done from worker workspace paths.
 
 use crate::agent::AgentOverrides;
+use crate::commands::run::RunEventHandler;
 use crate::config;
 use crate::runner;
 use crate::runutil;
@@ -57,6 +58,7 @@ pub fn run_one_with_id(
     force: bool,
     task_id: &str,
     output_handler: Option<runner::OutputHandler>,
+    run_event_handler: Option<RunEventHandler>,
     revert_prompt: Option<runutil::RevertPromptHandler>,
 ) -> Result<()> {
     orchestration::run_one_impl(
@@ -67,6 +69,7 @@ pub fn run_one_with_id(
         Some(task_id),
         None,
         output_handler,
+        run_event_handler,
         revert_prompt,
         None,
     )
@@ -90,6 +93,7 @@ pub fn run_one_parallel_worker(
         None,
         None,
         None,
+        None,
         Some(target_branch),
     )
     .map(|_| ())
@@ -102,6 +106,7 @@ pub fn run_one_with_id_locked(
     force: bool,
     task_id: &str,
     output_handler: Option<runner::OutputHandler>,
+    run_event_handler: Option<RunEventHandler>,
     revert_prompt: Option<runutil::RevertPromptHandler>,
 ) -> Result<()> {
     orchestration::run_one_impl(
@@ -112,6 +117,7 @@ pub fn run_one_with_id_locked(
         Some(task_id),
         None,
         output_handler,
+        run_event_handler,
         revert_prompt,
         None,
     )
@@ -133,6 +139,29 @@ pub fn run_one(
         None,
         resume_task_id,
         None,
+        None,
+        None,
+        None,
+    )
+}
+
+/// Run the first available task with streaming handlers.
+pub fn run_one_with_handlers(
+    resolved: &config::Resolved,
+    agent_overrides: &AgentOverrides,
+    force: bool,
+    output_handler: Option<runner::OutputHandler>,
+    run_event_handler: Option<RunEventHandler>,
+) -> Result<RunOutcome> {
+    orchestration::run_one_impl(
+        resolved,
+        agent_overrides,
+        force,
+        QueueLockMode::Acquire,
+        None,
+        None,
+        output_handler,
+        run_event_handler,
         None,
         None,
     )

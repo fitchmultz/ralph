@@ -3,7 +3,7 @@
 
  Responsibilities:
  - Provide Codable models for Ralph configuration parsing and serialization.
- - Mirror the structure of schemas/config.schema.json for Settings UI binding.
+ - Mirror the machine-resolved config and path documents used by the app.
 
  Does not handle:
  - CLI operations (see RalphCLIClient).
@@ -11,7 +11,7 @@
 
  Invariants/assumptions callers must respect:
  - These models are partial; unknown fields are ignored during decoding.
- - Write operations use CLI, not direct file manipulation.
+ - Machine config documents are the source of truth for resolved workspace paths.
  */
 
 import Foundation
@@ -96,6 +96,38 @@ public struct RalphConfig: Codable, Sendable, Equatable {
     public init(agent: AgentConfig? = nil) {
         self.agent = agent
     }
+}
+
+public struct MachineQueuePaths: Codable, Sendable, Equatable {
+    public let repoRoot: String
+    public let queuePath: String
+    public let donePath: String
+    public let projectConfigPath: String?
+    public let globalConfigPath: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case repoRoot = "repo_root"
+        case queuePath = "queue_path"
+        case donePath = "done_path"
+        case projectConfigPath = "project_config_path"
+        case globalConfigPath = "global_config_path"
+    }
+}
+
+public struct MachineSystemInfoDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let cliVersion: String
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case cliVersion = "cli_version"
+    }
+}
+
+public struct MachineConfigResolveDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let paths: MachineQueuePaths
+    public let config: RalphConfig
 }
 
 // MARK: - Runner Options (for UI pickers)

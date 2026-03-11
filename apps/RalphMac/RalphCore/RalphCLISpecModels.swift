@@ -2,7 +2,7 @@
  RalphCLISpecModels
 
  Responsibilities:
- - Define typed models for the CLI spec emitted by `ralph __cli-spec --format json`.
+ - Define typed models for the CLI spec emitted by `ralph machine cli-spec`.
  - Keep both opaque and versioned schema representations available to the app.
 
  Does not handle:
@@ -11,12 +11,13 @@
 
  Invariants/assumptions callers must respect:
  - `RalphCLISpecDocument.version` changes only for breaking schema updates.
+ - `MachineCLISpecDocument.version` versions the app-facing wrapper independently.
  - Unknown raw JSON should remain decodable through `RalphCLISpec`.
  */
 
 import Foundation
 
-/// Top-level container for the JSON emitted by `ralph __cli-spec`.
+/// Top-level container for the JSON emitted by `ralph machine cli-spec`.
 ///
 /// The output format is treated as an opaque JSON blob so this model remains usable
 /// while the CLI spec evolves.
@@ -36,7 +37,7 @@ public struct RalphCLISpec: Codable, Equatable, Sendable {
     }
 }
 
-/// Stable, versioned schema for `ralph __cli-spec --format json`.
+/// Stable, versioned schema for the CLI spec nested inside `ralph machine cli-spec`.
 public struct RalphCLISpecDocument: Codable, Equatable, Sendable {
     public let version: Int
     public let root: RalphCLICommandSpec
@@ -45,6 +46,11 @@ public struct RalphCLISpecDocument: Codable, Equatable, Sendable {
         self.version = version
         self.root = root
     }
+}
+
+public struct MachineCLISpecDocument: Codable, Equatable, Sendable {
+    public let version: Int
+    public let spec: RalphCLISpecDocument
 }
 
 public struct RalphCLICommandSpec: Codable, Equatable, Sendable, Identifiable, Hashable {

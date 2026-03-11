@@ -39,6 +39,8 @@ pub(crate) use supervision::post_run_supervise;
 pub(crate) use phases::PhaseType;
 
 pub use crate::agent::AgentOverrides;
+use crate::progress::ExecutionPhase;
+use std::sync::Arc;
 
 // Re-export parallel state types for UI clients.
 pub use parallel::state::{
@@ -50,7 +52,8 @@ pub use run_loop::{RunLoopOptions, run_loop};
 
 // Re-export run-one entrypoints
 pub use run_one::{
-    RunOutcome, run_one, run_one_parallel_worker, run_one_with_id, run_one_with_id_locked,
+    RunOutcome, run_one, run_one_parallel_worker, run_one_with_handlers, run_one_with_id,
+    run_one_with_id_locked,
 };
 
 // Re-export dry-run functions
@@ -58,6 +61,15 @@ pub use dry_run::{dry_run_loop, dry_run_one};
 
 // Re-export parallel operation commands
 pub use parallel_ops::{parallel_retry, parallel_status};
+
+#[derive(Debug, Clone)]
+pub enum RunEvent {
+    TaskSelected { task_id: String, title: String },
+    PhaseEntered { phase: ExecutionPhase },
+    PhaseCompleted { phase: ExecutionPhase },
+}
+
+pub type RunEventHandler = Arc<Box<dyn Fn(RunEvent) + Send + Sync>>;
 
 #[cfg(test)]
 fn resolve_run_agent_settings(

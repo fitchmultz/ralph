@@ -98,7 +98,7 @@ public final class Workspace: ObservableObject, Identifiable {
     }
 
     public func runVersion() {
-        runnerController.run(arguments: ["--no-color", "version"])
+        runnerController.runMachine(arguments: ["system", "info"])
     }
 
     public func runInit() {
@@ -106,7 +106,7 @@ public final class Workspace: ObservableObject, Identifiable {
     }
 
     public func runQueueListJSON() {
-        runnerController.run(arguments: ["--no-color", "queue", "list", "--format", "json"])
+        runnerController.runMachine(arguments: ["queue", "read"])
     }
 
     public func nextTask() -> RalphTask? {
@@ -320,6 +320,30 @@ extension Workspace {
             retryConfiguration: retryConfiguration,
             onRetry: onRetry
         )
-        return try JSONDecoder().decode(type, from: Data(collected.stdout.utf8))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(type, from: Data(collected.stdout.utf8))
+    }
+
+    func decodeMachineRepositoryJSON<T: Decodable>(
+        _ type: T.Type,
+        client: RalphCLIClient,
+        machineArguments: [String],
+        currentDirectoryURL: URL,
+        retryConfiguration: RetryConfiguration,
+        onRetry: RetryProgressHandler? = nil
+    ) async throws -> T {
+        try await decodeRepositoryJSON(
+            type,
+            client: client,
+            arguments: ["--no-color", "machine"] + machineArguments,
+            currentDirectoryURL: currentDirectoryURL,
+            retryConfiguration: retryConfiguration,
+            onRetry: onRetry
+        )
+    }
+
+    public func updateResolvedPaths(_ paths: MachineQueuePaths) {
+        identityState.resolvedPaths = paths
     }
 }

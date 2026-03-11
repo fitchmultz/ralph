@@ -9,7 +9,7 @@
 //! - Analytics loading.
 //!
 //! Invariants/assumptions callers must respect:
-//! - Graph payloads must conform to `RalphGraphDocument`.
+//! - Graph payloads must conform to `MachineGraphReadDocument`.
 //! - Errors are surfaced through the workspace recovery state.
 
 import Foundation
@@ -30,17 +30,17 @@ public extension Workspace {
                 "Retrying load graph (attempt \(attempt)/\(maxAttempts))..."
             },
             load: { [self] client, workingDirectoryURL, retryConfiguration, onRetry in
-                try await self.decodeRepositoryJSON(
-                    RalphGraphDocument.self,
+                try await self.decodeMachineRepositoryJSON(
+                    MachineGraphReadDocument.self,
                     client: client,
-                    arguments: ["--no-color", "queue", "graph", "--format", "json"],
+                    machineArguments: ["queue", "graph"],
                     currentDirectoryURL: workingDirectoryURL,
                     retryConfiguration: retryConfiguration,
                     onRetry: onRetry
                 )
             },
-            apply: { [insightsState] graphData in
-                insightsState.graphData = graphData
+            apply: { [insightsState] document in
+                insightsState.graphData = document.graph
             },
             handleRetryMessage: { [insightsState] in
                 insightsState.graphDataErrorMessage = $0

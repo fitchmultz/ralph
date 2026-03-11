@@ -23,6 +23,7 @@ pub mod context;
 pub mod daemon;
 pub mod doctor;
 pub mod init;
+pub mod machine;
 pub mod migrate;
 pub mod plugin;
 pub mod prd;
@@ -131,6 +132,8 @@ pub enum Command {
     Init(init::InitArgs),
     /// macOS app integration commands.
     App(app::AppArgs),
+    /// Versioned machine-facing JSON API for the macOS app.
+    Machine(Box<machine::MachineArgs>),
     /// Render and print the final compiled prompts used by Ralph (for debugging/auditing).
     #[command(
         after_long_help = "Examples:\n  ralph prompt worker --phase 1 --repo-prompt plan\n  ralph prompt worker --phase 2 --task-id RQ-0001 --plan-file .ralph/cache/plans/RQ-0001.md\n  ralph prompt scan --focus \"CI gaps\" --repo-prompt off\n  ralph prompt task-builder --request \"Add tests\" --tags rust,tests --scope crates/ralph --repo-prompt tools\n"
@@ -215,8 +218,8 @@ pub enum Command {
     )]
     Undo(undo::UndoArgs),
 
-    /// Internal: Emit a machine-readable CLI specification (JSON) for tooling and GUI clients.
-    #[command(name = "cli-spec", hide = true, alias = "__cli-spec")]
+    /// Emit a machine-readable CLI specification (JSON) for tooling and legacy clients.
+    #[command(name = "cli-spec", alias = "__cli-spec")]
     CliSpec(CliSpecArgs),
 }
 

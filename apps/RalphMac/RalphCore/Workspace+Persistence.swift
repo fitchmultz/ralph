@@ -3,7 +3,7 @@
 
  Responsibilities:
  - Persist workspace identity state through a single snapshot store.
- - Resolve queue-file paths from the active working directory.
+ - Track machine-resolved workspace paths from the active working directory.
  - Handle working-directory changes and associated watcher/config refreshes.
  - Surface persistence failures as workspace-scoped operational state.
 
@@ -15,7 +15,7 @@
  Invariants/assumptions callers must respect:
  - Persistence keys remain namespaced by `Workspace.id`.
  - Working-directory changes must flow through this extension so recents and watchers stay in sync.
- - Queue-file resolution always targets `.ralph/queue.jsonc`.
+ - Machine-resolved paths override fallback `.ralph/...` defaults once available.
  */
 
 public import Foundation
@@ -27,6 +27,7 @@ public final class WorkspaceIdentityState: ObservableObject {
     @Published public var name: String
     @Published public var workingDirectoryURL: URL
     @Published public var recentWorkingDirectories: [URL]
+    @Published public var resolvedPaths: MachineQueuePaths?
     @Published public internal(set) var repositoryGeneration: UInt64
     @Published public internal(set) var retargetRevision: UInt64
 
@@ -34,12 +35,14 @@ public final class WorkspaceIdentityState: ObservableObject {
         name: String,
         workingDirectoryURL: URL,
         recentWorkingDirectories: [URL],
+        resolvedPaths: MachineQueuePaths? = nil,
         repositoryGeneration: UInt64 = 0,
         retargetRevision: UInt64 = 0
     ) {
         self.name = name
         self.workingDirectoryURL = workingDirectoryURL
         self.recentWorkingDirectories = recentWorkingDirectories
+        self.resolvedPaths = resolvedPaths
         self.repositoryGeneration = repositoryGeneration
         self.retargetRevision = retargetRevision
     }
@@ -139,7 +142,10 @@ public extension Workspace {
     }
 
     var hasRalphQueueFile: Bool {
-        Self.existingQueueFileURL(in: identityState.workingDirectoryURL) != nil
+        if let resolvedQueueFileURL {
+            return FileManager.default.fileExists(atPath: resolvedQueueFileURL.path)
+        }
+        return Self.existingQueueFileURL(in: identityState.workingDirectoryURL) != nil
     }
 
     var projectDisplayName: String {
@@ -158,7 +164,29 @@ public extension Workspace {
     }
 
     var queueFileURL: URL {
-        Self.preferredQueueFileURL(in: identityState.workingDirectoryURL)
+        resolvedQueueFileURL ?? Self.preferredQueueFileURL(in: identityState.workingDirectoryURL)
+    }
+
+    var doneFileURL: URL {
+        resolvedDoneFileURL
+            ?? identityState.workingDirectoryURL.appendingPathComponent(".ralph/done.jsonc", isDirectory: false)
+    }
+
+    var projectConfigFileURL: URL? {
+        if let path = identityState.resolvedPaths?.projectConfigPath {
+            return URL(fileURLWithPath: path, isDirectory: false)
+        }
+        return identityState.workingDirectoryURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+    }
+
+    var resolvedQueueFileURL: URL? {
+        guard let path = identityState.resolvedPaths?.queuePath else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: false)
+    }
+
+    var resolvedDoneFileURL: URL? {
+        guard let path = identityState.resolvedPaths?.donePath else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: false)
     }
 
     static func existingQueueFileURL(in workingDirectoryURL: URL) -> URL? {
@@ -301,6 +329,7 @@ extension Workspace {
         runState.runnerConfigErrorMessage = nil
         runState.runnerConfigLoading = false
         runState.runControlSelectedTaskID = nil
+        identityState.resolvedPaths = nil
         runState.output = ""
         runState.outputBuffer.clear()
         runState.attributedOutput = []

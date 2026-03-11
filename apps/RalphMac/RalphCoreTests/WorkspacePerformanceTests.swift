@@ -122,6 +122,10 @@ enum WorkspacePerformanceTestSupport {
               echo "ralph \(VersionCompatibility.minimumCLIVersion)"
               exit 0
             fi
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
+              echo '{"version":1,"cli_version":"\(VersionCompatibility.minimumCLIVersion)"}'
+              exit 0
+            fi
             echo "unexpected args: $*" 1>&2
             exit 64
             """

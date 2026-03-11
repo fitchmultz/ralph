@@ -1,8 +1,7 @@
 //! Workspace+QueueLoading
 //!
 //! Responsibilities:
-//! - Load queue tasks through the Ralph CLI.
-//! - Parse queue snapshots directly from disk for watcher-triggered refreshes.
+//! - Load queue tasks through the Ralph machine contract.
 //! - Coordinate queue file watching and workspace-local refresh state.
 //!
 //! Does not handle:
@@ -12,7 +11,7 @@
 //!
 //! Invariants/assumptions callers must respect:
 //! - The workspace must point at a Ralph-initialized directory to load tasks.
-//! - Direct file parsing is a fast path and may fall back to the CLI.
+//! - Queue snapshots are always sourced from `ralph machine queue read`.
 //! - Queue refresh events retain previous and current task snapshots for view-local reactions.
 
 public import Foundation
@@ -111,18 +110,18 @@ public extension Workspace {
                 "Retrying load tasks (attempt \(attempt)/\(maxAttempts))..."
             },
             load: { client, workingDirectoryURL, _, onRetry in
-                let collected = try await client.runAndCollectWithRetry(
-                    arguments: ["--no-color", "queue", "list", "--format", "json"],
+                try await self.decodeMachineRepositoryJSON(
+                    MachineQueueReadDocument.self,
+                    client: client,
+                    machineArguments: ["queue", "read"],
                     currentDirectoryURL: workingDirectoryURL,
                     retryConfiguration: retryConfiguration,
                     onRetry: onRetry
                 )
-                return try await WorkspaceQueueSnapshotLoader.decodeQueueTasks(
-                    fromCLIOutput: collected.stdout
-                )
             },
-            apply: { [self, taskState] decodedTasks in
-                taskState.tasks = decodedTasks
+            apply: { [self, taskState] snapshot in
+                self.updateResolvedPaths(snapshot.paths)
+                taskState.tasks = snapshot.active.tasks
                 self.sanitizeRunControlSelection()
                 taskState.tasksErrorMessage = nil
             },

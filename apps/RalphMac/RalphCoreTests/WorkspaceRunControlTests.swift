@@ -23,22 +23,29 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
 
         let script = """
             #!/bin/sh
-            if [ "$2" = "config" ] && [ "$3" = "show" ]; then
-              echo '{"agent":{"model":"model-test","iterations":2}}'
+            case "$*" in
+              *"--no-color machine config resolve"*)
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"model-test","iterations":2}}}'
               exit 0
-            fi
-            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--dry-run" ]; then
-              echo "Dry run: would run RQ-4242 (status: Todo)"
+              ;;
+              *"--no-color machine queue read"*)
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":[{"id":"RQ-4242","status":"todo","title":"Queued task","priority":"medium","tags":[],"created_at":"2026-03-10T00:00:00Z","updated_at":"2026-03-10T00:00:00Z"}]},"done":{"version":1,"tasks":[]},"next_runnable_task_id":"RQ-4242","runnability":{}}'
               exit 0
-            fi
-            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--id" ] && [ "$5" = "RQ-4242" ]; then
-              echo "PHASE 1 starting"
+              ;;
+              *"--no-color machine run one --id RQ-4242"*)
+              echo '{"version":1,"kind":"run_started","task_id":"RQ-4242","phase":null,"message":null,"payload":null}'
+              echo '{"version":1,"kind":"phase_entered","task_id":"RQ-4242","phase":"plan","message":null,"payload":null}'
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-4242","phase":"plan","message":null,"payload":{"text":"planning started\\n"}}'
               sleep 1
-              echo "PHASE 2 running"
+              echo '{"version":1,"kind":"phase_completed","task_id":"RQ-4242","phase":"plan","message":null,"payload":null}'
+              echo '{"version":1,"kind":"phase_entered","task_id":"RQ-4242","phase":"implement","message":null,"payload":null}'
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-4242","phase":"implement","message":null,"payload":{"text":"implementation running\\n"}}'
               sleep 1
-              echo "done"
+              echo '{"version":1,"kind":"phase_completed","task_id":"RQ-4242","phase":"implement","message":null,"payload":null}'
+              echo '{"version":1,"task_id":"RQ-4242","exit_code":0,"outcome":"success"}'
               exit 0
-            fi
+              ;;
+            esac
             echo "unexpected args: $*" 1>&2
             exit 64
             """
@@ -54,12 +61,15 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         workspace.runNextTask()
 
         let startedStreaming = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
-            workspace.currentTaskID == "RQ-4242" && workspace.output.contains("PHASE 1")
+            workspace.currentTaskID == "RQ-4242"
+                && workspace.currentPhase == .plan
+                && workspace.output.contains("planning started")
         }
         XCTAssertTrue(startedStreaming)
 
         XCTAssertEqual(workspace.currentTaskID, "RQ-4242")
-        XCTAssertTrue(workspace.output.contains("PHASE 1"))
+        XCTAssertEqual(workspace.currentPhase, .plan)
+        XCTAssertTrue(workspace.output.contains("planning started"))
         XCTAssertTrue(workspace.isRunning)
 
         let finishedStreaming = await WorkspacePerformanceTestSupport.waitFor(timeout: 4.0) {
@@ -69,7 +79,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
 
         XCTAssertFalse(workspace.isRunning)
         XCTAssertEqual(workspace.lastExitStatus?.code, 0)
-        XCTAssertTrue(workspace.output.contains("PHASE 2"))
+        XCTAssertTrue(workspace.output.contains("implementation running"))
         XCTAssertEqual(workspace.executionHistory.first?.taskID, "RQ-4242")
         XCTAssertEqual(workspace.executionHistory.first?.wasCancelled, false)
     }
@@ -80,18 +90,18 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
 
         let script = """
             #!/bin/sh
-            if [ "$2" = "config" ] && [ "$3" = "show" ]; then
-              echo '{"agent":{"model":"model-test","iterations":1}}'
+            case "$*" in
+              *"--no-color machine config resolve"*)
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"model-test","iterations":1}}}'
               exit 0
-            fi
-            if [ "$2" = "run" ] && [ "$3" = "one" ]; then
-              case "$*" in
-                *"--no-color run one --force --id RQ-5555"*)
-                  echo "running explicit"
-                  exit 0
-                  ;;
-              esac
-            fi
+              ;;
+              *"--no-color machine run one --force --id RQ-5555"*)
+              echo '{"version":1,"kind":"run_started","task_id":"RQ-5555","phase":null,"message":null,"payload":null}'
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-5555","phase":null,"message":null,"payload":{"text":"running explicit\\n"}}'
+              echo '{"version":1,"task_id":"RQ-5555","exit_code":0,"outcome":"success"}'
+              exit 0
+              ;;
+            esac
             echo "unexpected args: $*" 1>&2
             exit 64
             """
@@ -140,8 +150,8 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         defer { RalphCoreTestSupport.assertRemoved(tempDir) }
         let script = """
             #!/bin/sh
-            if [ "$2" = "config" ] && [ "$3" = "show" ]; then
-              echo '{"agent":{"model":"model-test","iterations":2}}'
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"model-test","iterations":2}}}'
               exit 0
             fi
             exec /bin/sleep "$@"
@@ -186,30 +196,33 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             #!/bin/sh
             state_file="\(stateURL.path)"
 
-            if [ "$2" = "config" ] && [ "$3" = "show" ]; then
-              echo '{"agent":{"model":"model-test","iterations":2}}'
+            case "$*" in
+              *"--no-color machine config resolve"*)
+              echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"config":{"agent":{"model":"model-test","iterations":2}}}'
               exit 0
-            fi
-
-            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--dry-run" ]; then
+              ;;
+              *"--no-color machine queue read"*)
               if [ ! -f "$state_file" ]; then
-                echo "Dry run: would run RQ-LOOP-1"
+                echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":[{"id":"RQ-LOOP-1","status":"todo","title":"First loop task","priority":"medium","tags":[],"created_at":"2026-03-10T00:00:00Z","updated_at":"2026-03-10T00:00:00Z"}]},"done":{"version":1,"tasks":[]},"next_runnable_task_id":"RQ-LOOP-1","runnability":{}}'
               else
-                echo "Dry run: would run RQ-LOOP-2"
+                echo '{"version":1,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":[{"id":"RQ-LOOP-2","status":"todo","title":"Second loop task","priority":"medium","tags":[],"created_at":"2026-03-10T00:00:00Z","updated_at":"2026-03-10T00:00:00Z"}]},"done":{"version":1,"tasks":[]},"next_runnable_task_id":"RQ-LOOP-2","runnability":{}}'
               fi
               exit 0
-            fi
-
-            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--id" ] && [ "$5" = "RQ-LOOP-1" ]; then
-              echo "running first"
+              ;;
+              *"--no-color machine run one --id RQ-LOOP-1"*)
+              echo '{"version":1,"kind":"run_started","task_id":"RQ-LOOP-1","phase":null,"message":null,"payload":null}'
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-LOOP-1","phase":null,"message":null,"payload":{"text":"running first\\n"}}'
+              echo '{"version":1,"task_id":"RQ-LOOP-1","exit_code":0,"outcome":"success"}'
               echo "done" > "$state_file"
               exit 0
-            fi
-
-            if [ "$2" = "run" ] && [ "$3" = "one" ] && [ "$4" = "--id" ] && [ "$5" = "RQ-LOOP-2" ]; then
-              echo "running second"
+              ;;
+              *"--no-color machine run one --id RQ-LOOP-2"*)
+              echo '{"version":1,"kind":"run_started","task_id":"RQ-LOOP-2","phase":null,"message":null,"payload":null}'
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-LOOP-2","phase":null,"message":null,"payload":{"text":"running second\\n"}}'
+              echo '{"version":1,"task_id":"RQ-LOOP-2","exit_code":64,"outcome":"failure"}'
               exit 64
-            fi
+              ;;
+            esac
 
             echo "unexpected args: $*" 1>&2
             exit 64

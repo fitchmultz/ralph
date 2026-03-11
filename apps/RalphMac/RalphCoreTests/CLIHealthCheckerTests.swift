@@ -77,8 +77,8 @@ final class CLIHealthCheckerTests: XCTestCase {
         let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
         let script = """
         #!/bin/sh
-        if [ "$1" = "--version" ]; then
-          echo "ralph 9.9.9"
+        if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
+          echo '{"version":1,"cli_version":"9.9.9"}'
           exit 0
         fi
         exit 1
@@ -107,12 +107,8 @@ final class CLIHealthCheckerTests: XCTestCase {
         let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
         let script = """
         #!/bin/sh
-        if [ "$1" = "--version" ]; then
-          echo "error: unexpected argument '--version' found" >&2
-          exit 2
-        fi
-        if [ "$1" = "version" ]; then
-          echo "ralph 9.9.9"
+        if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
+          echo '{"version":1,"cli_version":"9.9.9"}'
           exit 0
         fi
         exit 1
@@ -161,7 +157,7 @@ final class CLIHealthCheckerTests: XCTestCase {
         let script = """
         #!/bin/sh
         echo $$ > "\(pidFileURL.path)"
-        if [ "$1" = "--version" ]; then
+        if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
           trap '' TERM INT
           sleep 30
           exit 0

@@ -2,7 +2,7 @@
  Workspace+Decompose
 
  Responsibilities:
- - Execute `ralph task decompose` preview and write operations through the CLI.
+ - Execute `ralph machine task decompose` preview and write operations through the CLI.
  - Build deterministic CLI arguments from app-side decomposition inputs.
  - Decode stable JSON responses and refresh workspace task state after writes.
 
@@ -23,27 +23,27 @@ extension Workspace {
         source: TaskDecomposeSourceInput,
         options: TaskDecomposeOptions
     ) async throws -> DecompositionPreview {
-        let envelope: TaskDecomposeEnvelope = try await runTaskDecompose(
+        let document: MachineDecomposeDocument = try await runTaskDecompose(
             source: source,
             options: options,
             write: false,
-            decode: TaskDecomposeEnvelope.self
+            decode: MachineDecomposeDocument.self
         )
-        return envelope.preview
+        return document.result.preview
     }
 
     public func writeTaskDecomposition(
         source: TaskDecomposeSourceInput,
         options: TaskDecomposeOptions
     ) async throws -> TaskDecomposeWriteResult {
-        let envelope: TaskDecomposeEnvelope = try await runTaskDecompose(
+        let document: MachineDecomposeDocument = try await runTaskDecompose(
             source: source,
             options: options,
             write: true,
-            decode: TaskDecomposeEnvelope.self
+            decode: MachineDecomposeDocument.self
         )
-        guard let writeResult = envelope.write else {
-            throw WorkspaceError.cliError("task decompose --write returned JSON without a write result payload")
+        guard let writeResult = document.result.write else {
+            throw WorkspaceError.cliError("machine task decompose --write returned JSON without a write result payload")
         }
         await loadTasks(retryConfiguration: .minimal)
         return writeResult
@@ -79,7 +79,7 @@ extension Workspace {
         guard collected.status.code == 0 else {
             throw WorkspaceError.cliError(
                 collected.stderr.isEmpty
-                    ? "Failed to run task decompose (exit \(collected.status.code))"
+                    ? "Failed to run machine task decompose (exit \(collected.status.code))"
                     : collected.stderr
             )
         }
@@ -89,7 +89,7 @@ extension Workspace {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
             throw WorkspaceError.cliError(
-                "Failed to decode task decompose JSON output: \(error.localizedDescription)"
+                "Failed to decode machine task decompose JSON output: \(error.localizedDescription)"
             )
         }
     }
@@ -101,11 +101,10 @@ extension Workspace {
     ) -> [String] {
         var arguments = [
             "--no-color",
+            "machine",
             "task",
             "decompose",
             sourceArgument(for: source),
-            "--format",
-            "json",
             "--max-depth",
             String(options.maxDepth),
             "--max-children",

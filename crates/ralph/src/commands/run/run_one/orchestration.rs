@@ -28,6 +28,7 @@ use anyhow::Result;
 use crate::commands::run::{RunOutcome, context::task_context_for_prompt, phases::PostRunMode};
 use crate::runner::OutputHandler;
 use crate::runutil::RevertPromptHandler;
+use crate::{commands::run::RunEvent, commands::run::RunEventHandler};
 
 // Import from sibling modules
 use super::{
@@ -105,6 +106,7 @@ pub fn run_one_impl(
     target_task_id: Option<&str>,
     resume_task_id: Option<&str>,
     output_handler: Option<OutputHandler>,
+    run_event_handler: Option<RunEventHandler>,
     revert_prompt: Option<RevertPromptHandler>,
     parallel_target_branch: Option<&str>,
 ) -> Result<RunOutcome> {
@@ -134,6 +136,12 @@ pub fn run_one_impl(
         SelectTaskResult::Selected { task } => *task,
     };
     let task_id = task.id.trim().to_string();
+    if let Some(handler) = &run_event_handler {
+        handler(RunEvent::TaskSelected {
+            task_id: task_id.clone(),
+            title: task.title.clone(),
+        });
+    }
 
     // 3. Setup execution
     let setup = setup_task_execution(resolved, agent_overrides, &task, ctx.post_run_mode, force)?;
@@ -157,6 +165,7 @@ pub fn run_one_impl(
         &base_prompt,
         &ctx.policy,
         output_handler.clone(),
+        run_event_handler,
         output_stream,
         resolved
             .config

@@ -13,7 +13,7 @@
 
  Invariants/assumptions callers must respect:
  - Health checks may cancel and replace an older in-flight check for the same workspace.
- - Version probing treats either `--version` or `version` success as healthy.
+ - Health probing uses the machine system-info contract.
  - Cached status is keyed by `Workspace.id`.
  */
 
@@ -195,21 +195,12 @@ public actor CLIHealthChecker {
         client: RalphCLIClient,
         timeout: TimeInterval
     ) async throws -> Bool {
-        let dashVersionResult = try await runHealthCommand(
+        let systemInfoResult = try await runHealthCommand(
             client: client,
-            arguments: ["--version"],
+            arguments: ["--no-color", "machine", "system", "info"],
             timeout: timeout
         )
-        if dashVersionResult.status.code == 0 {
-            return true
-        }
-
-        let subcommandResult = try await runHealthCommand(
-            client: client,
-            arguments: ["version"],
-            timeout: timeout
-        )
-        return subcommandResult.status.code == 0
+        return systemInfoResult.status.code == 0
     }
 
     private func runHealthCommand(

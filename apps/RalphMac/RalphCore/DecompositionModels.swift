@@ -2,7 +2,7 @@
  DecompositionModels
 
  Responsibilities:
- - Mirror the stable JSON payloads emitted by `ralph task decompose --format json`.
+ - Mirror the stable JSON payloads emitted by `ralph machine task decompose`.
  - Provide app-side request models for previewing and writing task decompositions.
  - Keep decoding logic centralized so views and workspace operations stay type-safe.
 
@@ -213,4 +213,9 @@ public struct TaskDecomposeEnvelope: Decodable, Sendable, Equatable {
     public let mode: String
     public let preview: DecompositionPreview
     public let write: TaskDecomposeWriteResult?
+}
+
+public struct MachineDecomposeDocument: Decodable, Sendable, Equatable {
+    public let version: Int
+    public let result: TaskDecomposeEnvelope
 }

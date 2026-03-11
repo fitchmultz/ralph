@@ -16,6 +16,7 @@
 
 mod cli_spec;
 mod config;
+mod machine;
 mod model;
 mod queue;
 mod runner;
@@ -29,6 +30,20 @@ pub use config::{
     ParallelConfig, PhaseOverrideConfig, PhaseOverrides, PluginConfig, PluginsConfig, ProjectType,
     QueueAgingThresholds, QueueConfig, RunnerRetryConfig, ScanPromptVersion, WebhookConfig,
     WebhookEventSubscription, WebhookQueuePolicy,
+};
+
+// Re-exports from machine module (versioned app/CLI machine surfaces)
+pub use machine::{
+    MACHINE_CLI_SPEC_VERSION, MACHINE_CONFIG_RESOLVE_VERSION, MACHINE_DASHBOARD_READ_VERSION,
+    MACHINE_DECOMPOSE_VERSION, MACHINE_DOCTOR_REPORT_VERSION, MACHINE_GRAPH_READ_VERSION,
+    MACHINE_PARALLEL_STATUS_VERSION, MACHINE_QUEUE_READ_VERSION, MACHINE_RUN_EVENT_VERSION,
+    MACHINE_RUN_SUMMARY_VERSION, MACHINE_SYSTEM_INFO_VERSION, MACHINE_TASK_CREATE_VERSION,
+    MACHINE_TASK_MUTATION_VERSION, MachineCliSpecDocument, MachineConfigResolveDocument,
+    MachineDashboardReadDocument, MachineDecomposeDocument, MachineDoctorReportDocument,
+    MachineGraphReadDocument, MachineParallelStatusDocument, MachineQueuePaths,
+    MachineQueueReadDocument, MachineRunEventEnvelope, MachineRunEventKind,
+    MachineRunSummaryDocument, MachineSystemInfoDocument, MachineTaskCreateDocument,
+    MachineTaskCreateRequest, MachineTaskMutationDocument,
 };
 
 // Re-exports from cli_spec module (versioned; suitable for tooling consumption)

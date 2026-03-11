@@ -4,6 +4,7 @@
  Responsibilities:
  - Own the live Ralph subprocess lifecycle for one workspace.
  - Load resolved runner configuration for the workspace.
+ - Consume machine run-event streams and derive UI state from structured envelopes.
  - Schedule loop continuation explicitly after a run completes without sleep-based polling.
 
  Does not handle:
@@ -45,20 +46,21 @@ final class WorkspaceRunnerController {
                 runState.runnerConfigErrorMessage = "CLI client not available."
             },
             load: { client, workingDirectoryURL, retryConfiguration, onRetry in
-                try await workspace.decodeRepositoryJSON(
-                    ResolvedRunnerConfigDocument.self,
+                try await workspace.decodeMachineRepositoryJSON(
+                    MachineConfigResolveDocument.self,
                     client: client,
-                    arguments: ["--no-color", "config", "show", "--format", "json"],
+                    machineArguments: ["config", "resolve"],
                     currentDirectoryURL: workingDirectoryURL,
                     retryConfiguration: retryConfiguration,
                     onRetry: onRetry
                 )
             },
-            apply: { [runState = workspace.runState] decoded in
+            apply: { [workspace, runState = workspace.runState] decoded in
+                workspace.updateResolvedPaths(decoded.paths)
                 runState.currentRunnerConfig = Workspace.RunnerConfig(
-                    model: decoded.agent?.model,
-                    phases: decoded.agent?.phases,
-                    maxIterations: decoded.agent?.iterations
+                    model: decoded.config.agent?.model,
+                    phases: decoded.config.agent?.phases,
+                    maxIterations: decoded.config.agent?.iterations
                 )
                 runState.runnerConfigErrorMessage = nil
             },
@@ -112,12 +114,24 @@ final class WorkspaceRunnerController {
                     currentDirectoryURL: workspace.identityState.workingDirectoryURL
                 )
                 activeRun = run
+                var machineDecoder = MachineRunOutputDecoder()
+                let usesMachineRunEvents = Self.isMachineRunCommand(arguments)
 
                 for await event in run.events {
                     guard workspace.isCurrentRepositoryContext(repositoryContext), activeRun === run else { continue }
-                    workspace.runState.outputBuffer.append(event.text)
-                    workspace.runState.output = workspace.runState.outputBuffer.content
-                    workspace.consumeStreamTextChunk(event.text)
+                    if usesMachineRunEvents, event.stream == .stdout {
+                        for item in machineDecoder.append(event.text) {
+                            self.applyMachineRunOutputItem(item, workspace: workspace)
+                        }
+                    } else {
+                        self.appendConsoleText(event.text, workspace: workspace)
+                    }
+                }
+
+                if usesMachineRunEvents {
+                    for item in machineDecoder.finish() {
+                        self.applyMachineRunOutputItem(item, workspace: workspace)
+                    }
                 }
 
                 let status = await run.waitUntilExit()
@@ -143,6 +157,10 @@ final class WorkspaceRunnerController {
                 workspace.resetExecutionState()
             }
         }
+    }
+
+    func runMachine(arguments: [String], preservingConsole: Bool = false) {
+        run(arguments: ["--no-color", "machine"] + arguments, preservingConsole: preservingConsole)
     }
 
     func cancel() {
@@ -186,7 +204,7 @@ final class WorkspaceRunnerController {
             }
             workspace.runState.currentTaskID = resolvedTaskID
 
-            var arguments = ["--no-color", "run", "one"]
+            var arguments = ["run", "one"]
             if forceDirtyRepo {
                 arguments.append("--force")
             }
@@ -194,7 +212,7 @@ final class WorkspaceRunnerController {
                 arguments.append(contentsOf: ["--id", resolvedTaskID])
             }
 
-            run(arguments: arguments, preservingConsole: preservingConsole)
+            runMachine(arguments: arguments, preservingConsole: preservingConsole)
         }
     }
 
@@ -269,12 +287,15 @@ final class WorkspaceRunnerController {
         guard let client = workspace.client else { return workspace.nextTask()?.id }
 
         do {
-            let dryRun = try await client.runAndCollect(
-                arguments: ["--no-color", "run", "one", "--dry-run", "--non-interactive"],
-                currentDirectoryURL: workspace.identityState.workingDirectoryURL
+            let snapshot = try await workspace.decodeMachineRepositoryJSON(
+                MachineQueueReadDocument.self,
+                client: client,
+                machineArguments: ["queue", "read"],
+                currentDirectoryURL: workspace.identityState.workingDirectoryURL,
+                retryConfiguration: .minimal
             )
-            let combined = dryRun.stdout + "\n" + dryRun.stderr
-            if let id = Self.extractTaskID(from: combined) {
+            workspace.updateResolvedPaths(snapshot.paths)
+            if let id = snapshot.nextRunnableTaskID {
                 return id
             }
         } catch {
@@ -287,27 +308,181 @@ final class WorkspaceRunnerController {
         return workspace.nextTask()?.id
     }
 
-    private static func extractTaskID(from text: String) -> String? {
-        for token in text.split(whereSeparator: {
-            $0.isWhitespace || $0 == "(" || $0 == ")" || $0 == ":" || $0 == ","
-        }) {
-            let candidate = String(token)
-            if candidate.hasPrefix("RQ-") {
-                return candidate
+    private func appendConsoleText(_ text: String, workspace: Workspace) {
+        workspace.runState.outputBuffer.append(text)
+        workspace.runState.output = workspace.runState.outputBuffer.content
+        workspace.consumeStreamTextChunk(text)
+    }
+
+    private func applyMachineRunOutputItem(_ item: MachineRunOutputDecoder.Item, workspace: Workspace) {
+        switch item {
+        case .event(let event):
+            switch event.kind {
+            case .runStarted:
+                workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
+                if let document = event.payload?.decode(MachineConfigResolveDocument.self, for: "config") {
+                    workspace.updateResolvedPaths(document.paths)
+                }
+            case .taskSelected:
+                workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
+            case .phaseEntered:
+                workspace.runState.currentPhase = Workspace.ExecutionPhase(machineValue: event.phase)
+            case .phaseCompleted:
+                if workspace.runState.currentPhase == Workspace.ExecutionPhase(machineValue: event.phase) {
+                    workspace.runState.currentPhase = nil
+                }
+            case .runnerOutput:
+                if let text = event.payload?.string(for: "text") {
+                    appendConsoleText(text, workspace: workspace)
+                }
+            case .queueSnapshot:
+                if let paths = event.payload?.decode(MachineQueuePaths.self, for: "paths") {
+                    workspace.updateResolvedPaths(paths)
+                }
+            case .configResolved:
+                if let document = event.payload?.decode(MachineConfigResolveDocument.self, for: "config") {
+                    workspace.updateResolvedPaths(document.paths)
+                }
+            case .warning:
+                if let message = event.message, !message.isEmpty {
+                    appendConsoleText("[warning] \(message)\n", workspace: workspace)
+                }
+            case .runFinished:
+                break
             }
+        case .summary(let summary):
+            if let taskID = summary.taskID {
+                workspace.runState.currentTaskID = taskID
+            }
+        case .rawText(let text):
+            appendConsoleText(text, workspace: workspace)
         }
-        return nil
+    }
+
+    private static func isMachineRunCommand(_ arguments: [String]) -> Bool {
+        let filtered = arguments.filter { $0 != "--no-color" }
+        return filtered.starts(with: ["machine", "run"])
     }
 }
 
 private extension WorkspaceRunnerController {
-    struct ResolvedRunnerConfigDocument: Decodable, Sendable {
-        let agent: AgentConfig?
+    struct MachineRunEventEnvelope: Decodable, Sendable {
+        let version: Int
+        let kind: Kind
+        let taskID: String?
+        let phase: String?
+        let message: String?
+        let payload: RalphJSONValue?
 
-        struct AgentConfig: Decodable, Sendable {
-            let model: String?
-            let phases: Int?
-            let iterations: Int?
+        enum Kind: String, Decodable, Sendable {
+            case runStarted = "run_started"
+            case queueSnapshot = "queue_snapshot"
+            case configResolved = "config_resolved"
+            case taskSelected = "task_selected"
+            case phaseEntered = "phase_entered"
+            case phaseCompleted = "phase_completed"
+            case runnerOutput = "runner_output"
+            case warning
+            case runFinished = "run_finished"
         }
+
+        enum CodingKeys: String, CodingKey {
+            case version
+            case kind
+            case taskID = "task_id"
+            case phase
+            case message
+            case payload
+        }
+    }
+
+    struct MachineRunSummaryDocument: Decodable, Sendable {
+        let version: Int
+        let taskID: String?
+        let exitCode: Int
+        let outcome: String
+
+        enum CodingKeys: String, CodingKey {
+            case version
+            case taskID = "task_id"
+            case exitCode = "exit_code"
+            case outcome
+        }
+    }
+
+    struct MachineRunOutputDecoder {
+        enum Item {
+            case event(MachineRunEventEnvelope)
+            case summary(MachineRunSummaryDocument)
+            case rawText(String)
+        }
+
+        private var buffered = ""
+
+        mutating func append(_ chunk: String) -> [Item] {
+            buffered.append(chunk)
+            return drainCompleteLines()
+        }
+
+        mutating func finish() -> [Item] {
+            defer { buffered.removeAll(keepingCapacity: false) }
+            guard !buffered.isEmpty else { return [] }
+            return decodeLine(buffered)
+        }
+
+        private mutating func drainCompleteLines() -> [Item] {
+            var items: [Item] = []
+            while let newlineIndex = buffered.firstIndex(of: "\n") {
+                let line = String(buffered[..<newlineIndex])
+                buffered.removeSubrange(...newlineIndex)
+                items.append(contentsOf: decodeLine(line))
+            }
+            return items
+        }
+
+        private func decodeLine(_ line: String) -> [Item] {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return [] }
+            let data = Data(trimmed.utf8)
+            let decoder = JSONDecoder()
+
+            if let event = try? decoder.decode(MachineRunEventEnvelope.self, from: data) {
+                return [.event(event)]
+            }
+            if let summary = try? decoder.decode(MachineRunSummaryDocument.self, from: data) {
+                return [.summary(summary)]
+            }
+            return [.rawText(line + "\n")]
+        }
+    }
+}
+
+private extension Workspace.ExecutionPhase {
+    init?(machineValue: String?) {
+        switch machineValue {
+        case "plan":
+            self = .plan
+        case "implement":
+            self = .implement
+        case "review":
+            self = .review
+        default:
+            return nil
+        }
+    }
+}
+
+private extension RalphJSONValue {
+    func string(for key: String) -> String? {
+        guard case .object(let object) = self, let value = object[key] else { return nil }
+        return value.stringValue
+    }
+
+    func decode<T: Decodable>(_ type: T.Type, for key: String) -> T? {
+        guard case .object(let object) = self, let value = object[key] else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return try? decoder.decode(type, from: data)
     }
 }

@@ -3,7 +3,7 @@
 
  Responsibilities:
  - Validate decoding/encoding of the forward-compatible JSON model types.
- - Ensure `RalphCLISpec` can decode arbitrary JSON emitted by a future `__cli-spec` command.
+ - Ensure `RalphCLISpec` can decode arbitrary JSON emitted by a future machine CLI-spec document.
 
  Does not handle:
  - Validating the *meaning* of any particular CLI spec schema.

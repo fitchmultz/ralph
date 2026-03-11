@@ -2,7 +2,7 @@
  WorkspaceTaskMutationModels
 
  Responsibilities:
- - Define the app-side JSON contract for `ralph task mutate`.
+ - Define the app-side machine JSON contracts for task create and task mutate.
  - Provide Codable request/response models used by workspace task mutation flows.
  - Keep mutation payload encoding centralized and consistent across single-task and bulk edits.
 
@@ -31,6 +31,42 @@ struct WorkspaceTaskMutationRequest: Codable, Sendable {
     }
 }
 
+struct MachineTaskCreateRequest: Codable, Sendable {
+    let version: Int
+    let title: String
+    let description: String?
+    let priority: String
+    let tags: [String]
+    let scope: [String]
+    let template: String?
+    let target: String?
+
+    init(
+        version: Int = 1,
+        title: String,
+        description: String?,
+        priority: String,
+        tags: [String],
+        scope: [String],
+        template: String?,
+        target: String?
+    ) {
+        self.version = version
+        self.title = title
+        self.description = description
+        self.priority = priority
+        self.tags = tags
+        self.scope = scope
+        self.template = template
+        self.target = target
+    }
+}
+
+struct MachineTaskCreateDocument: Codable, Sendable {
+    let version: Int
+    let task: RalphTask
+}
+
 struct WorkspaceTaskMutationSpec: Codable, Sendable {
     let taskID: String
     let expectedUpdatedAt: String?
@@ -52,6 +88,11 @@ struct WorkspaceTaskMutationReport: Codable, Sendable {
     let version: Int
     let atomic: Bool
     let tasks: [WorkspaceTaskMutationTaskReport]
+}
+
+struct MachineTaskMutationDocument: Codable, Sendable {
+    let version: Int
+    let report: WorkspaceTaskMutationReport
 }
 
 struct WorkspaceTaskMutationTaskReport: Codable, Sendable {

@@ -1,0 +1,3332 @@
+{
+  "cli_spec": {
+    "$defs": {
+      "ArgSpec": {
+        "additionalProperties": false,
+        "description": "A single CLI argument/flag.",
+        "properties": {
+          "action": {
+            "description": "The clap action driving how values are applied (e.g. `Set`, `SetTrue`, `Append`).",
+            "type": "string"
+          },
+          "default_values": {
+            "description": "Default values (as shown by clap and used when the argument is absent).\n\nThis is always present; an empty list means there is no configured default.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "global": {
+            "description": "Whether the argument is global (propagates to subcommands).",
+            "type": "boolean"
+          },
+          "help": {
+            "description": "Help text shown in `--help`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hidden": {
+            "description": "Whether the argument is hidden from normal help output.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Clap argument id (stable identifier used for conflict groups, etc.).",
+            "type": "string"
+          },
+          "index": {
+            "description": "For positional arguments, the 1-based index.",
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "long": {
+            "description": "Long flag name without leading `--`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "long_help": {
+            "description": "Long help text shown in `--help`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "num_args_max": {
+            "description": "Maximum number of values this argument accepts per occurrence (inclusive).\n\n`None` means unbounded.",
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "num_args_min": {
+            "description": "Minimum number of values this argument accepts per occurrence.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "positional": {
+            "description": "Whether the argument is positional.",
+            "type": "boolean"
+          },
+          "possible_values": {
+            "description": "Enumerated possible values for the argument value parser (if known).\n\nThis is always present; an empty list means clap does not advertise a finite set of\npossible values for this argument.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required": {
+            "description": "Whether the argument is required.",
+            "type": "boolean"
+          },
+          "short": {
+            "description": "Short flag letter (without leading `-`).",
+            "maxLength": 1,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value_enum": {
+            "description": "Whether the argument's value is parsed as a clap `ValueEnum` type.\n\nThis is intended for tooling (e.g., rendering dropdowns) and is a best-effort reflection of\nthe clap configuration.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "required",
+          "default_values",
+          "possible_values",
+          "value_enum",
+          "num_args_min",
+          "global",
+          "hidden",
+          "positional",
+          "action"
+        ],
+        "type": "object"
+      },
+      "CliSpec": {
+        "additionalProperties": false,
+        "description": "Root CLI spec document.",
+        "properties": {
+          "root": {
+            "$ref": "#/$defs/CommandSpec",
+            "description": "Root command and its full subcommand tree."
+          },
+          "version": {
+            "description": "JSON format version.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "root"
+        ],
+        "type": "object"
+      },
+      "CommandSpec": {
+        "additionalProperties": false,
+        "description": "A command/subcommand and its arguments.",
+        "properties": {
+          "about": {
+            "description": "Short description shown in `--help`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "after_long_help": {
+            "description": "Extra help appended after long help.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "args": {
+            "description": "Arguments available at this command level (including hidden and generated help/version args).",
+            "items": {
+              "$ref": "#/$defs/ArgSpec"
+            },
+            "type": "array"
+          },
+          "hidden": {
+            "description": "Whether the command is hidden from normal help output.",
+            "type": "boolean"
+          },
+          "long_about": {
+            "description": "Long description shown in `--help`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "Command name (the last segment of `path`).",
+            "type": "string"
+          },
+          "path": {
+            "description": "Full path from the root command, inclusive.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "subcommands": {
+            "description": "Nested subcommands (including hidden/internal subcommands).",
+            "items": {
+              "$ref": "#/$defs/CommandSpec"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "hidden",
+          "args",
+          "subcommands"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "spec": {
+        "$ref": "#/$defs/CliSpec"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "spec"
+    ],
+    "title": "MachineCliSpecDocument",
+    "type": "object"
+  },
+  "config_resolve": {
+    "$defs": {
+      "AgentConfig": {
+        "additionalProperties": false,
+        "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).",
+        "properties": {
+          "ci_gate": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CiGateConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Structured CI gate execution settings."
+          },
+          "claude_bin": {
+            "default": null,
+            "description": "Override the claude executable name/path (default is \"claude\" if None).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claude_permission_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ClaudePermissionMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Claude permission mode for tool and edit approval.\nAcceptEdits: auto-approves file edits only\nBypassPermissions: skip all permission prompts (YOLO mode)"
+          },
+          "codex_bin": {
+            "default": null,
+            "description": "Override the codex executable name/path (default is \"codex\" if None).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cursor_bin": {
+            "default": null,
+            "description": "Override the cursor agent executable name/path (default is \"agent\" if None).\n\nNOTE: Cursor's runner binary name is `agent` (not `cursor`).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "followup_reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Reasoning effort override for follow-up iterations (iterations > 1).\nOnly meaningful for Codex models."
+          },
+          "gemini_bin": {
+            "default": null,
+            "description": "Override the gemini executable name/path (default is \"gemini\" if None).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "git_commit_push_enabled": {
+            "default": null,
+            "description": "Enable automatic git commit and push after successful runs (default: true).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "git_revert_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GitRevertMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Controls automatic git revert behavior when runner or supervision errors occur."
+          },
+          "instruction_files": {
+            "default": null,
+            "description": "Additional instruction files to inject at the top of every prompt sent to runner CLIs.\n\nPaths may be absolute, `~/`-prefixed, or repo-root relative. Missing files are treated as\nconfiguration errors. To include repo-local AGENTS.md, add `\"AGENTS.md\"` to this list.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "iterations": {
+            "default": null,
+            "description": "Number of iterations to run for each task (default: 1).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "kimi_bin": {
+            "default": null,
+            "description": "Override the kimi executable name/path (default is \"kimi\" if None).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Model"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Default model."
+          },
+          "notification": {
+            "$ref": "#/$defs/NotificationConfig",
+            "default": {
+              "enabled": null,
+              "notify_on_complete": null,
+              "notify_on_fail": null,
+              "notify_on_loop_complete": null,
+              "sound_enabled": null,
+              "sound_path": null,
+              "suppress_when_active": null,
+              "timeout_ms": null
+            },
+            "description": "Desktop notification configuration for task completion."
+          },
+          "opencode_bin": {
+            "default": null,
+            "description": "Override the opencode executable name/path (default is \"opencode\" if None).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phase_overrides": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrides"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Per-phase overrides for runner, model, and reasoning effort.\n\nAllows specifying different settings for each phase (1, 2, 3).\nPhase-specific values override the global agent settings."
+          },
+          "phases": {
+            "default": null,
+            "description": "Number of execution phases (1, 2, or 3).\n1 = single-pass, 2 = plan+implement, 3 = plan+implement+review.",
+            "format": "uint8",
+            "maximum": 3,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "pi_bin": {
+            "default": null,
+            "description": "Override the pi executable name/path (default is \"pi\" if None).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Default reasoning effort (only meaningful for Codex models)."
+          },
+          "repoprompt_plan_required": {
+            "default": null,
+            "description": "Require RepoPrompt usage during planning (inject context_builder instructions).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "repoprompt_tool_injection": {
+            "default": null,
+            "description": "Inject RepoPrompt tooling reminder block into prompts.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Runner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Which harness to use by default."
+          },
+          "runner_cli": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerCliConfigRoot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Normalized runner CLI behavior overrides (output/approval/sandbox/etc).\n\nThis is additive: existing runner-specific fields remain supported."
+          },
+          "runner_retry": {
+            "$ref": "#/$defs/RunnerRetryConfig",
+            "default": {
+              "base_backoff_ms": null,
+              "jitter_ratio": null,
+              "max_attempts": null,
+              "max_backoff_ms": null,
+              "multiplier": null
+            },
+            "description": "Runner invocation retry/backoff configuration."
+          },
+          "scan_prompt_version": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ScanPromptVersion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Scan prompt version to use (v1 or v2, default: v2)."
+          },
+          "session_timeout_hours": {
+            "default": null,
+            "description": "Session timeout in hours for crash recovery (default: 24).\nSessions older than this threshold are considered stale and require\nexplicit user confirmation to resume.",
+            "format": "uint64",
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "webhook": {
+            "$ref": "#/$defs/WebhookConfig",
+            "default": {
+              "enabled": null,
+              "events": null,
+              "parallel_queue_multiplier": null,
+              "queue_capacity": null,
+              "queue_policy": null,
+              "retry_backoff_ms": null,
+              "retry_count": null,
+              "secret": null,
+              "timeout_secs": null,
+              "url": null
+            },
+            "description": "Webhook configuration for HTTP task event notifications."
+          }
+        },
+        "type": "object"
+      },
+      "CiGateConfig": {
+        "additionalProperties": false,
+        "description": "Structured CI gate execution settings.",
+        "properties": {
+          "argv": {
+            "default": null,
+            "description": "Direct argv execution. The first item is the program and remaining items are arguments.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "enabled": {
+            "default": null,
+            "description": "Enable or disable the CI gate entirely.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ClaudePermissionMode": {
+        "enum": [
+          "accept_edits",
+          "bypass_permissions"
+        ],
+        "type": "string"
+      },
+      "Config": {
+        "additionalProperties": false,
+        "description": "Root configuration struct for Ralph.",
+        "properties": {
+          "agent": {
+            "$ref": "#/$defs/AgentConfig",
+            "default": {
+              "ci_gate": {
+                "argv": [
+                  "make",
+                  "ci"
+                ],
+                "enabled": true
+              },
+              "claude_bin": "claude",
+              "claude_permission_mode": "bypass_permissions",
+              "codex_bin": "codex",
+              "cursor_bin": "agent",
+              "followup_reasoning_effort": null,
+              "gemini_bin": "gemini",
+              "git_commit_push_enabled": true,
+              "git_revert_mode": "ask",
+              "instruction_files": null,
+              "iterations": 1,
+              "kimi_bin": "kimi",
+              "model": "gpt-5.4",
+              "notification": {
+                "enabled": true,
+                "notify_on_complete": true,
+                "notify_on_fail": true,
+                "notify_on_loop_complete": true,
+                "sound_enabled": false,
+                "sound_path": null,
+                "suppress_when_active": true,
+                "timeout_ms": 8000
+              },
+              "opencode_bin": "opencode",
+              "phase_overrides": null,
+              "phases": 3,
+              "pi_bin": "pi",
+              "reasoning_effort": "medium",
+              "repoprompt_plan_required": false,
+              "repoprompt_tool_injection": false,
+              "runner": "codex",
+              "runner_cli": {
+                "defaults": {
+                  "approval_mode": "yolo",
+                  "output_format": "stream_json",
+                  "plan_mode": "default",
+                  "sandbox": "default",
+                  "unsupported_option_policy": "warn",
+                  "verbosity": "normal"
+                },
+                "runners": {
+                  "claude": {
+                    "approval_mode": null,
+                    "output_format": null,
+                    "plan_mode": null,
+                    "sandbox": null,
+                    "unsupported_option_policy": null,
+                    "verbosity": "verbose"
+                  },
+                  "codex": {
+                    "approval_mode": null,
+                    "output_format": null,
+                    "plan_mode": null,
+                    "sandbox": "disabled",
+                    "unsupported_option_policy": null,
+                    "verbosity": null
+                  },
+                  "kimi": {
+                    "approval_mode": "yolo",
+                    "output_format": null,
+                    "plan_mode": null,
+                    "sandbox": null,
+                    "unsupported_option_policy": null,
+                    "verbosity": null
+                  },
+                  "pi": {
+                    "approval_mode": "yolo",
+                    "output_format": null,
+                    "plan_mode": null,
+                    "sandbox": null,
+                    "unsupported_option_policy": null,
+                    "verbosity": null
+                  }
+                }
+              },
+              "runner_retry": {
+                "base_backoff_ms": null,
+                "jitter_ratio": null,
+                "max_attempts": null,
+                "max_backoff_ms": null,
+                "multiplier": null
+              },
+              "scan_prompt_version": "v2",
+              "session_timeout_hours": 24,
+              "webhook": {
+                "enabled": null,
+                "events": null,
+                "parallel_queue_multiplier": null,
+                "queue_capacity": null,
+                "queue_policy": null,
+                "retry_backoff_ms": null,
+                "retry_count": null,
+                "secret": null,
+                "timeout_secs": null,
+                "url": null
+              }
+            },
+            "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor)."
+          },
+          "loop": {
+            "$ref": "#/$defs/LoopConfig",
+            "default": {
+              "empty_poll_ms": 30000,
+              "notify_when_unblocked": false,
+              "wait_poll_ms": 1000,
+              "wait_timeout_seconds": 0,
+              "wait_when_blocked": false,
+              "wait_when_empty": false
+            },
+            "description": "Run loop waiting configuration (daemon/continuous mode)."
+          },
+          "parallel": {
+            "$ref": "#/$defs/ParallelConfig",
+            "default": {
+              "max_push_attempts": 50,
+              "push_backoff_ms": [
+                500,
+                2000,
+                5000,
+                10000
+              ],
+              "workers": null,
+              "workspace_retention_hours": 24,
+              "workspace_root": null
+            },
+            "description": "Parallel run-loop configuration."
+          },
+          "plugins": {
+            "$ref": "#/$defs/PluginsConfig",
+            "default": {
+              "plugins": {}
+            },
+            "description": "Plugin configuration (enable/disable + per-plugin settings)."
+          },
+          "profiles": {
+            "additionalProperties": {
+              "$ref": "#/$defs/AgentConfig"
+            },
+            "description": "Optional named profiles for quick workflow switching.\n\nEach profile is an AgentConfig-shaped patch applied over `agent` when selected.\nProfile values override base config but are overridden by CLI flags and task.agent.",
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "project_type": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProjectType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "code",
+            "description": "\"code\" or \"docs\". Drives prompt defaults and small workflow decisions."
+          },
+          "queue": {
+            "$ref": "#/$defs/QueueConfig",
+            "default": {
+              "aging_thresholds": {
+                "rotten_days": 30,
+                "stale_days": 14,
+                "warning_days": 7
+              },
+              "auto_archive_terminal_after_days": null,
+              "done_file": ".ralph/done.jsonc",
+              "file": ".ralph/queue.jsonc",
+              "id_prefix": "RQ",
+              "id_width": 4,
+              "max_dependency_depth": 10,
+              "size_warning_threshold_kb": 500,
+              "task_count_warning_threshold": 500
+            },
+            "description": "Queue-related configuration."
+          },
+          "version": {
+            "default": 1,
+            "description": "Schema version for config.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "GitRevertMode": {
+        "description": "Git revert mode for handling runner/supervision errors.",
+        "enum": [
+          "ask",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "LoopConfig": {
+        "additionalProperties": false,
+        "description": "Run loop waiting configuration for daemon/continuous mode.",
+        "properties": {
+          "empty_poll_ms": {
+            "default": null,
+            "description": "Poll interval in milliseconds while waiting for new tasks when queue is empty.\nDefault: 30000 (30 seconds). Minimum: 50.",
+            "format": "uint64",
+            "minimum": 50,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notify_when_unblocked": {
+            "default": null,
+            "description": "Send notification when queue transitions from blocked to runnable.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "wait_poll_ms": {
+            "default": null,
+            "description": "Poll interval in milliseconds while waiting for blocked tasks to become runnable.\nDefault: 1000 (1 second). Minimum: 50.",
+            "format": "uint64",
+            "minimum": 50,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "wait_timeout_seconds": {
+            "default": null,
+            "description": "Timeout in seconds for waiting (0 = no timeout).",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "wait_when_blocked": {
+            "default": null,
+            "description": "Wait when blocked by dependencies/schedule instead of exiting.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "wait_when_empty": {
+            "default": null,
+            "description": "Wait when queue is empty instead of exiting (continuous/daemon mode).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "MachineQueuePaths": {
+        "additionalProperties": false,
+        "properties": {
+          "done_path": {
+            "type": "string"
+          },
+          "global_config_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_config_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queue_path": {
+            "type": "string"
+          },
+          "repo_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_root",
+          "queue_path",
+          "done_path"
+        ],
+        "type": "object"
+      },
+      "Model": {
+        "oneOf": [
+          {
+            "const": "gpt-5.4",
+            "description": "OpenAI GPT-5.4 (default Codex model)",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3-codex",
+            "description": "OpenAI GPT-5.3 Codex",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3-codex-spark",
+            "description": "OpenAI GPT-5.3 Codex Spark (fast)",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3",
+            "description": "OpenAI GPT-5.3",
+            "type": "string"
+          },
+          {
+            "const": "zai-coding-plan/glm-4.7",
+            "description": "ZhipuAI GLM-4.7",
+            "type": "string"
+          },
+          {
+            "description": "Custom model identifier",
+            "minLength": 1,
+            "type": "string"
+          }
+        ]
+      },
+      "NotificationConfig": {
+        "additionalProperties": false,
+        "description": "Desktop notification configuration.",
+        "properties": {
+          "enabled": {
+            "default": null,
+            "description": "Enable desktop notifications on task completion (default: true).\nThis is the legacy/compatibility field; prefer `notify_on_complete`.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "notify_on_complete": {
+            "default": null,
+            "description": "Enable desktop notifications on task completion (default: true).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "notify_on_fail": {
+            "default": null,
+            "description": "Enable desktop notifications on task failure (default: true).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "notify_on_loop_complete": {
+            "default": null,
+            "description": "Enable desktop notifications when loop mode completes (default: true).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sound_enabled": {
+            "default": null,
+            "description": "Enable sound alerts with notifications (default: false).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sound_path": {
+            "default": null,
+            "description": "Custom sound file path (platform-specific format).\nIf not set, uses platform default sounds.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suppress_when_active": {
+            "default": null,
+            "description": "Suppress notifications when a foreground UI client is active (default: true).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "timeout_ms": {
+            "default": null,
+            "description": "Notification timeout in milliseconds (default: 8000).",
+            "format": "uint32",
+            "maximum": 60000,
+            "minimum": 1000,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ParallelConfig": {
+        "additionalProperties": false,
+        "description": "Parallel run-loop configuration.",
+        "properties": {
+          "max_push_attempts": {
+            "default": null,
+            "description": "Maximum number of push attempts before giving up.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "push_backoff_ms": {
+            "default": null,
+            "description": "Backoff intervals in milliseconds for push retries.",
+            "items": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workers": {
+            "default": null,
+            "description": "Number of workers to run concurrently when parallel mode is enabled.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 2,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workspace_retention_hours": {
+            "default": null,
+            "description": "Hours to retain blocked workspaces before cleanup.",
+            "format": "uint32",
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workspace_root": {
+            "default": null,
+            "description": "Root directory for parallel workspaces (relative to repo root if not absolute).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "PhaseOverrideConfig": {
+        "additionalProperties": false,
+        "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging:\n- `Some(value)` overrides the parent config\n- `None` means \"inherit from parent\"",
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Model"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model to use for this phase (overrides global agent.model)"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reasoning effort for this phase (overrides global agent.reasoning_effort)"
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Runner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Runner to use for this phase (overrides global agent.runner)"
+          }
+        },
+        "type": "object"
+      },
+      "PhaseOverrides": {
+        "additionalProperties": false,
+        "description": "Phase overrides container for Phase 1/2/3 execution.\n\nPer-phase configuration for Phase 1/2/3 execution.\n\nInvariants/assumptions:\n- Overrides are defined per phase only; there is no shared `defaults` layer inside\n  `agent.phase_overrides`. Use global `agent.runner` / `agent.model` /\n  `agent.reasoning_effort` for shared defaults.\n- Merging is leaf-wise: `Some(value)` overrides, `None` inherits.",
+        "properties": {
+          "phase1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 1 specific overrides"
+          },
+          "phase2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 2 specific overrides"
+          },
+          "phase3": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 3 specific overrides"
+          }
+        },
+        "type": "object"
+      },
+      "PluginConfig": {
+        "additionalProperties": false,
+        "description": "Per-plugin configuration.",
+        "properties": {
+          "config": {
+            "default": null,
+            "description": "Opaque plugin configuration blob (passed through to the plugin)."
+          },
+          "enabled": {
+            "default": null,
+            "description": "Enable/disable the plugin. If None, defaults to disabled.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "PluginsConfig": {
+        "additionalProperties": false,
+        "description": "Plugin configuration container.",
+        "properties": {
+          "plugins": {
+            "additionalProperties": {
+              "$ref": "#/$defs/PluginConfig"
+            },
+            "default": {},
+            "description": "Per-plugin configuration keyed by plugin id.",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectType": {
+        "description": "Project type classification.",
+        "enum": [
+          "code",
+          "docs"
+        ],
+        "type": "string"
+      },
+      "QueueAgingThresholds": {
+        "additionalProperties": false,
+        "description": "Aging threshold configuration for `ralph queue aging`.\n\nControls the day thresholds for categorizing tasks by age.\nOrdering invariant: warning_days < stale_days < rotten_days",
+        "properties": {
+          "rotten_days": {
+            "default": null,
+            "description": "Mark as rotten when age is strictly greater than this many days.",
+            "format": "uint32",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stale_days": {
+            "default": null,
+            "description": "Mark as stale when age is strictly greater than this many days.",
+            "format": "uint32",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "warning_days": {
+            "default": null,
+            "description": "Warn when task age is strictly greater than this many days.",
+            "format": "uint32",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "QueueConfig": {
+        "additionalProperties": false,
+        "description": "Queue-related configuration.",
+        "properties": {
+          "aging_thresholds": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/QueueAgingThresholds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Thresholds for `ralph queue aging` buckets.\n\nDefault: warning>7d, stale>14d, rotten>30d.\nOrdering must satisfy: warning_days < stale_days < rotten_days."
+          },
+          "auto_archive_terminal_after_days": {
+            "default": null,
+            "description": "Auto-archive terminal tasks (done/rejected) from queue to done after this many days.\n\nSemantics:\n- None: disabled (default)\n- Some(0): archive immediately when the sweep runs\n- Some(N): archive when completed_at is at least N days old\n\nThe sweep runs after selected queue mutation operations (e.g., task edits and run supervision).\nTasks with missing or invalid completed_at timestamps are not moved when N > 0.",
+            "format": "uint32",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "done_file": {
+            "default": null,
+            "description": "Path to the JSON done archive file, relative to repo root.\n\nPaths are intended to be repo-root relative. Parallel mode requires the\nresolved path to be under the repo root (no `..`) so it can be copied\ninto workspace clones.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file": {
+            "default": null,
+            "description": "Path to the JSON queue file, relative to repo root.\n\nPaths are intended to be repo-root relative. Parallel mode requires the\nresolved path to be under the repo root (no `..`) so it can be copied\ninto workspace clones.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id_prefix": {
+            "default": null,
+            "description": "ID prefix (default: \"RQ\").",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id_width": {
+            "default": null,
+            "description": "Zero pad width for the numeric suffix (default: 4 -> RQ-0001).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_dependency_depth": {
+            "default": null,
+            "description": "Maximum allowed dependency chain depth before warning (default: 10).",
+            "format": "uint8",
+            "maximum": 100,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "size_warning_threshold_kb": {
+            "default": null,
+            "description": "Warning threshold for queue file size in KB (default: 500).",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 100,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "task_count_warning_threshold": {
+            "default": null,
+            "description": "Warning threshold for number of tasks in queue (default: 500).",
+            "format": "uint32",
+            "maximum": 5000,
+            "minimum": 50,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ReasoningEffort": {
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "type": "string"
+      },
+      "Runner": {
+        "description": "Runner id (built-ins: codex, opencode, gemini, cursor, claude, kimi, pi; plugin runners: any other non-empty string)",
+        "examples": [
+          "claude",
+          "acme.super_runner"
+        ],
+        "type": "string"
+      },
+      "RunnerApprovalMode": {
+        "oneOf": [
+          {
+            "const": "default",
+            "description": "Do not apply any approval flags; runner defaults apply.",
+            "type": "string"
+          },
+          {
+            "const": "auto_edits",
+            "description": "Attempt to auto-approve edits but not all tool actions (runner-specific).",
+            "type": "string"
+          },
+          {
+            "const": "yolo",
+            "description": "Bypass approvals / run headless (runner-specific).",
+            "type": "string"
+          },
+          {
+            "const": "safe",
+            "description": "Strict safety mode. Warning: some runners may become interactive and hang.",
+            "type": "string"
+          }
+        ]
+      },
+      "RunnerCliConfigRoot": {
+        "additionalProperties": false,
+        "properties": {
+          "defaults": {
+            "$ref": "#/$defs/RunnerCliOptionsPatch",
+            "default": {
+              "approval_mode": null,
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": null,
+              "unsupported_option_policy": null,
+              "verbosity": null
+            },
+            "description": "Default normalized runner CLI options applied to all runners (unless overridden)."
+          },
+          "runners": {
+            "additionalProperties": {
+              "$ref": "#/$defs/RunnerCliOptionsPatch"
+            },
+            "default": {},
+            "description": "Optional per-runner overrides, merged leaf-wise over `defaults`.",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "RunnerCliOptionsPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerApprovalMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired approval/permission behavior."
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerOutputFormat"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired output format for runner execution."
+          },
+          "plan_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerPlanMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired plan/read-only behavior (when supported by the runner)."
+          },
+          "sandbox": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerSandboxMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired sandbox behavior (when supported by the runner)."
+          },
+          "unsupported_option_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UnsupportedOptionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Policy for unsupported options (warn/error/ignore)."
+          },
+          "verbosity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerVerbosity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired verbosity (when supported by the runner)."
+          }
+        },
+        "type": "object"
+      },
+      "RunnerOutputFormat": {
+        "oneOf": [
+          {
+            "const": "stream_json",
+            "description": "Newline-delimited JSON objects (required for Ralph's streaming parser).",
+            "type": "string"
+          },
+          {
+            "const": "json",
+            "description": "JSON output (may not be streaming; currently treated as unsupported by Ralph execution).",
+            "type": "string"
+          },
+          {
+            "const": "text",
+            "description": "Plain text output (currently treated as unsupported by Ralph execution).",
+            "type": "string"
+          }
+        ]
+      },
+      "RunnerPlanMode": {
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "RunnerRetryConfig": {
+        "additionalProperties": false,
+        "description": "Runner retry/backoff configuration for transient failure handling.\n\nControls automatic retry behavior when runner invocations fail with\ntransient errors (rate limits, temporary unavailability, network issues).\nDistinct from webhook retry settings (`agent.webhook.retry_*`).",
+        "properties": {
+          "base_backoff_ms": {
+            "default": null,
+            "description": "Base backoff in milliseconds. Default: 1000.",
+            "format": "uint32",
+            "maximum": 600000,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "jitter_ratio": {
+            "default": null,
+            "description": "Jitter ratio in \\[0,1\\]. Default: 0.2 (20% variance).",
+            "format": "double",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "max_attempts": {
+            "default": null,
+            "description": "Total attempts (including initial). Default: 3.",
+            "format": "uint32",
+            "maximum": 20,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_backoff_ms": {
+            "default": null,
+            "description": "Max backoff cap in milliseconds. Default: 30000.",
+            "format": "uint32",
+            "maximum": 600000,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "multiplier": {
+            "default": null,
+            "description": "Exponential multiplier. Default: 2.0.",
+            "format": "double",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "RunnerSandboxMode": {
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "RunnerVerbosity": {
+        "enum": [
+          "quiet",
+          "normal",
+          "verbose"
+        ],
+        "type": "string"
+      },
+      "ScanPromptVersion": {
+        "description": "Scan prompt version to use for scan operations.",
+        "oneOf": [
+          {
+            "const": "v1",
+            "description": "Version 1: Original rule-based scan prompts with fixed minimum task counts.",
+            "type": "string"
+          },
+          {
+            "const": "v2",
+            "description": "Version 2: Rubric-based scan prompts with quality-focused STOP CONDITION (default).",
+            "type": "string"
+          }
+        ]
+      },
+      "UnsupportedOptionPolicy": {
+        "enum": [
+          "ignore",
+          "warn",
+          "error"
+        ],
+        "type": "string"
+      },
+      "WebhookConfig": {
+        "additionalProperties": false,
+        "description": "Webhook configuration for HTTP task event notifications.",
+        "properties": {
+          "enabled": {
+            "default": null,
+            "description": "Enable webhook notifications (default: false).",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "events": {
+            "default": null,
+            "description": "Events to subscribe to (default: legacy task events only).",
+            "items": {
+              "$ref": "#/$defs/WebhookEventSubscription"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "parallel_queue_multiplier": {
+            "default": null,
+            "description": "Multiplier for queue capacity in parallel mode (default: 2.0, range: 1.0-10.0).\nWhen running with N parallel workers, effective capacity = queue_capacity * max(1, workers * multiplier).\nSet higher (e.g., 3.0) if webhook endpoint is slow or unreliable.",
+            "format": "float",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "queue_capacity": {
+            "default": null,
+            "description": "Maximum number of pending webhooks in the delivery queue (default: 500, range: 10-10000).",
+            "format": "uint32",
+            "maximum": 10000,
+            "minimum": 10,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "queue_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WebhookQueuePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Backpressure policy when queue is full (default: drop_oldest).\n- drop_oldest: Drop new webhooks when full (preserves existing queue contents)\n- drop_new: Drop the new webhook if queue is full\n- block_with_timeout: Block sender briefly (100ms), then drop if still full"
+          },
+          "retry_backoff_ms": {
+            "default": null,
+            "description": "Retry backoff base in milliseconds (default: 1000, max: 30000).",
+            "format": "uint32",
+            "maximum": 30000,
+            "minimum": 100,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "retry_count": {
+            "default": null,
+            "description": "Number of retry attempts for failed deliveries (default: 3, max: 10).",
+            "format": "uint32",
+            "maximum": 10,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "secret": {
+            "default": null,
+            "description": "Secret key for HMAC-SHA256 signature generation.\nWhen set, webhooks include an X-Ralph-Signature header.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Request timeout in seconds (default: 30, max: 300).",
+            "format": "uint32",
+            "maximum": 300,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "url": {
+            "default": null,
+            "description": "Webhook endpoint URL (required when enabled).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "WebhookEventSubscription": {
+        "description": "Webhook event subscription type for config.\nEach variant corresponds to a WebhookEventType, plus Wildcard for \"all events\".",
+        "oneOf": [
+          {
+            "const": "task_created",
+            "description": "Task was created/added to queue.",
+            "type": "string"
+          },
+          {
+            "const": "task_started",
+            "description": "Task status changed to Doing (execution started).",
+            "type": "string"
+          },
+          {
+            "const": "task_completed",
+            "description": "Task completed successfully (status Done).",
+            "type": "string"
+          },
+          {
+            "const": "task_failed",
+            "description": "Task failed or was rejected.",
+            "type": "string"
+          },
+          {
+            "const": "task_status_changed",
+            "description": "Generic status change.",
+            "type": "string"
+          },
+          {
+            "const": "loop_started",
+            "description": "Run loop started.",
+            "type": "string"
+          },
+          {
+            "const": "loop_stopped",
+            "description": "Run loop stopped.",
+            "type": "string"
+          },
+          {
+            "const": "phase_started",
+            "description": "Phase started for a task.",
+            "type": "string"
+          },
+          {
+            "const": "phase_completed",
+            "description": "Phase completed for a task.",
+            "type": "string"
+          },
+          {
+            "const": "queue_unblocked",
+            "description": "Queue became unblocked.",
+            "type": "string"
+          },
+          {
+            "const": "*",
+            "description": "Wildcard: subscribe to all events.",
+            "type": "string"
+          }
+        ]
+      },
+      "WebhookQueuePolicy": {
+        "description": "Backpressure policy for webhook delivery queue.",
+        "oneOf": [
+          {
+            "const": "drop_oldest",
+            "description": "Drop new webhooks when queue is full, preserving existing queue contents.\nThis is functionally equivalent to `drop_new` due to channel constraints.",
+            "type": "string"
+          },
+          {
+            "const": "drop_new",
+            "description": "Drop the new webhook if queue is full.",
+            "type": "string"
+          },
+          {
+            "const": "block_with_timeout",
+            "description": "Block sender briefly, then drop if queue is still full.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "config": {
+        "$ref": "#/$defs/Config"
+      },
+      "paths": {
+        "$ref": "#/$defs/MachineQueuePaths"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "paths",
+      "config"
+    ],
+    "title": "MachineConfigResolveDocument",
+    "type": "object"
+  },
+  "dashboard_read": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "dashboard": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "dashboard"
+    ],
+    "title": "MachineDashboardReadDocument",
+    "type": "object"
+  },
+  "decompose": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "result": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "result"
+    ],
+    "title": "MachineDecomposeDocument",
+    "type": "object"
+  },
+  "doctor_report": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "report": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "report"
+    ],
+    "title": "MachineDoctorReportDocument",
+    "type": "object"
+  },
+  "graph_read": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "graph": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "graph"
+    ],
+    "title": "MachineGraphReadDocument",
+    "type": "object"
+  },
+  "parallel_status": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "status": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "status"
+    ],
+    "title": "MachineParallelStatusDocument",
+    "type": "object"
+  },
+  "queue_read": {
+    "$defs": {
+      "MachineQueuePaths": {
+        "additionalProperties": false,
+        "properties": {
+          "done_path": {
+            "type": "string"
+          },
+          "global_config_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_config_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queue_path": {
+            "type": "string"
+          },
+          "repo_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_root",
+          "queue_path",
+          "done_path"
+        ],
+        "type": "object"
+      },
+      "Model": {
+        "oneOf": [
+          {
+            "const": "gpt-5.4",
+            "description": "OpenAI GPT-5.4 (default Codex model)",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3-codex",
+            "description": "OpenAI GPT-5.3 Codex",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3-codex-spark",
+            "description": "OpenAI GPT-5.3 Codex Spark (fast)",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3",
+            "description": "OpenAI GPT-5.3",
+            "type": "string"
+          },
+          {
+            "const": "zai-coding-plan/glm-4.7",
+            "description": "ZhipuAI GLM-4.7",
+            "type": "string"
+          },
+          {
+            "description": "Custom model identifier",
+            "minLength": 1,
+            "type": "string"
+          }
+        ]
+      },
+      "PhaseOverrideConfig": {
+        "additionalProperties": false,
+        "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging:\n- `Some(value)` overrides the parent config\n- `None` means \"inherit from parent\"",
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Model"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model to use for this phase (overrides global agent.model)"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reasoning effort for this phase (overrides global agent.reasoning_effort)"
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Runner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Runner to use for this phase (overrides global agent.runner)"
+          }
+        },
+        "type": "object"
+      },
+      "PhaseOverrides": {
+        "additionalProperties": false,
+        "description": "Phase overrides container for Phase 1/2/3 execution.\n\nPer-phase configuration for Phase 1/2/3 execution.\n\nInvariants/assumptions:\n- Overrides are defined per phase only; there is no shared `defaults` layer inside\n  `agent.phase_overrides`. Use global `agent.runner` / `agent.model` /\n  `agent.reasoning_effort` for shared defaults.\n- Merging is leaf-wise: `Some(value)` overrides, `None` inherits.",
+        "properties": {
+          "phase1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 1 specific overrides"
+          },
+          "phase2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 2 specific overrides"
+          },
+          "phase3": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 3 specific overrides"
+          }
+        },
+        "type": "object"
+      },
+      "QueueFile": {
+        "additionalProperties": false,
+        "properties": {
+          "tasks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Task"
+            },
+            "type": "array"
+          },
+          "version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
+      "ReasoningEffort": {
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "type": "string"
+      },
+      "Runner": {
+        "description": "Runner id (built-ins: codex, opencode, gemini, cursor, claude, kimi, pi; plugin runners: any other non-empty string)",
+        "examples": [
+          "claude",
+          "acme.super_runner"
+        ],
+        "type": "string"
+      },
+      "RunnerApprovalMode": {
+        "oneOf": [
+          {
+            "const": "default",
+            "description": "Do not apply any approval flags; runner defaults apply.",
+            "type": "string"
+          },
+          {
+            "const": "auto_edits",
+            "description": "Attempt to auto-approve edits but not all tool actions (runner-specific).",
+            "type": "string"
+          },
+          {
+            "const": "yolo",
+            "description": "Bypass approvals / run headless (runner-specific).",
+            "type": "string"
+          },
+          {
+            "const": "safe",
+            "description": "Strict safety mode. Warning: some runners may become interactive and hang.",
+            "type": "string"
+          }
+        ]
+      },
+      "RunnerCliOptionsPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerApprovalMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired approval/permission behavior."
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerOutputFormat"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired output format for runner execution."
+          },
+          "plan_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerPlanMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired plan/read-only behavior (when supported by the runner)."
+          },
+          "sandbox": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerSandboxMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired sandbox behavior (when supported by the runner)."
+          },
+          "unsupported_option_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UnsupportedOptionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Policy for unsupported options (warn/error/ignore)."
+          },
+          "verbosity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerVerbosity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired verbosity (when supported by the runner)."
+          }
+        },
+        "type": "object"
+      },
+      "RunnerOutputFormat": {
+        "oneOf": [
+          {
+            "const": "stream_json",
+            "description": "Newline-delimited JSON objects (required for Ralph's streaming parser).",
+            "type": "string"
+          },
+          {
+            "const": "json",
+            "description": "JSON output (may not be streaming; currently treated as unsupported by Ralph execution).",
+            "type": "string"
+          },
+          {
+            "const": "text",
+            "description": "Plain text output (currently treated as unsupported by Ralph execution).",
+            "type": "string"
+          }
+        ]
+      },
+      "RunnerPlanMode": {
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "RunnerSandboxMode": {
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "RunnerVerbosity": {
+        "enum": [
+          "quiet",
+          "normal",
+          "verbose"
+        ],
+        "type": "string"
+      },
+      "Task": {
+        "additionalProperties": false,
+        "properties": {
+          "actual_minutes": {
+            "description": "Actual time spent on this task in minutes.\nOptional; set manually or computed from started_at to completed_at.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional per-task agent override (runner/model/model_effort/phases/iterations/phase_overrides)."
+          },
+          "blocks": {
+            "default": [],
+            "description": "Task IDs that this task blocks (must be Done/Rejected before blocked tasks can run).\nSemantically different from depends_on: blocks is \"I prevent X\" vs depends_on \"I need X\".",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "description": "RFC3339 UTC timestamps as strings to keep the contract tool-agnostic.",
+            "type": "string"
+          },
+          "custom_fields": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "default": {},
+            "description": "Custom user-defined fields (key-value pairs for extensibility).\nValues may be written as string/number/boolean; Ralph coerces them to strings when loading.",
+            "type": "object"
+          },
+          "depends_on": {
+            "default": [],
+            "description": "Task IDs that this task depends on (must be Done or Rejected before this task can run).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "description": "Detailed description of the task's context, goal, purpose, and desired outcome.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duplicates": {
+            "description": "Task ID that this task duplicates (if any).\nSingular reference, not a list.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "estimated_minutes": {
+            "description": "Estimated time to complete this task in minutes.\nOptional; used for planning and estimation accuracy tracking.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "notes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "parent_id": {
+            "description": "Parent task ID if this is a subtask (child-to-parent reference).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "priority": {
+            "$ref": "#/$defs/TaskPriority",
+            "default": "medium"
+          },
+          "relates_to": {
+            "default": [],
+            "description": "Task IDs that this task relates to (loose coupling, no execution constraint).\nBidirectional awareness but no execution constraint.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "request": {
+            "description": "Original human request that created the task (Task Builder / Scan).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scheduled_start": {
+            "description": "RFC3339 timestamp when the task should become runnable (optional scheduling).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "started_at": {
+            "description": "RFC3339 UTC timestamp when work on this task actually started.\n\nInvariants:\n- Must be RFC3339 UTC (Z) if set.\n- Should be set when transitioning into `doing` (see status policy).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/TaskStatus",
+            "default": "todo"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "TaskAgent": {
+        "additionalProperties": false,
+        "properties": {
+          "followup_reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reasoning effort override for follow-up iterations (iterations > 1)."
+          },
+          "iterations": {
+            "description": "Number of iterations to run for this task (overrides config).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Model"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model_effort": {
+            "default": "default",
+            "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+            "enum": [
+              "default",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "type": "string"
+          },
+          "phase_overrides": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrides"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional per-phase runner/model/effort overrides for this task."
+          },
+          "phases": {
+            "description": "Number of execution phases for this task (1, 2, or 3), overriding config defaults.",
+            "format": "uint8",
+            "maximum": 3,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Runner"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runner_cli": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerCliOptionsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional normalized runner CLI overrides for this task.\n\nThis is intended to express runner behavior intent (output/approval/sandbox/etc)\nwithout embedding runner-specific flag syntax into the queue."
+          }
+        },
+        "type": "object"
+      },
+      "TaskPriority": {
+        "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low"
+        ],
+        "type": "string"
+      },
+      "TaskStatus": {
+        "enum": [
+          "draft",
+          "todo",
+          "doing",
+          "done",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "UnsupportedOptionPolicy": {
+        "enum": [
+          "ignore",
+          "warn",
+          "error"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "active": {
+        "$ref": "#/$defs/QueueFile"
+      },
+      "done": {
+        "$ref": "#/$defs/QueueFile"
+      },
+      "next_runnable_task_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "paths": {
+        "$ref": "#/$defs/MachineQueuePaths"
+      },
+      "runnability": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "paths",
+      "active",
+      "done",
+      "runnability"
+    ],
+    "title": "MachineQueueReadDocument",
+    "type": "object"
+  },
+  "run_event": {
+    "$defs": {
+      "MachineRunEventKind": {
+        "enum": [
+          "run_started",
+          "queue_snapshot",
+          "config_resolved",
+          "task_selected",
+          "phase_entered",
+          "phase_completed",
+          "runner_output",
+          "warning",
+          "run_finished"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "exit_code": {
+        "format": "int32",
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "kind": {
+        "$ref": "#/$defs/MachineRunEventKind"
+      },
+      "message": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "payload": true,
+      "phase": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "run_mode": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "stream": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "task_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "timestamp": {
+        "type": "string"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "kind",
+      "timestamp",
+      "payload"
+    ],
+    "title": "MachineRunEventEnvelope",
+    "type": "object"
+  },
+  "run_summary": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "exit_code": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "outcome": {
+        "type": "string"
+      },
+      "task_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "exit_code",
+      "outcome"
+    ],
+    "title": "MachineRunSummaryDocument",
+    "type": "object"
+  },
+  "system_info": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "cli_version": {
+        "type": "string"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "cli_version"
+    ],
+    "title": "MachineSystemInfoDocument",
+    "type": "object"
+  },
+  "task_create": {
+    "$defs": {
+      "Model": {
+        "oneOf": [
+          {
+            "const": "gpt-5.4",
+            "description": "OpenAI GPT-5.4 (default Codex model)",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3-codex",
+            "description": "OpenAI GPT-5.3 Codex",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3-codex-spark",
+            "description": "OpenAI GPT-5.3 Codex Spark (fast)",
+            "type": "string"
+          },
+          {
+            "const": "gpt-5.3",
+            "description": "OpenAI GPT-5.3",
+            "type": "string"
+          },
+          {
+            "const": "zai-coding-plan/glm-4.7",
+            "description": "ZhipuAI GLM-4.7",
+            "type": "string"
+          },
+          {
+            "description": "Custom model identifier",
+            "minLength": 1,
+            "type": "string"
+          }
+        ]
+      },
+      "PhaseOverrideConfig": {
+        "additionalProperties": false,
+        "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging:\n- `Some(value)` overrides the parent config\n- `None` means \"inherit from parent\"",
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Model"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model to use for this phase (overrides global agent.model)"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reasoning effort for this phase (overrides global agent.reasoning_effort)"
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Runner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Runner to use for this phase (overrides global agent.runner)"
+          }
+        },
+        "type": "object"
+      },
+      "PhaseOverrides": {
+        "additionalProperties": false,
+        "description": "Phase overrides container for Phase 1/2/3 execution.\n\nPer-phase configuration for Phase 1/2/3 execution.\n\nInvariants/assumptions:\n- Overrides are defined per phase only; there is no shared `defaults` layer inside\n  `agent.phase_overrides`. Use global `agent.runner` / `agent.model` /\n  `agent.reasoning_effort` for shared defaults.\n- Merging is leaf-wise: `Some(value)` overrides, `None` inherits.",
+        "properties": {
+          "phase1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 1 specific overrides"
+          },
+          "phase2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 2 specific overrides"
+          },
+          "phase3": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrideConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 3 specific overrides"
+          }
+        },
+        "type": "object"
+      },
+      "ReasoningEffort": {
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "type": "string"
+      },
+      "Runner": {
+        "description": "Runner id (built-ins: codex, opencode, gemini, cursor, claude, kimi, pi; plugin runners: any other non-empty string)",
+        "examples": [
+          "claude",
+          "acme.super_runner"
+        ],
+        "type": "string"
+      },
+      "RunnerApprovalMode": {
+        "oneOf": [
+          {
+            "const": "default",
+            "description": "Do not apply any approval flags; runner defaults apply.",
+            "type": "string"
+          },
+          {
+            "const": "auto_edits",
+            "description": "Attempt to auto-approve edits but not all tool actions (runner-specific).",
+            "type": "string"
+          },
+          {
+            "const": "yolo",
+            "description": "Bypass approvals / run headless (runner-specific).",
+            "type": "string"
+          },
+          {
+            "const": "safe",
+            "description": "Strict safety mode. Warning: some runners may become interactive and hang.",
+            "type": "string"
+          }
+        ]
+      },
+      "RunnerCliOptionsPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerApprovalMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired approval/permission behavior."
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerOutputFormat"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired output format for runner execution."
+          },
+          "plan_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerPlanMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired plan/read-only behavior (when supported by the runner)."
+          },
+          "sandbox": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerSandboxMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired sandbox behavior (when supported by the runner)."
+          },
+          "unsupported_option_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UnsupportedOptionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Policy for unsupported options (warn/error/ignore)."
+          },
+          "verbosity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerVerbosity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Desired verbosity (when supported by the runner)."
+          }
+        },
+        "type": "object"
+      },
+      "RunnerOutputFormat": {
+        "oneOf": [
+          {
+            "const": "stream_json",
+            "description": "Newline-delimited JSON objects (required for Ralph's streaming parser).",
+            "type": "string"
+          },
+          {
+            "const": "json",
+            "description": "JSON output (may not be streaming; currently treated as unsupported by Ralph execution).",
+            "type": "string"
+          },
+          {
+            "const": "text",
+            "description": "Plain text output (currently treated as unsupported by Ralph execution).",
+            "type": "string"
+          }
+        ]
+      },
+      "RunnerPlanMode": {
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "RunnerSandboxMode": {
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "RunnerVerbosity": {
+        "enum": [
+          "quiet",
+          "normal",
+          "verbose"
+        ],
+        "type": "string"
+      },
+      "Task": {
+        "additionalProperties": false,
+        "properties": {
+          "actual_minutes": {
+            "description": "Actual time spent on this task in minutes.\nOptional; set manually or computed from started_at to completed_at.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskAgent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional per-task agent override (runner/model/model_effort/phases/iterations/phase_overrides)."
+          },
+          "blocks": {
+            "default": [],
+            "description": "Task IDs that this task blocks (must be Done/Rejected before blocked tasks can run).\nSemantically different from depends_on: blocks is \"I prevent X\" vs depends_on \"I need X\".",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "description": "RFC3339 UTC timestamps as strings to keep the contract tool-agnostic.",
+            "type": "string"
+          },
+          "custom_fields": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "default": {},
+            "description": "Custom user-defined fields (key-value pairs for extensibility).\nValues may be written as string/number/boolean; Ralph coerces them to strings when loading.",
+            "type": "object"
+          },
+          "depends_on": {
+            "default": [],
+            "description": "Task IDs that this task depends on (must be Done or Rejected before this task can run).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "description": "Detailed description of the task's context, goal, purpose, and desired outcome.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duplicates": {
+            "description": "Task ID that this task duplicates (if any).\nSingular reference, not a list.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "estimated_minutes": {
+            "description": "Estimated time to complete this task in minutes.\nOptional; used for planning and estimation accuracy tracking.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "notes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "parent_id": {
+            "description": "Parent task ID if this is a subtask (child-to-parent reference).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "priority": {
+            "$ref": "#/$defs/TaskPriority",
+            "default": "medium"
+          },
+          "relates_to": {
+            "default": [],
+            "description": "Task IDs that this task relates to (loose coupling, no execution constraint).\nBidirectional awareness but no execution constraint.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "request": {
+            "description": "Original human request that created the task (Task Builder / Scan).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scheduled_start": {
+            "description": "RFC3339 timestamp when the task should become runnable (optional scheduling).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "started_at": {
+            "description": "RFC3339 UTC timestamp when work on this task actually started.\n\nInvariants:\n- Must be RFC3339 UTC (Z) if set.\n- Should be set when transitioning into `doing` (see status policy).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/TaskStatus",
+            "default": "todo"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "TaskAgent": {
+        "additionalProperties": false,
+        "properties": {
+          "followup_reasoning_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reasoning effort override for follow-up iterations (iterations > 1)."
+          },
+          "iterations": {
+            "description": "Number of iterations to run for this task (overrides config).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Model"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model_effort": {
+            "default": "default",
+            "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+            "enum": [
+              "default",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "type": "string"
+          },
+          "phase_overrides": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PhaseOverrides"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional per-phase runner/model/effort overrides for this task."
+          },
+          "phases": {
+            "description": "Number of execution phases for this task (1, 2, or 3), overriding config defaults.",
+            "format": "uint8",
+            "maximum": 3,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Runner"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runner_cli": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RunnerCliOptionsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional normalized runner CLI overrides for this task.\n\nThis is intended to express runner behavior intent (output/approval/sandbox/etc)\nwithout embedding runner-specific flag syntax into the queue."
+          }
+        },
+        "type": "object"
+      },
+      "TaskPriority": {
+        "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low"
+        ],
+        "type": "string"
+      },
+      "TaskStatus": {
+        "enum": [
+          "draft",
+          "todo",
+          "doing",
+          "done",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "UnsupportedOptionPolicy": {
+        "enum": [
+          "ignore",
+          "warn",
+          "error"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "task": {
+        "$ref": "#/$defs/Task"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "task"
+    ],
+    "title": "MachineTaskCreateDocument",
+    "type": "object"
+  },
+  "task_create_request": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "priority": {
+        "type": "string"
+      },
+      "scope": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "tags": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "target": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "template": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "title": {
+        "type": "string"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "title",
+      "priority"
+    ],
+    "title": "MachineTaskCreateRequest",
+    "type": "object"
+  },
+  "task_mutation": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "report": true,
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "report"
+    ],
+    "title": "MachineTaskMutationDocument",
+    "type": "object"
+  }
+}

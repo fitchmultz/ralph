@@ -2,7 +2,7 @@
  RalphTaskModels
 
  Responsibilities:
- - Define task, agent-override, and queue-document models shared across the app.
+ - Define task, agent-override, queue-document, and queue machine-document models shared across the app.
  - Normalize task-level execution overrides into canonical forms.
 
  Does not handle:
@@ -415,6 +415,24 @@ public struct RalphTaskQueueDocument: Codable, Sendable, Equatable {
                 debugDescription: "Expected queue document object with tasks key"
             )
         )
+    }
+}
+
+public struct MachineQueueReadDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let paths: MachineQueuePaths
+    public let active: RalphTaskQueueDocument
+    public let done: RalphTaskQueueDocument
+    public let nextRunnableTaskID: String?
+    public let runnability: RalphJSONValue
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case paths
+        case active
+        case done
+        case nextRunnableTaskID = "next_runnable_task_id"
+        case runnability
     }
 }
 

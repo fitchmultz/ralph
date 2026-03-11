@@ -17,6 +17,7 @@ These are available on most commands:
 ## Top-Level Commands
 
 - `ralph queue` - Inspect and manage queue/done files
+- `ralph machine` - Versioned machine-facing JSON API for the macOS app and automation
 - `ralph config` - Show resolved config, schema, paths, profiles
 - `ralph run` - Execute tasks (`one`, `loop`, `resume`, `parallel`)
 - `ralph task` - Build/create and manage task lifecycle
@@ -111,6 +112,17 @@ ralph doctor
 ralph runner list
 ralph runner capabilities claude
 ralph config show --format json
+```
+
+### Machine API
+
+```bash
+ralph machine system info
+ralph machine queue read
+ralph machine config resolve
+ralph machine task mutate --input request.json
+ralph machine run one --id RQ-0001
+ralph machine schema
 ```
 
 ### Parallel Supervision

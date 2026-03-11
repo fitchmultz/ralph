@@ -151,12 +151,13 @@ private extension Workspace {
     }
 
     func loadDashboard(client: RalphCLIClient, days: Int) async throws -> DashboardReport {
-        try await self.decodeRepositoryJSON(
-            DashboardReport.self,
+        let document = try await self.decodeMachineRepositoryJSON(
+            MachineDashboardReadDocument.self,
             client: client,
-            arguments: ["--no-color", "queue", "dashboard", "--days", String(days)],
+            machineArguments: ["queue", "dashboard", "--days", String(days)],
             currentDirectoryURL: identityState.workingDirectoryURL,
             retryConfiguration: .minimal
         )
+        return document.dashboard
     }
 }

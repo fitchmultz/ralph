@@ -1,7 +1,7 @@
 //! Workspace+CLISpec
 //!
 //! Responsibilities:
-//! - Load the CLI spec document for Advanced Runner.
+//! - Load the machine CLI spec document for Advanced Runner.
 //! - Flatten command trees for display and selection.
 //! - Build argv arrays from the workspace's advanced-runner UI state.
 //!
@@ -11,7 +11,7 @@
 //! - Task mutations.
 //!
 //! Invariants/assumptions callers must respect:
-//! - The CLI spec remains the source of truth for command and arg structure.
+//! - The machine CLI spec remains the source of truth for command and arg structure.
 //! - Hidden commands and args are filtered app-side only for presentation.
 //! - Argument building honors single-value versus multi-value inputs.
 
@@ -50,17 +50,17 @@ public extension Workspace {
                 commandState.cliSpecErrorMessage = "CLI client not available."
             },
             load: { [self] client, workingDirectoryURL, retryConfiguration, onRetry in
-                try await self.decodeRepositoryJSON(
-                    RalphCLISpecDocument.self,
+                try await self.decodeMachineRepositoryJSON(
+                    MachineCLISpecDocument.self,
                     client: client,
-                    arguments: ["--no-color", "__cli-spec", "--format", "json"],
+                    machineArguments: ["cli-spec"],
                     currentDirectoryURL: workingDirectoryURL,
                     retryConfiguration: retryConfiguration,
                     onRetry: onRetry
                 )
             },
-            apply: { [commandState] cliSpec in
-                commandState.cliSpec = cliSpec
+            apply: { [commandState] document in
+                commandState.cliSpec = document.spec
             },
             handleFailure: { [commandState] recoveryError in
                 commandState.cliSpec = nil
@@ -70,9 +70,12 @@ public extension Workspace {
     }
 
     func advancedCommands() -> [RalphCLICommandSpec] {
-        guard let cliSpec = commandState.cliSpec else { return [] }
+        guard
+            let cliSpec = commandState.cliSpec,
+            let machineRoot = cliSpec.root.subcommands.first(where: { $0.name == "machine" })
+        else { return [] }
         var out: [RalphCLICommandSpec] = []
-        for sub in cliSpec.root.subcommands {
+        for sub in machineRoot.subcommands {
             collectCommands(sub, includeHidden: commandState.advancedShowHiddenCommands, into: &out)
         }
         return out

@@ -1,8 +1,7 @@
 //! WorkspaceQueueSnapshotLoader
 //!
 //! Responsibilities:
-//! - Decode Ralph queue documents away from the main actor.
-//! - Support both file-backed queue refreshes and CLI task-list JSON output refreshes.
+//! - Decode Ralph machine queue-read documents away from the main actor.
 //! - Centralize queue decoding so watcher and manual refresh paths stay consistent.
 //!
 //! Does not handle:
@@ -11,42 +10,17 @@
 //! - Any task filtering or sorting decisions.
 //!
 //! Invariants/assumptions callers must respect:
-//! - Queue files must match `RalphTaskQueueDocument`.
-//! - CLI `queue list --format json` output is a flat task array.
-//! - File URLs must point to the queue file to decode.
+//! - Queue snapshots must match `MachineQueueReadDocument`.
 //! - Results are returned to callers for main-actor publication.
 
 import Foundation
 
 enum WorkspaceQueueSnapshotLoader {
-    static func decodeQueueTasks(from data: Data) async throws -> [RalphTask] {
+    static func decodeQueueSnapshot(from data: Data) async throws -> MachineQueueReadDocument {
         try await Task.detached(priority: .userInitiated) {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            let document = try decoder.decode(RalphTaskQueueDocument.self, from: data)
-            return document.tasks
-        }.value
-    }
-
-    static func decodeQueueTasks(fromCLIOutput output: String) async throws -> [RalphTask] {
-        try await Task.detached(priority: .userInitiated) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try decoder.decode([RalphTask].self, from: Data(output.utf8))
-        }.value
-    }
-
-    static func loadQueueTasks(from queueURL: URL) async throws -> [RalphTask] {
-        try await Task.detached(priority: .userInitiated) {
-            guard FileManager.default.fileExists(atPath: queueURL.path) else {
-                throw URLError(.fileDoesNotExist)
-            }
-
-            let data = try Data(contentsOf: queueURL)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let document = try decoder.decode(RalphTaskQueueDocument.self, from: data)
-            return document.tasks
+            return try decoder.decode(MachineQueueReadDocument.self, from: data)
         }.value
     }
 }

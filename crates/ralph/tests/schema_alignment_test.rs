@@ -29,6 +29,18 @@ fn load_queue_schema() -> Value {
     serde_json::from_str(&raw).expect("queue.schema.json must be valid JSON")
 }
 
+fn load_machine_schema() -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("workspace root should exist")
+        .to_path_buf();
+    let schema_path = root.join("schemas").join("machine.schema.json");
+    let raw =
+        fs::read_to_string(&schema_path).expect("schemas/machine.schema.json should be readable");
+    serde_json::from_str(&raw).expect("machine.schema.json must be valid JSON")
+}
+
 #[test]
 fn schema_alignment_config_agent_phases_matches_runtime_validation() {
     let schema = load_config_schema();
@@ -76,4 +88,34 @@ fn schema_alignment_queue_task_timestamps_require_strings() {
 
     assert_eq!(created_at, "string", "created_at must be a string");
     assert_eq!(updated_at, "string", "updated_at must be a string");
+}
+
+#[test]
+fn schema_alignment_machine_bundle_contains_expected_documents() {
+    let schema = load_machine_schema();
+    let object = schema
+        .as_object()
+        .expect("machine schema bundle should be a JSON object");
+
+    for key in [
+        "system_info",
+        "queue_read",
+        "config_resolve",
+        "task_create_request",
+        "task_create",
+        "task_mutation",
+        "graph_read",
+        "dashboard_read",
+        "decompose",
+        "doctor_report",
+        "parallel_status",
+        "cli_spec",
+        "run_event",
+        "run_summary",
+    ] {
+        assert!(
+            object.contains_key(key),
+            "machine schema bundle missing expected document {key}"
+        );
+    }
 }

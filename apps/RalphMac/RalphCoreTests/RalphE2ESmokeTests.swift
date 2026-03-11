@@ -6,7 +6,7 @@
  - Exercise a minimal workflow in an isolated temp directory:
    - version check
    - `init --force --non-interactive`
-   - `queue list --format json`
+   - `machine queue read`
 
  Does not handle:
  - Comprehensive CLI correctness. This is intentionally a smoke test.
@@ -29,7 +29,7 @@ final class RalphE2ESmokeTests: XCTestCase {
     private static let binaryPathEnvKey = "RALPH_BIN_PATH"
     private static let commandTimeoutSeconds: TimeInterval = 30
 
-    func test_e2e_smoke_version_init_and_queueList_json() async throws {
+    func test_e2e_smoke_version_init_and_machineQueueRead_json() async throws {
         let ralphURL = try Self.resolveRalphBinaryURL()
         let client = try RalphCLIClient(executableURL: ralphURL)
 
@@ -64,14 +64,18 @@ final class RalphE2ESmokeTests: XCTestCase {
 
         let listRun = await Self.runAndCollect(
             client: client,
-            arguments: ["--no-color", "queue", "list", "--format", "json"],
+            arguments: ["--no-color", "machine", "queue", "read"],
             currentDirectoryURL: tempDir
         )
-        XCTAssertEqual(listRun.status.code, 0, "queue list stderr:\n\(listRun.stderr)")
+        XCTAssertEqual(listRun.status.code, 0, "machine queue read stderr:\n\(listRun.stderr)")
 
         let data = Data(listRun.stdout.utf8)
         let json = try JSONSerialization.jsonObject(with: data)
-        XCTAssertTrue(json is [Any], "expected JSON array, got: \(type(of: json))")
+        guard let document = json as? [String: Any] else {
+            return XCTFail("expected JSON object, got: \(type(of: json))")
+        }
+        XCTAssertNotNil(document["version"])
+        XCTAssertTrue(document["active"] is [String: Any], "expected active queue document")
     }
 
     func test_e2e_versionCompatibilityCheck() async throws {

@@ -229,6 +229,7 @@ generate: $(RALPH_RELEASE_BUILD_STAMP)
 	@mkdir -p schemas
 	@./target/release/$(BIN_NAME) config schema > schemas/config.schema.json
 	@./target/release/$(BIN_NAME) queue schema > schemas/queue.schema.json
+	@./target/release/$(BIN_NAME) machine schema > schemas/machine.schema.json
 	@echo "  ✓ Schemas generated"
 
 docs:
