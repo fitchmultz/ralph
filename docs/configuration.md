@@ -95,7 +95,8 @@ Notes:
 - Multi-phase runs (`phases >= 2`) always refresh task fields (`scope,evidence,plan,notes,tags,depends_on`) at the start of Phase 1, then generate the plan in that same Phase 1 runner session. This behavior is built in and not configurable.
 - `followup_reasoning_effort` is ignored for non-Codex runners.
 - Breaking change: `reasoning_effort` no longer accepts `minimal`; use `low`, `medium`, `high`, or `xhigh`.
-- Breaking change in `0.3`: config files must use `"version": 2`, `agent.git_publish_mode`, and the built-in reserved profiles `safe` / `power-user`. `git_commit_push_enabled` is removed.
+- Breaking change in `0.3`: config files must use `"version": 2`, `agent.git_publish_mode`, and the built-in reserved profiles `safe` / `power-user`. `git_commit_push_enabled` is removed. Run `ralph migrate --apply` to rewrite legacy configs before retrying app/CLI commands.
+- `make install` updates the CLI and macOS app bundle, but it does not mutate repo-local config files. Older repos still need `ralph migrate --apply` after upgrading to `0.3`.
 - CI gate auto-retry: When enabled, Ralph automatically sends a strict compliance message and retries up to 2 times on CI failure during Phase 2, Phase 3, or single-phase execution. This behavior is not configurable; after 2 automatic retries, the user is prompted via the configured `git_revert_mode`. Post-run supervision prompts immediately on CI failure.
 - Phase 1 plan-only violations: when `git_revert_mode=ask`, the prompt includes a keep+continue override to proceed to the next phase without reverting changes.
 - **Runner session handling**: For runners that support session resumption (e.g., Kimi), Ralph generates unique session IDs per phase (format: `{task_id}-p{phase}-{timestamp}`) and uses explicit `--session` flags rather than runner-specific continue mechanisms. This provides deterministic session management and reliable crash recovery.

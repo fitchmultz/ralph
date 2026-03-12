@@ -151,6 +151,20 @@ enum RalphCLIRecoveryClassifier {
             )
         }
 
+        if normalized.contains("load project config")
+            || normalized.contains("load global config")
+            || normalized.contains("unsupported config version")
+            || (normalized.contains("unknown field") && normalized.contains("config"))
+        {
+            return makeRecovery(
+                category: .configIncompatible,
+                message: "Workspace config is incompatible with this Ralph version",
+                underlyingError: description,
+                operation: operation,
+                workspaceURL: workspaceURL
+            )
+        }
+
         if normalized.contains("version")
             && (
                 normalized.contains("minimum supported version")
@@ -243,6 +257,11 @@ enum RalphCLIRecoveryClassifier {
             return [
                 "Check workspace directory permissions",
                 "Ensure Ralph can access the selected folder",
+            ]
+        case .configIncompatible:
+            return [
+                "Run `ralph migrate --apply` in the repository",
+                "Retry after the migration completes",
             ]
         case .parseError:
             return [

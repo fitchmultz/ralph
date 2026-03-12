@@ -18,7 +18,7 @@
 
 use crate::config::Resolved;
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 pub mod config_migrations;
 pub mod file_migrations;
@@ -62,6 +62,8 @@ pub enum MigrationType {
     },
     /// Rewrite legacy CI gate string config to structured argv/shell config.
     ConfigCiGateRewrite,
+    /// Upgrade pre-0.3 config contract keys and version markers.
+    ConfigLegacyContractUpgrade,
     /// Rename/move a file.
     FileRename {
         /// Path to the old file, relative to repo root.
@@ -96,17 +98,53 @@ pub struct MigrationContext {
 impl MigrationContext {
     /// Create a new migration context from resolved config.
     pub fn from_resolved(resolved: &Resolved) -> Result<Self> {
-        let migration_history = history::load_migration_history(&resolved.repo_root)
-            .context("load migration history")?;
-
-        Ok(Self {
-            repo_root: resolved.repo_root.clone(),
-            project_config_path: resolved
+        Self::build(
+            resolved.repo_root.clone(),
+            resolved
                 .project_config_path
                 .clone()
                 .unwrap_or_else(|| resolved.repo_root.join(".ralph/config.jsonc")),
-            global_config_path: resolved.global_config_path.clone(),
-            resolved_config: resolved.config.clone(),
+            resolved.global_config_path.clone(),
+            resolved.config.clone(),
+        )
+    }
+
+    /// Create a migration context from the current working directory without
+    /// requiring configuration parsing to succeed.
+    pub fn discover_from_cwd() -> Result<Self> {
+        let cwd = env::current_dir().context("resolve current working directory")?;
+        Self::discover_from_dir(&cwd)
+    }
+
+    /// Create a migration context from an arbitrary directory without
+    /// requiring configuration parsing to succeed.
+    pub fn discover_from_dir(start: &std::path::Path) -> Result<Self> {
+        let repo_root = crate::config::find_repo_root(start);
+        let project_config_path = crate::config::project_config_path(&repo_root);
+        let global_config_path = crate::config::global_config_path();
+
+        Self::build(
+            repo_root,
+            project_config_path,
+            global_config_path,
+            crate::contracts::Config::default(),
+        )
+    }
+
+    fn build(
+        repo_root: PathBuf,
+        project_config_path: PathBuf,
+        global_config_path: Option<PathBuf>,
+        resolved_config: crate::contracts::Config,
+    ) -> Result<Self> {
+        let migration_history =
+            history::load_migration_history(&repo_root).context("load migration history")?;
+
+        Ok(Self {
+            repo_root,
+            project_config_path,
+            global_config_path,
+            resolved_config,
             migration_history,
         })
     }
@@ -154,6 +192,9 @@ fn is_migration_applicable(ctx: &MigrationContext, migration: &Migration) -> boo
         MigrationType::ConfigCiGateRewrite => {
             config_migrations::config_has_key(ctx, "agent.ci_gate_command")
                 || config_migrations::config_has_key(ctx, "agent.ci_gate_enabled")
+        }
+        MigrationType::ConfigLegacyContractUpgrade => {
+            config_migrations::config_needs_legacy_contract_upgrade(ctx)
         }
         MigrationType::FileRename { old_path, new_path } => {
             if matches!(
@@ -219,6 +260,10 @@ pub fn apply_migration(ctx: &mut MigrationContext, migration: &Migration) -> Res
         MigrationType::ConfigCiGateRewrite => {
             config_migrations::apply_ci_gate_rewrite(ctx)
                 .with_context(|| format!("apply CI gate rewrite for {}", migration.id))?;
+        }
+        MigrationType::ConfigLegacyContractUpgrade => {
+            config_migrations::apply_legacy_contract_upgrade(ctx)
+                .with_context(|| format!("apply legacy config upgrade for {}", migration.id))?;
         }
         MigrationType::FileRename { old_path, new_path } => match (*old_path, *new_path) {
             (".ralph/queue.json", ".ralph/queue.jsonc") => {
@@ -392,6 +437,23 @@ mod tests {
 
         assert!(ctx.file_exists(".ralph/queue.json"));
         assert!(!ctx.file_exists(".ralph/done.json"));
+    }
+
+    #[test]
+    fn migration_context_discovers_repo_without_resolving_config() {
+        let dir = TempDir::new().unwrap();
+        let ralph_dir = dir.path().join(".ralph");
+        std::fs::create_dir_all(&ralph_dir).unwrap();
+        std::fs::write(
+            ralph_dir.join("config.jsonc"),
+            r#"{"version":1,"agent":{"git_commit_push_enabled":true}}"#,
+        )
+        .unwrap();
+
+        let ctx = MigrationContext::discover_from_dir(dir.path()).unwrap();
+
+        assert_eq!(ctx.repo_root, dir.path());
+        assert_eq!(ctx.project_config_path, ralph_dir.join("config.jsonc"));
     }
 
     #[test]

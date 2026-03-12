@@ -106,6 +106,11 @@ pub static MIGRATIONS: &[Migration] = &[
         migration_type: MigrationType::ConfigCiGateRewrite,
     },
     Migration {
+        id: "config_legacy_contract_upgrade_2026_03",
+        description: "Upgrade legacy config version markers and git_commit_push_enabled to the 0.3 contract",
+        migration_type: MigrationType::ConfigLegacyContractUpgrade,
+    },
+    Migration {
         id: "file_cleanup_legacy_config_json_after_jsonc_2026_02",
         description: "Remove legacy config.json when config.jsonc already exists",
         migration_type: MigrationType::FileRename {

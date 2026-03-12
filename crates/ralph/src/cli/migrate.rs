@@ -15,7 +15,6 @@
 //! - Exit code 1 from `--check` when migrations are pending for CI integration.
 
 use crate::commands::init::gitignore;
-use crate::config;
 use crate::migration::{self, MigrationCheckResult, MigrationContext};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
@@ -28,6 +27,7 @@ use colored::Colorize;
   ralph migrate              # Check for pending migrations
   ralph migrate --check      # Exit with error code if migrations pending (CI)
   ralph migrate --apply      # Apply all pending migrations
+  ralph migrate --apply      # Also repairs legacy v1 config files that 0.3 cannot load directly
   ralph migrate --list       # List all migrations and their status
   ralph migrate status       # Show detailed migration status
 "
@@ -86,8 +86,7 @@ pub fn handle_migrate(args: MigrateArgs) -> Result<()> {
 
 /// Check for pending migrations and exit with error code if any found.
 fn check_migrations() -> Result<()> {
-    let resolved = config::resolve_from_cwd().context("resolve configuration")?;
-    let ctx = MigrationContext::from_resolved(&resolved).context("create migration context")?;
+    let ctx = MigrationContext::discover_from_cwd().context("discover migration context")?;
 
     match migration::check_migrations(&ctx)? {
         MigrationCheckResult::Current => {
@@ -110,8 +109,7 @@ fn check_migrations() -> Result<()> {
 
 /// Show pending migrations without exiting with error code.
 fn show_pending_migrations() -> Result<()> {
-    let resolved = config::resolve_from_cwd().context("resolve configuration")?;
-    let ctx = MigrationContext::from_resolved(&resolved).context("create migration context")?;
+    let ctx = MigrationContext::discover_from_cwd().context("discover migration context")?;
 
     match migration::check_migrations(&ctx)? {
         MigrationCheckResult::Current => {
@@ -138,8 +136,7 @@ fn show_pending_migrations() -> Result<()> {
 
 /// List all migrations with their status.
 fn list_migrations() -> Result<()> {
-    let resolved = config::resolve_from_cwd().context("resolve configuration")?;
-    let ctx = MigrationContext::from_resolved(&resolved).context("create migration context")?;
+    let ctx = MigrationContext::discover_from_cwd().context("discover migration context")?;
 
     let migrations = migration::list_migrations(&ctx);
 
@@ -198,8 +195,7 @@ fn list_migrations() -> Result<()> {
 
 /// Apply all pending migrations.
 fn apply_migrations(force: bool) -> Result<()> {
-    let resolved = config::resolve_from_cwd().context("resolve configuration")?;
-    let mut ctx = MigrationContext::from_resolved(&resolved).context("create migration context")?;
+    let mut ctx = MigrationContext::discover_from_cwd().context("discover migration context")?;
 
     // Check what migrations would be applied
     let pending = match migration::check_migrations(&ctx)? {
@@ -280,8 +276,7 @@ fn apply_migrations(force: bool) -> Result<()> {
 
 /// Show detailed migration status.
 fn show_migration_status() -> Result<()> {
-    let resolved = config::resolve_from_cwd().context("resolve configuration")?;
-    let ctx = MigrationContext::from_resolved(&resolved).context("create migration context")?;
+    let ctx = MigrationContext::discover_from_cwd().context("discover migration context")?;
 
     println!("{}", "Migration Status".bold());
     println!();

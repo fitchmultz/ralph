@@ -7,17 +7,33 @@
 //! - Verify `migrate --check` returns appropriate exit codes.
 //! - Verify `migrate` (no args) shows current status.
 //!
-//! Not handled here:
-//! - Testing migrations that require legacy config keys (config validation rejects unknown
-//!   fields before migration can run; such migrations are tested at the unit level).
-//!
 //! Invariants/assumptions:
 //! - The migration `config_key_rename_parallel_worktree_root_2026_02` exists in the registry.
 //! - `ralph init` creates a valid config that may or may not trigger migrations.
 
 use anyhow::Result;
+use std::fs;
 
 mod test_support;
+
+fn write_legacy_project_config(dir: &std::path::Path, git_commit_push_enabled: bool) -> Result<()> {
+    fs::write(
+        dir.join(".ralph/config.jsonc"),
+        format!(
+            r#"{{
+  "version": 1,
+  "agent": {{
+    "runner": "codex",
+    "model": "gpt-5.3-codex",
+    "git_commit_push_enabled": {}
+  }}
+}}
+"#,
+            git_commit_push_enabled
+        ),
+    )?;
+    Ok(())
+}
 
 #[test]
 fn migrate_list_shows_all_migrations() -> Result<()> {
@@ -154,6 +170,129 @@ fn migrate_subcommand_status_works() -> Result<()> {
     anyhow::ensure!(
         stdout.contains("History:") || stdout.contains("migrations.json"),
         "expected history info, got:\n{stdout}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn migrate_check_detects_legacy_config_without_parse_failure() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+    write_legacy_project_config(dir.path(), true)?;
+
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["migrate", "--check"]);
+
+    anyhow::ensure!(
+        !stderr.contains("resolve configuration"),
+        "migrate should not fail before checking migrations\nstderr:\n{stderr}"
+    );
+    anyhow::ensure!(
+        !stderr.contains("unknown field `git_commit_push_enabled`"),
+        "migrate should not surface config parse failure\nstderr:\n{stderr}"
+    );
+    anyhow::ensure!(
+        !status.success(),
+        "legacy config should produce a pending migration exit code"
+    );
+    anyhow::ensure!(
+        stdout.contains("config_legacy_contract_upgrade_2026_03"),
+        "expected legacy config migration to be reported, got:\n{stdout}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn migrate_apply_upgrades_legacy_config_with_push_enabled_true() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+    write_legacy_project_config(dir.path(), true)?;
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["migrate", "--apply", "--force"]);
+    anyhow::ensure!(status.success(), "migrate apply failed\nstderr:\n{stderr}");
+    anyhow::ensure!(
+        stdout.contains("config_legacy_contract_upgrade_2026_03"),
+        "expected legacy migration to be applied, got:\n{stdout}"
+    );
+
+    let migrated = fs::read_to_string(dir.path().join(".ralph/config.jsonc"))?;
+    anyhow::ensure!(
+        migrated.contains("\"version\": 2"),
+        "expected config version upgrade, got:\n{migrated}"
+    );
+    anyhow::ensure!(
+        migrated.contains("\"git_publish_mode\": \"commit_and_push\""),
+        "expected commit_and_push mapping, got:\n{migrated}"
+    );
+    anyhow::ensure!(
+        !migrated.contains("git_commit_push_enabled"),
+        "legacy key should be removed, got:\n{migrated}"
+    );
+
+    let (resolve_status, resolve_stdout, resolve_stderr) =
+        test_support::run_in_dir(dir.path(), &["--no-color", "machine", "config", "resolve"]);
+    anyhow::ensure!(
+        resolve_status.success(),
+        "machine config resolve should succeed after migration\nstdout:\n{resolve_stdout}\nstderr:\n{resolve_stderr}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn migrate_apply_upgrades_legacy_config_with_push_enabled_false() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+    write_legacy_project_config(dir.path(), false)?;
+
+    let (status, _stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["migrate", "--apply", "--force"]);
+    anyhow::ensure!(status.success(), "migrate apply failed\nstderr:\n{stderr}");
+
+    let migrated = fs::read_to_string(dir.path().join(".ralph/config.jsonc"))?;
+    anyhow::ensure!(
+        migrated.contains("\"git_publish_mode\": \"off\""),
+        "expected off mapping, got:\n{migrated}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn migrate_apply_preserves_existing_git_publish_mode() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+    fs::write(
+        dir.path().join(".ralph/config.jsonc"),
+        r#"{
+  "version": 1,
+  "agent": {
+    "runner": "codex",
+    "git_commit_push_enabled": false,
+    "git_publish_mode": "commit"
+  }
+}
+"#,
+    )?;
+
+    let (status, _stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["migrate", "--apply", "--force"]);
+    anyhow::ensure!(status.success(), "migrate apply failed\nstderr:\n{stderr}");
+
+    let migrated = fs::read_to_string(dir.path().join(".ralph/config.jsonc"))?;
+    anyhow::ensure!(
+        migrated.contains("\"git_publish_mode\": \"commit\""),
+        "existing git_publish_mode should win, got:\n{migrated}"
+    );
+    anyhow::ensure!(
+        !migrated.contains("git_commit_push_enabled"),
+        "legacy key should be removed, got:\n{migrated}"
     );
 
     Ok(())

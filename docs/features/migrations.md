@@ -29,6 +29,7 @@ Migrations are automated transformations that update your project's configuratio
 | Scenario | Migration Type |
 |----------|---------------|
 | Config key renamed | `ConfigKeyRename` |
+| Legacy config contract (`version: 1`, `agent.git_commit_push_enabled`) | `ConfigLegacyContractUpgrade` |
 | File moved or renamed | `FileRename` |
 | README template updated | `ReadmeUpdate` |
 | Queue format changes | `FileRename` (JSON → JSONC) |
@@ -54,6 +55,35 @@ Renames a configuration key while preserving JSONC comments and formatting.
 MigrationType::ConfigKeyRename {
     old_key: "parallel.worktree_root",
     new_key: "parallel.workspace_root",
+}
+```
+
+### ConfigLegacyContractUpgrade
+
+Upgrades pre-`0.3` config files so current Ralph builds can load them again.
+
+**Behavior:**
+- Detects legacy project/global config files that still use `"version": 1`
+- Rewrites `agent.git_commit_push_enabled` to `agent.git_publish_mode`
+- Uses the mapping `true -> "commit_and_push"` and `false -> "off"`
+- Preserves an existing `agent.git_publish_mode` if both keys are present
+
+**Example:**
+```json
+// Before
+{
+    "version": 1,
+    "agent": {
+        "git_commit_push_enabled": true
+    }
+}
+
+// After
+{
+    "version": 2,
+    "agent": {
+        "git_publish_mode": "commit_and_push"
+    }
 }
 ```
 
@@ -279,6 +309,9 @@ Status icons:
 # Apply all pending migrations (interactive confirmation)
 ralph migrate --apply
 
+# Typical upgrade path after installing Ralph 0.3 on an older repo
+ralph migrate --apply
+
 # Force re-apply already applied migrations (dangerous)
 ralph migrate --apply --force
 ```
@@ -338,7 +371,7 @@ Options:
 Examples:
   ralph migrate              # Check for pending migrations
   ralph migrate --check      # Exit with error code if migrations pending (CI)
-  ralph migrate --apply      # Apply all pending migrations
+  ralph migrate --apply      # Apply all pending migrations, including legacy config upgrades
   ralph migrate --list       # List all migrations and their status
   ralph migrate status       # Show detailed migration status
 ```
@@ -365,8 +398,9 @@ Potential future enhancements may include:
 ### Best Practices
 
 1. **Check after updates**: Run `ralph migrate` after updating Ralph to check for pending migrations
-2. **CI integration**: Use `ralph migrate --check` in CI to fail builds if migrations are needed
-3. **Version control**: Review migration changes before committing
+2. **Upgrade older repos after install**: `make install` updates binaries, but repo-local `.ralph/config.jsonc` still needs `ralph migrate --apply` if it predates `0.3`
+3. **CI integration**: Use `ralph migrate --check` in CI to fail builds if migrations are needed
+4. **Version control**: Review migration changes before committing
 
 ---
 

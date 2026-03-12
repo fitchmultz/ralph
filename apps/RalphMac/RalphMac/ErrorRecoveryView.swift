@@ -42,6 +42,12 @@ private extension ErrorCategory {
 
             Check that the workspace path is still valid and accessible.
             """
+        case .configIncompatible:
+            return """
+            The selected workspace is using an older or unsupported Ralph config contract.
+
+            Run `ralph migrate --apply` in the repository, then retry the action.
+            """
         case .networkError:
             return """
             A network-related operation timed out. This can happen when:
@@ -60,6 +66,7 @@ private extension ErrorCategory {
         switch self {
         case .cliUnavailable: return .orange
         case .permissionDenied: return .red
+        case .configIncompatible: return .yellow
         case .parseError: return .yellow
         case .networkError: return .blue
         case .queueCorrupted: return .red

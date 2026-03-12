@@ -18,7 +18,7 @@ fn phase1_allows_arbitrary_ralph_file_changes() -> Result<()> {
 
     let add_status = Command::new("git")
         .current_dir(temp.path())
-        .args(["add", ".ralph/state/worker.json"])
+        .args(["add", "-f", ".ralph/state/worker.json"])
         .status()?;
     anyhow::ensure!(
         add_status.success(),

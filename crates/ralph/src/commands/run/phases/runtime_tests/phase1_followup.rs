@@ -107,7 +107,7 @@ fn phase1_followup_allows_preexisting_dirty_queue_refresh() -> Result<()> {
     )?;
     let add_status = Command::new("git")
         .current_dir(temp.path())
-        .args(["add", ".ralph/queue.jsonc"])
+        .args(["add", "-f", ".ralph/queue.jsonc"])
         .status()?;
     anyhow::ensure!(add_status.success(), "git add .ralph/queue.jsonc failed");
     let commit_status = Command::new("git")
@@ -219,7 +219,7 @@ fn phase1_followup_allows_preexisting_dirty_arbitrary_ralph_file() -> Result<()>
     std::fs::write(&ralph_state, "{ \"v\": 1 }\n")?;
     let add_status = Command::new("git")
         .current_dir(temp.path())
-        .args(["add", ".ralph/state/worker.json"])
+        .args(["add", "-f", ".ralph/state/worker.json"])
         .status()?;
     anyhow::ensure!(
         add_status.success(),

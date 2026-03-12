@@ -54,6 +54,9 @@ pub(crate) fn check_and_handle_migrations(
                     MigrationType::ConfigCiGateRewrite => {
                         "Config uses removed CI gate string keys, rewrite to structured agent.ci_gate".to_string()
                     }
+                    MigrationType::ConfigLegacyContractUpgrade => {
+                        "Config uses the pre-0.3 contract, upgrade to version 2 and agent.git_publish_mode".to_string()
+                    }
                     MigrationType::FileRename { old_path, new_path } => {
                         format!("Rename file '{}' to '{}'", old_path, new_path)
                     }

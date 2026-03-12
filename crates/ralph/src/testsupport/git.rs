@@ -45,6 +45,9 @@ pub(crate) fn init_repo(repo_root: &Path) -> Result<()> {
 
 pub(crate) fn commit_all(repo_root: &Path, message: &str) -> Result<()> {
     git_run(repo_root, &["add", "-A"])?;
+    if repo_root.join(".ralph").exists() {
+        git_run(repo_root, &["add", "-f", ".ralph"])?;
+    }
     git_run(repo_root, &["commit", "-m", message])?;
     Ok(())
 }

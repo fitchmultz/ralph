@@ -211,7 +211,7 @@ fn write_queue_and_done(repo_root: &Path, status: TaskStatus) -> Result<()> {
     )?;
     let status = Command::new("git")
         .current_dir(repo_root)
-        .args(["add", ".ralph/queue.jsonc", ".ralph/done.jsonc"])
+        .args(["add", "-f", ".ralph/queue.jsonc", ".ralph/done.jsonc"])
         .status()?;
     anyhow::ensure!(status.success(), "git add failed");
     Ok(())

@@ -381,6 +381,17 @@ mod tests {
         std::fs::write(&workspace_queue, "{\"version\":1,\"tasks\":[]}").unwrap();
         std::fs::write(&workspace_done, "{\"version\":1,\"tasks\":[]}").unwrap();
         std::fs::write(&productivity, "{\"stats\":[]}").unwrap();
+        git_test::git_run(
+            &repo_root,
+            &[
+                "add",
+                "-f",
+                ".ralph/queue.jsonc",
+                ".ralph/done.jsonc",
+                ".ralph/cache/productivity.json",
+            ],
+        )
+        .unwrap();
         git_test::commit_all(&repo_root, "init bookkeeping").unwrap();
 
         let coordinator_root = temp.path().join("coordinator");
@@ -491,6 +502,17 @@ M  src/lib.rs
         std::fs::write(&workspace_queue, "{\"version\":1,\"tasks\":[]}").unwrap();
         std::fs::write(&workspace_done, "{\"version\":1,\"tasks\":[]}").unwrap();
         std::fs::write(&productivity, "{\"stats\":[]}").unwrap();
+        git_test::git_run(
+            &repo_root,
+            &[
+                "add",
+                "-f",
+                ".ralph/queue.jsonc",
+                ".ralph/done.jsonc",
+                ".ralph/cache/productivity.json",
+            ],
+        )
+        .unwrap();
         git_test::commit_all(&repo_root, "init bookkeeping").unwrap();
 
         let generated_plan = repo_root.join(".ralph/cache/plans/RQ-0001.md");
@@ -537,11 +559,23 @@ M  src/lib.rs
         std::fs::write(&workspace_queue, "{\"version\":1,\"tasks\":[]}").unwrap();
         std::fs::write(&workspace_done, "{\"version\":1,\"tasks\":[]}").unwrap();
         std::fs::write(&productivity, "{\"stats\":[]}").unwrap();
+        git_test::git_run(
+            &repo_root,
+            &[
+                "add",
+                "-f",
+                ".ralph/queue.jsonc",
+                ".ralph/done.jsonc",
+                ".ralph/cache/productivity.json",
+            ],
+        )
+        .unwrap();
         git_test::commit_all(&repo_root, "init bookkeeping").unwrap();
 
         let plan_path = repo_root.join(".ralph/cache/plans/RQ-0001.md");
         std::fs::create_dir_all(plan_path.parent().unwrap()).unwrap();
         std::fs::write(&plan_path, "initial plan").unwrap();
+        git_test::git_run(&repo_root, &["add", "-f", ".ralph/cache/plans/RQ-0001.md"]).unwrap();
         git_test::commit_all(&repo_root, "track plan cache").unwrap();
 
         std::fs::write(&plan_path, "generated plan").unwrap();

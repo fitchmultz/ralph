@@ -125,6 +125,27 @@ pub fn apply_ci_gate_rewrite(ctx: &MigrationContext) -> Result<()> {
     Ok(())
 }
 
+/// Check whether either config file still uses the pre-0.3 contract.
+pub fn config_needs_legacy_contract_upgrade(ctx: &MigrationContext) -> bool {
+    config_file_needs_legacy_contract_upgrade(&ctx.project_config_path).unwrap_or(false)
+        || ctx
+            .global_config_path
+            .as_ref()
+            .and_then(|path| config_file_needs_legacy_contract_upgrade(path).ok())
+            .unwrap_or(false)
+}
+
+/// Upgrade legacy config contract markers in project/global config files.
+pub fn apply_legacy_contract_upgrade(ctx: &MigrationContext) -> Result<()> {
+    upgrade_legacy_contract_in_file(&ctx.project_config_path)?;
+
+    if let Some(global_path) = &ctx.global_config_path {
+        upgrade_legacy_contract_in_file(global_path)?;
+    }
+
+    Ok(())
+}
+
 fn rewrite_ci_gate_in_file(path: &Path) -> Result<()> {
     if !path.exists() {
         return Ok(());
@@ -159,6 +180,86 @@ fn rewrite_ci_gate_in_file(path: &Path) -> Result<()> {
     let rendered = serde_json::to_string_pretty(&value).context("serialize migrated config")?;
     crate::fsutil::write_atomic(path, rendered.as_bytes())
         .with_context(|| format!("write migrated config {}", path.display()))?;
+    Ok(())
+}
+
+fn config_file_needs_legacy_contract_upgrade(path: &Path) -> Result<bool> {
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("read config file {}", path.display()))?;
+    let value = match jsonc_parser::parse_to_serde_value(&raw, &Default::default()) {
+        Ok(Some(v)) => v,
+        _ => return Ok(false),
+    };
+
+    let has_legacy_version = value.get("version").and_then(Value::as_u64) == Some(1);
+    let has_legacy_publish_flag = value
+        .get("agent")
+        .and_then(Value::as_object)
+        .is_some_and(|agent| agent.contains_key("git_commit_push_enabled"));
+
+    Ok(has_legacy_version || has_legacy_publish_flag)
+}
+
+fn upgrade_legacy_contract_in_file(path: &Path) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("read config file {}", path.display()))?;
+    let mut value = match jsonc_parser::parse_to_serde_value(&raw, &Default::default())? {
+        Some(value) => value,
+        None => return Ok(()),
+    };
+
+    let Some(root) = value.as_object_mut() else {
+        return Ok(());
+    };
+
+    let agent_has_legacy_flag = root
+        .get("agent")
+        .and_then(Value::as_object)
+        .is_some_and(|agent| agent.contains_key("git_commit_push_enabled"));
+    let version_needs_upgrade = root.get("version").and_then(Value::as_u64) == Some(1);
+
+    if !agent_has_legacy_flag && !version_needs_upgrade {
+        return Ok(());
+    }
+
+    if version_needs_upgrade || agent_has_legacy_flag {
+        root.insert("version".to_string(), Value::from(2));
+    }
+
+    if let Some(agent) = root.get_mut("agent").and_then(Value::as_object_mut) {
+        let git_publish_mode_exists = agent.contains_key("git_publish_mode");
+        let legacy_publish_value = agent
+            .remove("git_commit_push_enabled")
+            .and_then(|value| value.as_bool());
+
+        if let Some(legacy_publish_value) = legacy_publish_value
+            && !git_publish_mode_exists
+        {
+            let mode = if legacy_publish_value {
+                "commit_and_push"
+            } else {
+                "off"
+            };
+            agent.insert(
+                "git_publish_mode".to_string(),
+                Value::String(mode.to_string()),
+            );
+        }
+    }
+
+    let rendered = serde_json::to_string_pretty(&value).context("serialize migrated config")?;
+    crate::fsutil::write_atomic(path, rendered.as_bytes())
+        .with_context(|| format!("write migrated config {}", path.display()))?;
+
+    log::info!("Upgraded legacy config contract in {}", path.display());
     Ok(())
 }
 
@@ -742,5 +843,68 @@ mod tests {
         let agent = value.get("agent").unwrap();
         assert!(agent.get("update_task_before_run").is_none());
         assert_eq!(agent.get("runner").and_then(|v| v.as_str()), Some("claude"));
+    }
+
+    #[test]
+    fn legacy_contract_upgrade_detects_version_one_without_legacy_flag() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+        fs::write(&config_path, r#"{"version":1,"agent":{"runner":"codex"}}"#).unwrap();
+
+        assert!(config_file_needs_legacy_contract_upgrade(&config_path).unwrap());
+    }
+
+    #[test]
+    fn legacy_contract_upgrade_rewrites_publish_flag_to_git_publish_mode() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+        fs::write(
+            &config_path,
+            r#"{"version":1,"agent":{"git_commit_push_enabled":true}}"#,
+        )
+        .unwrap();
+
+        upgrade_legacy_contract_in_file(&config_path).unwrap();
+
+        let value = jsonc_parser::parse_to_serde_value(
+            &fs::read_to_string(&config_path).unwrap(),
+            &Default::default(),
+        )
+        .unwrap()
+        .unwrap();
+        let agent = value.get("agent").unwrap();
+        assert_eq!(value.get("version").and_then(|v| v.as_u64()), Some(2));
+        assert!(agent.get("git_commit_push_enabled").is_none());
+        assert_eq!(
+            agent.get("git_publish_mode").and_then(|v| v.as_str()),
+            Some("commit_and_push")
+        );
+    }
+
+    #[test]
+    fn legacy_contract_upgrade_preserves_existing_git_publish_mode() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+        fs::write(
+            &config_path,
+            r#"{"version":1,"agent":{"git_commit_push_enabled":false,"git_publish_mode":"commit"}}"#,
+        )
+        .unwrap();
+
+        upgrade_legacy_contract_in_file(&config_path).unwrap();
+
+        let value = jsonc_parser::parse_to_serde_value(
+            &fs::read_to_string(&config_path).unwrap(),
+            &Default::default(),
+        )
+        .unwrap()
+        .unwrap();
+        let agent = value.get("agent").unwrap();
+        assert_eq!(value.get("version").and_then(|v| v.as_u64()), Some(2));
+        assert!(agent.get("git_commit_push_enabled").is_none());
+        assert_eq!(
+            agent.get("git_publish_mode").and_then(|v| v.as_str()),
+            Some("commit")
+        );
     }
 }

@@ -25,6 +25,7 @@ public import Foundation
 public enum ErrorCategory: String, CaseIterable, Sendable {
     case cliUnavailable
     case permissionDenied
+    case configIncompatible
     case parseError
     case networkError
     case queueCorrupted
@@ -36,6 +37,7 @@ public enum ErrorCategory: String, CaseIterable, Sendable {
         switch self {
         case .cliUnavailable: return "CLI Not Available"
         case .permissionDenied: return "Permission Denied"
+        case .configIncompatible: return "Config Upgrade Required"
         case .parseError: return "Data Parse Error"
         case .networkError: return "Network Error"
         case .queueCorrupted: return "Queue Corrupted"
@@ -49,6 +51,7 @@ public enum ErrorCategory: String, CaseIterable, Sendable {
         switch self {
         case .cliUnavailable: return "terminal.fill"
         case .permissionDenied: return "lock.fill"
+        case .configIncompatible: return "gear.badge.xmark"
         case .parseError: return "doc.text.magnifyingglass"
         case .networkError: return "wifi.exclamationmark"
         case .queueCorrupted: return "exclamationmark.triangle.fill"
@@ -78,6 +81,8 @@ extension ErrorCategory {
             return [.retry, .checkPermissions, .reinstallCLI, .openLogs, .copyErrorDetails, .dismiss]
         case .permissionDenied:
             return [.retry, .checkPermissions, .openLogs, .copyErrorDetails, .dismiss]
+        case .configIncompatible:
+            return [.retry, .openLogs, .copyErrorDetails, .dismiss]
         case .parseError:
             return [.retry, .validateQueue, .diagnose, .openLogs, .copyErrorDetails, .dismiss]
         case .queueCorrupted:
@@ -95,6 +100,8 @@ extension ErrorCategory {
             return "The Ralph CLI could not be found or is not executable. This may indicate an incomplete installation."
         case .permissionDenied:
             return "Ralph doesn't have permission to access required files. Check that you have read/write access to the workspace directory."
+        case .configIncompatible:
+            return "The workspace config is using an older or unsupported Ralph contract. Run `ralph migrate --apply` in the repository, then retry."
         case .parseError:
             return "The CLI returned data that couldn't be parsed. The queue file may be corrupted or incompatible."
         case .networkError:

@@ -19,6 +19,7 @@ final class ErrorRecoveryCategoryTests: XCTestCase {
     func testErrorCategoryDisplayNames() {
         XCTAssertEqual(ErrorCategory.cliUnavailable.displayName, "CLI Not Available")
         XCTAssertEqual(ErrorCategory.permissionDenied.displayName, "Permission Denied")
+        XCTAssertEqual(ErrorCategory.configIncompatible.displayName, "Config Upgrade Required")
         XCTAssertEqual(ErrorCategory.parseError.displayName, "Data Parse Error")
         XCTAssertEqual(ErrorCategory.networkError.displayName, "Network Error")
         XCTAssertEqual(ErrorCategory.queueCorrupted.displayName, "Queue Corrupted")
@@ -34,6 +35,7 @@ final class ErrorRecoveryCategoryTests: XCTestCase {
 
         XCTAssertEqual(ErrorCategory.cliUnavailable.icon, "terminal.fill")
         XCTAssertEqual(ErrorCategory.permissionDenied.icon, "lock.fill")
+        XCTAssertEqual(ErrorCategory.configIncompatible.icon, "gear.badge.xmark")
         XCTAssertEqual(ErrorCategory.parseError.icon, "doc.text.magnifyingglass")
     }
 
@@ -48,6 +50,10 @@ final class ErrorRecoveryCategoryTests: XCTestCase {
         XCTAssertTrue(parseActions.contains(.validateQueue))
         XCTAssertTrue(parseActions.contains(.diagnose))
 
+        let configActions = ErrorCategory.configIncompatible.suggestedActions
+        XCTAssertEqual(configActions, [.retry, .openLogs, .copyErrorDetails, .dismiss])
+        XCTAssertFalse(configActions.contains(.validateQueue))
+
         let queueActions = ErrorCategory.queueCorrupted.suggestedActions
         XCTAssertEqual(queueActions.first, .validateQueue)
     }
@@ -55,6 +61,7 @@ final class ErrorRecoveryCategoryTests: XCTestCase {
     func testErrorCategoryGuidanceMessages() {
         XCTAssertNotNil(ErrorCategory.cliUnavailable.guidanceMessage)
         XCTAssertNotNil(ErrorCategory.permissionDenied.guidanceMessage)
+        XCTAssertNotNil(ErrorCategory.configIncompatible.guidanceMessage)
         XCTAssertNotNil(ErrorCategory.parseError.guidanceMessage)
         XCTAssertNotNil(ErrorCategory.unknown.guidanceMessage)
     }
@@ -145,6 +152,29 @@ final class ErrorRecoveryCategoryTests: XCTestCase {
         let recoveryError = RecoveryError.classify(error: error, operation: "loadTasks")
         XCTAssertEqual(recoveryError.category, .parseError)
         XCTAssertTrue(recoveryError.suggestions.contains { $0.localizedCaseInsensitiveContains("validate") })
+    }
+
+    func testClassifyLegacyConfigLoadFailure() {
+        let error = NSError(domain: "RalphCore.CLIProcess", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Error: load project config /tmp/.ralph/config.jsonc: parse config /tmp/.ralph/config.jsonc from JSONC: unknown field `git_commit_push_enabled`"
+        ])
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadRunnerConfiguration")
+        XCTAssertEqual(recoveryError.category, .configIncompatible)
+        XCTAssertTrue(recoveryError.message.localizedCaseInsensitiveContains("config"))
+        XCTAssertTrue(recoveryError.suggestions.contains { $0.contains("ralph migrate --apply") })
+        XCTAssertFalse(recoveryError.category.suggestedActions.contains(.validateQueue))
+    }
+
+    func testClassifyUnsupportedConfigVersionAsConfigIncompatible() {
+        let error = RetryableError.processError(
+            exitCode: 1,
+            stderr: "Error: load project config /tmp/.ralph/config.jsonc: Unsupported config version: 1. Ralph requires version 2."
+        )
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadRunnerConfiguration")
+        XCTAssertEqual(recoveryError.category, .configIncompatible)
+        XCTAssertFalse(recoveryError.category.suggestedActions.contains(.validateQueue))
     }
 
     func testClassifyDecodingErrorAsParseError() {
