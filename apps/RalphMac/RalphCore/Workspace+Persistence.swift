@@ -358,10 +358,7 @@ extension Workspace {
 
     func reloadRepositoryContext(_ repositoryContext: RepositoryContext) async {
         guard isCurrentRepositoryContext(repositoryContext) else { return }
-        await loadTasks(retryConfiguration: .minimal)
-        await loadGraphData(retryConfiguration: .minimal)
-        await loadCLISpec(retryConfiguration: .minimal)
-        await loadRunnerConfiguration(retryConfiguration: .minimal)
+        await refreshRepositoryState(retryConfiguration: .minimal)
     }
 
     func removePersistedState() {

@@ -83,7 +83,10 @@ public final class Workspace: ObservableObject, Identifiable {
 
         if client != nil {
             Task { @MainActor [weak self] in
-                await self?.loadRunnerConfiguration(retryConfiguration: .minimal)
+                await self?.refreshRepositoryState(
+                    retryConfiguration: .minimal,
+                    includeCLISpec: false
+                )
             }
         }
     }
@@ -91,8 +94,7 @@ public final class Workspace: ObservableObject, Identifiable {
     public func injectClient(_ client: RalphCLIClient) {
         self.client = client
         Task { @MainActor in
-            await loadCLISpec()
-            await loadRunnerConfiguration(retryConfiguration: .minimal)
+            await refreshRepositoryState(retryConfiguration: .minimal)
             refreshOperationalHealth()
         }
     }
@@ -153,6 +155,30 @@ public final class Workspace: ObservableObject, Identifiable {
     public func refreshRunControlData() async {
         await loadTasks(retryConfiguration: .minimal)
         await loadRunnerConfiguration(retryConfiguration: .minimal)
+    }
+
+    public func refreshRepositoryState(
+        retryConfiguration: RetryConfiguration = .minimal,
+        includeCLISpec: Bool = true
+    ) async {
+        await loadTasks(retryConfiguration: retryConfiguration)
+
+        guard hasRalphQueueFile else {
+            if includeCLISpec {
+                await loadCLISpec(retryConfiguration: retryConfiguration)
+            }
+            await loadRunnerConfiguration(retryConfiguration: retryConfiguration)
+            return
+        }
+
+        await loadGraphData(retryConfiguration: retryConfiguration)
+        await loadAnalytics(timeRange: insightsState.analytics.timeRange)
+
+        if includeCLISpec {
+            await loadCLISpec(retryConfiguration: retryConfiguration)
+        }
+
+        await loadRunnerConfiguration(retryConfiguration: retryConfiguration)
     }
 
     public func isTaskBlocked(_ task: RalphTask) -> Bool {

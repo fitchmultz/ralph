@@ -61,6 +61,140 @@ final class WorkspaceTaskCreationTests: XCTestCase {
         XCTAssertEqual(task.status, .todo)
     }
 
+    func test_workspaceInitialRefresh_populatesQueueGraphAndAnalytics() async throws {
+        let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-refresh-initial-")
+        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+
+        let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
+        try await Self.runChecked(
+            client: client,
+            arguments: ["--no-color", "init", "--non-interactive"],
+            currentDirectoryURL: workspaceURL
+        )
+
+        let seedingWorkspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        try await seedingWorkspace.createTask(
+            title: "Seed queue state",
+            priority: .medium
+        )
+        try await seedingWorkspace.createTask(
+            title: "Render analytics state",
+            priority: .medium
+        )
+
+        let workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+
+        let loaded = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.taskState.tasks.count == 2
+                    && workspace.insightsState.graphData?.summary.totalTasks == 2
+                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 2
+                    && workspace.insightsState.analytics.lastRefreshedAt != nil
+            }
+        }
+
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(workspace.taskState.tasks.count, 2)
+        XCTAssertEqual(workspace.insightsState.graphData?.summary.totalTasks, 2)
+        XCTAssertEqual(workspace.insightsState.analytics.queueStatsValue?.summary.active, 2)
+    }
+
+    func test_workspaceWatcherExternalMutation_refreshesQueueGraphAndAnalytics() async throws {
+        let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-refresh-watch-")
+        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+
+        let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
+        try await Self.runChecked(
+            client: client,
+            arguments: ["--no-color", "init", "--non-interactive"],
+            currentDirectoryURL: workspaceURL
+        )
+
+        let workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        let writerWorkspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+
+        let loadedEmptyState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.taskState.tasks.isEmpty
+                    && workspace.insightsState.graphData?.summary.totalTasks == 0
+                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 0
+            }
+        }
+
+        XCTAssertTrue(loadedEmptyState)
+
+        try await writerWorkspace.createTask(
+            title: "Observe watcher refresh",
+            priority: .medium
+        )
+        try await writerWorkspace.createTask(
+            title: "Update analytics after mutation",
+            priority: .medium
+        )
+
+        let refreshed = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.taskState.tasks.count == 2
+                    && workspace.insightsState.graphData?.summary.totalTasks == 2
+                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 2
+                    && workspace.taskState.lastQueueRefreshEvent?.source == .externalFileChange
+            }
+        }
+
+        XCTAssertTrue(refreshed)
+        XCTAssertEqual(workspace.taskState.lastQueueRefreshEvent?.highlightedTaskIDs.count, 2)
+    }
+
+    func test_workspaceRetarget_refreshesQueueGraphAndAnalyticsForNewDirectory() async throws {
+        let emptyWorkspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-retarget-empty-")
+        let populatedWorkspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-retarget-populated-")
+        defer {
+            RalphCoreTestSupport.assertRemoved(emptyWorkspaceURL)
+            RalphCoreTestSupport.assertRemoved(populatedWorkspaceURL)
+        }
+
+        let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
+        try await Self.runChecked(
+            client: client,
+            arguments: ["--no-color", "init", "--non-interactive"],
+            currentDirectoryURL: emptyWorkspaceURL
+        )
+        try await Self.runChecked(
+            client: client,
+            arguments: ["--no-color", "init", "--non-interactive"],
+            currentDirectoryURL: populatedWorkspaceURL
+        )
+
+        let populatedWorkspace = Workspace(workingDirectoryURL: populatedWorkspaceURL, client: client)
+        try await populatedWorkspace.createTask(
+            title: "Switch workspace truth",
+            priority: .medium
+        )
+
+        let workspace = Workspace(workingDirectoryURL: emptyWorkspaceURL, client: client)
+
+        let loadedInitialState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.taskState.tasks.isEmpty
+                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 0
+            }
+        }
+        XCTAssertTrue(loadedInitialState)
+
+        workspace.setWorkingDirectory(populatedWorkspaceURL)
+
+        let retargeted = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.workingDirectoryURL == Workspace.normalizedWorkingDirectoryURL(populatedWorkspaceURL)
+                    && workspace.taskState.tasks.count == 1
+                    && workspace.insightsState.graphData?.summary.totalTasks == 1
+                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 1
+            }
+        }
+
+        XCTAssertTrue(retargeted)
+    }
+
     func test_queueFileWatcher_rapidStartStopWithMutationsDoesNotCrash() async throws {
         for index in 0..<20 {
             let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-watcher-")

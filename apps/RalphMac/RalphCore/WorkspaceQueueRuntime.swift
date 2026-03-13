@@ -149,7 +149,10 @@ final class WorkspaceQueueRuntime {
         if batch.affectsQueueSnapshot {
             lastTasksSnapshot = workspace.taskState.tasks
 
-            await workspace.loadTasks(retryConfiguration: .minimal)
+            await workspace.refreshRepositoryState(
+                retryConfiguration: .minimal,
+                includeCLISpec: false
+            )
 
             guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
             workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
@@ -159,9 +162,8 @@ final class WorkspaceQueueRuntime {
             )
         }
 
-        if batch.affectsRunnerConfiguration {
-            guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
-            await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
-        }
+        guard batch.affectsRunnerConfiguration else { return }
+        guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
     }
 }

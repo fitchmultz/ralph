@@ -32,6 +32,7 @@ public extension Workspace {
     func loadAnalytics(timeRange: TimeRange = .sevenDays) async {
         let repositoryContext = currentRepositoryContext()
         let previousState = insightsState.analytics
+        insightsState.analytics.timeRange = timeRange
         insightsState.analytics = AnalyticsDashboardState(
             timeRange: timeRange,
             lastRefreshedAt: previousState.lastRefreshedAt,

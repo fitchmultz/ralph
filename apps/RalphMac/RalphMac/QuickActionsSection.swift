@@ -128,21 +128,119 @@ struct QuickActionsDetailColumn: View {
             Text("Status")
                 .font(.headline)
 
-            HStack(spacing: 16) {
-                if let status = workspace.runState.lastExitStatus {
-                    HStack(spacing: 6) {
-                        Image(systemName: status.code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(status.code == 0 ? .green : .red)
-                        Text("Exit: \(status.code) [\(status.reason.rawValue)]")
-                            .font(.system(.body, design: .monospaced))
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 16) {
+                    if let status = workspace.runState.lastExitStatus {
+                        HStack(spacing: 6) {
+                            Image(systemName: status.code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(status.code == 0 ? .green : .red)
+                            Text("Exit: \(status.code) [\(status.reason.rawValue)]")
+                                .font(.system(.body, design: .monospaced))
+                        }
+                    } else {
+                        Text("No commands run yet")
+                            .foregroundStyle(.secondary)
                     }
-                } else {
-                    Text("No commands run yet")
-                        .foregroundStyle(.secondary)
+
+                    Spacer()
                 }
 
-                Spacer()
+                queueStatusSummary()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func queueStatusSummary() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(queueStatusHeadline, systemImage: queueStatusIcon)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(queueStatusColor)
+
+                Spacer()
+
+                Button("Reload") {
+                    Task { @MainActor in
+                        await workspace.refreshRepositoryState(retryConfiguration: .minimal)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(workspace.taskState.tasksLoading || workspace.insightsState.graphDataLoading || workspace.insightsState.analytics.isLoading)
+            }
+
+            Text(queueStatusDetail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if !workspace.diagnosticsState.operationalSummary.isHealthy {
+                Text(workspace.diagnosticsState.operationalSummary.title)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.08))
+        .clipShape(.rect(cornerRadius: 10))
+    }
+
+    private var queueStatusHeadline: String {
+        if workspace.taskState.tasksLoading {
+            return "Refreshing queue state..."
+        }
+
+        if workspace.taskState.tasks.isEmpty {
+            return "Queue is empty"
+        }
+
+        return "Queue has \(workspace.taskState.tasks.count) task\(workspace.taskState.tasks.count == 1 ? "" : "s")"
+    }
+
+    private var queueStatusIcon: String {
+        if workspace.taskState.tasksLoading {
+            return "arrow.triangle.2.circlepath"
+        }
+
+        return workspace.taskState.tasks.isEmpty ? "tray" : "list.bullet.rectangle"
+    }
+
+    private var queueStatusColor: Color {
+        if workspace.taskState.tasksLoading {
+            return .accentColor
+        }
+
+        return workspace.taskState.tasks.isEmpty ? .secondary : .primary
+    }
+
+    private var queueStatusDetail: String {
+        let todoCount = workspace.taskState.tasks.filter { $0.status == .todo }.count
+        let doingCount = workspace.taskState.tasks.filter { $0.status == .doing }.count
+        let doneCount = workspace.taskState.tasks.filter { $0.status == .done }.count
+        let watcherStatus = watcherStatusText
+
+        if workspace.taskState.tasksLoading {
+            return "Reloading tasks, graph, and analytics from \(workspace.identityState.workingDirectoryURL.path). Watcher: \(watcherStatus)."
+        }
+
+        return "Todo \(todoCount) • Doing \(doingCount) • Done \(doneCount) • Watcher: \(watcherStatus)"
+    }
+
+    private var watcherStatusText: String {
+        switch workspace.diagnosticsState.watcherHealth.state {
+        case .idle:
+            return "idle"
+        case .starting:
+            return "starting"
+        case .watching:
+            return "watching"
+        case .degraded:
+            return "degraded"
+        case .failed:
+            return "failed"
+        case .stopped:
+            return "stopped"
         }
     }
 

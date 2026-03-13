@@ -526,7 +526,7 @@ mod tests {
         assert_eq!(spec.args[0], OsString::from("--env"));
         assert_eq!(spec.args[1], env_assignment_for_path(&cli));
         assert!(
-            spec.args[2] == OsString::from("-a") || spec.args[2] == OsString::from("-b"),
+            spec.args[2] == "-a" || spec.args[2] == "-b",
             "unexpected launch args: {:?}",
             spec.args
         );

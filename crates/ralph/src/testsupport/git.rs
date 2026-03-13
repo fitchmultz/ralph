@@ -39,6 +39,7 @@ pub(crate) fn init_repo(repo_root: &Path) -> Result<()> {
     git_run(repo_root, &["init"])?;
     git_run(repo_root, &["config", "user.email", "test@example.com"])?;
     git_run(repo_root, &["config", "user.name", "Test User"])?;
+    git_run(repo_root, &["config", "core.excludesFile", "/dev/null"])?;
     std::fs::create_dir_all(repo_root.join(".ralph"))?;
     Ok(())
 }

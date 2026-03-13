@@ -24,7 +24,6 @@ import RalphCore
 @MainActor
 struct AnalyticsDashboardView: View {
     @ObservedObject var workspace: Workspace
-    @State private var selectedTimeRange: TimeRange = .sevenDays
     @State private var selectedChart: ChartType = .burndown
 
     enum ChartType: String, CaseIterable, Identifiable {
@@ -70,13 +69,22 @@ struct AnalyticsDashboardView: View {
             }
         }
         .task {
+            guard !workspace.insightsState.analytics.isLoading else { return }
+            guard workspace.insightsState.analytics.lastRefreshedAt == nil else { return }
             await refreshAnalytics()
         }
-        .onChange(of: selectedTimeRange) { _, _ in
+        .onChange(of: workspace.insightsState.analytics.timeRange) { _, _ in
             Task { @MainActor in
                 await refreshAnalytics()
             }
         }
+    }
+
+    private var selectedTimeRangeBinding: Binding<TimeRange> {
+        Binding(
+            get: { workspace.insightsState.analytics.timeRange },
+            set: { workspace.insightsState.analytics.timeRange = $0 }
+        )
     }
 
     private var header: some View {
@@ -93,7 +101,7 @@ struct AnalyticsDashboardView: View {
 
             Spacer()
 
-            Picker("Time Range", selection: $selectedTimeRange) {
+            Picker("Time Range", selection: selectedTimeRangeBinding) {
                 ForEach(TimeRange.allCases) { range in
                     Text(range.displayName).tag(range)
                 }
@@ -348,7 +356,7 @@ struct AnalyticsDashboardView: View {
     }
 
     private func refreshAnalytics() async {
-        await workspace.loadAnalytics(timeRange: selectedTimeRange)
+        await workspace.loadAnalytics(timeRange: workspace.insightsState.analytics.timeRange)
     }
 }
 
