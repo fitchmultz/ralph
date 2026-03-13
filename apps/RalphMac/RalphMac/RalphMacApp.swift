@@ -22,13 +22,7 @@ import RalphCore
 struct RalphMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
-    @State private var menuBarManager = MenuBarManager.shared
-    @State private var uiTestingMenuBarVisible = false
-    let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
-
-    var manager: WorkspaceManager {
-        WorkspaceManager.shared
-    }
+    @StateObject private var appearance = AppAppearanceController.shared
 
     init() {
         _ = RalphAppDefaults.prepareForLaunch()
@@ -42,7 +36,8 @@ struct RalphMacApp: App {
                     VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
                         .ignoresSafeArea()
                 )
-                .onOpenURL(perform: handleOpenURL)
+                .preferredColorScheme(appearance.preferredColorScheme)
+                .background(MainWindowOpenActionRegistrar())
         }
         .restorationBehavior(.disabled)
         .windowStyle(.hiddenTitleBar)
@@ -58,21 +53,10 @@ struct RalphMacApp: App {
                 exportLogsAction: exportLogs,
                 showCrashReportsAction: showCrashReports
             )
-            AppSettingsCommands()
         }
 
-        MenuBarExtra(
-            isInserted: menuBarVisibilityBinding,
-            content: { MenuBarContentView() },
-            label: { MenuBarIconView() }
-        )
-        .menuBarExtraStyle(.menu)
-    }
-
-    private var menuBarVisibilityBinding: Binding<Bool> {
-        if isUITesting {
-            return $uiTestingMenuBarVisible
+        Settings {
+            SettingsSceneRoot()
         }
-        return $menuBarManager.isMenuBarExtraVisible
     }
 }

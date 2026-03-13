@@ -14,6 +14,7 @@
  Invariants/assumptions callers must respect:
  - Must be created on MainActor.
  - Changes are debounced with 500ms delay before persisting.
+ - Programmatic config loads suppress user-change side effects.
  */
 
 import SwiftUI
@@ -47,6 +48,8 @@ final class SettingsViewModel {
     private var saveTask: Task<Void, Never>?
     private var client: RalphCLIClient? { WorkspaceManager.shared.client }
     private var loadedConfigDict: [String: Any] = [:]
+    private var hasLoadedConfig = false
+    private var isApplyingLoadedValues = false
 
     // MARK: - Constants
     let availableRunners = ConfigRunner.allCases
@@ -68,12 +71,14 @@ final class SettingsViewModel {
 
     init(workspace: Workspace) {
         self.workspace = workspace
-        Task {
-            await loadConfig()
-        }
     }
 
     // MARK: - Loading
+
+    func loadConfigIfNeeded() async {
+        guard !hasLoadedConfig else { return }
+        await loadConfig()
+    }
 
     func loadConfig() async {
         isLoading = true
@@ -114,24 +119,10 @@ final class SettingsViewModel {
             let config = document.config
 
             // Apply to properties
-            if let agent = config.agent {
-                self.runner = agent.runner ?? "codex"
-                self.model = agent.model ?? "gpt-5.4"
-                self.phases = agent.phases ?? 3
-                self.iterations = agent.iterations ?? 1
-                self.reasoningEffort = agent.reasoningEffort ?? "medium"
-
-                if let notif = agent.notification {
-                    self.notificationsEnabled = notif.enabled ?? true
-                    self.notifyOnComplete = notif.notifyOnComplete ?? true
-                    self.notifyOnFail = notif.notifyOnFail ?? true
-                    self.notifyOnLoopComplete = notif.notifyOnLoopComplete ?? true
-                    self.soundEnabled = notif.soundEnabled ?? false
-                    self.suppressWhenActive = notif.suppressWhenActive ?? true
-                }
-            }
+            applyResolvedConfig(config)
 
             hasUnsavedChanges = false
+            hasLoadedConfig = true
         } catch {
             errorMessage = "Failed to load config: \(error.localizedDescription)"
             RalphLogger.shared.error("Failed to load config: \(error)", category: .config)
@@ -144,6 +135,7 @@ final class SettingsViewModel {
 
     /// Schedule a debounced save of the current settings
     func scheduleSave() {
+        guard !isApplyingLoadedValues else { return }
         hasUnsavedChanges = true
 
         // Cancel existing save task
@@ -222,6 +214,20 @@ final class SettingsViewModel {
         commonModels[runner] ?? ["default"]
     }
 
+    func handleRunnerChanged(to newValue: String) {
+        guard !isApplyingLoadedValues else { return }
+        if let firstModel = commonModels[newValue]?.first, model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            model = firstModel
+        }
+        scheduleSave()
+    }
+
+    func selectSuggestedModel(_ selectedModel: String) {
+        guard model != selectedModel else { return }
+        model = selectedModel
+        scheduleSave()
+    }
+
     func resetToDefaults() {
         runner = "codex"
         model = "gpt-5.4"
@@ -236,5 +242,25 @@ final class SettingsViewModel {
         suppressWhenActive = true
 
         scheduleSave()
+    }
+
+    private func applyResolvedConfig(_ config: RalphConfig) {
+        isApplyingLoadedValues = true
+        defer { isApplyingLoadedValues = false }
+
+        let agent = config.agent
+        runner = agent?.runner ?? "codex"
+        model = agent?.model ?? "gpt-5.4"
+        phases = agent?.phases ?? 3
+        iterations = agent?.iterations ?? 1
+        reasoningEffort = agent?.reasoningEffort ?? "medium"
+
+        let notification = agent?.notification
+        notificationsEnabled = notification?.enabled ?? true
+        notifyOnComplete = notification?.notifyOnComplete ?? true
+        notifyOnFail = notification?.notifyOnFail ?? true
+        notifyOnLoopComplete = notification?.notifyOnLoopComplete ?? true
+        soundEnabled = notification?.soundEnabled ?? false
+        suppressWhenActive = notification?.suppressWhenActive ?? true
     }
 }

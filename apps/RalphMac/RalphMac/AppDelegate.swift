@@ -38,8 +38,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.stabilizeExistingWindows()
         }
-
-        // Settings infrastructure is initialized from the SwiftUI app entry point.
     }
     
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -49,6 +47,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         WorkspaceManager.shared.persistRegisteredWindowStates()
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !flag else { return false }
+        return MainWindowService.shared.revealOrOpenPrimaryWindow()
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            RalphURLRouter.handle(url)
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -90,6 +99,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func normalizeWindow(_ window: NSWindow) {
+        guard isWorkspaceWindow(window) else { return }
+
         window.tabbingMode = .disallowed
         window.collectionBehavior.insert(.moveToActiveSpace)
 
@@ -98,11 +109,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard shouldApplyInitialPlacement || requiresPlacementReset(for: window) else { return }
 
         let frame = centeredFrame(for: window)
-        window.collectionBehavior.insert(.canJoinAllSpaces)
         applyRevealFrame(frame, to: window)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak window] in
-            window?.collectionBehavior.remove(.canJoinAllSpaces)
-        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak window] in
             guard let self, let window else { return }
             self.applyRevealFrame(self.centeredFrame(for: window), to: window)
@@ -111,6 +118,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, let window else { return }
             self.applyRevealFrame(self.centeredFrame(for: window), to: window)
         }
+    }
+
+    private func isWorkspaceWindow(_ window: NSWindow) -> Bool {
+        // SwiftUI/AppKit can create temporary helper windows for Settings and other system UI.
+        // Only Ralph workspace windows participate in the app-level placement flow.
+        window.identifier?.rawValue.contains("AppWindow") == true
     }
 
     private func shouldNormalizePlacement(for window: NSWindow) -> Bool {
@@ -158,7 +171,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func applyRevealFrame(_ frame: NSRect, to window: NSWindow) {
         window.setFrame(frame, display: true)
-        window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

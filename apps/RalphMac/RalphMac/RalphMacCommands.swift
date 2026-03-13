@@ -236,7 +236,10 @@ struct AppHelpCommands: Commands {
 struct AppSettingsCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            OpenSettingsButton()
+            Button("Settings...") {
+                SettingsService.showSettingsWindow(source: .appMenu)
+            }
+            .keyboardShortcut(",", modifiers: .command)
         }
     }
 }

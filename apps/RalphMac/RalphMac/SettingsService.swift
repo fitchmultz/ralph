@@ -2,36 +2,37 @@
  SettingsService
 
  Responsibilities:
- - Define the shared settings service contract used by app command surfaces.
- - Provide the default stub implementation extended by `ASettingsInfra.swift`.
+ - Provide the shared settings-window entrypoint used by app command surfaces.
+ - Route settings opens through the dedicated `SettingsWindowController`.
 
  Does not handle:
- - Settings window controller behavior.
  - Settings UI content.
-
- Invariants/assumptions callers must respect:
- - Concrete behavior is supplied by an extension in `ASettingsInfra.swift`.
+ - Settings state persistence.
  */
 
-import SwiftUI
+import AppKit
+import RalphCore
 
 @MainActor
-enum SettingsService {
-    static func initialize() {
-        _ = SettingsWindowController.shared
-    }
-
-    static func showSettingsWindow() {
-        SettingsWindowController.shared.show()
-    }
+enum SettingsPresentationSource {
+    case appMenu
+    case keyboardShortcut
+    case menuBar
 }
 
 @MainActor
-struct OpenSettingsButton: View {
-    var body: some View {
-        Button("Settings...") {
-            SettingsService.showSettingsWindow()
+enum SettingsService {
+    static func showSettingsWindow(
+        for workspace: Workspace? = WorkspaceManager.shared.effectiveWorkspace,
+        source _: SettingsPresentationSource = .appMenu
+    ) {
+        SettingsPresentationCoordinator.shared.prepare(workspace: workspace)
+
+        Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            NSApp.activate(ignoringOtherApps: true)
         }
-        .keyboardShortcut(",", modifiers: .command)
     }
 }
