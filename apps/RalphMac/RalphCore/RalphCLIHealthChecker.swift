@@ -61,6 +61,7 @@ public struct CLIHealthStatus: Sendable, Equatable {
 public actor CLIHealthChecker {
     private var cachedStatus: [UUID: CLIHealthStatus] = [:]
     private var checkTasks: [UUID: Task<CLIHealthStatus, Never>] = [:]
+    private var checkTaskTokens: [UUID: UUID] = [:]
 
     public static let defaultTimeout: TimeInterval = 30
 
@@ -72,7 +73,8 @@ public actor CLIHealthChecker {
     ) async -> CLIHealthStatus {
         checkTasks[workspaceID]?.cancel()
 
-        let task = Task {
+        let token = UUID()
+        let task = Task { [workspaceID] in
             await performHealthCheck(
                 workspaceID: workspaceID,
                 workspaceURL: workspaceURL,
@@ -82,9 +84,30 @@ public actor CLIHealthChecker {
         }
 
         checkTasks[workspaceID] = task
-        let status = await task.value
-        checkTasks[workspaceID] = nil
-        cachedStatus[workspaceID] = status
+        checkTaskTokens[workspaceID] = token
+        let status = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+
+        if Task.isCancelled {
+            if checkTaskTokens[workspaceID] == token {
+                checkTasks[workspaceID] = nil
+                checkTaskTokens[workspaceID] = nil
+            }
+            return CLIHealthStatus(
+                availability: .unknown,
+                lastChecked: Date(),
+                workspaceURL: workspaceURL
+            )
+        }
+
+        if checkTaskTokens[workspaceID] == token {
+            checkTasks[workspaceID] = nil
+            checkTaskTokens[workspaceID] = nil
+            cachedStatus[workspaceID] = status
+        }
         return status
     }
 
@@ -94,6 +117,9 @@ public actor CLIHealthChecker {
 
     public func invalidateCache(for workspaceID: UUID) {
         cachedStatus.removeValue(forKey: workspaceID)
+        checkTasks[workspaceID]?.cancel()
+        checkTasks.removeValue(forKey: workspaceID)
+        checkTaskTokens.removeValue(forKey: workspaceID)
     }
 
     public static func isCLIUnavailableError(_ error: any Error) -> Bool {
@@ -116,6 +142,14 @@ public actor CLIHealthChecker {
         timeout: TimeInterval,
         executableURL: URL?
     ) async -> CLIHealthStatus {
+        guard !Task.isCancelled else {
+            return CLIHealthStatus(
+                availability: .unknown,
+                lastChecked: Date(),
+                workspaceURL: workspaceURL
+            )
+        }
+
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(
             atPath: workspaceURL.path,
@@ -161,6 +195,12 @@ public actor CLIHealthChecker {
 
             return CLIHealthStatus(
                 availability: .available,
+                lastChecked: Date(),
+                workspaceURL: workspaceURL
+            )
+        } catch is CancellationError {
+            return CLIHealthStatus(
+                availability: .unknown,
                 lastChecked: Date(),
                 workspaceURL: workspaceURL
             )

@@ -44,16 +44,33 @@ public final class WorkspaceDiagnosticsState: ObservableObject {
 public extension Workspace {
     @MainActor
     func checkHealth(timeout: TimeInterval = CLIHealthChecker.defaultTimeout) async -> CLIHealthStatus {
-        diagnosticsState.isCheckingHealth = true
-        defer { diagnosticsState.isCheckingHealth = false }
+        let repositoryContext = currentRepositoryContext()
+        guard !isShutDown, !Task.isCancelled else {
+            return CLIHealthStatus(
+                availability: .unknown,
+                lastChecked: Date(),
+                workspaceURL: identityState.workingDirectoryURL
+            )
+        }
 
-        let checker = CLIHealthChecker()
-        let status = await checker.checkHealth(
+        diagnosticsState.isCheckingHealth = true
+        defer {
+            if !isShutDown, isCurrentRepositoryContext(repositoryContext) {
+                diagnosticsState.isCheckingHealth = false
+            }
+        }
+
+        let status = await cliHealthChecker.checkHealth(
             workspaceID: id,
-            workspaceURL: identityState.workingDirectoryURL,
+            workspaceURL: repositoryContext.workingDirectoryURL,
             timeout: timeout,
             executableURL: client?.executableURL
         )
+
+        guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else {
+            return status
+        }
+
         diagnosticsState.cliHealthStatus = status
 
         if status.isAvailable {

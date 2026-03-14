@@ -37,6 +37,13 @@ public final class WorkspaceManager: ObservableObject {
     var restorationPoolInitialized = false
     let sceneRouter = WorkspaceSceneRouter()
 
+    var versionCheckTask: Task<Void, Never>?
+    var versionCheckRevision: UInt64 = 0
+    var workspaceBootstrapTasks: [UUID: Task<Void, Never>] = [:]
+    var workspaceBootstrapRevisions: [UUID: UInt64] = [:]
+    var workspaceRevealTask: Task<Void, Never>?
+    var workspaceRevealRevision: UInt64 = 0
+
     private init() {
         let preparation = RalphAppDefaults.prepareForLaunch()
         persistenceIssue = preparation.persistenceIssue
@@ -45,10 +52,13 @@ public final class WorkspaceManager: ObservableObject {
             return
         }
 
-        Task { @MainActor in
-            await performVersionCheck()
-        }
-
+        scheduleVersionCheck()
         migrateLegacyStateIfNeeded()
+    }
+
+    deinit {
+        versionCheckTask?.cancel()
+        workspaceBootstrapTasks.values.forEach { $0.cancel() }
+        workspaceRevealTask?.cancel()
     }
 }

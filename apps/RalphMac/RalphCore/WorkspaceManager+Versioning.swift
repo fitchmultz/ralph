@@ -24,6 +24,19 @@ private struct CachedVersionResult: Codable {
 }
 
 public extension WorkspaceManager {
+    func scheduleVersionCheck() {
+        versionCheckTask?.cancel()
+        versionCheckRevision &+= 1
+        let revision = versionCheckRevision
+
+        versionCheckTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performVersionCheck()
+            guard self.versionCheckRevision == revision else { return }
+            self.versionCheckTask = nil
+        }
+    }
+
     @MainActor
     func performVersionCheck() async {
         if let cached = checkCachedVersionResult(), cached.isCompatible {

@@ -25,6 +25,8 @@ final class WorkspaceQueueRuntime {
     private var watcher: QueueFileWatcher?
     private var watcherEventsTask: Task<Void, Never>?
     private var watcherStartTask: Task<Void, Never>?
+    private var watcherStopTask: Task<Void, Never>?
+    private var watchTargetSyncTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
     private var pendingBatch = QueueFileWatcher.FileChangeBatch(fileNames: [])
     private var lastTasksSnapshot: [RalphTask] = []
@@ -36,12 +38,9 @@ final class WorkspaceQueueRuntime {
     deinit {
         watcherEventsTask?.cancel()
         watcherStartTask?.cancel()
+        watcherStopTask?.cancel()
+        watchTargetSyncTask?.cancel()
         refreshTask?.cancel()
-        if let watcher {
-            Task {
-                await watcher.stop()
-            }
-        }
     }
 
     func startWatchingIfNeeded() {
@@ -83,6 +82,10 @@ final class WorkspaceQueueRuntime {
             watcherEventsTask = nil
             watcherStartTask?.cancel()
             watcherStartTask = nil
+            watcherStopTask?.cancel()
+            watcherStopTask = nil
+            watchTargetSyncTask?.cancel()
+            watchTargetSyncTask = nil
             refreshTask?.cancel()
             refreshTask = nil
             pendingBatch = QueueFileWatcher.FileChangeBatch(fileNames: [])
@@ -94,6 +97,9 @@ final class WorkspaceQueueRuntime {
         watcherEventsTask = nil
         watcherStartTask?.cancel()
         watcherStartTask = nil
+        watcherStopTask?.cancel()
+        watchTargetSyncTask?.cancel()
+        watchTargetSyncTask = nil
         refreshTask?.cancel()
         refreshTask = nil
         pendingBatch = QueueFileWatcher.FileChangeBatch(fileNames: [])
@@ -104,9 +110,11 @@ final class WorkspaceQueueRuntime {
         workspace.updateWatcherHealth(.stopped(for: workspace.identityState.workingDirectoryURL))
 
         if let activeWatcher {
-            Task {
+            watcherStopTask = Task {
                 await activeWatcher.stop()
             }
+        } else {
+            watcherStopTask = nil
         }
     }
 
@@ -130,7 +138,8 @@ final class WorkspaceQueueRuntime {
         }
 
         let targets = workspace.queueWatcherTargets
-        Task {
+        watchTargetSyncTask?.cancel()
+        watchTargetSyncTask = Task {
             await watcher.updateTargets(targets)
         }
     }

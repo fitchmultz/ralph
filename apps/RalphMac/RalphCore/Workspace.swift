@@ -26,6 +26,11 @@ public import Foundation
 
 @MainActor
 public final class Workspace: ObservableObject, Identifiable {
+    public enum LaunchDisposition: Sendable, Equatable {
+        case regular
+        case startupPlaceholder
+    }
+
     public struct RepositoryContext: Sendable, Equatable {
         public let generation: UInt64
         public let workingDirectoryURL: URL
@@ -48,18 +53,25 @@ public final class Workspace: ObservableObject, Identifiable {
     lazy var queueRuntime = WorkspaceQueueRuntime(workspace: self)
     lazy var runnerController = WorkspaceRunnerController(workspace: self)
 
+    let cliHealthChecker = CLIHealthChecker()
+
+    public private(set) var launchDisposition: LaunchDisposition
     var client: RalphCLIClient?
     var isShutDown = false
 
     private var relayCancellables = Set<AnyCancellable>()
     private var operationalDependencyCancellables = Set<AnyCancellable>()
     private var repositoryActivityTask: Task<Void, Never>?
+    private var operationalRefreshTask: Task<Void, Never>?
+    private var healthCheckTask: Task<Void, Never>?
     private var repositoryActivityRevision: UInt64 = 0
+    private var healthCheckRevision: UInt64 = 0
 
     public init(
         id: UUID = UUID(),
         name: String? = nil,
         workingDirectoryURL: URL,
+        launchDisposition: LaunchDisposition = .regular,
         client: RalphCLIClient? = nil
     ) {
         self.id = id
@@ -75,6 +87,7 @@ public final class Workspace: ObservableObject, Identifiable {
             watcherHealth: .idle(for: workingDirectoryURL)
         )
         runState = WorkspaceRunState(outputBuffer: ConsoleOutputBuffer.loadFromUserDefaults())
+        self.launchDisposition = launchDisposition
         self.client = client
 
         bindDomainStateChanges()
@@ -145,15 +158,11 @@ public final class Workspace: ObservableObject, Identifiable {
     }
 
     public var isURLRoutingPlaceholderWorkspace: Bool {
-        guard !runState.isRunning else { return false }
+        launchDisposition == .startupPlaceholder && !runState.isRunning
+    }
 
-        if !hasRalphQueueFile {
-            return true
-        }
-
-        guard !taskState.tasksLoading else { return false }
-        guard taskState.tasksErrorMessage == nil else { return false }
-        return taskState.tasks.isEmpty
+    public func markStartupPlaceholderConsumed() {
+        launchDisposition = .regular
     }
 
     public func refreshRunControlData() async {
@@ -261,17 +270,13 @@ public final class Workspace: ObservableObject, Identifiable {
     private func bindOperationalDependencies() {
         WorkspaceManager.shared.objectWillChange
             .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.refreshOperationalHealth()
-                }
+                self?.scheduleOperationalHealthRefresh()
             }
             .store(in: &operationalDependencyCancellables)
 
         CrashReporter.shared.objectWillChange
             .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.refreshOperationalHealth()
-                }
+                self?.scheduleOperationalHealthRefresh()
             }
             .store(in: &operationalDependencyCancellables)
     }
@@ -291,6 +296,56 @@ public final class Workspace: ObservableObject, Identifiable {
             guard self.repositoryActivityRevision == revision else { return }
             self.repositoryActivityTask = nil
         }
+    }
+
+    func scheduleOperationalHealthRefresh() {
+        guard !isShutDown else { return }
+
+        operationalRefreshTask?.cancel()
+        operationalRefreshTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self, !Task.isCancelled, !self.isShutDown else { return }
+            self.refreshOperationalHealth()
+            self.operationalRefreshTask = nil
+        }
+    }
+
+    func cancelOperationalHealthRefresh() {
+        operationalRefreshTask?.cancel()
+        operationalRefreshTask = nil
+    }
+
+    public func scheduleHealthCheck(loadCachedTasksOnUnavailable: Bool = true) {
+        guard !isShutDown else { return }
+
+        healthCheckTask?.cancel()
+        healthCheckRevision &+= 1
+        let revision = healthCheckRevision
+        let repositoryContext = currentRepositoryContext()
+
+        healthCheckTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled, !self.isShutDown else { return }
+            let status = await self.checkHealth()
+            guard
+                !Task.isCancelled,
+                !self.isShutDown,
+                self.isCurrentRepositoryContext(repositoryContext),
+                self.healthCheckRevision == revision
+            else {
+                return
+            }
+            if loadCachedTasksOnUnavailable, status.isAvailable == false {
+                self.loadCachedTasks()
+            }
+            self.healthCheckTask = nil
+        }
+    }
+
+    func cancelHealthCheck() {
+        healthCheckTask?.cancel()
+        healthCheckTask = nil
+        diagnosticsState.isCheckingHealth = false
+        healthCheckRevision &+= 1
     }
 
     func cancelRepositoryActivity() {

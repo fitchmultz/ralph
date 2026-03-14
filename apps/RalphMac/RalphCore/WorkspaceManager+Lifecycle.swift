@@ -18,12 +18,19 @@ public import Foundation
 
 public extension WorkspaceManager {
     @discardableResult
-    func createWorkspace(workingDirectory: URL? = nil) -> Workspace {
-        createWorkspace(id: UUID(), workingDirectory: workingDirectory)
+    func createWorkspace(
+        workingDirectory: URL? = nil,
+        launchDisposition: Workspace.LaunchDisposition = .regular
+    ) -> Workspace {
+        createWorkspace(id: UUID(), workingDirectory: workingDirectory, launchDisposition: launchDisposition)
     }
 
     @discardableResult
-    func createWorkspace(id: UUID, workingDirectory: URL? = nil) -> Workspace {
+    func createWorkspace(
+        id: UUID,
+        workingDirectory: URL? = nil,
+        launchDisposition: Workspace.LaunchDisposition = .regular
+    ) -> Workspace {
         if let existing = workspaces.first(where: { $0.id == id }) {
             return existing
         }
@@ -32,20 +39,23 @@ public extension WorkspaceManager {
             ?? FileManager.default.homeDirectoryForCurrentUser
         let directory = workingDirectory ?? defaultDirectory
 
-        let workspace = Workspace(id: id, workingDirectoryURL: directory, client: client)
+        let workspace = Workspace(
+            id: id,
+            workingDirectoryURL: directory,
+            launchDisposition: launchDisposition,
+            client: client
+        )
         workspaces.append(workspace)
         if focusedWorkspace == nil && lastActiveWorkspaceID == nil {
             lastActiveWorkspaceID = workspace.id
         }
 
-        Task { @MainActor in
-            await workspace.loadCLISpec()
-        }
-
+        scheduleWorkspaceBootstrap(for: workspace)
         return workspace
     }
 
     func closeWorkspace(_ workspace: Workspace) {
+        cancelWorkspaceBootstrap(for: workspace.id)
         workspace.shutdown()
         workspace.cancel()
         workspace.removePersistedState()
@@ -70,6 +80,25 @@ public extension WorkspaceManager {
         let newWorkspace = createWorkspace(workingDirectory: workspace.identityState.workingDirectoryURL)
         newWorkspace.identityState.name = "\(workspace.identityState.name) Copy"
         return newWorkspace
+    }
+
+    func scheduleWorkspaceBootstrap(for workspace: Workspace) {
+        cancelWorkspaceBootstrap(for: workspace.id)
+        let revision = (workspaceBootstrapRevisions[workspace.id] ?? 0) &+ 1
+        workspaceBootstrapRevisions[workspace.id] = revision
+
+        workspaceBootstrapTasks[workspace.id] = Task { @MainActor [weak self, weak workspace] in
+            guard let self, let workspace, !workspace.isShutDown else { return }
+            await workspace.loadCLISpec()
+            guard self.workspaceBootstrapRevisions[workspace.id] == revision else { return }
+            self.workspaceBootstrapTasks[workspace.id] = nil
+        }
+    }
+
+    func cancelWorkspaceBootstrap(for workspaceID: UUID) {
+        workspaceBootstrapTasks[workspaceID]?.cancel()
+        workspaceBootstrapTasks[workspaceID] = nil
+        workspaceBootstrapRevisions[workspaceID] = (workspaceBootstrapRevisions[workspaceID] ?? 0) &+ 1
     }
 
     func migrateLegacyStateIfNeeded() {

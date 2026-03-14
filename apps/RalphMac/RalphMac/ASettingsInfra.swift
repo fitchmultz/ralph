@@ -26,31 +26,29 @@ enum SettingsWindowIdentity {
 }
 
 @MainActor
-final class SettingsWindowService {
+final class SettingsWindowService: NSObject, NSWindowDelegate {
     static let shared = SettingsWindowService()
 
-    private var openSettingsWindowHandler: (() -> Void)?
+    private var windowController: NSWindowController?
+    private var postRevealTasks: [Task<Void, Never>] = []
 
-    private init() {}
-
-    func register(openWindow: OpenWindowAction) {
-        openSettingsWindowHandler = {
-            openWindow(id: SettingsWindowIdentity.sceneID)
-        }
+    private override init() {
+        super.init()
     }
 
     @discardableResult
     func revealOrOpenPreparedWindow() -> Bool {
-        if let existingWindow = NSApp.windows.first(where: isSettingsWindow) {
-            configure(window: existingWindow)
-            existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return true
-        }
+        let controller = ensureWindowController()
+        guard let window = controller.window else { return false }
 
-        guard let openSettingsWindowHandler else { return false }
-        openSettingsWindowHandler()
+        installFreshRootView(on: controller)
+        configure(window: window)
+        controller.showWindow(nil)
+        window.orderFront(nil)
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        SettingsPresentationCoordinator.shared.capture(window: window)
+        scheduleKeyWindowRefresh(for: window)
         return true
     }
 
@@ -59,6 +57,11 @@ final class SettingsWindowService {
         window.title = SettingsWindowIdentity.title
         window.collectionBehavior.insert(.moveToActiveSpace)
         window.tabbingMode = .disallowed
+        window.minSize = NSSize(width: 640, height: 480)
+        if window.frame.width < 760 || window.frame.height < 520 {
+            window.setContentSize(NSSize(width: 760, height: 520))
+        }
+        window.center()
     }
 
     func isSettingsWindow(_ window: NSWindow) -> Bool {
@@ -66,20 +69,86 @@ final class SettingsWindowService {
         return rawIdentifier == SettingsWindowIdentity.windowIdentifier
             || rawIdentifier == SettingsWindowIdentity.legacyWindowIdentifier
     }
-}
 
-@MainActor
-struct SettingsWindowOpenActionRegistrar: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .allowsHitTesting(false)
-            .task {
-                SettingsWindowService.shared.register(openWindow: openWindow)
-            }
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        guard window === windowController?.window else { return }
+        cancelPostRevealTasks()
+        windowController = nil
     }
+
+    private func installFreshRootView(on controller: NSWindowController) {
+        controller.contentViewController = NSHostingController(rootView: makeRootView())
+    }
+
+    private func scheduleKeyWindowRefresh(for window: NSWindow) {
+        cancelPostRevealTasks()
+        postRevealTasks = [
+            Task { @MainActor [weak self, weak window] in
+                guard let self, let window else { return }
+                self.refreshPresentedWindow(window)
+            },
+            Task { @MainActor [weak self, weak window] in
+                await Task.yield()
+                guard let self, let window, !Task.isCancelled else { return }
+                self.refreshPresentedWindow(window)
+            },
+            Task { @MainActor [weak self, weak window] in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                guard let self, let window, !Task.isCancelled else { return }
+                self.refreshPresentedWindow(window)
+            },
+            Task { @MainActor [weak self, weak window] in
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                guard let self, let window, !Task.isCancelled else { return }
+                self.refreshPresentedWindow(window)
+            }
+        ]
+    }
+
+    private func refreshPresentedWindow(_ window: NSWindow) {
+        guard window === windowController?.window else { return }
+        configure(window: window)
+        window.orderFront(nil)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        SettingsPresentationCoordinator.shared.capture(window: window)
+    }
+
+    private func cancelPostRevealTasks() {
+        postRevealTasks.forEach { $0.cancel() }
+        postRevealTasks.removeAll(keepingCapacity: false)
+    }
+
+    private func makeRootView() -> AnyView {
+        AnyView(
+            SettingsSceneRoot()
+                .id(SettingsPresentationCoordinator.shared.contentIdentity)
+        )
+    }
+
+    private func ensureWindowController() -> NSWindowController {
+        if let windowController, let window = windowController.window {
+            configure(window: window)
+            return windowController
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentViewController = NSHostingController(rootView: makeRootView())
+        window.delegate = self
+        window.isReleasedWhenClosed = false
+        configure(window: window)
+
+        let controller = NSWindowController(window: window)
+        windowController = controller
+        return controller
+    }
+
 }
 
 struct SettingsWindowHelperSnapshot: Codable, Equatable {
@@ -168,6 +237,7 @@ private struct SettingsWindowFocusAnchor: NSViewRepresentable {
 
     final class FocusAnchorView: NSView {
         private weak var observedWindow: NSWindow?
+        private var diagnosticsCaptureTasks: [Task<Void, Never>] = []
 
         // Keep Settings off the initial text-field path. Allowing AppKit to pick the
         // first editable key view constructs the shared field editor early enough to
@@ -250,29 +320,41 @@ private struct SettingsWindowFocusAnchor: NSViewRepresentable {
         }
 
         private func scheduleDiagnosticsCapture(for window: NSWindow) {
-            Task { @MainActor [weak window] in
-                guard let window else { return }
-                SettingsPresentationCoordinator.shared.capture(window: window)
-            }
+            cancelDiagnosticsCaptureTasks()
+            diagnosticsCaptureTasks = [
+                Task { @MainActor [weak window] in
+                    guard let window else { return }
+                    SettingsPresentationCoordinator.shared.capture(window: window)
+                },
+                Task { @MainActor [weak window] in
+                    await Task.yield()
+                    guard let window, !Task.isCancelled else { return }
+                    SettingsPresentationCoordinator.shared.capture(window: window)
+                },
+                Task { @MainActor [weak window] in
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    guard let window, !Task.isCancelled else { return }
+                    SettingsPresentationCoordinator.shared.capture(window: window)
+                }
+            ]
+        }
 
-            Task { @MainActor [weak window] in
-                await Task.yield()
-                guard let window, !Task.isCancelled else { return }
-                SettingsPresentationCoordinator.shared.capture(window: window)
-            }
-
-            Task { @MainActor [weak window] in
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                guard let window, !Task.isCancelled else { return }
-                SettingsPresentationCoordinator.shared.capture(window: window)
-            }
+        private func cancelDiagnosticsCaptureTasks() {
+            diagnosticsCaptureTasks.forEach { $0.cancel() }
+            diagnosticsCaptureTasks.removeAll(keepingCapacity: false)
         }
 
         private func removeWindowObservation() {
+            cancelDiagnosticsCaptureTasks()
             if let observedWindow {
                 NotificationCenter.default.removeObserver(
                     self,
                     name: NSWindow.didBecomeKeyNotification,
+                    object: observedWindow
+                )
+                NotificationCenter.default.removeObserver(
+                    self,
+                    name: NSWindow.didBecomeMainNotification,
                     object: observedWindow
                 )
             }
@@ -280,6 +362,7 @@ private struct SettingsWindowFocusAnchor: NSViewRepresentable {
         }
 
         deinit {
+            diagnosticsCaptureTasks.forEach { $0.cancel() }
             NotificationCenter.default.removeObserver(self)
         }
     }
@@ -369,6 +452,7 @@ final class AppAppearanceController: ObservableObject {
 @MainActor
 final class SettingsPresentationCoordinator: ObservableObject {
     static let shared = SettingsPresentationCoordinator()
+    nonisolated static let contextDidChangeNotification = Notification.Name("com.mitchfultz.ralph.settings.contextDidChange")
 
     @Published private(set) var workspace: Workspace?
     @Published private(set) var diagnostics = SettingsWindowDiagnosticsSnapshot.idle
@@ -392,10 +476,10 @@ final class SettingsPresentationCoordinator: ObservableObject {
             source: source.rawValue,
             requestedWorkspacePath: workspace?.identityState.workingDirectoryURL.path,
             resolvedWorkspacePath: resolvedWorkspacePath(for: workspace),
-            contentWorkspacePath: diagnostics.contentWorkspacePath,
-            settingsRunnerValue: diagnostics.settingsRunnerValue,
-            settingsModelValue: diagnostics.settingsModelValue,
-            settingsIsLoading: diagnostics.settingsIsLoading,
+            contentWorkspacePath: nil,
+            settingsRunnerValue: nil,
+            settingsModelValue: nil,
+            settingsIsLoading: workspace != nil,
             visibleAppWindowCount: diagnostics.visibleAppWindowCount,
             visibleWorkspaceWindowCount: diagnostics.visibleWorkspaceWindowCount,
             visibleSettingsWindowCount: diagnostics.visibleSettingsWindowCount,
@@ -407,6 +491,26 @@ final class SettingsPresentationCoordinator: ObservableObject {
             settingsWindowIsKey: diagnostics.settingsWindowIsKey
         )
         persistDiagnosticsIfNeeded()
+        NotificationCenter.default.post(name: Self.contextDidChangeNotification, object: nil)
+        refreshDiagnosticsContentForPreparedWorkspace()
+    }
+
+    var contentIdentity: String {
+        let workspacePath = workspace?.identityState.workingDirectoryURL.path ?? "no-workspace"
+        let workspaceID = workspace?.id.uuidString ?? "no-workspace-id"
+        let retargetRevision = workspace.map { String($0.identityState.retargetRevision) } ?? "0"
+        return [
+            String(diagnostics.requestSequence),
+            workspaceID,
+            workspacePath,
+            retargetRevision,
+        ].joined(separator: "|")
+    }
+
+    var requiresFreshWindowPresentation: Bool {
+        let preparedPath = normalizePath(resolvedWorkspacePath(for: workspace))
+        let contentPath = normalizePath(diagnostics.contentWorkspacePath)
+        return preparedPath != contentPath
     }
 
     func capture(window: NSWindow?) {
@@ -471,6 +575,44 @@ final class SettingsPresentationCoordinator: ObservableObject {
         (preparedWorkspace ?? WorkspaceManager.shared.effectiveWorkspace)?.identityState.workingDirectoryURL.path
     }
 
+    private func normalizePath(_ path: String?) -> String? {
+        guard let path, !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL.path
+    }
+
+    private func refreshDiagnosticsContentForPreparedWorkspace() {
+        guard let preparedWorkspace = workspace else {
+            diagnostics.contentWorkspacePath = nil
+            diagnostics.settingsRunnerValue = nil
+            diagnostics.settingsModelValue = nil
+            diagnostics.settingsIsLoading = false
+            persistDiagnosticsIfNeeded()
+            return
+        }
+
+        let preparedDirectoryURL = preparedWorkspace.identityState.workingDirectoryURL
+        let preparedPath = preparedDirectoryURL.path
+        let configURL = preparedWorkspace.projectConfigFileURL
+            ?? preparedDirectoryURL.appendingPathComponent(".ralph/config.jsonc")
+
+        diagnostics.contentWorkspacePath = preparedPath
+        diagnostics.settingsRunnerValue = nil
+        diagnostics.settingsModelValue = nil
+        diagnostics.settingsIsLoading = true
+
+        do {
+            let snapshot = try SettingsProjectConfigLoader.loadSynchronously(from: configURL)
+            diagnostics.settingsRunnerValue = snapshot.config.agent?.runner
+            diagnostics.settingsModelValue = snapshot.config.agent?.model
+        } catch {
+            diagnostics.settingsRunnerValue = nil
+            diagnostics.settingsModelValue = nil
+        }
+
+        diagnostics.settingsIsLoading = false
+        persistDiagnosticsIfNeeded()
+    }
+
     private func persistDiagnosticsIfNeeded() {
         guard let diagnosticsFileURL else { return }
         let encoder = JSONEncoder()
@@ -484,17 +626,25 @@ final class SettingsPresentationCoordinator: ObservableObject {
 
 @MainActor
 struct SettingsSceneRoot: View {
-    @ObservedObject private var presentation = SettingsPresentationCoordinator.shared
+    @StateObject private var presentation = SettingsPresentationCoordinator.shared
+    @State private var refreshToken = UUID()
 
     var body: some View {
         let workspace = presentation.workspace ?? WorkspaceManager.shared.effectiveWorkspace
 
-        SettingsContentContainer(workspace: workspace)
+        SettingsContentContainer(
+            workspace: workspace,
+            presentationToken: presentation.contentIdentity
+        )
+            .id("\(refreshToken.uuidString)|\(presentation.contentIdentity)")
             .frame(minWidth: 640, minHeight: 480)
             .preferredColorScheme(AppAppearanceController.shared.preferredColorScheme)
             .background(SettingsWindowFocusAnchor())
             .overlay(alignment: .bottomTrailing) {
                 SettingsDiagnosticsAccessibilityProbe(snapshot: presentation.diagnostics)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: SettingsPresentationCoordinator.contextDidChangeNotification)) { _ in
+                refreshToken = UUID()
             }
     }
 }

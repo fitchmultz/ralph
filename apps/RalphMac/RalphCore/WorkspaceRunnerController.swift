@@ -28,10 +28,16 @@ final class WorkspaceRunnerController {
     private var activeRun: RalphCLIRun?
     private var cancelRequested = false
     private var loopContinuationTask: Task<Void, Never>?
+    private var runCancellationTask: Task<Void, Never>?
     private var loopForceDirtyRepo = false
 
     init(workspace: Workspace) {
         self.workspace = workspace
+    }
+
+    deinit {
+        loopContinuationTask?.cancel()
+        runCancellationTask?.cancel()
     }
 
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
@@ -101,9 +107,7 @@ final class WorkspaceRunnerController {
         let runToCancel = activeRun
         activeRun = nil
         if let runToCancel {
-            Task {
-                await runToCancel.cancel()
-            }
+            scheduleRunCancellation(runToCancel)
         }
     }
 
@@ -169,6 +173,7 @@ final class WorkspaceRunnerController {
                 workspace.diagnosticsState.showErrorRecovery = true
                 workspace.runState.isRunning = false
                 activeRun = nil
+                runCancellationTask = nil
                 cancelRequested = false
                 workspace.resetExecutionState()
             }
@@ -192,9 +197,7 @@ final class WorkspaceRunnerController {
         workspace.runState.stopAfterCurrent = true
 
         guard let run = activeRun else { return }
-        Task {
-            await run.cancel()
-        }
+        scheduleRunCancellation(run)
     }
 
     func runNextTask(
@@ -248,6 +251,15 @@ final class WorkspaceRunnerController {
         loopContinuationTask = nil
     }
 
+    private func scheduleRunCancellation(_ run: RalphCLIRun) {
+        runCancellationTask?.cancel()
+        runCancellationTask = Task { @MainActor [weak self] in
+            await run.cancel()
+            guard let self, self.activeRun == nil else { return }
+            self.runCancellationTask = nil
+        }
+    }
+
     private func finalizeRun(
         status: RalphCLIExitStatus,
         run: RalphCLIRun,
@@ -280,6 +292,7 @@ final class WorkspaceRunnerController {
         }
 
         activeRun = nil
+        runCancellationTask = nil
         cancelRequested = false
         workspace.resetExecutionState()
 

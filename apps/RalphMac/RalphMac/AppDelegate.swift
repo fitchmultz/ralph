@@ -25,6 +25,10 @@ import RalphCore
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowObserverTokens: [any NSObjectProtocol] = []
     private var normalizedWindowNumbers = Set<Int>()
+    private var launchStabilizationTasks: [Task<Void, Never>] = []
+    private var delayedWindowNormalizationTasks: [Int: [Task<Void, Never>]] = [:]
+    private var primaryWindowBootstrapTasks: [Task<Void, Never>] = []
+    private var didRequestPrimaryWindowBootstrap = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -33,13 +37,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWindow.allowsAutomaticWindowTabbing = false
 
         configureWindowObservers()
+        UITestingWorkspaceOpenBridge.shared.configureIfNeeded()
         stabilizeExistingWindows()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            self?.stabilizeExistingWindows()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            self?.stabilizeExistingWindows()
-        }
+        schedulePrimaryWindowBootstrap(after: 50_000_000)
+        schedulePrimaryWindowBootstrap(after: 250_000_000)
+        schedulePrimaryWindowBootstrap(after: 800_000_000)
+        scheduleLaunchStabilization(after: 200_000_000)
+        scheduleLaunchStabilization(after: 800_000_000)
     }
     
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -50,6 +54,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        cancelLaunchStabilizationTasks()
+        cancelPrimaryWindowBootstrapTasks()
+        cancelAllDelayedWindowNormalizationTasks()
         WorkspaceManager.shared.persistRegisteredWindowStates()
     }
 
@@ -92,6 +99,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated {
                     self?.normalizeWindow(window)
                 }
+            },
+            center.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let window = notification.object as? NSWindow else { return }
+                MainActor.assumeIsolated {
+                    self?.cancelDelayedWindowNormalizationTasks(for: window.windowNumber)
+                    self?.normalizedWindowNumbers.remove(window.windowNumber)
+                }
             }
         ]
     }
@@ -100,6 +118,76 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for window in NSApplication.shared.windows {
             normalizeWindow(window)
         }
+    }
+
+    private func scheduleLaunchStabilization(after nanoseconds: UInt64) {
+        let task = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: nanoseconds)
+            guard let self, !Task.isCancelled else { return }
+            self.stabilizeExistingWindows()
+        }
+        launchStabilizationTasks.append(task)
+    }
+
+    private func cancelLaunchStabilizationTasks() {
+        launchStabilizationTasks.forEach { $0.cancel() }
+        launchStabilizationTasks.removeAll(keepingCapacity: false)
+    }
+
+    private func schedulePrimaryWindowBootstrap(after nanoseconds: UInt64) {
+        let task = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: nanoseconds)
+            guard let self, !Task.isCancelled else { return }
+            guard !self.didRequestPrimaryWindowBootstrap else { return }
+            guard !self.hasWorkspaceWindowCandidate else { return }
+
+            if MainWindowService.shared.revealOrOpenPrimaryWindow() {
+                self.didRequestPrimaryWindowBootstrap = true
+            }
+        }
+        primaryWindowBootstrapTasks.append(task)
+    }
+
+    private func cancelPrimaryWindowBootstrapTasks() {
+        primaryWindowBootstrapTasks.forEach { $0.cancel() }
+        primaryWindowBootstrapTasks.removeAll(keepingCapacity: false)
+    }
+
+    private func scheduleDelayedWindowNormalization(for window: NSWindow, after nanoseconds: UInt64) {
+        let windowNumber = window.windowNumber
+        let task = Task { @MainActor [weak self, weak window] in
+            try? await Task.sleep(nanoseconds: nanoseconds)
+            guard let self, let window, !Task.isCancelled else { return }
+            self.applyRevealFrame(self.centeredFrame(for: window), to: window)
+        }
+        delayedWindowNormalizationTasks[windowNumber, default: []].append(task)
+    }
+
+    private func cancelDelayedWindowNormalizationTasks(for windowNumber: Int) {
+        delayedWindowNormalizationTasks[windowNumber]?.forEach { $0.cancel() }
+        delayedWindowNormalizationTasks[windowNumber] = nil
+    }
+
+    private func cancelAllDelayedWindowNormalizationTasks() {
+        delayedWindowNormalizationTasks.values.flatMap { $0 }.forEach { $0.cancel() }
+        delayedWindowNormalizationTasks.removeAll(keepingCapacity: false)
+    }
+
+    private var hasVisibleWorkspaceWindow: Bool {
+        WorkspaceWindowRegistry.shared.hasVisibleWorkspaceWindow
+            || NSApp.windows.contains { window in
+                isWorkspaceWindow(window) && window.isVisible
+            }
+    }
+
+    private var hasWorkspaceWindowCandidate: Bool {
+        !WorkspaceWindowRegistry.shared.workspaceWindows().isEmpty
+            || NSApp.windows.contains { window in
+                isWorkspaceWindow(window)
+                    || (!SettingsWindowService.shared.isSettingsWindow(window)
+                        && window.canBecomeKey
+                        && !window.isMiniaturized)
+            }
     }
 
     private func normalizeWindow(_ window: NSWindow) {
@@ -114,20 +202,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let frame = centeredFrame(for: window)
         applyRevealFrame(frame, to: window)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak window] in
-            guard let self, let window else { return }
-            self.applyRevealFrame(self.centeredFrame(for: window), to: window)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self, weak window] in
-            guard let self, let window else { return }
-            self.applyRevealFrame(self.centeredFrame(for: window), to: window)
-        }
+        cancelDelayedWindowNormalizationTasks(for: window.windowNumber)
+        scheduleDelayedWindowNormalization(for: window, after: 150_000_000)
+        scheduleDelayedWindowNormalization(for: window, after: 600_000_000)
     }
 
     private func isWorkspaceWindow(_ window: NSWindow) -> Bool {
         // SwiftUI/AppKit can create temporary helper windows for Settings and other system UI.
         // Only Ralph workspace windows participate in the app-level placement flow.
-        window.identifier?.rawValue.contains("AppWindow") == true
+        WorkspaceWindowRegistry.shared.contains(window: window)
+            || window.identifier?.rawValue.contains("AppWindow") == true
     }
 
     private func shouldNormalizePlacement(for window: NSWindow) -> Bool {

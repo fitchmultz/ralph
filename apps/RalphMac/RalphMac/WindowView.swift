@@ -52,14 +52,17 @@ struct WindowView: View {
         .focusedSceneValue(\.workspaceWindowActions, commandActions)
         .onChange(of: windowState.workspaceIDs) { _, _ in
             validateAndPersistState()
+            syncWorkspaceWindowRegistry()
             scheduleSceneSync()
         }
         .onChange(of: windowState.selectedTabIndex) { _, _ in
             persistState()
+            syncWorkspaceWindowRegistry()
             scheduleSceneSync()
         }
         .onAppear {
             configureCommandActions()
+            syncWorkspaceWindowRegistry()
             scheduleSceneSync()
         }
         .onChange(of: manager.workspaces.map(\.id)) { _, _ in
@@ -201,6 +204,8 @@ struct WindowView: View {
                 windowState.selectedTabIndex = 0
                 persistState()
             }
+
+            syncWorkspaceWindowRegistry()
         }
     }
 
@@ -210,9 +215,20 @@ struct WindowView: View {
         let workspaceID = windowState.workspaceIDs[windowState.selectedTabIndex]
         return manager.workspaces.first(where: { $0.id == workspaceID })
     }
-    
+
+    private func syncWorkspaceWindowRegistry() {
+        guard let hostWindow = hostWindowReference.window else { return }
+        WorkspaceWindowRegistry.shared.update(
+            window: hostWindow,
+            windowStateID: windowState.id,
+            workspaceIDs: windowState.workspaceIDs,
+            activeWorkspaceID: activeWorkspace()?.id
+        )
+    }
+
     private func updateFocusedWorkspace() {
         manager.markWorkspaceActive(activeWorkspace())
+        syncWorkspaceWindowRegistry()
     }
 
     private func scheduleSceneSync() {
@@ -240,6 +256,7 @@ struct WindowView: View {
                 appendWorkspace: { workspaceID in
                     guard !windowState.workspaceIDs.contains(workspaceID) else { return }
                     windowState.workspaceIDs.append(workspaceID)
+                    syncWorkspaceWindowRegistry()
                 },
                 revealWindow: revealHostWindow,
                 persistState: persistState

@@ -184,6 +184,7 @@
 		C2F20000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F10000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift */; };
 		C2F20000000000000000000E /* WorkspaceQueueRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F10000000000000000000E /* WorkspaceQueueRefreshTests.swift */; };
 		C2F20000000000000000000F /* QueueFileWatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F10000000000000000000F /* QueueFileWatcherTests.swift */; };
+		C2F200000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F100000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift */; };
 		8845939354C5005EA32BF0BB /* ErrorRecoveryCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */; };
 		DC16DAA1BDC57EE79483F12A /* TimeoutConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C739A307267F8D9F41171236 /* TimeoutConfigurationTests.swift */; };
 		BA4DAD1BA3631E1351694BEB /* WorkspaceCorePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A3F5A71B329E532B37574E /* WorkspaceCorePerformanceTests.swift */; };
@@ -415,6 +416,7 @@
 		C2F10000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskCreationIntegrationTests.swift; sourceTree = "<group>"; };
 		C2F10000000000000000000E /* WorkspaceQueueRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueRefreshTests.swift; sourceTree = "<group>"; };
 		C2F10000000000000000000F /* QueueFileWatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueFileWatcherTests.swift; sourceTree = "<group>"; };
+		C2F100000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceBackgroundTaskOwnershipTests.swift; sourceTree = "<group>"; };
 		87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRecoveryCategoryTests.swift; sourceTree = "<group>"; };
 		C739A307267F8D9F41171236 /* TimeoutConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeoutConfigurationTests.swift; sourceTree = "<group>"; };
 		57A3F5A71B329E532B37574E /* WorkspaceCorePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCorePerformanceTests.swift; sourceTree = "<group>"; };
@@ -561,6 +563,7 @@
 				C2F10000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift */,
 				C2F10000000000000000000E /* WorkspaceQueueRefreshTests.swift */,
 				C2F10000000000000000000F /* QueueFileWatcherTests.swift */,
+				C2F100000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift */,
 				WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */,
 				58E8D3607BFD28F72C5E9344 /* CLIHealthCheckerTests.swift */,
 				87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */,
@@ -948,6 +951,7 @@
 				C2F20000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift in Sources */,
 				C2F20000000000000000000E /* WorkspaceQueueRefreshTests.swift in Sources */,
 				C2F20000000000000000000F /* QueueFileWatcherTests.swift in Sources */,
+				C2F200000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift in Sources */,
 				WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */,
 				94A6A25C9EFCB2C4BA2EAEB5 /* CLIHealthCheckerTests.swift in Sources */,
 				94A6A25C9EFCB2C4BA2EAEB6 /* RalphCoreTestSupport.swift in Sources */,

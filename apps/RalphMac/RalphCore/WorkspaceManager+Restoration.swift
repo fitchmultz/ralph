@@ -91,7 +91,7 @@ public extension WorkspaceManager {
             return unclaimedWindowStates.removeFirst()
         }
 
-        let workspace = createWorkspace()
+        let workspace = createWorkspace(launchDisposition: .startupPlaceholder)
         return WindowState(workspaceIDs: [workspace.id])
     }
 
@@ -111,7 +111,7 @@ public extension WorkspaceManager {
                 ]
             }
 
-            let workspace = createWorkspace()
+            let workspace = createWorkspace(launchDisposition: .startupPlaceholder)
             return [WindowState(workspaceIDs: [workspace.id])]
         }
 
@@ -132,7 +132,7 @@ public extension WorkspaceManager {
         }
 
         if restoredStates.isEmpty {
-            let workspace = createWorkspace()
+            let workspace = createWorkspace(launchDisposition: .startupPlaceholder)
             return [WindowState(workspaceIDs: [workspace.id])]
         }
 

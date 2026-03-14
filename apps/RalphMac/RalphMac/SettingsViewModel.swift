@@ -20,6 +20,158 @@
 import SwiftUI
 import RalphCore
 
+struct SettingsProjectConfigSnapshot: Sendable {
+    let config: RalphConfig
+    let rawConfigData: Data
+}
+
+enum SettingsProjectConfigLoader {
+    static func load(from configURL: URL) async throws -> SettingsProjectConfigSnapshot {
+        try await Task.detached(priority: .userInitiated) {
+            try loadSynchronously(from: configURL)
+        }.value
+    }
+
+    static func loadSynchronously(from configURL: URL) throws -> SettingsProjectConfigSnapshot {
+        let rawData = try loadRawConfigData(from: configURL)
+        let config = try JSONDecoder().decode(RalphConfig.self, from: rawData)
+        return SettingsProjectConfigSnapshot(config: config, rawConfigData: rawData)
+    }
+
+    private static func loadRawConfigData(from configURL: URL) throws -> Data {
+        guard FileManager.default.fileExists(atPath: configURL.path) else {
+            return Data("{}".utf8)
+        }
+
+        let source = try String(contentsOf: configURL, encoding: .utf8)
+        let sanitized = sanitizeJSONC(source)
+        return Data(sanitized.utf8)
+    }
+
+    private static func sanitizeJSONC(_ source: String) -> String {
+        removeTrailingCommas(from: stripComments(from: source))
+    }
+
+    private static func stripComments(from source: String) -> String {
+        var output = String()
+        var iterator = source.makeIterator()
+        var current = iterator.next()
+        var inString = false
+        var escaping = false
+        var inLineComment = false
+        var inBlockComment = false
+
+        while let character = current {
+            let next = iterator.next()
+
+            if inLineComment {
+                if character == "\n" {
+                    inLineComment = false
+                    output.append(character)
+                }
+                current = next
+                continue
+            }
+
+            if inBlockComment {
+                if character == "*", next == "/" {
+                    inBlockComment = false
+                    current = iterator.next()
+                } else {
+                    current = next
+                }
+                continue
+            }
+
+            if inString {
+                output.append(character)
+                if escaping {
+                    escaping = false
+                } else if character == "\\" {
+                    escaping = true
+                } else if character == "\"" {
+                    inString = false
+                }
+                current = next
+                continue
+            }
+
+            if character == "\"" {
+                inString = true
+                output.append(character)
+                current = next
+                continue
+            }
+
+            if character == "/", next == "/" {
+                inLineComment = true
+                current = iterator.next()
+                continue
+            }
+
+            if character == "/", next == "*" {
+                inBlockComment = true
+                current = iterator.next()
+                continue
+            }
+
+            output.append(character)
+            current = next
+        }
+
+        return output
+    }
+
+    private static func removeTrailingCommas(from source: String) -> String {
+        let characters = Array(source)
+        var output = String()
+        var index = 0
+        var inString = false
+        var escaping = false
+
+        while index < characters.count {
+            let character = characters[index]
+
+            if inString {
+                output.append(character)
+                if escaping {
+                    escaping = false
+                } else if character == "\\" {
+                    escaping = true
+                } else if character == "\"" {
+                    inString = false
+                }
+                index += 1
+                continue
+            }
+
+            if character == "\"" {
+                inString = true
+                output.append(character)
+                index += 1
+                continue
+            }
+
+            if character == "," {
+                var lookahead = index + 1
+                while lookahead < characters.count, characters[lookahead].isWhitespace {
+                    lookahead += 1
+                }
+                if lookahead < characters.count,
+                   characters[lookahead] == "}" || characters[lookahead] == "]" {
+                    index += 1
+                    continue
+                }
+            }
+
+            output.append(character)
+            index += 1
+        }
+
+        return output
+    }
+}
+
 @MainActor
 @Observable
 final class SettingsViewModel {
@@ -46,7 +198,6 @@ final class SettingsViewModel {
     // MARK: - Private
     private let workspace: Workspace
     private var saveTask: Task<Void, Never>?
-    private var client: RalphCLIClient? { WorkspaceManager.shared.client }
     private var loadedConfigDict: [String: Any] = [:]
     private var hasLoadedConfig = false
     private var isApplyingLoadedValues = false
@@ -84,43 +235,19 @@ final class SettingsViewModel {
         isLoading = true
         errorMessage = nil
 
-        guard let client else {
-            errorMessage = "CLI not available"
-            isLoading = false
-            return
-        }
+        let configURL = workspace.projectConfigFileURL
+            ?? workspace.identityState.workingDirectoryURL.appendingPathComponent(".ralph/config.jsonc")
 
-        // Load from ralph machine config resolve
         do {
-            let result = try await client.runAndCollect(
-                arguments: ["--no-color", "machine", "config", "resolve"],
-                currentDirectoryURL: workspace.identityState.workingDirectoryURL
-            )
+            let snapshot = try await SettingsProjectConfigLoader.load(from: configURL)
 
-            guard result.status.code == 0 else {
-                throw NSError(domain: "ConfigLoad", code: Int(result.status.code))
-            }
-
-            let document = try JSONDecoder().decode(MachineConfigResolveDocument.self, from: Data(result.stdout.utf8))
-            workspace.updateResolvedPaths(document.paths)
-
-            if let rawDocument = try JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: Any],
-               let rawConfig = rawDocument["config"] as? [String: Any]
-            {
-                self.loadedConfigDict = rawConfig
-            } else if let rawConfig = try JSONSerialization.jsonObject(with: Data(result.stdout.utf8))
-                as? [String: Any]
-            {
+            if let rawConfig = try JSONSerialization.jsonObject(with: snapshot.rawConfigData) as? [String: Any] {
                 self.loadedConfigDict = rawConfig
             } else {
                 self.loadedConfigDict = [:]
             }
 
-            let config = document.config
-
-            // Apply to properties
-            applyResolvedConfig(config)
-
+            applyResolvedConfig(snapshot.config)
             hasUnsavedChanges = false
             hasLoadedConfig = true
         } catch {

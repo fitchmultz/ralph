@@ -157,38 +157,44 @@ public struct RalphCLIClient: Sendable {
             environment: environment
         )
 
-        return try await withTimeout(
-            configuration: timeoutConfiguration,
-            run: run
-        ) {
-            var stdout = ""
-            var stderr = ""
-            var isTruncated = false
+        return try await withTaskCancellationHandler {
+            let collected = try await withTimeout(
+                configuration: timeoutConfiguration,
+                run: run
+            ) {
+                var stdout = ""
+                var stderr = ""
+                var isTruncated = false
 
-            for await event in run.events {
-                if let maxSize = maxOutputSize, !isTruncated {
-                    let currentSize = stdout.count + stderr.count
-                    if currentSize >= maxSize {
-                        isTruncated = true
-                        continue
+                for await event in run.events {
+                    if let maxSize = maxOutputSize, !isTruncated {
+                        let currentSize = stdout.count + stderr.count
+                        if currentSize >= maxSize {
+                            isTruncated = true
+                            continue
+                        }
+                    }
+
+                    switch event.stream {
+                    case .stdout:
+                        stdout.append(event.text)
+                    case .stderr:
+                        stderr.append(event.text)
                     }
                 }
 
-                switch event.stream {
-                case .stdout:
-                    stdout.append(event.text)
-                case .stderr:
-                    stderr.append(event.text)
+                let status = await run.waitUntilExit()
+
+                if isTruncated {
+                    stderr = "\n[warning: output exceeded maximum size and was truncated]\n" + stderr
                 }
+
+                return CollectedOutput(status: status, stdout: stdout, stderr: stderr)
             }
-
-            let status = await run.waitUntilExit()
-
-            if isTruncated {
-                stderr = "\n[warning: output exceeded maximum size and was truncated]\n" + stderr
-            }
-
-            return CollectedOutput(status: status, stdout: stdout, stderr: stderr)
+            try Task.checkCancellation()
+            return collected
+        } onCancel: {
+            run.requestCancel(gracePeriod: timeoutConfiguration.terminationGracePeriod)
         }
     }
 

@@ -26,6 +26,12 @@ import Darwin
 public actor RalphCLIRun {
     public let events: AsyncStream<RalphCLIEvent>
 
+    nonisolated func requestCancel(gracePeriod: TimeInterval = 2) {
+        Task { [weak self] in
+            await self?.cancel(gracePeriod: gracePeriod)
+        }
+    }
+
     private let ioQueue: DispatchQueue
     private let process: Process
     private let stdoutHandle: FileHandle
@@ -58,18 +64,14 @@ public actor RalphCLIRun {
         events = stream
         eventsContinuation = continuation
         eventsContinuation?.onTermination = { @Sendable [weak self] _ in
-            Task { [weak self] in
-                await self?.cancel()
-            }
+            self?.requestCancel()
         }
 
         setupIOHandlers()
     }
 
     deinit {
-        Task { [weak self] in
-            await self?.cancel()
-        }
+        requestCancel()
     }
 
     public func cancel() {

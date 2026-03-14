@@ -62,6 +62,7 @@ class RalphMacUITestCase: XCTestCase {
         static let taskListContainer = "task-list-container"
         static let taskSearchField = "task-search-field"
         static let taskViewModePicker = "task-view-mode-picker"
+        static let workspaceStateProbe = "workspace-state-probe"
         static let taskCreationTitleField = "task-creation-title-field"
         static let taskCreationSubmitButton = "task-creation-submit-button"
         static let taskDecomposeRequestField = "task-decompose-request-field"

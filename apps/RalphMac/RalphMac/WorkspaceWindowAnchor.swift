@@ -26,6 +26,9 @@ final class UITestingWindowCoordinator {
     private var didOpenSecondaryWindow = false
     private var isConfigured = false
     private var observerTokens: [any NSObjectProtocol] = []
+    private var enforcementTask: Task<Void, Never>?
+    private var closingWindowNumbers = Set<Int>()
+    private var isClosingWindows = false
 
     private init() {}
 
@@ -39,23 +42,25 @@ final class UITestingWindowCoordinator {
                 forName: NSWindow.didBecomeKeyNotification,
                 object: nil,
                 queue: .main
-            ) { _ in
-                Task { @MainActor in
-                    self.enforceExpectedWindowCount()
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.scheduleWindowCountEnforcement()
                 }
             },
             center.addObserver(
                 forName: NSWindow.willCloseNotification,
                 object: nil,
                 queue: .main
-            ) { _ in
-                Task { @MainActor in
-                    self.enforceExpectedWindowCount()
+            ) { [weak self] notification in
+                guard let window = notification.object as? NSWindow else { return }
+                MainActor.assumeIsolated {
+                    self?.closingWindowNumbers.insert(window.windowNumber)
+                    self?.scheduleWindowCountEnforcement()
                 }
             }
         ]
 
-        enforceExpectedWindowCount()
+        scheduleWindowCountEnforcement()
     }
 
     func openAdditionalWindowIfNeeded(openWindow: OpenWindowAction) {
@@ -66,18 +71,56 @@ final class UITestingWindowCoordinator {
         openWindow(id: "main")
     }
 
-    func enforceExpectedWindowCount() {
+    func scheduleWindowCountEnforcement() {
         guard isUITestingLaunch else { return }
 
-        let expectedWindowCount = isUITestingMultiwindowLaunch ? 2 : 1
-        let workspaceWindows = NSApp.windows
-            .filter { $0.identifier?.rawValue.contains("AppWindow") == true }
-            .sorted { $0.windowNumber < $1.windowNumber }
+        enforcementTask?.cancel()
+        enforcementTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self, !Task.isCancelled else { return }
+            self.enforceExpectedWindowCount()
+            self.enforcementTask = nil
+        }
+    }
 
-        guard workspaceWindows.count > expectedWindowCount else { return }
+    func enforceExpectedWindowCount() {
+        guard isUITestingLaunch else { return }
+        guard !isClosingWindows else { return }
+
+        let expectedWindowCount = isUITestingMultiwindowLaunch ? 2 : 1
+        let workspaceWindows = currentWorkspaceWindows()
+
+        guard workspaceWindows.count > expectedWindowCount else {
+            closingWindowNumbers.formIntersection(Set(workspaceWindows.map(\.windowNumber)))
+            return
+        }
+
+        isClosingWindows = true
+        defer { isClosingWindows = false }
+
         for window in workspaceWindows.dropFirst(expectedWindowCount) {
+            closingWindowNumbers.insert(window.windowNumber)
             window.close()
         }
+    }
+
+    private func currentWorkspaceWindows() -> [NSWindow] {
+        let registeredWindows = WorkspaceWindowRegistry.shared.workspaceWindows()
+            .filter { !closingWindowNumbers.contains($0.windowNumber) }
+        if !registeredWindows.isEmpty {
+            return registeredWindows
+        }
+
+        return NSApp.windows
+            .filter {
+                $0.identifier?.rawValue.contains("AppWindow") == true
+                    && !closingWindowNumbers.contains($0.windowNumber)
+            }
+            .sorted { $0.windowNumber < $1.windowNumber }
+    }
+
+    deinit {
+        enforcementTask?.cancel()
     }
 }
 
@@ -88,10 +131,37 @@ struct WorkspaceWindowAnchor: NSViewRepresentable {
 
     final class Coordinator {
         private var resolvedWindowNumbers = Set<Int>()
+        private var configurationTask: Task<Void, Never>?
 
         @MainActor
         func markResolved(_ window: NSWindow) -> Bool {
             resolvedWindowNumbers.insert(window.windowNumber).inserted
+        }
+
+        @MainActor
+        func scheduleConfiguration(for view: NSView, anchor: WorkspaceWindowAnchor) {
+            configurationTask?.cancel()
+            configurationTask = Task { @MainActor [weak view] in
+                defer { self.configurationTask = nil }
+
+                for attempt in 0..<60 {
+                    guard !Task.isCancelled else { return }
+                    if let window = view?.window {
+                        anchor.configure(window: window, coordinator: self)
+                        return
+                    }
+
+                    if attempt < 10 {
+                        await Task.yield()
+                    } else {
+                        try? await Task.sleep(nanoseconds: 20_000_000)
+                    }
+                }
+            }
+        }
+
+        deinit {
+            configurationTask?.cancel()
         }
     }
 
@@ -104,10 +174,7 @@ struct WorkspaceWindowAnchor: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            guard let window = nsView.window else { return }
-            configure(window: window, coordinator: context.coordinator)
-        }
+        context.coordinator.scheduleConfiguration(for: nsView, anchor: self)
     }
 
     private func configure(window: NSWindow, coordinator: Coordinator) {
@@ -184,9 +251,7 @@ struct WorkspaceWindowAnchor: NSViewRepresentable {
     private func applyUITestingPlacement(to window: NSWindow) {
         let screen = window.screen ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let workspaceWindows = NSApp.windows
-            .filter { $0.isVisible && $0.identifier?.rawValue.contains("AppWindow") == true }
-            .sorted { $0.windowNumber < $1.windowNumber }
+        let workspaceWindows = visibleWorkspaceWindows()
 
         let windowIndex = workspaceWindows.firstIndex(of: window) ?? 0
         let isMultiwindowLaunch = ProcessInfo.processInfo.arguments.contains("--uitesting-multiwindow")
@@ -232,6 +297,18 @@ struct WorkspaceWindowAnchor: NSViewRepresentable {
 
         window.setFrame(NSRect(origin: origin, size: NSSize(width: width, height: height)), display: true)
         reveal(window)
+    }
+
+    private func visibleWorkspaceWindows() -> [NSWindow] {
+        let registeredWindows = WorkspaceWindowRegistry.shared.workspaceWindows()
+            .filter(\.isVisible)
+        if !registeredWindows.isEmpty {
+            return registeredWindows
+        }
+
+        return NSApp.windows
+            .filter { $0.isVisible && $0.identifier?.rawValue.contains("AppWindow") == true }
+            .sorted { $0.windowNumber < $1.windowNumber }
     }
 
     private func reveal(_ window: NSWindow) {

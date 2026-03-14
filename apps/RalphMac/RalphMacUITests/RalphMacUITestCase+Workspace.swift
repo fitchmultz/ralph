@@ -182,29 +182,12 @@ extension RalphMacUITestCase {
     }
 
     func openWorkspaceURLInApp(_ workspaceURL: URL) throws {
-        let encodedPath = workspaceURL.path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? workspaceURL.path
-        let openURL = "ralph://open?workspace=\(encodedPath)"
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/open", isDirectory: false)
-        process.arguments = [openURL]
-
-        let stderrPipe = Pipe()
-        process.standardError = stderrPipe
-        try process.run()
-        process.waitUntilExit()
-
-        let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        guard process.terminationStatus == 0 else {
-            throw NSError(
-                domain: "RalphMacUITests",
-                code: Int(process.terminationStatus),
-                userInfo: [
-                    NSLocalizedDescriptionKey: "Failed to open Ralph workspace URL",
-                    "stderr": stderr
-                ]
-            )
-        }
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("com.mitchfultz.ralph.uitesting.openWorkspace"),
+            object: nil,
+            userInfo: ["workspacePath": workspaceURL.path],
+            deliverImmediately: true
+        )
     }
 
     func removeItemIfExists(_ url: URL) throws {

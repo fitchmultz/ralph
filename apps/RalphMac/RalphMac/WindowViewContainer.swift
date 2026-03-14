@@ -50,6 +50,16 @@ struct WindowViewContainer: View {
                             onWindowResolved: { resolvedWindow in
                                 hostWindowReference.window = resolvedWindow
                                 resolvedHostWindowNumber = resolvedWindow.windowNumber
+                                if let state = windowState {
+                                    WorkspaceWindowRegistry.shared.update(
+                                        window: resolvedWindow,
+                                        windowStateID: state.id,
+                                        workspaceIDs: state.workspaceIDs,
+                                        activeWorkspaceID: activeWorkspaceID(for: state)
+                                    )
+                                } else {
+                                    WorkspaceWindowRegistry.shared.register(window: resolvedWindow)
+                                }
                             }
                         )
                     )
@@ -69,6 +79,9 @@ struct WindowViewContainer: View {
         }
         .onDisappear {
             initialBootstrapTask?.cancel()
+            if let window = hostWindowReference.window {
+                WorkspaceWindowRegistry.shared.unregister(window: window)
+            }
         }
     }
 
@@ -100,7 +113,10 @@ struct WindowViewContainer: View {
         let workspaceURL = Workspace.normalizedWorkingDirectoryURL(
             URL(fileURLWithPath: rawPath, isDirectory: true)
         )
-        let workspace = manager.createWorkspace(workingDirectory: workspaceURL)
+        let workspace = manager.createWorkspace(
+            workingDirectory: workspaceURL,
+            launchDisposition: .startupPlaceholder
+        )
         return WindowState(workspaceIDs: [workspace.id])
     }
 
@@ -110,14 +126,15 @@ struct WindowViewContainer: View {
             return
         }
 
-        DispatchQueue.main.async {
-            Task { @MainActor in
-                _ = await workspace.checkHealth()
-                if workspace.diagnosticsState.cliHealthStatus?.isAvailable == false {
-                    workspace.loadCachedTasks()
-                }
-            }
+        workspace.scheduleHealthCheck()
+    }
+
+    private func activeWorkspaceID(for state: WindowState) -> UUID? {
+        guard !state.workspaceIDs.isEmpty else { return nil }
+        guard state.selectedTabIndex < state.workspaceIDs.count else {
+            return state.workspaceIDs.first
         }
+        return state.workspaceIDs[state.selectedTabIndex]
     }
 
     private func scheduleInitialBootstrap() {

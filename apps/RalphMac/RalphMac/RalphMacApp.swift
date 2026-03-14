@@ -38,7 +38,6 @@ struct RalphMacApp: App {
                 )
                 .preferredColorScheme(appearance.preferredColorScheme)
                 .background(MainWindowOpenActionRegistrar())
-                .background(SettingsWindowOpenActionRegistrar())
         }
         .restorationBehavior(.disabled)
         .windowStyle(.hiddenTitleBar)
@@ -56,13 +55,5 @@ struct RalphMacApp: App {
                 showCrashReportsAction: showCrashReports
             )
         }
-
-        Window(SettingsWindowIdentity.title, id: SettingsWindowIdentity.sceneID) {
-            SettingsSceneRoot()
-        }
-        .restorationBehavior(.disabled)
-        .windowResizability(.contentMinSize)
-        .defaultSize(width: 760, height: 520)
-        .defaultPosition(.center)
     }
 }

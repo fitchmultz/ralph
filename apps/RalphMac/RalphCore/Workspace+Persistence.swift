@@ -276,6 +276,8 @@ public extension Workspace {
 
         isShutDown = true
         cancelRepositoryActivity()
+        cancelOperationalHealthRefresh()
+        cancelHealthCheck()
         identityState.repositoryGeneration &+= 1
         identityState.retargetRevision &+= 1
         runnerController.prepareForRepositoryRetarget()
@@ -286,6 +288,7 @@ public extension Workspace {
     func setWorkingDirectory(_ url: URL) {
         guard !isShutDown else { return }
 
+        markStartupPlaceholderConsumed()
         let standardizedURL = Self.normalizedWorkingDirectoryURL(url)
         let currentURL = normalizedWorkingDirectoryURL
         guard standardizedURL != currentURL else {
@@ -295,6 +298,7 @@ public extension Workspace {
         }
 
         cancelRepositoryActivity()
+        cancelHealthCheck()
         runnerController.prepareForRepositoryRetarget()
         queueRuntime.prepareForRepositoryRetarget()
         resetRepositoryDerivedStateForRetarget()
@@ -304,6 +308,7 @@ public extension Workspace {
 
         persistState()
         queueRuntime.restartWatching()
+        scheduleHealthCheck()
         refreshOperationalHealth()
 
         scheduleRepositoryActivity {

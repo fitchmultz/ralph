@@ -126,6 +126,48 @@ final class RalphCLIClientTests: RalphCoreTestCase {
         XCTAssertNotEqual(status.code, 0)
     }
 
+    func test_runAndCollect_taskCancellation_terminatesProcessAndThrowsCancellation() async throws {
+        let tempDir = try Self.makeTempDir(prefix: "ralph-agent-loop-client-cancel-")
+        defer { RalphCoreTestSupport.assertRemoved(tempDir) }
+
+        let logURL = tempDir.appendingPathComponent("run-and-collect-cancel.log", isDirectory: false)
+        let script = """
+            #!/bin/sh
+            trap 'printf "canceled\\n" >> "\(logURL.path)"; exit 130' INT TERM
+            printf 'started\n' >> "\(logURL.path)"
+            sleep 30
+            printf 'finished\n' >> "\(logURL.path)"
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: tempDir, body: script)
+        let client = try RalphCLIClient(executableURL: scriptURL)
+
+        let task = Task {
+            try await client.runAndCollect(arguments: [])
+        }
+
+        let started = await RalphCoreTestSupport.waitUntil(timeout: .seconds(2)) {
+            (try? String(contentsOf: logURL, encoding: .utf8).contains("started")) == true
+        }
+        XCTAssertTrue(started)
+
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            XCTFail("Expected task cancellation to throw CancellationError")
+        } catch is CancellationError {
+            // Expected.
+        }
+
+        let canceled = await RalphCoreTestSupport.waitUntil(timeout: .seconds(3)) {
+            (try? String(contentsOf: logURL, encoding: .utf8).contains("canceled")) == true
+        }
+        XCTAssertTrue(canceled)
+
+        let log = try String(contentsOf: logURL, encoding: .utf8)
+        XCTAssertFalse(log.contains("finished"))
+    }
+
     // MARK: - Version Parsing Integration
 
     func test_runAndCollect_versionOutput_parsableByVersionValidator() async throws {

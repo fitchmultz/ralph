@@ -63,6 +63,76 @@ extension RalphMacUITestCase {
         return radioGroup
     }
 
+    struct WorkspaceStateProbeSnapshot: Decodable {
+        let workspaceID: String
+        let workspacePath: String
+        let projectDisplayName: String
+        let taskCount: Int
+        let tasksLoading: Bool
+        let tasksErrorMessage: String?
+        let isPlaceholder: Bool
+        let retargetRevision: UInt64
+        let workspaceCount: Int
+        let focusedWorkspaceID: String?
+        let effectiveWorkspaceID: String?
+    }
+
+    func workspaceStateProbe(in window: XCUIElement) -> XCUIElement {
+        let staticText = window.staticTexts[AccessibilityID.workspaceStateProbe]
+        if staticText.exists {
+            return staticText
+        }
+        return window.descendants(matching: .any)
+            .matching(identifier: AccessibilityID.workspaceStateProbe)
+            .firstMatch
+    }
+
+    func readWorkspaceStateProbe(
+        in window: XCUIElement? = nil,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> WorkspaceStateProbeSnapshot {
+        let resolvedWindow = window ?? currentWorkspaceWindow(file: file, line: line)
+        let probe = workspaceStateProbe(in: resolvedWindow)
+        assertExists(
+            probe,
+            timeout: 4,
+            message: "Workspace state probe should exist",
+            file: file,
+            line: line
+        )
+
+        let rawValue = (probe.value as? String)
+            ?? (probe.label == AccessibilityID.workspaceStateProbe ? nil : probe.label)
+            ?? "{}"
+
+        do {
+            return try JSONDecoder().decode(
+                WorkspaceStateProbeSnapshot.self,
+                from: Data(rawValue.utf8)
+            )
+        } catch {
+            XCTFail(
+                "Failed to decode workspace state probe: \(rawValue) (error: \(error))",
+                file: file,
+                line: line
+            )
+            return WorkspaceStateProbeSnapshot(
+                workspaceID: "",
+                workspacePath: "",
+                projectDisplayName: "",
+                taskCount: -1,
+                tasksLoading: false,
+                tasksErrorMessage: "decode-error",
+                isPlaceholder: false,
+                retargetRevision: 0,
+                workspaceCount: -1,
+                focusedWorkspaceID: nil,
+                effectiveWorkspaceID: nil
+            )
+        }
+    }
+
     func requireTaskList(
         timeout: TimeInterval = 5,
         file: StaticString = #filePath,

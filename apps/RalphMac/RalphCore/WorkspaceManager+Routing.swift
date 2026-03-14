@@ -82,17 +82,49 @@ public extension WorkspaceManager {
         lastActiveWorkspaceID = workspace.id
     }
 
-    func revealWorkspace(_ workspaceID: UUID) {
+    @discardableResult
+    func revealWorkspace(_ workspaceID: UUID) -> Bool {
         if sceneRouter.focusWorkspace(
             workspaceID,
             focusedWorkspaceID: focusedWorkspace?.id
         ) {
             markWorkspaceActive(workspaces.first(where: { $0.id == workspaceID }))
-            return
+            return true
         }
 
         if let workspace = workspaces.first(where: { $0.id == workspaceID }) {
             lastActiveWorkspaceID = workspace.id
+        }
+        return false
+    }
+
+    func scheduleWorkspaceReveal(_ workspaceID: UUID) {
+        workspaceRevealTask?.cancel()
+        workspaceRevealRevision &+= 1
+        let revision = workspaceRevealRevision
+
+        workspaceRevealTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            for attempt in 0..<60 {
+                guard !Task.isCancelled else { return }
+                guard self.workspaceRevealRevision == revision else { return }
+
+                if self.revealWorkspace(workspaceID) {
+                    self.workspaceRevealTask = nil
+                    return
+                }
+
+                if attempt < 10 {
+                    await Task.yield()
+                } else {
+                    try? await Task.sleep(nanoseconds: 20_000_000)
+                }
+            }
+
+            if self.workspaceRevealRevision == revision {
+                self.workspaceRevealTask = nil
+            }
         }
     }
 

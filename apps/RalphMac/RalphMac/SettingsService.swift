@@ -22,24 +22,41 @@ enum SettingsPresentationSource: String {
 
 @MainActor
 enum SettingsService {
+    private static var presentationTask: Task<Void, Never>?
+    private static var presentationRevision: UInt64 = 0
+
     static func showSettingsWindow(
         for workspace: Workspace? = WorkspaceManager.shared.effectiveWorkspace,
         source: SettingsPresentationSource = .commandSurface
     ) {
         SettingsPresentationCoordinator.shared.prepare(workspace: workspace, source: source)
 
-        Task { @MainActor in
+        presentationTask?.cancel()
+        presentationRevision &+= 1
+        let revision = presentationRevision
+        presentationTask = Task { @MainActor in
             await Task.yield()
             guard !Task.isCancelled else { return }
 
             if SettingsWindowService.shared.revealOrOpenPreparedWindow() {
+                if presentationRevision == revision {
+                    presentationTask = nil
+                }
                 return
             }
 
-            guard MainWindowService.shared.revealOrOpenPrimaryWindow() else { return }
+            guard MainWindowService.shared.revealOrOpenPrimaryWindow() else {
+                if presentationRevision == revision {
+                    presentationTask = nil
+                }
+                return
+            }
             await Task.yield()
             guard !Task.isCancelled else { return }
             _ = SettingsWindowService.shared.revealOrOpenPreparedWindow()
+            if presentationRevision == revision {
+                presentationTask = nil
+            }
         }
     }
 }

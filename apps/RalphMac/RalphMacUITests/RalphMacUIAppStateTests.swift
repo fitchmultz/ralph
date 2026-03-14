@@ -120,8 +120,40 @@ final class RalphMacUIAppStateTests: RalphMacUITestCase {
 
         try openWorkspaceURLInApp(targetWorkspaceURL)
 
+        assertEventually(
+            "Bootstrap URL-open should reuse the existing workspace window",
+            timeout: 8
+        ) {
+            self.workspaceWindowCount() == 1
+        }
+
         let searchField = taskSearchField
         assertExists(searchField, timeout: 8, message: "Task search field should appear after URL-open retarget")
+
+        let expectedWorkspacePath = targetWorkspaceURL.standardizedFileURL.resolvingSymlinksInPath().path
+        var stateSnapshot = readWorkspaceStateProbe()
+        let reachedTargetState = waitUntil(timeout: 8) {
+            stateSnapshot = self.readWorkspaceStateProbe()
+            return stateSnapshot.workspacePath == expectedWorkspacePath
+                && stateSnapshot.taskCount == 1
+                && stateSnapshot.tasksLoading == false
+                && stateSnapshot.tasksErrorMessage == nil
+                && stateSnapshot.isPlaceholder == false
+        }
+        XCTAssertTrue(
+            reachedTargetState,
+            "Workspace should retarget to the URL-opened repository and load its queue. Snapshot: path=\(stateSnapshot.workspacePath), count=\(stateSnapshot.taskCount), loading=\(stateSnapshot.tasksLoading), error=\(stateSnapshot.tasksErrorMessage ?? "nil"), placeholder=\(stateSnapshot.isPlaceholder), retargetRevision=\(stateSnapshot.retargetRevision), workspaceCount=\(stateSnapshot.workspaceCount), focused=\(stateSnapshot.focusedWorkspaceID ?? "nil"), effective=\(stateSnapshot.effectiveWorkspaceID ?? "nil"), current=\(stateSnapshot.workspaceID)"
+        )
+
+        XCTAssertEqual(stateSnapshot.workspacePath, expectedWorkspacePath)
+        XCTAssertEqual(stateSnapshot.taskCount, 1)
+        XCTAssertFalse(stateSnapshot.tasksLoading)
+        XCTAssertNil(
+            stateSnapshot.tasksErrorMessage,
+            "Workspace state probe reported a load failure: \(stateSnapshot.tasksErrorMessage ?? "nil")"
+        )
+        XCTAssertFalse(stateSnapshot.isPlaceholder)
+
         let taskList = requireTaskList(timeout: 8)
         assertExists(
             taskText(newTitle, in: taskList),

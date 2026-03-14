@@ -234,7 +234,11 @@ struct AppHelpCommands: Commands {
 }
 
 struct AppSettingsCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Commands {
+        let _ = MainWindowService.shared.register(openWindow: openWindow)
+
         CommandGroup(replacing: .appSettings) {
             Button("Settings...") {
                 SettingsService.showSettingsWindow(source: .commandSurface)

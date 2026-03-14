@@ -27,7 +27,6 @@ enum RalphURLRouter {
         }
 
         if url.host == "settings" {
-            MainWindowService.shared.revealOrOpenPrimaryWindow()
             SettingsService.showSettingsWindow(source: .urlScheme)
             RalphLogger.shared.info("Opened settings via ralph://settings", category: .lifecycle)
             return
@@ -54,9 +53,12 @@ enum RalphURLRouter {
             )
         }
 
-        let workspaceURL = Workspace.normalizedWorkingDirectoryURL(
-            URL(fileURLWithPath: path, isDirectory: true)
-        )
+        openWorkspace(at: URL(fileURLWithPath: path, isDirectory: true))
+    }
+
+    static func openWorkspace(at rawWorkspaceURL: URL) {
+        let workspaceURL = Workspace.normalizedWorkingDirectoryURL(rawWorkspaceURL)
+        let path = workspaceURL.path
 
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
@@ -72,6 +74,7 @@ enum RalphURLRouter {
         }
 
         if let bootstrapWorkspace = bootstrapWorkspaceForURLOpen() {
+            closeOtherBootstrapPlaceholders(except: bootstrapWorkspace.id)
             bootstrapWorkspace.setWorkingDirectory(workspaceURL)
             revealWorkspaceAfterEnsuringWindow(bootstrapWorkspace.id)
             RalphLogger.shared.info("Repurposed bootstrap workspace for URL: \(path)", category: .workspace)
@@ -85,17 +88,47 @@ enum RalphURLRouter {
 
     static func bootstrapWorkspaceForURLOpen() -> Workspace? {
         let manager = WorkspaceManager.shared
-        guard manager.workspaces.count == 1, let workspace = manager.workspaces.first else { return nil }
-        return workspace.isURLRoutingPlaceholderWorkspace ? workspace : nil
+        let placeholderWorkspaces = manager.workspaces.filter(\.isURLRoutingPlaceholderWorkspace)
+        guard !placeholderWorkspaces.isEmpty else { return nil }
+
+        if let registeredWorkspaceID = WorkspaceWindowRegistry.shared.preferredActiveWorkspaceID(),
+           let registeredWorkspace = placeholderWorkspaces.first(where: { $0.id == registeredWorkspaceID }) {
+            return registeredWorkspace
+        }
+
+        if let focusedWorkspace = manager.focusedWorkspace,
+           placeholderWorkspaces.contains(where: { $0.id == focusedWorkspace.id }) {
+            return focusedWorkspace
+        }
+
+        if let effectiveWorkspace = manager.effectiveWorkspace,
+           placeholderWorkspaces.contains(where: { $0.id == effectiveWorkspace.id }) {
+            return effectiveWorkspace
+        }
+
+        if let onlyVisiblePlaceholder = placeholderWorkspaces.first(where: { workspace in
+            workspace.id == manager.lastActiveWorkspaceID
+        }) {
+            return onlyVisiblePlaceholder
+        }
+
+        guard placeholderWorkspaces.count == 1 else { return nil }
+        return placeholderWorkspaces[0]
+    }
+
+    private static func closeOtherBootstrapPlaceholders(except workspaceID: UUID) {
+        let manager = WorkspaceManager.shared
+        let duplicatePlaceholders = manager.workspaces.filter {
+            $0.id != workspaceID && $0.isURLRoutingPlaceholderWorkspace
+        }
+        for workspace in duplicatePlaceholders {
+            manager.closeWorkspace(workspace)
+        }
     }
 
     private static func revealWorkspaceAfterEnsuringWindow(_ workspaceID: UUID) {
         MainWindowService.shared.revealOrOpenPrimaryWindow()
-
-        Task { @MainActor in
-            await Task.yield()
-            WorkspaceManager.shared.revealWorkspace(workspaceID)
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        WorkspaceManager.shared.scheduleWorkspaceReveal(workspaceID)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

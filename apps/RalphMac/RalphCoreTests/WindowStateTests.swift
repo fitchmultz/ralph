@@ -255,39 +255,51 @@ final class WindowStateTests: RalphCoreTestCase {
         XCTAssertEqual(workspace.normalizedWorkingDirectoryURL.path, temp.path)
     }
 
-    func test_isURLRoutingPlaceholderWorkspace_trueForEmptyQueueWorkspace() throws {
+    func test_isURLRoutingPlaceholderWorkspace_trueForExplicitStartupPlaceholderDuringInitialLoad() throws {
         let temp = try makeSeededWorkspaceDirectory(prefix: "url-routing-placeholder-empty")
         defer { RalphCoreTestSupport.assertRemoved(temp) }
 
-        let workspace = Workspace(workingDirectoryURL: temp)
+        let workspace = Workspace(
+            workingDirectoryURL: temp,
+            launchDisposition: .startupPlaceholder
+        )
 
-        workspace.taskState.tasks = []
-        workspace.taskState.tasksLoading = false
-        workspace.taskState.tasksErrorMessage = nil
+        workspace.taskState.tasksLoading = true
 
         XCTAssertTrue(workspace.isURLRoutingPlaceholderWorkspace)
     }
 
-    func test_isURLRoutingPlaceholderWorkspace_falseWhenTasksExist() throws {
+    func test_isURLRoutingPlaceholderWorkspace_falseForRegularWorkspaceEvenWhenQueueIsEmpty() throws {
         let temp = try makeSeededWorkspaceDirectory(prefix: "url-routing-placeholder-populated")
         defer { RalphCoreTestSupport.assertRemoved(temp) }
 
         let workspace = Workspace(workingDirectoryURL: temp)
-        workspace.taskState.tasks = [
-            RalphTask(
-                id: "RQ-1000",
-                title: "Existing task",
-                status: .todo,
-                priority: .medium,
-                tags: [],
-                createdAt: Date(),
-                updatedAt: Date()
-            )
-        ]
+        workspace.taskState.tasks = []
         workspace.taskState.tasksLoading = false
         workspace.taskState.tasksErrorMessage = nil
 
         XCTAssertFalse(workspace.isURLRoutingPlaceholderWorkspace)
+    }
+
+    func test_setWorkingDirectory_consumesURLRoutingPlaceholderDisposition() throws {
+        let initialDirectory = try makeSeededWorkspaceDirectory(prefix: "url-routing-placeholder-initial")
+        let targetDirectory = try makeSeededWorkspaceDirectory(prefix: "url-routing-placeholder-target")
+        defer {
+            RalphCoreTestSupport.assertRemoved(initialDirectory)
+            RalphCoreTestSupport.assertRemoved(targetDirectory)
+        }
+
+        let workspace = Workspace(
+            workingDirectoryURL: initialDirectory,
+            launchDisposition: .startupPlaceholder
+        )
+
+        XCTAssertTrue(workspace.isURLRoutingPlaceholderWorkspace)
+
+        workspace.setWorkingDirectory(targetDirectory)
+
+        XCTAssertFalse(workspace.isURLRoutingPlaceholderWorkspace)
+        XCTAssertEqual(workspace.identityState.workingDirectoryURL.path, targetDirectory.path)
     }
 
     func test_restoreWindows_withValidSavedState_restoresCorrectly() {

@@ -26,6 +26,8 @@ import RalphCore
 
 @MainActor
 struct WorkspaceView: View {
+    private static let isUITestingLaunch = ProcessInfo.processInfo.arguments.contains("--uitesting")
+
     @ObservedObject var workspace: Workspace
     @StateObject private var navigation: NavigationViewModel
     @State private var showingCommandPalette: Bool = false
@@ -73,6 +75,11 @@ struct WorkspaceView: View {
         }
         .frame(minWidth: 1200, minHeight: 640)
         .background(.clear)
+        .overlay(alignment: .topLeading) {
+            if Self.isUITestingLaunch {
+                WorkspaceStateAccessibilityProbe(workspace: workspace)
+            }
+        }
         .focusedSceneValue(\.workspaceUIActions, commandActions)
         .sheet(isPresented: showErrorRecoveryBinding) { errorRecoverySheet() }
         .sheet(isPresented: $showingCommandPalette) { commandPaletteSheet() }
@@ -426,6 +433,57 @@ struct WorkspaceView: View {
 }
 
 // MARK: - Empty Detail View
+
+private struct WorkspaceStateAccessibilityProbe: View {
+    @ObservedObject var workspace: Workspace
+
+    private struct Snapshot: Encodable {
+        let workspaceID: String
+        let workspacePath: String
+        let projectDisplayName: String
+        let taskCount: Int
+        let tasksLoading: Bool
+        let tasksErrorMessage: String?
+        let isPlaceholder: Bool
+        let retargetRevision: UInt64
+        let workspaceCount: Int
+        let focusedWorkspaceID: String?
+        let effectiveWorkspaceID: String?
+    }
+
+    private var encodedSnapshot: String {
+        let manager = WorkspaceManager.shared
+        let snapshot = Snapshot(
+            workspaceID: workspace.id.uuidString,
+            workspacePath: workspace.identityState.workingDirectoryURL.path,
+            projectDisplayName: workspace.projectDisplayName,
+            taskCount: workspace.taskState.tasks.count,
+            tasksLoading: workspace.taskState.tasksLoading,
+            tasksErrorMessage: workspace.taskState.tasksErrorMessage,
+            isPlaceholder: workspace.isURLRoutingPlaceholderWorkspace,
+            retargetRevision: workspace.identityState.retargetRevision,
+            workspaceCount: manager.workspaces.count,
+            focusedWorkspaceID: manager.focusedWorkspace?.id.uuidString,
+            effectiveWorkspaceID: manager.effectiveWorkspace?.id.uuidString
+        )
+
+        guard let data = try? JSONEncoder().encode(snapshot),
+              let json = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return json
+    }
+
+    var body: some View {
+        Text(encodedSnapshot)
+            .font(.system(size: 1))
+            .foregroundStyle(.clear)
+            .frame(width: 1, height: 1)
+            .clipped()
+            .allowsHitTesting(false)
+            .accessibilityIdentifier("workspace-state-probe")
+    }
+}
 
 @MainActor
 struct EmptyDetailView: View {

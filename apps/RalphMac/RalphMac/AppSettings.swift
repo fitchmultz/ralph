@@ -66,12 +66,14 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
-    private let workspace: Workspace
+    @ObservedObject private var workspace: Workspace
+    private let presentationToken: String
     @State private var viewModel: SettingsViewModel
     @State private var selectedPane: SettingsPane = .runner
 
-    init(workspace: Workspace) {
+    init(workspace: Workspace, presentationToken: String) {
         self.workspace = workspace
+        self.presentationToken = presentationToken
         self._viewModel = State(initialValue: SettingsViewModel(workspace: workspace))
     }
 
@@ -96,8 +98,10 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .task {
-            await viewModel.loadConfigIfNeeded()
+        .task(id: settingsReloadToken) {
+            let refreshedViewModel = SettingsViewModel(workspace: workspace)
+            viewModel = refreshedViewModel
+            await refreshedViewModel.loadConfig()
         }
         .task(id: diagnosticsSnapshotToken) {
             SettingsPresentationCoordinator.shared.captureContent(
@@ -119,9 +123,18 @@ struct SettingsView: View {
         .accessibilityIdentifier(SettingsAccessibilityID.root)
     }
 
+    private var settingsReloadToken: String {
+        [
+            presentationToken,
+            workspace.id.uuidString,
+            String(workspace.identityState.retargetRevision),
+            workspace.identityState.workingDirectoryURL.path,
+        ].joined(separator: "|")
+    }
+
     private var diagnosticsSnapshotToken: String {
         [
-            workspace.identityState.workingDirectoryURL.path,
+            settingsReloadToken,
             viewModel.runner,
             viewModel.model,
             viewModel.isLoading ? "loading" : "loaded"
@@ -606,9 +619,12 @@ struct AppearanceSettingsTab: View {
 }
 
 #Preview {
-    SettingsView(workspace: Workspace(
-        workingDirectoryURL: URL(fileURLWithPath: "/Users/example/project")
-    ))
+    SettingsView(
+        workspace: Workspace(
+            workingDirectoryURL: URL(fileURLWithPath: "/Users/example/project")
+        ),
+        presentationToken: "preview"
+    )
 }
 
 // MARK: - Settings Window Content
@@ -618,12 +634,13 @@ struct AppearanceSettingsTab: View {
 @MainActor
 struct SettingsContentContainer: View {
     let workspace: Workspace?
+    let presentationToken: String
 
     var body: some View {
         Group {
             if let workspace {
-                SettingsView(workspace: workspace)
-                    .id(workspace.identityState.workingDirectoryURL.path)
+                SettingsView(workspace: workspace, presentationToken: presentationToken)
+                    .id(presentationToken)
             } else {
                 NoWorkspaceSettingsView()
             }
