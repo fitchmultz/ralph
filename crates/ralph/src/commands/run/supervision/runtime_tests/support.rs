@@ -25,11 +25,11 @@ use std::sync::Mutex;
 
 pub(super) static PI_ENV_MUTEX: Mutex<()> = Mutex::new(());
 
-pub(super) fn write_queue(repo_root: &Path, status: TaskStatus) -> anyhow::Result<()> {
-    let task = Task {
-        id: "RQ-0001".to_string(),
+pub(super) fn make_task(id: &str, title: &str, status: TaskStatus) -> Task {
+    Task {
+        id: id.to_string(),
         status,
-        title: "Test task".to_string(),
+        title: title.to_string(),
         description: None,
         priority: TaskPriority::Medium,
         tags: vec!["tests".to_string()],
@@ -41,7 +41,8 @@ pub(super) fn write_queue(repo_root: &Path, status: TaskStatus) -> anyhow::Resul
         agent: None,
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
-        completed_at: None,
+        completed_at: matches!(status, TaskStatus::Done | TaskStatus::Rejected)
+            .then(|| "2026-01-18T00:05:00Z".to_string()),
         started_at: None,
         scheduled_start: None,
         depends_on: vec![],
@@ -52,14 +53,25 @@ pub(super) fn write_queue(repo_root: &Path, status: TaskStatus) -> anyhow::Resul
         estimated_minutes: None,
         actual_minutes: None,
         parent_id: None,
-    };
+    }
+}
 
+pub(super) fn write_queue(repo_root: &Path, status: TaskStatus) -> anyhow::Result<()> {
+    write_queue_tasks(repo_root, vec![make_task("RQ-0001", "Test task", status)])
+}
+
+pub(super) fn write_queue_tasks(repo_root: &Path, tasks: Vec<Task>) -> anyhow::Result<()> {
     queue::save_queue(
         &repo_root.join(".ralph/queue.jsonc"),
-        &QueueFile {
-            version: 1,
-            tasks: vec![task],
-        },
+        &QueueFile { version: 1, tasks },
+    )?;
+    Ok(())
+}
+
+pub(super) fn write_done_tasks(repo_root: &Path, tasks: Vec<Task>) -> anyhow::Result<()> {
+    queue::save_queue(
+        &repo_root.join(".ralph/done.jsonc"),
+        &QueueFile { version: 1, tasks },
     )?;
     Ok(())
 }
