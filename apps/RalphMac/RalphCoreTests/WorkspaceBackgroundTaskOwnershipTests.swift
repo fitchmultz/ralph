@@ -3,7 +3,7 @@
 
  Responsibilities:
  - Validate manager-owned workspace bootstrap tasks cancel on close.
- - Validate workspace-owned health-check tasks cancel on shutdown and retarget.
+ - Validate workspace-owned health-check and runner-launch tasks cancel on shutdown and retarget.
  - Guard against stale background task results bleeding across repository lifecycle changes.
 
  Does not handle:
@@ -198,5 +198,126 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
         XCTAssertTrue(log.contains("second-started"))
         XCTAssertFalse(log.contains("first-finished"))
         XCTAssertEqual(workspace.diagnosticsState.cliHealthStatus?.workspaceURL, workspaceBURL)
+    }
+
+    @MainActor
+    func test_shutdown_cancelsPendingRunLaunchBeforeProcessStarts() async throws {
+        var workspace: Workspace!
+        let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-background-run-shutdown")
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
+
+        let logURL = rootDir.appendingPathComponent("run-shutdown.log", isDirectory: false)
+        let script = """
+            #!/bin/sh
+            printf 'run-started\n' >> "\(logURL.path)"
+            sleep 5
+            printf 'run-finished\n' >> "\(logURL.path)"
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: rootDir,
+            name: "mock-ralph-run-shutdown",
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = Workspace(workingDirectoryURL: rootDir)
+        workspace.client = client
+
+        workspace.run(arguments: ["run", "one"])
+        workspace.shutdown()
+
+        try await Task.sleep(for: .milliseconds(300))
+
+        let log = try? String(contentsOf: logURL, encoding: .utf8)
+        XCTAssertFalse(log?.contains("run-started") == true)
+        XCTAssertFalse(workspace.runState.isRunning)
+        XCTAssertTrue(workspace.runState.output.isEmpty)
+        XCTAssertTrue(workspace.runState.executionHistory.isEmpty)
+    }
+
+    @MainActor
+    func test_setWorkingDirectory_cancelsPendingRunNextTaskResolution() async throws {
+        var workspace: Workspace!
+        let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-background-run-retarget")
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
+        let workspaceAURL = rootDir.appendingPathComponent("workspace-a", isDirectory: true)
+        let workspaceBURL = rootDir.appendingPathComponent("workspace-b", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspaceAURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: workspaceBURL, withIntermediateDirectories: true)
+        try RalphMockCLITestSupport.writeQueueFile(in: workspaceAURL, tasks: [])
+
+        let logURL = rootDir.appendingPathComponent("run-retarget.log", isDirectory: false)
+        let queueAURL = try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(
+            in: rootDir,
+            name: "queue-a.json",
+            workspaceURL: workspaceAURL,
+            activeTasks: [],
+            nextRunnableTaskID: "RQ-A"
+        )
+        let systemInfoURL = rootDir.appendingPathComponent("system-info.json", isDirectory: false)
+        try Data("{\"version\":1,\"cli_version\":\"1.0.0\"}\n".utf8).write(to: systemInfoURL)
+
+        let script = """
+            #!/bin/sh
+            case "$*" in
+              *"--no-color machine system info"*)
+              cat "\(systemInfoURL.path)"
+              exit 0
+              ;;
+              *"--no-color machine queue read"*)
+              case "$PWD" in
+                */workspace-a)
+                trap 'printf "queue-read-canceled\\n" >> "\(logURL.path)"; exit 130' INT TERM
+                printf 'queue-read-started\n' >> "\(logURL.path)"
+                sleep 5
+                printf 'queue-read-finished\n' >> "\(logURL.path)"
+                cat "\(queueAURL.path)"
+                exit 0
+                ;;
+                *)
+                printf '{"version":1,"paths":{"queue_path":"%s/.ralph/queue.jsonc","done_path":"%s/.ralph/done.jsonc","project_config_path":"%s/.ralph/config.jsonc"},"active":{"tasks":[]},"done":{"tasks":[]},"stats":{"total":0,"todo":0,"in_progress":0,"done":0},"next_runnable_task_id":null}\n' "$PWD" "$PWD" "$PWD"
+                exit 0
+                ;;
+              esac
+              ;;
+              *"--no-color machine run one"*)
+              printf 'run-started\n' >> "\(logURL.path)"
+              exit 0
+              ;;
+            esac
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: rootDir,
+            name: "mock-ralph-run-retarget",
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = Workspace(workingDirectoryURL: workspaceAURL)
+        workspace.client = client
+
+        workspace.runNextTask()
+
+        let queueReadStarted = await RalphCoreTestSupport.waitUntil(timeout: .seconds(2)) {
+            (try? String(contentsOf: logURL, encoding: .utf8).contains("queue-read-started")) == true
+        }
+        XCTAssertTrue(queueReadStarted)
+
+        workspace.setWorkingDirectory(workspaceBURL)
+
+        let retargetSettled = await RalphCoreTestSupport.waitUntil(timeout: .seconds(3)) {
+            await MainActor.run {
+                workspace.identityState.workingDirectoryURL == workspaceBURL
+                    && workspace.runState.isRunning == false
+                    && workspace.runState.currentTaskID == nil
+            }
+        }
+        XCTAssertTrue(retargetSettled)
+
+        let log = try String(contentsOf: logURL, encoding: .utf8)
+        XCTAssertTrue(log.contains("queue-read-canceled"))
+        XCTAssertFalse(log.contains("queue-read-finished"))
+        XCTAssertFalse(log.contains("run-started"))
+        XCTAssertEqual(workspace.identityState.workingDirectoryURL, workspaceBURL)
+        XCTAssertTrue(workspace.runState.executionHistory.isEmpty)
     }
 }

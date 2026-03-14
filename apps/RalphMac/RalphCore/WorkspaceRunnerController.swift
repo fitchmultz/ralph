@@ -29,6 +29,8 @@ final class WorkspaceRunnerController {
     private var cancelRequested = false
     private var loopContinuationTask: Task<Void, Never>?
     private var runCancellationTask: Task<Void, Never>?
+    private var runTask: Task<Void, Never>?
+    private var runTaskRevision: UInt64 = 0
     private var loopForceDirtyRepo = false
 
     init(workspace: Workspace) {
@@ -38,6 +40,7 @@ final class WorkspaceRunnerController {
     deinit {
         loopContinuationTask?.cancel()
         runCancellationTask?.cancel()
+        runTask?.cancel()
     }
 
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
@@ -104,6 +107,8 @@ final class WorkspaceRunnerController {
         workspace.runState.isLoopMode = false
         cancelRequested = false
 
+        cancelPendingRunTask()
+
         let runToCancel = activeRun
         activeRun = nil
         if let runToCancel {
@@ -113,70 +118,18 @@ final class WorkspaceRunnerController {
 
     func run(arguments: [String], preservingConsole: Bool = false) {
         guard let workspace, !workspace.isShutDown else { return }
-        guard let client = workspace.client else {
+        guard workspace.client != nil else {
             workspace.runState.errorMessage = "CLI client not available."
             return
         }
-        guard !workspace.runState.isRunning else { return }
+        guard !hasPendingRunWork(for: workspace) else { return }
 
         loopContinuationTask?.cancel()
         loopContinuationTask = nil
-        workspace.runState.prepareForNewRun(preservingConsole: preservingConsole)
         cancelRequested = false
 
-        Task { @MainActor [weak self] in
-            guard let self, let workspace = self.workspace else { return }
-            let repositoryContext = workspace.currentRepositoryContext()
-
-            do {
-                let run = try client.start(
-                    arguments: arguments,
-                    currentDirectoryURL: workspace.identityState.workingDirectoryURL
-                )
-                activeRun = run
-                var machineDecoder = MachineRunOutputDecoder()
-                let usesMachineRunEvents = Self.isMachineRunCommand(arguments)
-
-                for await event in run.events {
-                    guard workspace.isCurrentRepositoryContext(repositoryContext), activeRun === run else { continue }
-                    if usesMachineRunEvents, event.stream == .stdout {
-                        for item in machineDecoder.append(event.text) {
-                            self.applyMachineRunOutputItem(item, workspace: workspace)
-                        }
-                    } else {
-                        self.appendConsoleText(event.text, workspace: workspace)
-                    }
-                }
-
-                if usesMachineRunEvents {
-                    for item in machineDecoder.finish() {
-                        self.applyMachineRunOutputItem(item, workspace: workspace)
-                    }
-                }
-
-                let status = await run.waitUntilExit()
-                finalizeRun(
-                    status: status,
-                    run: run,
-                    repositoryContext: repositoryContext,
-                    workspace: workspace
-                )
-            } catch {
-                guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
-                let recoveryError = RecoveryError.classify(
-                    error: error,
-                    operation: "run",
-                    workspaceURL: workspace.identityState.workingDirectoryURL
-                )
-                workspace.runState.errorMessage = recoveryError.message
-                workspace.diagnosticsState.lastRecoveryError = recoveryError
-                workspace.diagnosticsState.showErrorRecovery = true
-                workspace.runState.isRunning = false
-                activeRun = nil
-                runCancellationTask = nil
-                cancelRequested = false
-                workspace.resetExecutionState()
-            }
+        scheduleRunTask(preservingConsole: preservingConsole) { _, _ in
+            arguments
         }
     }
 
@@ -186,15 +139,16 @@ final class WorkspaceRunnerController {
 
     func cancel() {
         guard let workspace else { return }
-        guard workspace.runState.isRunning else {
-            workspace.runState.isLoopMode = false
-            workspace.runState.stopAfterCurrent = true
+
+        workspace.runState.isLoopMode = false
+        workspace.runState.stopAfterCurrent = true
+
+        if activeRun == nil {
+            cancelPendingRunTask()
             return
         }
 
         cancelRequested = true
-        workspace.runState.isLoopMode = false
-        workspace.runState.stopAfterCurrent = true
 
         guard let run = activeRun else { return }
         scheduleRunCancellation(run)
@@ -206,32 +160,31 @@ final class WorkspaceRunnerController {
         preservingConsole: Bool = false
     ) {
         guard let workspace, !workspace.isShutDown else { return }
-        guard !workspace.runState.isRunning else { return }
+        guard !hasPendingRunWork(for: workspace) else { return }
 
-        Task { @MainActor [weak self] in
-            guard let self, let workspace = self.workspace else { return }
-
-            workspace.resetExecutionState()
-
+        scheduleRunTask(preservingConsole: preservingConsole) { [weak self] workspace, repositoryContext in
             let requestedTaskID = taskIDOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
             let selectedTaskID = requestedTaskID.flatMap { $0.isEmpty ? nil : $0 }
-            let resolvedTaskID: String?
-            if let selectedTaskID {
-                resolvedTaskID = selectedTaskID
+            let resolvedTaskID = if let selectedTaskID {
+                selectedTaskID
             } else {
-                resolvedTaskID = await resolveNextRunnableTaskID()
+                await self?.resolveNextRunnableTaskID(repositoryContext: repositoryContext)
             }
+
+            guard !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else {
+                return nil
+            }
+
             workspace.runState.currentTaskID = resolvedTaskID
 
-            var arguments = ["run", "one"]
+            var arguments = ["--no-color", "machine", "run", "one"]
             if forceDirtyRepo {
                 arguments.append("--force")
             }
             if let resolvedTaskID {
                 arguments.append(contentsOf: ["--id", resolvedTaskID])
             }
-
-            runMachine(arguments: arguments, preservingConsole: preservingConsole)
+            return arguments
         }
     }
 
@@ -249,6 +202,159 @@ final class WorkspaceRunnerController {
         workspace.runState.stopAfterCurrent = true
         loopContinuationTask?.cancel()
         loopContinuationTask = nil
+
+        if activeRun == nil {
+            cancelPendingRunTask()
+        }
+    }
+
+    private func hasPendingRunWork(for workspace: Workspace) -> Bool {
+        runTask != nil || activeRun != nil || workspace.runState.isRunning
+    }
+
+    private func scheduleRunTask(
+        preservingConsole: Bool,
+        operation: @escaping @MainActor (Workspace, Workspace.RepositoryContext) async -> [String]?
+    ) {
+        guard let workspace, !workspace.isShutDown else { return }
+
+        runTaskRevision &+= 1
+        let revision = runTaskRevision
+        let repositoryContext = workspace.currentRepositoryContext()
+        runTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.finishRunTask(revision) }
+            await self.executeRunTask(
+                revision: revision,
+                repositoryContext: repositoryContext,
+                preservingConsole: preservingConsole,
+                operation: operation
+            )
+        }
+    }
+
+    private func executeRunTask(
+        revision: UInt64,
+        repositoryContext: Workspace.RepositoryContext,
+        preservingConsole: Bool,
+        operation: @escaping @MainActor (Workspace, Workspace.RepositoryContext) async -> [String]?
+    ) async {
+        guard
+            let workspace,
+            !Task.isCancelled,
+            !workspace.isShutDown,
+            runTaskRevision == revision,
+            workspace.isCurrentRepositoryContext(repositoryContext)
+        else {
+            return
+        }
+
+        guard let arguments = await operation(workspace, repositoryContext) else {
+            return
+        }
+
+        guard
+            !Task.isCancelled,
+            !workspace.isShutDown,
+            runTaskRevision == revision,
+            workspace.isCurrentRepositoryContext(repositoryContext)
+        else {
+            return
+        }
+
+        guard let client = workspace.client else {
+            workspace.runState.errorMessage = "CLI client not available."
+            return
+        }
+
+        do {
+            let run = try client.start(
+                arguments: arguments,
+                currentDirectoryURL: workspace.identityState.workingDirectoryURL
+            )
+            activeRun = run
+
+            guard
+                !Task.isCancelled,
+                !workspace.isShutDown,
+                runTaskRevision == revision,
+                workspace.isCurrentRepositoryContext(repositoryContext)
+            else {
+                activeRun = nil
+                await run.cancel()
+                return
+            }
+
+            workspace.runState.prepareForNewRun(preservingConsole: preservingConsole)
+            var machineDecoder = MachineRunOutputDecoder()
+            let usesMachineRunEvents = Self.isMachineRunCommand(arguments)
+
+            for await event in run.events {
+                if Task.isCancelled || runTaskRevision != revision {
+                    await run.cancel()
+                    continue
+                }
+                guard workspace.isCurrentRepositoryContext(repositoryContext), activeRun === run else { continue }
+                if usesMachineRunEvents, event.stream == .stdout {
+                    for item in machineDecoder.append(event.text) {
+                        applyMachineRunOutputItem(item, workspace: workspace)
+                    }
+                } else {
+                    appendConsoleText(event.text, workspace: workspace)
+                }
+            }
+
+            if usesMachineRunEvents,
+               !Task.isCancelled,
+               runTaskRevision == revision,
+               workspace.isCurrentRepositoryContext(repositoryContext),
+               activeRun === run {
+                for item in machineDecoder.finish() {
+                    applyMachineRunOutputItem(item, workspace: workspace)
+                }
+            }
+
+            let status = await run.waitUntilExit()
+            guard !Task.isCancelled, runTaskRevision == revision else { return }
+            finalizeRun(
+                status: status,
+                run: run,
+                repositoryContext: repositoryContext,
+                workspace: workspace
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            guard workspace.isCurrentRepositoryContext(repositoryContext), runTaskRevision == revision else { return }
+            let recoveryError = RecoveryError.classify(
+                error: error,
+                operation: "run",
+                workspaceURL: workspace.identityState.workingDirectoryURL
+            )
+            workspace.runState.errorMessage = recoveryError.message
+            workspace.diagnosticsState.lastRecoveryError = recoveryError
+            workspace.diagnosticsState.showErrorRecovery = true
+            workspace.runState.isRunning = false
+            activeRun = nil
+            runCancellationTask = nil
+            cancelRequested = false
+            workspace.resetExecutionState()
+        }
+    }
+
+    private func finishRunTask(_ revision: UInt64) {
+        guard runTaskRevision == revision else { return }
+        runTask = nil
+    }
+
+    private func cancelPendingRunTask() {
+        runTask?.cancel()
+        runTask = nil
+        runTaskRevision &+= 1
+        if let workspace, activeRun == nil {
+            workspace.runState.isRunning = false
+            workspace.resetExecutionState()
+        }
     }
 
     private func scheduleRunCancellation(_ run: RalphCLIRun) {
@@ -311,7 +417,7 @@ final class WorkspaceRunnerController {
         }
     }
 
-    private func resolveNextRunnableTaskID() async -> String? {
+    private func resolveNextRunnableTaskID(repositoryContext: Workspace.RepositoryContext) async -> String? {
         guard let workspace else { return nil }
         guard let client = workspace.client else { return workspace.nextTask()?.id }
 
@@ -320,13 +426,18 @@ final class WorkspaceRunnerController {
                 MachineQueueReadDocument.self,
                 client: client,
                 machineArguments: ["queue", "read"],
-                currentDirectoryURL: workspace.identityState.workingDirectoryURL,
+                currentDirectoryURL: repositoryContext.workingDirectoryURL,
                 retryConfiguration: .minimal
             )
+            guard !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else {
+                return nil
+            }
             workspace.updateResolvedPaths(snapshot.paths)
             if let id = snapshot.nextRunnableTaskID {
                 return id
             }
+        } catch is CancellationError {
+            return nil
         } catch {
             RalphLogger.shared.debug(
                 "Failed to resolve runnable task ID: \(error)",
@@ -334,6 +445,9 @@ final class WorkspaceRunnerController {
             )
         }
 
+        guard workspace.isCurrentRepositoryContext(repositoryContext) else {
+            return nil
+        }
         return workspace.nextTask()?.id
     }
 
