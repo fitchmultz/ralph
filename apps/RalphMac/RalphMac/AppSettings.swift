@@ -19,6 +19,11 @@ import AppKit
 import SwiftUI
 import RalphCore
 
+private enum SettingsAccessibilityID {
+    static let root = "settings-root"
+    static let modelField = "settings-model-field"
+}
+
 private enum SettingsPane: String, CaseIterable, Identifiable {
     case runner
     case notifications
@@ -61,10 +66,12 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
+    private let workspace: Workspace
     @State private var viewModel: SettingsViewModel
     @State private var selectedPane: SettingsPane = .runner
 
     init(workspace: Workspace) {
+        self.workspace = workspace
         self._viewModel = State(initialValue: SettingsViewModel(workspace: workspace))
     }
 
@@ -92,6 +99,14 @@ struct SettingsView: View {
         .task {
             await viewModel.loadConfigIfNeeded()
         }
+        .task(id: diagnosticsSnapshotToken) {
+            SettingsPresentationCoordinator.shared.captureContent(
+                workspacePath: workspace.identityState.workingDirectoryURL.path,
+                runner: viewModel.runner,
+                model: viewModel.model,
+                isLoading: viewModel.isLoading
+            )
+        }
         .frame(minWidth: 760, minHeight: 520)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -101,6 +116,16 @@ struct SettingsView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .accessibilityIdentifier(SettingsAccessibilityID.root)
+    }
+
+    private var diagnosticsSnapshotToken: String {
+        [
+            workspace.identityState.workingDirectoryURL.path,
+            viewModel.runner,
+            viewModel.model,
+            viewModel.isLoading ? "loading" : "loaded"
+        ].joined(separator: "|")
     }
 
     private var settingsSidebar: some View {
@@ -228,6 +253,7 @@ private struct SettingsModelTextField: NSViewRepresentable {
         let textField = NSTextField(string: text)
         textField.placeholderString = "Model name"
         textField.delegate = context.coordinator
+        textField.identifier = NSUserInterfaceItemIdentifier(SettingsAccessibilityID.modelField)
         configure(textField)
         return textField
     }
@@ -316,6 +342,7 @@ struct RunnerSettingsTab: View {
                 }
 
                 SettingsModelTextField(text: $viewModel.model)
+                    .accessibilityIdentifier(SettingsAccessibilityID.modelField)
                     .onChange(of: viewModel.model) { _, _ in viewModel.scheduleSave() }
 
                 if !viewModel.suggestedModels.isEmpty {
@@ -596,6 +623,7 @@ struct SettingsContentContainer: View {
         Group {
             if let workspace {
                 SettingsView(workspace: workspace)
+                    .id(workspace.identityState.workingDirectoryURL.path)
             } else {
                 NoWorkspaceSettingsView()
             }

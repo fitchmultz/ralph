@@ -64,7 +64,7 @@ MAKEFLAGS += --no-builtin-rules
 	changelog changelog-preview changelog-check version-check version-sync publish-check release release-dry-run release-verify release-artifacts pre-commit pre-public-check release-gate \
 	agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
-	macos-test-window-shortcuts coverage coverage-clean FORCE
+	macos-test-window-shortcuts macos-test-settings-smoke coverage coverage-clean FORCE
 help:
 	@echo "Common targets:"
 	@echo "  make ci-fast     # Fast deterministic Rust/CLI gate for day-to-day development"
@@ -76,6 +76,7 @@ help:
 	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
 	@echo "  make coverage-clean  # Remove coverage artifacts"
 	@echo "  make macos-test-window-shortcuts # Run focused multi-window shortcut UI regressions"
+	@echo "  make macos-test-settings-smoke # Run deterministic Settings open-path smoke coverage"
 	@echo "  make macos-ui-build-for-testing # Build/sign UI test bundles once for local iteration"
 	@echo "  make macos-ui-retest         # Re-run UI tests without rebuilding bundles"
 	@echo "  make macos-test-ui-artifacts # Run UI suite with screenshot artifacts + export summary"
@@ -653,6 +654,10 @@ macos-ui-artifacts-clean:
 	@echo "  ✓ UI visual artifacts removed"
 
 # Run targeted UI regressions for window/tab shortcut scoping.
+macos-test-settings-smoke: macos-build
+	@echo "→ macOS Settings smoke coverage (keyboard, app menu, URL route)..."
+	@./scripts/macos-settings-smoke.sh --app-bundle "$(XCODE_DERIVED_DATA_ROOT)/build/Build/Products/Release/RalphMac.app"
+
 macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
 	mkdir -p "$$(dirname "$$lock_dir")"; \

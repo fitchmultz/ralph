@@ -237,7 +237,7 @@ struct AppSettingsCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings...") {
-                SettingsService.showSettingsWindow(source: .appMenu)
+                SettingsService.showSettingsWindow(source: .commandSurface)
             }
             .keyboardShortcut(",", modifiers: .command)
         }

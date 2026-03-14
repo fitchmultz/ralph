@@ -28,7 +28,7 @@ enum RalphURLRouter {
 
         if url.host == "settings" {
             MainWindowService.shared.revealOrOpenPrimaryWindow()
-            SettingsService.showSettingsWindow(source: .appMenu)
+            SettingsService.showSettingsWindow(source: .urlScheme)
             RalphLogger.shared.info("Opened settings via ralph://settings", category: .lifecycle)
             return
         }

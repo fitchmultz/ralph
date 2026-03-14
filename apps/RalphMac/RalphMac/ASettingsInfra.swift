@@ -2,17 +2,157 @@
  ASettingsInfra
 
  Responsibilities:
- - Host the SwiftUI Settings scene root used by app/menu surfaces.
- - Keep settings-window composition separate from the main app scene.
+ - Host the SwiftUI Settings scene root used by app/menu/url surfaces.
+ - Keep settings-window composition, focus control, and diagnostics separate from the main app scene.
 
  Does not handle:
  - Settings tab content (defined in `AppSettings.swift`).
- - Settings open commands (defined in `SettingsService.swift`).
+ - Settings open command wiring (defined in `SettingsService.swift`).
  */
 
 import SwiftUI
 import AppKit
 import RalphCore
+
+private enum SettingsSceneAccessibilityID {
+    static let diagnosticsProbe = "settings-diagnostics-probe"
+}
+
+enum SettingsWindowIdentity {
+    static let sceneID = "settings"
+    static let windowIdentifier = "com.mitchfultz.ralph.settings-window"
+    static let legacyWindowIdentifier = "com_apple_SwiftUI_Settings_window"
+    static let title = "Settings"
+}
+
+@MainActor
+final class SettingsWindowService {
+    static let shared = SettingsWindowService()
+
+    private var openSettingsWindowHandler: (() -> Void)?
+
+    private init() {}
+
+    func register(openWindow: OpenWindowAction) {
+        openSettingsWindowHandler = {
+            openWindow(id: SettingsWindowIdentity.sceneID)
+        }
+    }
+
+    @discardableResult
+    func revealOrOpenPreparedWindow() -> Bool {
+        if let existingWindow = NSApp.windows.first(where: isSettingsWindow) {
+            configure(window: existingWindow)
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return true
+        }
+
+        guard let openSettingsWindowHandler else { return false }
+        openSettingsWindowHandler()
+        NSApp.activate(ignoringOtherApps: true)
+        return true
+    }
+
+    func configure(window: NSWindow) {
+        window.identifier = NSUserInterfaceItemIdentifier(SettingsWindowIdentity.windowIdentifier)
+        window.title = SettingsWindowIdentity.title
+        window.collectionBehavior.insert(.moveToActiveSpace)
+        window.tabbingMode = .disallowed
+    }
+
+    func isSettingsWindow(_ window: NSWindow) -> Bool {
+        guard let rawIdentifier = window.identifier?.rawValue else { return false }
+        return rawIdentifier == SettingsWindowIdentity.windowIdentifier
+            || rawIdentifier == SettingsWindowIdentity.legacyWindowIdentifier
+    }
+}
+
+@MainActor
+struct SettingsWindowOpenActionRegistrar: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .allowsHitTesting(false)
+            .task {
+                SettingsWindowService.shared.register(openWindow: openWindow)
+            }
+    }
+}
+
+struct SettingsWindowHelperSnapshot: Codable, Equatable {
+    let className: String
+    let title: String
+    let identifier: String?
+}
+
+struct SettingsWindowDiagnosticsSnapshot: Codable, Equatable {
+    var requestSequence: Int
+    var source: String?
+    var requestedWorkspacePath: String?
+    var resolvedWorkspacePath: String?
+    var contentWorkspacePath: String?
+    var settingsRunnerValue: String?
+    var settingsModelValue: String?
+    var settingsIsLoading: Bool
+    var visibleAppWindowCount: Int
+    var visibleWorkspaceWindowCount: Int
+    var visibleSettingsWindowCount: Int
+    var visibleHelperWindowCount: Int
+    var helperWindows: [SettingsWindowHelperSnapshot]
+    var settingsWindowTitle: String?
+    var firstResponderClassName: String?
+    var firstResponderIsTextView: Bool
+    var settingsWindowIsKey: Bool
+
+    static let idle = SettingsWindowDiagnosticsSnapshot(
+        requestSequence: 0,
+        source: nil,
+        requestedWorkspacePath: nil,
+        resolvedWorkspacePath: nil,
+        contentWorkspacePath: nil,
+        settingsRunnerValue: nil,
+        settingsModelValue: nil,
+        settingsIsLoading: false,
+        visibleAppWindowCount: 0,
+        visibleWorkspaceWindowCount: 0,
+        visibleSettingsWindowCount: 0,
+        visibleHelperWindowCount: 0,
+        helperWindows: [],
+        settingsWindowTitle: nil,
+        firstResponderClassName: nil,
+        firstResponderIsTextView: false,
+        settingsWindowIsKey: false
+    )
+
+    func encodedForAccessibility() -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(self),
+              let string = String(data: data, encoding: .utf8)
+        else {
+            return "{}"
+        }
+        return string
+    }
+}
+
+@MainActor
+private struct SettingsDiagnosticsAccessibilityProbe: View {
+    let snapshot: SettingsWindowDiagnosticsSnapshot
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier(SettingsSceneAccessibilityID.diagnosticsProbe)
+            .accessibilityLabel("settings-window-diagnostics")
+            .accessibilityValue(snapshot.encodedForAccessibility())
+    }
+}
 
 @MainActor
 private struct SettingsWindowFocusAnchor: NSViewRepresentable {
@@ -60,10 +200,12 @@ private struct SettingsWindowFocusAnchor: NSViewRepresentable {
         }
 
         func installIntoSettingsWindowIfNeeded() {
-            guard let window, window.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" else {
+            guard let window else {
                 removeWindowObservation()
                 return
             }
+
+            SettingsWindowService.shared.configure(window: window)
 
             if observedWindow !== window {
                 removeWindowObservation()
@@ -74,9 +216,16 @@ private struct SettingsWindowFocusAnchor: NSViewRepresentable {
                     name: NSWindow.didBecomeKeyNotification,
                     object: window
                 )
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(handleWindowDidBecomeMain(_:)),
+                    name: NSWindow.didBecomeMainNotification,
+                    object: window
+                )
             }
 
             configureInitialResponder(for: window)
+            scheduleDiagnosticsCapture(for: window)
         }
 
         @objc
@@ -86,10 +235,37 @@ private struct SettingsWindowFocusAnchor: NSViewRepresentable {
             if window.firstResponder !== self {
                 window.makeFirstResponder(self)
             }
+            scheduleDiagnosticsCapture(for: window)
+        }
+
+        @objc
+        private func handleWindowDidBecomeMain(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow else { return }
+            configureInitialResponder(for: window)
+            scheduleDiagnosticsCapture(for: window)
         }
 
         private func configureInitialResponder(for window: NSWindow) {
             window.initialFirstResponder = self
+        }
+
+        private func scheduleDiagnosticsCapture(for window: NSWindow) {
+            Task { @MainActor [weak window] in
+                guard let window else { return }
+                SettingsPresentationCoordinator.shared.capture(window: window)
+            }
+
+            Task { @MainActor [weak window] in
+                await Task.yield()
+                guard let window, !Task.isCancelled else { return }
+                SettingsPresentationCoordinator.shared.capture(window: window)
+            }
+
+            Task { @MainActor [weak window] in
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                guard let window, !Task.isCancelled else { return }
+                SettingsPresentationCoordinator.shared.capture(window: window)
+            }
         }
 
         private func removeWindowObservation() {
@@ -195,11 +371,114 @@ final class SettingsPresentationCoordinator: ObservableObject {
     static let shared = SettingsPresentationCoordinator()
 
     @Published private(set) var workspace: Workspace?
+    @Published private(set) var diagnostics = SettingsWindowDiagnosticsSnapshot.idle
 
-    private init() {}
+    private let diagnosticsFileURL: URL?
 
-    func prepare(workspace: Workspace?) {
+    private init() {
+        if let rawPath = ProcessInfo.processInfo.environment["RALPH_SETTINGS_DIAGNOSTICS_PATH"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawPath.isEmpty {
+            diagnosticsFileURL = URL(fileURLWithPath: rawPath, isDirectory: false)
+        } else {
+            diagnosticsFileURL = nil
+        }
+    }
+
+    func prepare(workspace: Workspace?, source: SettingsPresentationSource) {
         self.workspace = workspace
+        diagnostics = SettingsWindowDiagnosticsSnapshot(
+            requestSequence: diagnostics.requestSequence + 1,
+            source: source.rawValue,
+            requestedWorkspacePath: workspace?.identityState.workingDirectoryURL.path,
+            resolvedWorkspacePath: resolvedWorkspacePath(for: workspace),
+            contentWorkspacePath: diagnostics.contentWorkspacePath,
+            settingsRunnerValue: diagnostics.settingsRunnerValue,
+            settingsModelValue: diagnostics.settingsModelValue,
+            settingsIsLoading: diagnostics.settingsIsLoading,
+            visibleAppWindowCount: diagnostics.visibleAppWindowCount,
+            visibleWorkspaceWindowCount: diagnostics.visibleWorkspaceWindowCount,
+            visibleSettingsWindowCount: diagnostics.visibleSettingsWindowCount,
+            visibleHelperWindowCount: diagnostics.visibleHelperWindowCount,
+            helperWindows: diagnostics.helperWindows,
+            settingsWindowTitle: diagnostics.settingsWindowTitle,
+            firstResponderClassName: diagnostics.firstResponderClassName,
+            firstResponderIsTextView: diagnostics.firstResponderIsTextView,
+            settingsWindowIsKey: diagnostics.settingsWindowIsKey
+        )
+        persistDiagnosticsIfNeeded()
+    }
+
+    func capture(window: NSWindow?) {
+        let visibleWindows = NSApp.windows.filter(\.isVisible)
+        let workspaceWindows = visibleWindows.filter(isWorkspaceWindow)
+        let settingsWindows = visibleWindows.filter(isSettingsWindow)
+        let helperWindows = visibleWindows.filter { !isWorkspaceWindow($0) && !isSettingsWindow($0) }
+        let resolvedSettingsWindow = window.flatMap { isSettingsWindow($0) ? $0 : nil } ?? settingsWindows.first
+
+        diagnostics = SettingsWindowDiagnosticsSnapshot(
+            requestSequence: diagnostics.requestSequence,
+            source: diagnostics.source,
+            requestedWorkspacePath: workspace?.identityState.workingDirectoryURL.path,
+            resolvedWorkspacePath: resolvedWorkspacePath(for: workspace),
+            contentWorkspacePath: diagnostics.contentWorkspacePath,
+            settingsRunnerValue: diagnostics.settingsRunnerValue,
+            settingsModelValue: diagnostics.settingsModelValue,
+            settingsIsLoading: diagnostics.settingsIsLoading,
+            visibleAppWindowCount: visibleWindows.count,
+            visibleWorkspaceWindowCount: workspaceWindows.count,
+            visibleSettingsWindowCount: settingsWindows.count,
+            visibleHelperWindowCount: helperWindows.count,
+            helperWindows: helperWindows.map {
+                SettingsWindowHelperSnapshot(
+                    className: String(describing: type(of: $0)),
+                    title: $0.title,
+                    identifier: $0.identifier?.rawValue
+                )
+            },
+            settingsWindowTitle: resolvedSettingsWindow?.title,
+            firstResponderClassName: resolvedSettingsWindow.flatMap { window in
+                window.firstResponder.map { String(describing: type(of: $0)) }
+            },
+            firstResponderIsTextView: resolvedSettingsWindow?.firstResponder is NSTextView,
+            settingsWindowIsKey: resolvedSettingsWindow?.isKeyWindow ?? false
+        )
+        persistDiagnosticsIfNeeded()
+    }
+
+    func captureContent(
+        workspacePath: String?,
+        runner: String?,
+        model: String?,
+        isLoading: Bool
+    ) {
+        diagnostics.contentWorkspacePath = workspacePath
+        diagnostics.settingsRunnerValue = runner
+        diagnostics.settingsModelValue = model
+        diagnostics.settingsIsLoading = isLoading
+        persistDiagnosticsIfNeeded()
+    }
+
+    func isSettingsWindow(_ window: NSWindow) -> Bool {
+        SettingsWindowService.shared.isSettingsWindow(window)
+    }
+
+    private func isWorkspaceWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.contains("AppWindow") == true
+    }
+
+    private func resolvedWorkspacePath(for preparedWorkspace: Workspace?) -> String? {
+        (preparedWorkspace ?? WorkspaceManager.shared.effectiveWorkspace)?.identityState.workingDirectoryURL.path
+    }
+
+    private func persistDiagnosticsIfNeeded() {
+        guard let diagnosticsFileURL else { return }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+        guard let data = try? encoder.encode(diagnostics) else { return }
+        let directory = diagnosticsFileURL.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? data.write(to: diagnosticsFileURL, options: .atomic)
     }
 }
 
@@ -214,5 +493,8 @@ struct SettingsSceneRoot: View {
             .frame(minWidth: 640, minHeight: 480)
             .preferredColorScheme(AppAppearanceController.shared.preferredColorScheme)
             .background(SettingsWindowFocusAnchor())
+            .overlay(alignment: .bottomTrailing) {
+                SettingsDiagnosticsAccessibilityProbe(snapshot: presentation.diagnostics)
+            }
     }
 }

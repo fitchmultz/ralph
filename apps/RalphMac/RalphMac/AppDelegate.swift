@@ -2,7 +2,7 @@
  AppDelegate
 
  Responsibilities:
- - Configure window behavior before SwiftUI takes over.
+ - Configure activation policy and window behavior before SwiftUI takes over.
  - Disable automatic window tabbing globally before any windows are created.
  - Keep existing windows out of automatic tabbing mode after launch.
 
@@ -27,6 +27,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var normalizedWindowNumbers = Set<Int>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+
         // Disable automatic window tabbing globally
         NSWindow.allowsAutomaticWindowTabbing = false
 
@@ -41,6 +43,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+
         // Disable tabbing before any windows are created
         NSWindow.allowsAutomaticWindowTabbing = false
     }
