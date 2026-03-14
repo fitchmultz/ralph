@@ -16,9 +16,9 @@
 use anyhow::{Context, Result};
 
 use super::makefile_ci_contract_test_support::{
-    REQUIRED_CI_FAST_STEPS, REQUIRED_CI_STEPS, REQUIRED_MACOS_CI_DEPS, extract_make_ci_steps,
-    extract_target_block, extract_target_dependencies, read_repo_makefile, repo_root,
-    required_ci_pipeline_text,
+    REQUIRED_CI_FAST_STEPS, REQUIRED_CI_STEPS, REQUIRED_MACOS_CI_DEPS,
+    REQUIRED_MACOS_TEST_CONTRACT_DEPS, extract_make_ci_steps, extract_target_block,
+    extract_target_dependencies, read_repo_makefile, repo_root, required_ci_pipeline_text,
 };
 
 #[test]
@@ -91,6 +91,25 @@ fn test_macos_ci_matches_required_dependency_sequence() -> Result<()> {
     assert_eq!(
         actual, expected,
         "`macos-ci` must exactly match required dependency sequence.\nExpected: {:?}\nActual:   {:?}",
+        expected, actual
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_macos_test_contracts_matches_required_dependency_sequence() -> Result<()> {
+    let makefile = read_repo_makefile()?;
+    let actual = extract_target_dependencies(&makefile, "macos-test-contracts")
+        .context("extract macos-test-contracts deps")?;
+    let expected: Vec<String> = REQUIRED_MACOS_TEST_CONTRACT_DEPS
+        .iter()
+        .map(|step| step.to_string())
+        .collect();
+
+    assert_eq!(
+        actual, expected,
+        "`macos-test-contracts` must exactly match required dependency sequence.\nExpected: {:?}\nActual:   {:?}",
         expected, actual
     );
 

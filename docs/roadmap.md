@@ -6,21 +6,9 @@ This is the canonical near-term roadmap for active follow-up work.
 
 ## Active roadmap
 
-### 1. Fold deterministic Settings smoke coverage into the standard macOS gate
+### 1. Centralize macOS mock CLI fixture generation and resolved-path payloads
 
 Why first:
-- The custom Settings window cutover is now the contract.
-- `make macos-test-settings-smoke` is the reliable guard for the fixed Settings-open paths, but it still sits outside `make macos-ci`.
-- Landing this before more Settings/window churn keeps the highest-value regression guard close to the main verification path.
-
-Scope:
-- Decide whether the smoke belongs in `macos-ci`, `macos-test`, or a new lightweight macOS contract target.
-- Keep the deterministic smoke path separate from the still-unreliable XCTest UI automation path.
-- Make the chosen gate part of the normal local verification story.
-
-### 2. Centralize macOS mock CLI fixture generation and resolved-path payloads
-
-Why second:
 - Recent macOS test failures came from drift in inline mock CLI scripts and fake machine payloads.
 - Shared fixture builders will reduce churn before more workspace/app-surface work lands.
 - This keeps path, queue, and config payload contracts consistent across RalphCore tests.
@@ -30,9 +18,9 @@ Scope:
 - Ensure machine queue/config payloads always emit real workspace-resolved paths.
 - Remove ad hoc per-test placeholder payloads where possible.
 
-### 3. Reduce macOS test noise from fixture teardown and async refresh races
+### 2. Reduce macOS test noise from fixture teardown and async refresh races
 
-Why third:
+Why second:
 - Once fixtures are centralized, the remaining failures/noise are easier to isolate as lifecycle issues instead of payload bugs.
 - Current passing test runs still emit benign-but-noisy runner-configuration failures after temporary fixture executables are removed.
 - Quieting that noise will make real regressions easier to spot.
@@ -42,9 +30,9 @@ Scope:
 - Tighten workspace/test teardown so temporary CLI binaries and temp directories are not observed after cleanup.
 - Keep operational-health diagnostics meaningful instead of flooding logs with expected teardown errors.
 
-### 4. Broaden post-run supervision regression coverage around adjacent lifecycle edges
+### 3. Broaden post-run supervision regression coverage around adjacent lifecycle edges
 
-Why fourth:
+Why third:
 - The CI enforcement fix is now in place and green.
 - Expanding coverage is safest after the macOS fixture churn above is reduced.
 - This locks in the new supervision semantics before future run-loop or queue-lifecycle changes.

@@ -16,13 +16,15 @@
 use anyhow::Result;
 
 use super::makefile_ci_contract_test_support::{
-    REQUIRED_CI_STEPS, REQUIRED_MACOS_CI_DEPS, extract_make_ci_steps, extract_target_dependencies,
+    REQUIRED_CI_STEPS, REQUIRED_MACOS_CI_DEPS, REQUIRED_MACOS_TEST_CONTRACT_DEPS,
+    extract_make_ci_steps, extract_target_dependencies,
 };
 
 #[test]
 fn test_extract_make_ci_steps_prefers_ci_target_over_macos_ci() -> Result<()> {
     let makefile = r#"
-macos-ci: macos-preflight ci macos-build macos-test
+macos-ci: macos-preflight ci macos-build macos-test macos-test-contracts
+macos-test-contracts: macos-test-settings-smoke
 
 ci: check-env-safety check-backup-artifacts deps format type-check lint test build generate install
 	@echo "done"
@@ -119,7 +121,9 @@ fn test_extract_target_dependencies_supports_multiline_header() -> Result<()> {
 macos-ci: macos-preflight \
 	ci \
 	macos-build \
-	macos-test
+	macos-test \
+	macos-test-contracts
+macos-test-contracts: macos-test-settings-smoke
 "#;
 
     let actual = extract_target_dependencies(makefile, "macos-ci")?;
@@ -130,6 +134,25 @@ macos-ci: macos-preflight \
     assert_eq!(
         actual, expected,
         "target deps extractor should parse multiline headers"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_extract_target_dependencies_parses_macos_test_contracts_target() -> Result<()> {
+    let makefile = r#"
+macos-test-contracts: macos-test-settings-smoke
+"#;
+
+    let actual = extract_target_dependencies(makefile, "macos-test-contracts")?;
+    let expected: Vec<String> = REQUIRED_MACOS_TEST_CONTRACT_DEPS
+        .iter()
+        .map(|step| (*step).to_string())
+        .collect();
+    assert_eq!(
+        actual, expected,
+        "target deps extractor should parse macos contract dependency headers"
     );
 
     Ok(())

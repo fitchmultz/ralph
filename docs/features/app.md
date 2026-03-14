@@ -180,4 +180,4 @@ Test sources live in `apps/RalphMac/RalphMacUITests/`.
 ## Notes
 
 - For complete command coverage and automation, use the CLI reference: `docs/cli.md`.
-- For release-quality verification, run `make macos-ci` when app changes are in scope.
+- For release-quality verification, run `make macos-ci` when app changes are in scope; it now includes deterministic Settings smoke coverage alongside the standard app build/tests.

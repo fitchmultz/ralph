@@ -64,18 +64,19 @@ MAKEFLAGS += --no-builtin-rules
 	changelog changelog-preview changelog-check version-check version-sync publish-check release release-dry-run release-verify release-artifacts pre-commit pre-public-check release-gate \
 	agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
-	macos-test-window-shortcuts macos-test-settings-smoke coverage coverage-clean FORCE
+	macos-test-window-shortcuts macos-test-contracts macos-test-settings-smoke coverage coverage-clean FORCE
 help:
 	@echo "Common targets:"
 	@echo "  make ci-fast     # Fast deterministic Rust/CLI gate for day-to-day development"
 	@echo "  make ci          # Full Rust release gate (ci-fast + build/generate/install)"
 	@echo "  make agent-ci    # Agent gate: dependency-surface routing between ci-fast and macos-ci"
-	@echo "  make macos-ci     # Rust gate + macOS app build+test (requires Xcode)"
+	@echo "  make macos-ci     # Rust gate + macOS app build+test + deterministic contract smoke (requires Xcode)"
 	@echo "  make release-gate # Canonical ship gate: macOS when available, otherwise Rust-only"
 	@echo "  make test         # Nextest workspace tests + cargo doc tests (auto-fallback if nextest missing)"
 	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
 	@echo "  make coverage-clean  # Remove coverage artifacts"
 	@echo "  make macos-test-window-shortcuts # Run focused multi-window shortcut UI regressions"
+	@echo "  make macos-test-contracts # Run deterministic non-XCTest macOS contract checks"
 	@echo "  make macos-test-settings-smoke # Run deterministic Settings open-path smoke coverage"
 	@echo "  make macos-ui-build-for-testing # Build/sign UI test bundles once for local iteration"
 	@echo "  make macos-ui-retest         # Re-run UI tests without rebuilding bundles"
@@ -653,7 +654,11 @@ macos-ui-artifacts-clean:
 	@rm -rf "$(RALPH_UI_ARTIFACTS_ROOT)"
 	@echo "  ✓ UI visual artifacts removed"
 
-# Run targeted UI regressions for window/tab shortcut scoping.
+# Run deterministic non-XCTest macOS contract checks against the built app.
+macos-test-contracts: macos-test-settings-smoke
+	@echo "→ macOS deterministic contract checks completed"
+
+# Run targeted Settings smoke coverage for supported Settings entry paths.
 macos-test-settings-smoke: macos-build
 	@echo "→ macOS Settings smoke coverage (keyboard, app menu, URL route)..."
 	@./scripts/macos-settings-smoke.sh --app-bundle "$(XCODE_DERIVED_DATA_ROOT)/build/Build/Products/Release/RalphMac.app"
@@ -704,9 +709,9 @@ macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 		-only-testing:RalphMacUITests/RalphMacUITests/test_commandPaletteNewTab_affectsOnlyFocusedWindow \
 		test-without-building
 
-macos-ci: macos-preflight ci macos-build macos-test
-	@echo "→ macOS ship gate (Rust CI + macOS app build+test)..."
-	@echo "  ℹ UI automation is intentionally excluded from macos-ci (use make macos-test-ui or make macos-test-window-shortcuts when idle)."
+macos-ci: macos-preflight ci macos-build macos-test macos-test-contracts
+	@echo "→ macOS ship gate (Rust CI + macOS app build+test + deterministic contract smoke)..."
+	@echo "  ℹ Interactive XCTest UI automation remains excluded from macos-ci (use make macos-test-ui or make macos-test-window-shortcuts when idle)."
 	@echo "  ✓ macOS CI completed"
 
 # Coverage output directory

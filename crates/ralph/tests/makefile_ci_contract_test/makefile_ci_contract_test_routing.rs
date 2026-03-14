@@ -47,6 +47,10 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         "macos-ci should depend on macos-preflight"
     );
     assert!(
+        makefile.contains("macos-test-contracts: macos-test-settings-smoke"),
+        "Makefile should define a deterministic macOS contract aggregate target"
+    );
+    assert!(
         makefile.contains("derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/build\""),
         "macos-build should use an isolated build DerivedData path"
     );

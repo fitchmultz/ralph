@@ -83,5 +83,6 @@ Ship gate (when macOS app changes are in scope):
 
 ```bash
 make macos-ci
+# Includes deterministic Settings smoke in addition to the app build/tests.
 # Optional caps: RALPH_CI_JOBS=4 RALPH_XCODE_JOBS=4 make macos-ci
 ```

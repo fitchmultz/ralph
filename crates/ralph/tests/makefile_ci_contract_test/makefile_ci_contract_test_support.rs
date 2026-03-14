@@ -40,8 +40,15 @@ pub(super) const REQUIRED_CI_FAST_STEPS: &[&str] = &[
     "test",
 ];
 
-pub(super) const REQUIRED_MACOS_CI_DEPS: &[&str] =
-    &["macos-preflight", "ci", "macos-build", "macos-test"];
+pub(super) const REQUIRED_MACOS_TEST_CONTRACT_DEPS: &[&str] = &["macos-test-settings-smoke"];
+
+pub(super) const REQUIRED_MACOS_CI_DEPS: &[&str] = &[
+    "macos-preflight",
+    "ci",
+    "macos-build",
+    "macos-test",
+    "macos-test-contracts",
+];
 
 pub(super) fn required_ci_pipeline_text() -> String {
     REQUIRED_CI_STEPS.join(" → ")
