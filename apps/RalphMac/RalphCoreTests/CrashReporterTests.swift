@@ -2,7 +2,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class CrashReporterTests: XCTestCase {
+final class CrashReporterTests: RalphCoreTestCase {
     private var reportsDirectory: URL!
 
     override func setUp() async throws {

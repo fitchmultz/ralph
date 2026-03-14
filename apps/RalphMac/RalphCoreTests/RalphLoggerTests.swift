@@ -2,7 +2,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class RalphLoggerTests: XCTestCase {
+final class RalphLoggerTests: RalphCoreTestCase {
     
     func testLoggerInitialization() {
         let logger = RalphLogger.shared

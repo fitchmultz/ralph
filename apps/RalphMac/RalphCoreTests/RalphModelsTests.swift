@@ -17,7 +17,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class RalphModelsTests: XCTestCase {
+final class RalphModelsTests: RalphCoreTestCase {
     func test_decode_cliSpec_rawJSON() throws {
         let json = #"""
         {

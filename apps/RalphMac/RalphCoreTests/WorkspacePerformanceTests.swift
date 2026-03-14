@@ -17,7 +17,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-class WorkspacePerformanceTestCase: XCTestCase {
+class WorkspacePerformanceTestCase: RalphCoreTestCase {
     var workspace: Workspace!
 
     override func setUp() async throws {
@@ -30,6 +30,7 @@ class WorkspacePerformanceTestCase: XCTestCase {
     }
 
     override func tearDown() async throws {
+        workspace?.shutdown()
         workspace = nil
         try await super.tearDown()
     }

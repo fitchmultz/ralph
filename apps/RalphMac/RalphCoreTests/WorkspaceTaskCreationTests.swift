@@ -21,10 +21,11 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class WorkspaceTaskCreationTests: XCTestCase {
+final class WorkspaceTaskCreationTests: RalphCoreTestCase {
     func test_createTask_importsStructuredTaskImmediately() async throws {
+        var workspace: Workspace!
         let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-create-")
-        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(workspaceURL, workspace) }
 
         let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
         try await Self.runChecked(
@@ -33,7 +34,7 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             currentDirectoryURL: workspaceURL
         )
 
-        let workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
 
         try await workspace.createTask(
             title: "UI-created task",
@@ -62,8 +63,10 @@ final class WorkspaceTaskCreationTests: XCTestCase {
     }
 
     func test_workspaceInitialRefresh_populatesQueueGraphAndAnalytics() async throws {
+        var seedingWorkspace: Workspace!
+        var workspace: Workspace!
         let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-refresh-initial-")
-        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(workspaceURL, seedingWorkspace, workspace) }
 
         let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
         try await Self.runChecked(
@@ -72,8 +75,8 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             currentDirectoryURL: workspaceURL
         )
 
-        let seedingWorkspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
-        try await seedingWorkspace.createTask(
+        seedingWorkspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+                try await seedingWorkspace.createTask(
             title: "Seed queue state",
             priority: .medium
         )
@@ -82,7 +85,7 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             priority: .medium
         )
 
-        let workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
 
         let loaded = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
@@ -100,8 +103,10 @@ final class WorkspaceTaskCreationTests: XCTestCase {
     }
 
     func test_workspaceWatcherExternalMutation_refreshesQueueGraphAndAnalytics() async throws {
+        var workspace: Workspace!
+        var writerWorkspace: Workspace!
         let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-refresh-watch-")
-        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(workspaceURL, workspace, writerWorkspace) }
 
         let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
         try await Self.runChecked(
@@ -110,8 +115,8 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             currentDirectoryURL: workspaceURL
         )
 
-        let workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
-        let writerWorkspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        writerWorkspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
 
         let loadedEmptyState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
@@ -146,8 +151,9 @@ final class WorkspaceTaskCreationTests: XCTestCase {
     }
 
     func test_workspaceWatcherAtomicQueueReplacement_refreshesQueueGraphAndAnalytics() async throws {
+        var workspace: Workspace!
         let workspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-refresh-replace-")
-        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(workspaceURL, workspace) }
 
         let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
         try await Self.runChecked(
@@ -156,7 +162,7 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             currentDirectoryURL: workspaceURL
         )
 
-        let workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceURL, client: client)
 
         let loadedEmptyState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
@@ -220,11 +226,13 @@ final class WorkspaceTaskCreationTests: XCTestCase {
     }
 
     func test_workspaceRetarget_refreshesQueueGraphAndAnalyticsForNewDirectory() async throws {
+        var populatedWorkspace: Workspace!
+        var workspace: Workspace!
         let emptyWorkspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-retarget-empty-")
         let populatedWorkspaceURL = try Self.makeTempDir(prefix: "ralph-workspace-retarget-populated-")
         defer {
-            RalphCoreTestSupport.assertRemoved(emptyWorkspaceURL)
-            RalphCoreTestSupport.assertRemoved(populatedWorkspaceURL)
+            RalphCoreTestSupport.shutdownAndRemove(emptyWorkspaceURL, workspace)
+            RalphCoreTestSupport.shutdownAndRemove(populatedWorkspaceURL, populatedWorkspace)
         }
 
         let client = try RalphCLIClient(executableURL: try Self.resolveRalphBinaryURL())
@@ -239,13 +247,13 @@ final class WorkspaceTaskCreationTests: XCTestCase {
             currentDirectoryURL: populatedWorkspaceURL
         )
 
-        let populatedWorkspace = Workspace(workingDirectoryURL: populatedWorkspaceURL, client: client)
-        try await populatedWorkspace.createTask(
+        populatedWorkspace = Workspace(workingDirectoryURL: populatedWorkspaceURL, client: client)
+                try await populatedWorkspace.createTask(
             title: "Switch workspace truth",
             priority: .medium
         )
 
-        let workspace = Workspace(workingDirectoryURL: emptyWorkspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: emptyWorkspaceURL, client: client)
 
         let loadedInitialState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {

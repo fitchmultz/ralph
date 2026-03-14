@@ -12,7 +12,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class TaskConflictResolutionTests: XCTestCase {
+final class TaskConflictResolutionTests: RalphCoreTestCase {
     func testModelBuildsSectionsAndInitialSelectionsFromConflicts() {
         let local = RalphTask(
             id: "RQ-1",

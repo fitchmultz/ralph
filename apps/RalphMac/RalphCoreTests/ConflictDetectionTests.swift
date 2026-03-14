@@ -20,7 +20,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class ConflictDetectionTests: XCTestCase {
+final class ConflictDetectionTests: RalphCoreTestCase {
     var workspace: Workspace!
     
     override func setUp() async throws {

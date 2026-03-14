@@ -14,7 +14,7 @@
 import XCTest
 @testable import RalphCore
 
-final class TimeoutConfigurationTests: XCTestCase {
+final class TimeoutConfigurationTests: RalphCoreTestCase {
     func testDefaultConfiguration() {
         let config = TimeoutConfiguration.default
         XCTAssertEqual(config.timeout, 30)

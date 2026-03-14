@@ -29,6 +29,18 @@ import XCTest
 import Darwin
 #endif
 
+class RalphCoreTestCase: XCTestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        RalphCoreTestSupport.resetPersistentTestState()
+    }
+
+    override func tearDownWithError() throws {
+        RalphCoreTestSupport.resetPersistentTestState()
+        try super.tearDownWithError()
+    }
+}
+
 enum RalphCoreTestSupport {
     private static let tempRootName = "ralph-core-tests"
 
@@ -72,6 +84,10 @@ enum RalphCoreTestSupport {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     }
 
+    static func resetPersistentTestState() {
+        RalphAppDefaults.resetUnitTestingDefaults()
+    }
+
     static func removeItemIfExists(_ url: URL) throws {
         guard FileManager.default.fileExists(atPath: url.path) else {
             return
@@ -86,6 +102,21 @@ enum RalphCoreTestSupport {
             file: file,
             line: line
         )
+    }
+
+    @MainActor
+    static func shutdownAndRemove(
+        _ url: URL,
+        _ workspaces: Workspace?...,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for workspace in workspaces {
+            workspace?.shutdown()
+            workspace?.clearCachedTasks()
+            workspace?.removePersistedState()
+        }
+        assertRemoved(url, file: file, line: line)
     }
 
     static func waitUntil(

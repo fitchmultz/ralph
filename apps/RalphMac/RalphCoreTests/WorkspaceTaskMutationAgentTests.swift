@@ -23,8 +23,9 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
             scriptName: "mock-ralph-task-mutate-agent",
             mutationReportJSON: #"{"version":1,"report":{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9001","applied_edits":1}]}}"#
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
-        let workspace = Workspace(
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+        workspace = Workspace(
             workingDirectoryURL: fixture.workspaceURL,
             client: try RalphCLIClient(executableURL: fixture.scriptURL)
         )
@@ -74,8 +75,9 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
             scriptName: "mock-ralph-task-mutate-agent-clear",
             mutationReportJSON: #"{"version":1,"report":{"version":1,"atomic":true,"tasks":[{"task_id":"RQ-9002","applied_edits":1}]}}"#
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
-        let workspace = Workspace(
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+        workspace = Workspace(
             workingDirectoryURL: fixture.workspaceURL,
             client: try RalphCLIClient(executableURL: fixture.scriptURL)
         )
@@ -108,8 +110,9 @@ final class WorkspaceTaskMutationAgentTests: WorkspacePerformanceTestCase {
             scriptName: "mock-ralph-task-mutate-agent-noop",
             mutationReportJSON: #"{"version":1,"report":{"version":1,"atomic":true,"tasks":[]}}"#
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
-        let workspace = Workspace(
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+        workspace = Workspace(
             workingDirectoryURL: fixture.workspaceURL,
             client: try RalphCLIClient(executableURL: fixture.scriptURL)
         )

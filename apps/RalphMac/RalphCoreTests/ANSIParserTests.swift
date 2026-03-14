@@ -20,7 +20,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class ANSIParserTests: XCTestCase {
+final class ANSIParserTests: RalphCoreTestCase {
 
     var workspace: Workspace!
 

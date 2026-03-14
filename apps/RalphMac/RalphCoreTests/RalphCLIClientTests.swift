@@ -18,7 +18,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class RalphCLIClientTests: XCTestCase {
+final class RalphCLIClientTests: RalphCoreTestCase {
     func test_success_exitCodeZero_and_streamsStdout() async throws {
         let client = try RalphCLIClient(executableURL: URL(fileURLWithPath: "/bin/echo"))
         let run = try client.start(arguments: ["hello"])

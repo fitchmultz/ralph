@@ -16,7 +16,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class VersionValidatorTests: XCTestCase {
+final class VersionValidatorTests: RalphCoreTestCase {
     
     // MARK: - SemanticVersion Parsing
     

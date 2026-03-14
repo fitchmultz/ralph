@@ -23,7 +23,7 @@ import Foundation
 import XCTest
 @testable import RalphCore
 
-final class NavigationViewModelTests: XCTestCase {
+final class NavigationViewModelTests: RalphCoreTestCase {
     private let testNavigationKey = "com.mitchfultz.ralph.navigationState"
 
     override func setUp() {

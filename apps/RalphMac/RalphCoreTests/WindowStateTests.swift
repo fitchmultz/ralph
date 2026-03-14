@@ -17,11 +17,13 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class WindowStateTests: XCTestCase {
+final class WindowStateTests: RalphCoreTestCase {
     private var manager: WorkspaceManager!
     private let testRestorationKey = "com.mitchfultz.ralph.windowRestorationState"
     private let testNavigationKey = "com.mitchfultz.ralph.navigationState"
     private let workspaceSnapshotPrefix = "com.mitchfultz.ralph.workspace."
+
+    private var defaults: UserDefaults { RalphAppDefaults.userDefaults }
 
     override func setUp() {
         super.setUp()
@@ -31,8 +33,7 @@ final class WindowStateTests: XCTestCase {
         for workspace in manager.workspaces {
             manager.closeWorkspace(workspace)
         }
-        // Clear any existing test state
-        UserDefaults.standard.removeObject(forKey: testRestorationKey)
+        defaults.removeObject(forKey: testRestorationKey)
         cleanupNavigationState()
         cleanupWorkspaceSnapshots()
     }
@@ -43,14 +44,13 @@ final class WindowStateTests: XCTestCase {
         }
         manager.resetWindowStateClaimPool()
         manager.resetSceneRoutingForTests()
-        UserDefaults.standard.removeObject(forKey: testRestorationKey)
+        defaults.removeObject(forKey: testRestorationKey)
         cleanupNavigationState()
         cleanupWorkspaceSnapshots()
         super.tearDown()
     }
 
     private func cleanupNavigationState() {
-        let defaults = UserDefaults.standard
         for key in defaults.dictionaryRepresentation().keys {
             if key.hasPrefix(testNavigationKey) {
                 defaults.removeObject(forKey: key)
@@ -59,7 +59,6 @@ final class WindowStateTests: XCTestCase {
     }
 
     private func cleanupWorkspaceSnapshots() {
-        let defaults = UserDefaults.standard
         for key in defaults.dictionaryRepresentation().keys {
             if key.hasPrefix(workspaceSnapshotPrefix) {
                 defaults.removeObject(forKey: key)
@@ -187,7 +186,7 @@ final class WindowStateTests: XCTestCase {
 
     func test_restoreWindows_withNoSavedState_createsDefault() {
         // Ensure no saved state
-        UserDefaults.standard.removeObject(forKey: testRestorationKey)
+        defaults.removeObject(forKey: testRestorationKey)
 
         let restored = manager.restoreWindows()
 
@@ -197,7 +196,7 @@ final class WindowStateTests: XCTestCase {
     }
 
     func test_restoreWindows_withNoSavedState_usesExistingWorkspace() throws {
-        UserDefaults.standard.removeObject(forKey: testRestorationKey)
+        defaults.removeObject(forKey: testRestorationKey)
         let temp = try makeWorkspaceDirectory(prefix: "restore-windows-existing")
         defer { RalphCoreTestSupport.assertRemoved(temp) }
 
@@ -214,11 +213,24 @@ final class WindowStateTests: XCTestCase {
 
         let workspace = manager.createWorkspace(workingDirectory: temp)
         let key = workspaceSnapshotKey(for: workspace.id)
-        let snapshotData = try XCTUnwrap(UserDefaults.standard.data(forKey: key))
+        let snapshotData = try XCTUnwrap(defaults.data(forKey: key))
         let snapshot = try JSONDecoder().decode(RalphWorkspaceDefaultsSnapshot.self, from: snapshotData)
 
         XCTAssertEqual(snapshot.workingDirectoryURL, temp)
         XCTAssertEqual(snapshot.name, temp.lastPathComponent)
+    }
+
+    func test_unitTestDefaults_areIsolatedFromStandardDefaults() {
+        let key = "com.mitchfultz.ralph.unit-test-isolation"
+        defer {
+            defaults.removeObject(forKey: key)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+
+        defaults.set("isolated", forKey: key)
+
+        XCTAssertEqual(defaults.string(forKey: key), "isolated")
+        XCTAssertNil(UserDefaults.standard.object(forKey: key))
     }
 
     func test_workspaceProjectDisplayName_prefersWorkingDirectoryLeafName() throws {
@@ -388,7 +400,7 @@ final class WindowStateTests: XCTestCase {
 
     func test_workspaceWorkingDirectory_withCorruptSnapshot_surfacesPersistenceIssue() {
         let workspaceID = UUID()
-        UserDefaults.standard.set(Data("not-json".utf8), forKey: workspaceSnapshotKey(for: workspaceID))
+        defaults.set(Data("not-json".utf8), forKey: workspaceSnapshotKey(for: workspaceID))
 
         let resolved = manager.workspaceWorkingDirectory(workspaceID)
 

@@ -33,7 +33,7 @@ actor TestCounter {
     }
 }
 
-final class RetryHelperTests: XCTestCase {
+final class RetryHelperTests: RalphCoreTestCase {
     
     // MARK: - Basic Retry Tests
     

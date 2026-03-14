@@ -16,7 +16,7 @@ import Foundation
 import XCTest
 @testable import RalphCore
 
-final class CLIHealthCheckerTests: XCTestCase {
+final class CLIHealthCheckerTests: RalphCoreTestCase {
     func testHealthStatusAvailable() {
         let workspaceURL = RalphCoreTestSupport.workspaceURL(label: "cli-health-available")
         let status = CLIHealthStatus(

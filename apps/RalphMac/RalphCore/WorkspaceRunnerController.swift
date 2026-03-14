@@ -35,7 +35,7 @@ final class WorkspaceRunnerController {
     }
 
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         await workspace.performRepositoryLoad(
             operation: "loadRunnerConfiguration",
             retryConfiguration: retryConfiguration,
@@ -108,7 +108,7 @@ final class WorkspaceRunnerController {
     }
 
     func run(arguments: [String], preservingConsole: Bool = false) {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         guard let client = workspace.client else {
             workspace.runState.errorMessage = "CLI client not available."
             return
@@ -202,7 +202,7 @@ final class WorkspaceRunnerController {
         forceDirtyRepo: Bool = false,
         preservingConsole: Bool = false
     ) {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         guard !workspace.runState.isRunning else { return }
 
         Task { @MainActor [weak self] in
@@ -233,7 +233,7 @@ final class WorkspaceRunnerController {
     }
 
     func startLoop(forceDirtyRepo: Bool? = nil) {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         workspace.runState.isLoopMode = true
         workspace.runState.stopAfterCurrent = false
         loopForceDirtyRepo = forceDirtyRepo ?? workspace.runState.runControlForceDirtyRepo

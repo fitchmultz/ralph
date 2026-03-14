@@ -24,7 +24,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class RalphE2ESmokeTests: XCTestCase {
+final class RalphE2ESmokeTests: RalphCoreTestCase {
     private static let allowCargoBuildEnvKey = "RALPH_E2E_ALLOW_CARGO_BUILD"
     private static let binaryPathEnvKey = "RALPH_BIN_PATH"
     private static let commandTimeoutSeconds: TimeInterval = 30

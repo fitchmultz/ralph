@@ -18,6 +18,7 @@ import XCTest
 @MainActor
 final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
     func test_runNextTask_resolvesCLISelection_andStreamsOutput() async throws {
+        var workspace: Workspace!
         let queuedTask = RalphMockCLITestSupport.task(
             id: "RQ-4242",
             status: .todo,
@@ -31,7 +32,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             scriptName: "mock-ralph-run-stream",
             seedQueueTasks: [queuedTask]
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
         let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
             RalphMockCLITestSupport.configResolveDocument(
@@ -85,8 +86,8 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         workspace.runNextTask()
 
@@ -115,11 +116,12 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
     }
 
     func test_runNextTask_withExplicitIDAndForce_usesExpectedArguments() async throws {
+        var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
             prefix: "ralph-workspace-run-explicit",
             scriptName: "mock-ralph-run-explicit"
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
         let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
             RalphMockCLITestSupport.configResolveDocument(
@@ -153,8 +155,8 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         workspace.runNextTask(taskIDOverride: "RQ-5555", forceDirtyRepo: true)
 
@@ -188,11 +190,12 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
     }
 
     func test_cancel_stopsActiveRun_andRecordsCancellation() async throws {
+        var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
             prefix: "ralph-workspace-run-cancel",
             scriptName: "mock-ralph-run-cancel"
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
         let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
             RalphMockCLITestSupport.configResolveDocument(
@@ -217,8 +220,8 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         workspace.run(arguments: ["60"])
 
@@ -243,12 +246,13 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
     }
 
     func test_startLoop_schedulesNextRunWithoutSleepDelay() async throws {
+        var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
             prefix: "ralph-workspace-loop",
             scriptName: "mock-ralph-loop",
             seedQueueTasks: []
         )
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
         let stateURL = fixture.rootURL.appendingPathComponent("loop-state.txt", isDirectory: false)
 
         let loopTaskOne = RalphMockCLITestSupport.task(
@@ -336,8 +340,8 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         let startedAt = Date()
         workspace.startLoop()

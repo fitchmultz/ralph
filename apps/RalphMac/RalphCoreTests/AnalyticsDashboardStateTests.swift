@@ -12,7 +12,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class AnalyticsDashboardStateTests: XCTestCase {
+final class AnalyticsDashboardStateTests: RalphCoreTestCase {
     func testProductivitySummaryRenderStateTreatsZeroReportAsEmpty() {
         let report = ProductivitySummaryReport(
             totalCompleted: 0,

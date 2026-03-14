@@ -19,7 +19,7 @@ import Foundation
 import XCTest
 @testable import RalphCore
 
-final class GraphAlgorithmsTests: XCTestCase {
+final class GraphAlgorithmsTests: RalphCoreTestCase {
 
     // MARK: - detectCycles Tests
 

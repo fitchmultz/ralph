@@ -17,8 +17,9 @@ import XCTest
 @MainActor
 final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
     func test_loadRunnerConfiguration_setsCurrentRunnerConfig() async throws {
+        var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(prefix: "ralph-workspace-config")
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
         let configResolveURL = try Self.writeConfigResolveDocument(
             in: fixture.rootURL,
@@ -40,7 +41,7 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             """
         let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: fixture.rootURL, body: script)
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
@@ -50,8 +51,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
     }
 
     func test_loadRunnerConfiguration_decodesSafetySummary() async throws {
+        var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(prefix: "ralph-workspace-config-safety")
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
         let safety = MachineConfigSafetySummary(
             repoTrusted: false,
@@ -86,7 +88,7 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             """
         let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: fixture.rootURL, name: "mock-ralph-safety", body: script)
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
@@ -105,8 +107,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
     }
 
     func test_loadRunnerConfiguration_onFailure_clearsCurrentRunnerConfig() async throws {
+        var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(prefix: "ralph-workspace-config-failure")
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
         let successConfigURL = try Self.writeConfigResolveDocument(
             in: fixture.rootURL,
@@ -131,8 +134,8 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             body: successScript
         )
         let successClient = try RalphCLIClient(executableURL: successScriptURL)
-        let workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: successClient)
-        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: successClient)
+                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
         XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "kimi-initial")
         XCTAssertEqual(workspace.runState.currentRunnerConfig?.phases, 3)
         XCTAssertEqual(workspace.runState.currentRunnerConfig?.maxIterations, 2)
@@ -158,9 +161,51 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
         XCTAssertNil(workspace.runState.currentRunnerConfig)
     }
 
+    func test_shutdown_prevents_runnerConfiguration_reload_activity() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(prefix: "ralph-workspace-config-shutdown")
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let logURL = fixture.rootURL.appendingPathComponent("config-resolve.log", isDirectory: false)
+        let configResolveURL = try Self.writeConfigResolveDocument(
+            in: fixture.rootURL,
+            name: "config-resolve.json",
+            workspaceURL: fixture.workspaceURL,
+            model: "should-not-load",
+            phases: 1,
+            iterations: 1
+        )
+
+        let script = """
+            #!/bin/sh
+            printf '%s\n' "$*" >> "\(logURL.path)"
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: "mock-ralph-shutdown",
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL)
+                workspace.client = client
+
+        workspace.shutdown()
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: logURL.path))
+        XCTAssertNil(workspace.runState.currentRunnerConfig)
+    }
+
     func test_setWorkingDirectory_refreshesRunnerConfiguration() async throws {
+        var workspace: Workspace!
         let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-workspace-config-switch")
-        defer { RalphCoreTestSupport.assertRemoved(rootDir) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
         let workspaceADir = rootDir.appendingPathComponent("workspace-a", isDirectory: true)
         let workspaceBDir = rootDir.appendingPathComponent("workspace-b", isDirectory: true)
         try FileManager.default.createDirectory(at: workspaceADir, withIntermediateDirectories: true)
@@ -215,7 +260,7 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             body: switchScript
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
         XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "model-a")
@@ -237,8 +282,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
     }
 
     func test_setWorkingDirectory_clearsRepositoryDerivedStateImmediately_andReloadsNewRepository() async throws {
+        var workspace: Workspace!
         let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-workspace-retarget")
-        defer { RalphCoreTestSupport.assertRemoved(rootDir) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
         let workspaceADir = rootDir.appendingPathComponent("workspace-a", isDirectory: true)
         let workspaceBDir = rootDir.appendingPathComponent("workspace-b", isDirectory: true)
         try FileManager.default.createDirectory(at: workspaceADir, withIntermediateDirectories: true)
@@ -365,7 +411,7 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
 
         await workspace.loadTasks(retryConfiguration: .minimal)
         await workspace.loadGraphData(retryConfiguration: .minimal)
@@ -397,8 +443,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
     }
 
     func test_repositoryGeneration_discardsLateResultsFromPreviousWorkspace() async throws {
+        var workspace: Workspace!
         let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-workspace-retarget-stale")
-        defer { RalphCoreTestSupport.assertRemoved(rootDir) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
         let workspaceADir = rootDir.appendingPathComponent("workspace-a", isDirectory: true)
         let workspaceBDir = rootDir.appendingPathComponent("workspace-b", isDirectory: true)
         try FileManager.default.createDirectory(at: workspaceADir, withIntermediateDirectories: true)
@@ -525,7 +572,7 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
 
         let staleTaskLoad = Task { @MainActor in
             await workspace.loadTasks(retryConfiguration: .minimal)
@@ -562,8 +609,9 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
     }
 
     func test_setWorkingDirectory_invalidatesActiveRunState() async throws {
+        var workspace: Workspace!
         let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-workspace-retarget-run")
-        defer { RalphCoreTestSupport.assertRemoved(rootDir) }
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
         let workspaceADir = rootDir.appendingPathComponent("workspace-a", isDirectory: true)
         let workspaceBDir = rootDir.appendingPathComponent("workspace-b", isDirectory: true)
         try FileManager.default.createDirectory(at: workspaceADir, withIntermediateDirectories: true)
@@ -645,7 +693,7 @@ final class WorkspaceRunnerConfigurationTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        let workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
+        workspace = Workspace(workingDirectoryURL: workspaceADir, client: client)
 
         workspace.run(arguments: ["--no-color", "run", "one"])
 

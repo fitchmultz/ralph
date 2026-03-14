@@ -13,7 +13,7 @@ import Foundation
 import XCTest
 @testable import RalphCore
 
-final class RetryIntegrationTests: XCTestCase {
+final class RetryIntegrationTests: RalphCoreTestCase {
     
     private var tempDir: URL!
     

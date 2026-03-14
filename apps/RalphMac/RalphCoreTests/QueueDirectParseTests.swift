@@ -18,7 +18,7 @@ import XCTest
 
 @testable import RalphCore
 
-final class QueueDirectParseTests: XCTestCase {
+final class QueueDirectParseTests: RalphCoreTestCase {
     // MARK: - Document Format Tests
 
     func test_decode_validQueueDocument_succeeds() throws {

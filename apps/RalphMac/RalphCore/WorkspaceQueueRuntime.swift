@@ -24,6 +24,7 @@ final class WorkspaceQueueRuntime {
     private weak var workspace: Workspace?
     private var watcher: QueueFileWatcher?
     private var watcherEventsTask: Task<Void, Never>?
+    private var watcherStartTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
     private var pendingBatch = QueueFileWatcher.FileChangeBatch(fileNames: [])
     private var lastTasksSnapshot: [RalphTask] = []
@@ -34,6 +35,7 @@ final class WorkspaceQueueRuntime {
 
     deinit {
         watcherEventsTask?.cancel()
+        watcherStartTask?.cancel()
         refreshTask?.cancel()
         if let watcher {
             Task {
@@ -43,7 +45,7 @@ final class WorkspaceQueueRuntime {
     }
 
     func startWatchingIfNeeded() {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         guard watcher == nil, workspace.hasRalphQueueFile else {
             if !workspace.hasRalphQueueFile {
                 workspace.updateWatcherHealth(.idle(for: workspace.identityState.workingDirectoryURL))
@@ -64,8 +66,14 @@ final class WorkspaceQueueRuntime {
             }
         }
 
-        Task {
+        watcherStartTask?.cancel()
+        watcherStartTask = Task { [weak self, watcher] in
+            guard !Task.isCancelled else { return }
             await watcher.start()
+            await MainActor.run {
+                guard let self, self.watcher === watcher else { return }
+                self.watcherStartTask = nil
+            }
         }
     }
 
@@ -73,6 +81,8 @@ final class WorkspaceQueueRuntime {
         guard let workspace else {
             watcherEventsTask?.cancel()
             watcherEventsTask = nil
+            watcherStartTask?.cancel()
+            watcherStartTask = nil
             refreshTask?.cancel()
             refreshTask = nil
             pendingBatch = QueueFileWatcher.FileChangeBatch(fileNames: [])
@@ -82,6 +92,8 @@ final class WorkspaceQueueRuntime {
         }
         watcherEventsTask?.cancel()
         watcherEventsTask = nil
+        watcherStartTask?.cancel()
+        watcherStartTask = nil
         refreshTask?.cancel()
         refreshTask = nil
         pendingBatch = QueueFileWatcher.FileChangeBatch(fileNames: [])
@@ -104,7 +116,7 @@ final class WorkspaceQueueRuntime {
     }
 
     func syncWatchTargetsIfNeeded() {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
 
         guard workspace.hasRalphQueueFile else {
             stopWatching()
@@ -132,7 +144,7 @@ final class WorkspaceQueueRuntime {
     }
 
     private func handleWatcherEvent(_ event: QueueFileWatcher.Event) {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         switch event {
         case .healthChanged(let health):
             workspace.updateWatcherHealth(health)
@@ -163,7 +175,7 @@ final class WorkspaceQueueRuntime {
     }
 
     private func process(batch: QueueFileWatcher.FileChangeBatch) async {
-        guard let workspace else { return }
+        guard let workspace, !workspace.isShutDown else { return }
         let repositoryContext = workspace.currentRepositoryContext()
 
         if batch.affectsQueueSnapshot {
@@ -174,7 +186,7 @@ final class WorkspaceQueueRuntime {
                 includeCLISpec: false
             )
 
-            guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+            guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
             workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
                 source: .externalFileChange,
                 previousTasks: lastTasksSnapshot,
@@ -183,7 +195,7 @@ final class WorkspaceQueueRuntime {
         }
 
         guard batch.affectsRunnerConfiguration else { return }
-        guard workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+        guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
     }
 }

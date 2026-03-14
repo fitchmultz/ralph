@@ -46,6 +46,7 @@ public extension WorkspaceManager {
     }
 
     func closeWorkspace(_ workspace: Workspace) {
+        workspace.shutdown()
         workspace.cancel()
         workspace.removePersistedState()
         workspaces.removeAll { $0.id == workspace.id }

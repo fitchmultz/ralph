@@ -49,9 +49,12 @@ public final class Workspace: ObservableObject, Identifiable {
     lazy var runnerController = WorkspaceRunnerController(workspace: self)
 
     var client: RalphCLIClient?
+    var isShutDown = false
 
     private var relayCancellables = Set<AnyCancellable>()
     private var operationalDependencyCancellables = Set<AnyCancellable>()
+    private var repositoryActivityTask: Task<Void, Never>?
+    private var repositoryActivityRevision: UInt64 = 0
 
     public init(
         id: UUID = UUID(),
@@ -82,8 +85,8 @@ public final class Workspace: ObservableObject, Identifiable {
         refreshOperationalHealth()
 
         if client != nil {
-            Task { @MainActor [weak self] in
-                await self?.refreshRepositoryState(
+            scheduleRepositoryActivity {
+                await $0.refreshRepositoryState(
                     retryConfiguration: .minimal,
                     includeCLISpec: false
                 )
@@ -92,10 +95,11 @@ public final class Workspace: ObservableObject, Identifiable {
     }
 
     public func injectClient(_ client: RalphCLIClient) {
+        guard !isShutDown else { return }
         self.client = client
-        Task { @MainActor in
-            await refreshRepositoryState(retryConfiguration: .minimal)
-            refreshOperationalHealth()
+        scheduleRepositoryActivity {
+            await $0.refreshRepositoryState(retryConfiguration: .minimal)
+            $0.refreshOperationalHealth()
         }
     }
 
@@ -161,21 +165,27 @@ public final class Workspace: ObservableObject, Identifiable {
         retryConfiguration: RetryConfiguration = .minimal,
         includeCLISpec: Bool = true
     ) async {
+        guard !isShutDown, !Task.isCancelled else { return }
         await loadTasks(retryConfiguration: retryConfiguration)
 
+        guard !isShutDown, !Task.isCancelled else { return }
         guard hasRalphQueueFile else {
             if includeCLISpec {
                 await loadCLISpec(retryConfiguration: retryConfiguration)
+                guard !isShutDown, !Task.isCancelled else { return }
             }
             await loadRunnerConfiguration(retryConfiguration: retryConfiguration)
             return
         }
 
         await loadGraphData(retryConfiguration: retryConfiguration)
+        guard !isShutDown, !Task.isCancelled else { return }
         await loadAnalytics(timeRange: insightsState.analytics.timeRange)
+        guard !isShutDown, !Task.isCancelled else { return }
 
         if includeCLISpec {
             await loadCLISpec(retryConfiguration: retryConfiguration)
+            guard !isShutDown, !Task.isCancelled else { return }
         }
 
         await loadRunnerConfiguration(retryConfiguration: retryConfiguration)
@@ -265,6 +275,29 @@ public final class Workspace: ObservableObject, Identifiable {
             }
             .store(in: &operationalDependencyCancellables)
     }
+
+    func scheduleRepositoryActivity(
+        _ operation: @escaping @MainActor (Workspace) async -> Void
+    ) {
+        guard !isShutDown else { return }
+
+        repositoryActivityTask?.cancel()
+        repositoryActivityRevision &+= 1
+        let revision = repositoryActivityRevision
+
+        repositoryActivityTask = Task { @MainActor [weak self] in
+            guard let self, !self.isShutDown else { return }
+            await operation(self)
+            guard self.repositoryActivityRevision == revision else { return }
+            self.repositoryActivityTask = nil
+        }
+    }
+
+    func cancelRepositoryActivity() {
+        repositoryActivityTask?.cancel()
+        repositoryActivityTask = nil
+        repositoryActivityRevision &+= 1
+    }
 }
 
 extension Workspace {
@@ -280,9 +313,11 @@ extension Workspace {
         handleRetryMessage: (@MainActor (String) -> Void)? = nil,
         handleFailure: @escaping @MainActor (RecoveryError) -> Void
     ) async {
+        guard !isShutDown, !Task.isCancelled else { return }
+
         let repositoryContext = currentRepositoryContext()
         guard let client else {
-            guard isCurrentRepositoryContext(repositoryContext) else { return }
+            guard !isShutDown, isCurrentRepositoryContext(repositoryContext) else { return }
             handleMissingClient()
             return
         }
@@ -290,7 +325,7 @@ extension Workspace {
         setLoading(true)
         clearFailure()
         defer {
-            if isCurrentRepositoryContext(repositoryContext) {
+            if !isShutDown, isCurrentRepositoryContext(repositoryContext) {
                 setLoading(false)
             }
         }
@@ -317,10 +352,12 @@ extension Workspace {
                 retryConfiguration,
                 progress
             )
-            guard isCurrentRepositoryContext(repositoryContext) else { return }
+            guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else { return }
             apply(value)
+        } catch is CancellationError {
+            return
         } catch {
-            guard isCurrentRepositoryContext(repositoryContext) else { return }
+            guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else { return }
             let recoveryError = RecoveryError.classify(
                 error: error,
                 operation: operation,

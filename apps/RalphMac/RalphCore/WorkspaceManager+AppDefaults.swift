@@ -12,6 +12,7 @@
 
  Invariants/assumptions callers must respect:
  - UI-testing defaults use a dedicated suite and are reset on launch.
+ - Unit-test defaults use a dedicated suite so test persistence cannot pollute production defaults.
  - Production defaults prune stale UI-testing state before the app boots.
  */
 
@@ -53,6 +54,7 @@ struct WindowStateStore {
 public enum RalphAppDefaults {
     public static let productionDomainIdentifier = "com.mitchfultz.ralph"
     public static let uiTestingDomainIdentifier = productionDomainIdentifier + ".uitesting"
+    static let unitTestingDomainIdentifier = productionDomainIdentifier + ".unittests"
 
     private static let uiTestingPathMarker = "/ralph-ui-tests/"
     private static let workspaceKeyPrefix = productionDomainIdentifier + ".workspace."
@@ -63,8 +65,18 @@ public enum RalphAppDefaults {
         ProcessInfo.processInfo.arguments.contains("--uitesting")
     }
 
+    static var isUnitTesting: Bool {
+        guard !isUITesting else { return false }
+        let environment = ProcessInfo.processInfo.environment
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+    }
+
     public static var userDefaults: UserDefaults {
         if isUITesting, let suiteDefaults = UserDefaults(suiteName: uiTestingDomainIdentifier) {
+            return suiteDefaults
+        }
+        if isUnitTesting, let suiteDefaults = UserDefaults(suiteName: unitTestingDomainIdentifier) {
             return suiteDefaults
         }
         return .standard
@@ -87,6 +99,11 @@ public enum RalphAppDefaults {
     private static func resetUITestingDefaults() {
         guard let suiteDefaults = UserDefaults(suiteName: uiTestingDomainIdentifier) else { return }
         suiteDefaults.removePersistentDomain(forName: uiTestingDomainIdentifier)
+    }
+
+    static func resetUnitTestingDefaults() {
+        guard let suiteDefaults = UserDefaults(suiteName: unitTestingDomainIdentifier) else { return }
+        suiteDefaults.removePersistentDomain(forName: unitTestingDomainIdentifier)
     }
 
     private static func clearAppWindowFrameState() {

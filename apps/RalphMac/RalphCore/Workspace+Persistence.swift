@@ -271,7 +271,21 @@ public extension Workspace {
         }
     }
 
+    func shutdown() {
+        guard !isShutDown else { return }
+
+        isShutDown = true
+        cancelRepositoryActivity()
+        identityState.repositoryGeneration &+= 1
+        identityState.retargetRevision &+= 1
+        runnerController.prepareForRepositoryRetarget()
+        queueRuntime.stopWatching()
+        refreshOperationalHealth()
+    }
+
     func setWorkingDirectory(_ url: URL) {
+        guard !isShutDown else { return }
+
         let standardizedURL = Self.normalizedWorkingDirectoryURL(url)
         let currentURL = normalizedWorkingDirectoryURL
         guard standardizedURL != currentURL else {
@@ -280,6 +294,7 @@ public extension Workspace {
             return
         }
 
+        cancelRepositoryActivity()
         runnerController.prepareForRepositoryRetarget()
         queueRuntime.prepareForRepositoryRetarget()
         resetRepositoryDerivedStateForRetarget()
@@ -291,8 +306,8 @@ public extension Workspace {
         queueRuntime.restartWatching()
         refreshOperationalHealth()
 
-        Task { @MainActor [weak self] in
-            await self?.reloadRepositoryContext(repositoryContext)
+        scheduleRepositoryActivity {
+            await $0.reloadRepositoryContext(repositoryContext)
         }
     }
 
@@ -366,7 +381,7 @@ extension Workspace {
     }
 
     func reloadRepositoryContext(_ repositoryContext: RepositoryContext) async {
-        guard isCurrentRepositoryContext(repositoryContext) else { return }
+        guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else { return }
         await refreshRepositoryState(retryConfiguration: .minimal)
     }
 

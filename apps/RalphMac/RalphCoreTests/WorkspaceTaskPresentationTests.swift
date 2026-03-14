@@ -17,7 +17,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class WorkspaceTaskPresentationTests: XCTestCase {
+final class WorkspaceTaskPresentationTests: RalphCoreTestCase {
     func testTaskPresentation_prioritySortIsDeterministicAscendingAndDescending() {
         let workspace = Workspace(workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "task-presentation-priority"))
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000)

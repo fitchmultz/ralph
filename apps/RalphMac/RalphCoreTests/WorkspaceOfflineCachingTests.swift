@@ -15,7 +15,7 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class WorkspaceOfflineCachingTests: XCTestCase {
+final class WorkspaceOfflineCachingTests: RalphCoreTestCase {
     func testShowOfflineBannerWhenUnavailable() {
         let workspaceURL = RalphCoreTestSupport.workspaceURL(label: "offline-banner-unavailable")
         let workspace = Workspace(workingDirectoryURL: workspaceURL)

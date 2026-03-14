@@ -218,6 +218,7 @@ public final class QueueFileWatcher: Sendable {
     }
 
     public func start() async {
+        guard !Task.isCancelled else { return }
         await runtime.start()
     }
 
@@ -330,6 +331,7 @@ private actor QueueFileWatcherRuntime {
     }
 
     func start() {
+        guard !Task.isCancelled else { return }
         guard !shouldWatch else { return }
         shouldWatch = true
         lastKnownSignatures = Self.captureSignatures(for: targets.watchedFiles)

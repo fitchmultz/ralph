@@ -15,7 +15,7 @@
 import XCTest
 @testable import RalphCore
 
-final class ErrorRecoveryCategoryTests: XCTestCase {
+final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
     func testErrorCategoryDisplayNames() {
         XCTAssertEqual(ErrorCategory.cliUnavailable.displayName, "CLI Not Available")
         XCTAssertEqual(ErrorCategory.permissionDenied.displayName, "Permission Denied")

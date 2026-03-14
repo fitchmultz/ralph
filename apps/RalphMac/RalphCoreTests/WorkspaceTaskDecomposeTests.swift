@@ -21,12 +21,13 @@ import XCTest
 @testable import RalphCore
 
 @MainActor
-final class WorkspaceTaskDecomposeTests: XCTestCase {
+final class WorkspaceTaskDecomposeTests: RalphCoreTestCase {
     func test_previewTaskDecomposition_decodesPreviewAndPassesExpectedArguments() async throws {
         let fixture = try Self.makeMockCLIFixture()
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
-        let workspace = Workspace(
+        workspace = Workspace(
             workingDirectoryURL: fixture.workspaceURL,
             client: try RalphCLIClient(executableURL: fixture.scriptURL)
         )
@@ -57,9 +58,10 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
 
     func test_writeTaskDecomposition_decodesWriteResultAndReloadsTasks() async throws {
         let fixture = try Self.makeMockCLIFixture()
-        defer { RalphCoreTestSupport.assertRemoved(fixture.rootURL) }
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
 
-        let workspace = Workspace(
+        workspace = Workspace(
             workingDirectoryURL: fixture.workspaceURL,
             client: try RalphCLIClient(executableURL: fixture.scriptURL)
         )
