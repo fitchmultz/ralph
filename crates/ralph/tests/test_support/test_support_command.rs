@@ -88,6 +88,21 @@ pub fn git_init(dir: &Path) -> Result<()> {
         .context("set local git user.email")?;
     anyhow::ensure!(status.success(), "git config user.email failed");
 
+    let test_excludes_path = dir.join(".git").join("test-excludes");
+    std::fs::write(&test_excludes_path, "").context("write test excludes file")?;
+    let status = Command::new("git")
+        .current_dir(dir)
+        .args([
+            "config",
+            "core.excludesFile",
+            test_excludes_path
+                .to_str()
+                .expect("utf-8 test excludes path"),
+        ])
+        .status()
+        .context("override local core.excludesFile for test repo")?;
+    anyhow::ensure!(status.success(), "git config core.excludesFile failed");
+
     let gitignore_path = dir.join(".gitignore");
     std::fs::write(
         &gitignore_path,

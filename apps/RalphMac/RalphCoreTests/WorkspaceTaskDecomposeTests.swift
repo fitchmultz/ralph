@@ -252,9 +252,7 @@ final class WorkspaceTaskDecomposeTests: XCTestCase {
           exit 0
         fi
         if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "read" ]; then
-          cat <<'JSON'
-        {"version":2,"paths":{"repo_root":"REPO_ROOT","queue_path":"REPO_ROOT/.ralph/queue.jsonc","done_path":"REPO_ROOT/.ralph/done.jsonc","project_config_path":"REPO_ROOT/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":\(queueListJSON)},"done":{"version":1,"tasks":[]},"next_runnable_task_id":"RQ-0007","runnability":{}}
-        JSON
+          echo '{"version":2,"paths":{"repo_root":"'"$PWD"'","queue_path":"'"$PWD"'/.ralph/queue.jsonc","done_path":"'"$PWD"'/.ralph/done.jsonc","project_config_path":"'"$PWD"'/.ralph/config.jsonc","global_config_path":null},"active":{"version":1,"tasks":\(queueListJSON)},"done":{"version":1,"tasks":[]},"next_runnable_task_id":"RQ-0007","runnability":{}}'
           exit 0
         fi
         echo "unsupported command: $*" >&2

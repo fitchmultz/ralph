@@ -85,6 +85,136 @@ fn post_run_supervise_skips_commit_when_disabled() -> anyhow::Result<()> {
 }
 
 #[test]
+fn post_run_supervise_runs_ci_for_clean_repo_when_queue_mutation_is_pending() -> anyhow::Result<()>
+{
+    let temp = TempDir::new()?;
+    git_test::init_repo(temp.path())?;
+    write_queue(temp.path(), TaskStatus::Todo)?;
+    git_test::commit_all(temp.path(), "init")?;
+
+    let mut resolved = resolved_for_repo(temp.path());
+    resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec![
+            "python3".to_string(),
+            "-c".to_string(),
+            "import sys; print('CI failing'); sys.stderr.write('clean repo failure\\n'); raise SystemExit(2)"
+                .to_string(),
+        ]),
+    });
+
+    let err = post_run_supervise(
+        &resolved,
+        "RQ-0001",
+        GitRevertMode::Disabled,
+        crate::contracts::GitPublishMode::Off,
+        PushPolicy::RequireUpstream,
+        None,
+        None,
+        None,
+        None,
+        false,
+        false,
+        None,
+    )
+    .expect_err("expected CI failure before queue mutation");
+    assert!(format!("{err:#}").contains("CI gate failed"));
+
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let task = queue_file
+        .tasks
+        .iter()
+        .find(|task| task.id == "RQ-0001")
+        .expect("task should remain in queue after CI failure");
+    assert_eq!(task.status, TaskStatus::Todo);
+    assert!(
+        queue::load_queue_or_default(&resolved.done_path)?
+            .tasks
+            .is_empty()
+    );
+
+    Ok(())
+}
+
+#[test]
+fn post_run_supervise_runs_ci_after_queue_maintenance_dirties_repo() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    git_test::init_repo(temp.path())?;
+
+    queue::save_queue(
+        &temp.path().join(".ralph/queue.jsonc"),
+        &crate::contracts::QueueFile {
+            version: 1,
+            tasks: vec![],
+        },
+    )?;
+    queue::save_queue(
+        &temp.path().join(".ralph/done.jsonc"),
+        &crate::contracts::QueueFile {
+            version: 1,
+            tasks: vec![crate::contracts::Task {
+                id: "RQ-0001".to_string(),
+                status: TaskStatus::Done,
+                title: "Archived task".to_string(),
+                description: None,
+                priority: crate::contracts::TaskPriority::Medium,
+                tags: vec![],
+                scope: vec![],
+                evidence: vec![],
+                plan: vec![],
+                notes: vec![],
+                request: None,
+                agent: None,
+                created_at: Some("2026-01-18T00:00:00-07:00".to_string()),
+                updated_at: Some("2026-01-18T00:00:00-07:00".to_string()),
+                completed_at: Some("2026-01-18T00:05:00-07:00".to_string()),
+                started_at: None,
+                scheduled_start: None,
+                depends_on: vec![],
+                blocks: vec![],
+                relates_to: vec![],
+                duplicates: None,
+                custom_fields: std::collections::HashMap::new(),
+                estimated_minutes: None,
+                actual_minutes: None,
+                parent_id: None,
+            }],
+        },
+    )?;
+    git_test::commit_all(temp.path(), "init")?;
+
+    let mut resolved = resolved_for_repo(temp.path());
+    resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec![
+            "python3".to_string(),
+            "-c".to_string(),
+            "import sys; sys.stderr.write('maintenance repair failure\\n'); raise SystemExit(2)"
+                .to_string(),
+        ]),
+    });
+
+    let err = post_run_supervise(
+        &resolved,
+        "RQ-0001",
+        GitRevertMode::Disabled,
+        crate::contracts::GitPublishMode::Off,
+        PushPolicy::RequireUpstream,
+        None,
+        None,
+        None,
+        None,
+        false,
+        false,
+        None,
+    )
+    .expect_err("expected CI failure after maintenance dirtied the repo");
+    assert!(format!("{err:#}").contains("CI gate failed"));
+
+    Ok(())
+}
+
+#[test]
 fn post_run_supervise_backfills_missing_completed_at() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     git_test::init_repo(temp.path())?;

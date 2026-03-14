@@ -15,7 +15,7 @@
 //! Invariants/assumptions:
 //! - post_run_supervise is called after task execution completes.
 //! - Queue files are valid and accessible.
-//! - Git repo state reflects task changes when is_dirty is true.
+//! - CI enforcement applies whenever the repo is already dirty or supervision would mutate queue/done.
 
 use crate::celebrations;
 use crate::contracts::{GitPublishMode, GitRevertMode};
@@ -24,7 +24,7 @@ use crate::notification;
 use crate::productivity;
 use crate::queue;
 use crate::runutil;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, ensure};
 
 mod ci;
 mod git_ops;
@@ -46,8 +46,8 @@ use git_ops::{finalize_git_state, push_if_ahead, warn_if_modified_lfs};
 use notify::build_notification_config;
 pub(crate) use queue_ops::find_task_status;
 use queue_ops::{
-    ensure_task_done_clean_or_bail, ensure_task_done_dirty_or_revert, maintain_and_validate_queues,
-    require_task_status,
+    build_post_run_queue_mutation_plan, ensure_task_done_clean_or_bail,
+    ensure_task_done_dirty_or_revert, maintain_and_validate_queues,
 };
 
 // Re-export from submodules
@@ -120,8 +120,8 @@ where
 /// Main post-run supervision entry point.
 ///
 /// Orchestrates the post-run workflow:
-/// 1. Check git status (dirty vs clean)
-/// 2. Run CI gate if dirty
+/// 1. Repair/load queue state and detect whether repo or queue/done will change
+/// 2. Run CI gate when existing or pending mutations require enforcement
 /// 3. Update queue/done files
 /// 4. Commit and push if enabled
 /// 5. Trigger notifications and celebrations
@@ -142,17 +142,16 @@ pub(crate) fn post_run_supervise(
 ) -> Result<()> {
     let label = format!("PostRunSupervise for {}", task_id.trim());
     logging::with_scope(&label, || {
-        let status = git::status_porcelain(&resolved.repo_root)?;
-        let is_dirty = !status.trim().is_empty();
-
         let (mut queue_file, mut done_file) =
             maintain_and_validate_queues(resolved).context("Initial queue maintenance failed")?;
+        let mut repo_dirty = !git::status_porcelain(&resolved.repo_root)?
+            .trim()
+            .is_empty();
+        let mut queue_plan = build_post_run_queue_mutation_plan(&queue_file, &done_file, task_id)?;
+        let task_title = queue_plan.task_title.clone();
 
-        let (mut task_status, task_title, mut in_done) =
-            require_task_status(&queue_file, &done_file, task_id)?;
-
-        if is_dirty {
-            if let Err(err) = warn_if_modified_lfs(&resolved.repo_root, lfs_check) {
+        if repo_dirty || queue_plan.will_mutate_queue_files() {
+            if repo_dirty && let Err(err) = warn_if_modified_lfs(&resolved.repo_root, lfs_check) {
                 return Err(anyhow!(
                     "LFS validation failed: {}. Use --lfs-check to enable strict validation or fix the LFS issues.",
                     err
@@ -171,55 +170,19 @@ pub(crate) fn post_run_supervise(
                 .context("Post-CI queue maintenance failed")?;
             queue_file = q;
             done_file = d;
-
-            let (status_after, _title_after, in_done_after) =
-                require_task_status(&queue_file, &done_file, task_id)?;
-            task_status = status_after;
-            in_done = in_done_after;
-
-            ensure_task_done_dirty_or_revert(
-                resolved,
-                &mut queue_file,
-                task_id,
-                task_status,
-                in_done,
-                git_revert_mode,
-                revert_prompt.as_ref(),
-            )
-            .context("Ensuring task is marked Done (dirty repo) failed")?;
-
-            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-            queue::archive_terminal_tasks(
-                &resolved.queue_path,
-                &resolved.done_path,
-                &resolved.id_prefix,
-                resolved.id_width,
-                max_depth,
-            )
-            .context("Queue archiving failed")?;
-
-            // Trigger celebration and record productivity stats BEFORE git commit
-            // so productivity.json gets committed along with other changes
-            trigger_celebration(resolved, task_id, &task_title, no_progress);
-
-            finalize_git_state(
-                resolved,
-                task_id,
-                &task_title,
-                git_publish_mode,
-                push_policy,
-            )
-            .context("Git finalization failed")?;
-
-            // Trigger completion notification on successful completion
-            let notify_config =
-                build_notification_config(resolved, notify_on_complete, notify_sound);
-            notification::notify_task_complete(task_id, &task_title, &notify_config);
-
-            return Ok(());
+            repo_dirty = !git::status_porcelain(&resolved.repo_root)?
+                .trim()
+                .is_empty();
+            queue_plan = build_post_run_queue_mutation_plan(&queue_file, &done_file, task_id)?;
         }
 
-        if task_status == crate::contracts::TaskStatus::Done && in_done {
+        if !repo_dirty && !queue_plan.will_mutate_queue_files() {
+            ensure!(
+                queue_plan.task_already_archived_done(),
+                "Post-run supervision reached a no-op state for task {} without an archived done entry.",
+                task_id.trim()
+            );
+
             if git_publish_mode == GitPublishMode::CommitAndPush {
                 push_if_ahead(&resolved.repo_root, push_policy).context("Git push failed")?;
             } else {
@@ -229,25 +192,35 @@ pub(crate) fn post_run_supervise(
                 );
             }
 
-            // Trigger completion notification on successful completion
             let notify_config =
                 build_notification_config(resolved, notify_on_complete, notify_sound);
             notification::notify_task_complete(task_id, &task_title, &notify_config);
-
-            // Trigger celebration and record productivity stats
             trigger_celebration(resolved, task_id, &task_title, no_progress);
-
             return Ok(());
         }
 
-        let mut changed = ensure_task_done_clean_or_bail(
-            resolved,
-            &mut queue_file,
-            task_id,
-            task_status,
-            in_done,
-        )
-        .context("Ensuring task is marked Done (clean repo) failed")?;
+        let mut changed = false;
+        if repo_dirty {
+            ensure_task_done_dirty_or_revert(
+                resolved,
+                &mut queue_file,
+                task_id,
+                queue_plan.task_status,
+                queue_plan.in_done,
+                git_revert_mode,
+                revert_prompt.as_ref(),
+            )
+            .context("Ensuring task is marked Done (dirty repo) failed")?;
+        } else {
+            changed = ensure_task_done_clean_or_bail(
+                resolved,
+                &mut queue_file,
+                task_id,
+                queue_plan.task_status,
+                queue_plan.in_done,
+            )
+            .context("Ensuring task is marked Done (clean repo) failed")?;
+        }
 
         let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
         let report = queue::archive_terminal_tasks(
@@ -262,7 +235,7 @@ pub(crate) fn post_run_supervise(
             changed = true;
         }
 
-        if !changed {
+        if !repo_dirty && !changed {
             return Ok(());
         }
 
@@ -279,7 +252,6 @@ pub(crate) fn post_run_supervise(
         )
         .context("Git finalization failed")?;
 
-        // Trigger completion notification on successful completion
         let notify_config = build_notification_config(resolved, notify_on_complete, notify_sound);
         notification::notify_task_complete(task_id, &task_title, &notify_config);
 

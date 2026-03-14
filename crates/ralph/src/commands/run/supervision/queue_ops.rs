@@ -30,6 +30,54 @@ pub(crate) fn maintain_and_validate_queues(
     Ok((queue_file, done_file))
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PostRunQueueMutationPlan {
+    pub task_status: TaskStatus,
+    pub task_title: String,
+    pub in_done: bool,
+    pub mark_task_done: bool,
+    pub archive_candidate_ids: Vec<String>,
+}
+
+impl PostRunQueueMutationPlan {
+    pub(crate) fn will_mutate_queue_files(&self) -> bool {
+        self.mark_task_done || !self.archive_candidate_ids.is_empty()
+    }
+
+    pub(crate) fn task_already_archived_done(&self) -> bool {
+        self.task_status == TaskStatus::Done && self.in_done
+    }
+}
+
+pub(crate) fn build_post_run_queue_mutation_plan(
+    queue_file: &QueueFile,
+    done_file: &QueueFile,
+    task_id: &str,
+) -> Result<PostRunQueueMutationPlan> {
+    let (task_status, task_title, in_done) = require_task_status(queue_file, done_file, task_id)?;
+    let mark_task_done = task_status != TaskStatus::Done;
+    let task_id = task_id.trim();
+
+    let mut archive_candidate_ids = queue_file
+        .tasks
+        .iter()
+        .filter(|task| matches!(task.status, TaskStatus::Done | TaskStatus::Rejected))
+        .map(|task| task.id.trim().to_string())
+        .collect::<Vec<_>>();
+
+    if mark_task_done && !archive_candidate_ids.iter().any(|id| id == task_id) {
+        archive_candidate_ids.push(task_id.to_string());
+    }
+
+    Ok(PostRunQueueMutationPlan {
+        task_status,
+        task_title,
+        in_done,
+        mark_task_done,
+        archive_candidate_ids,
+    })
+}
+
 /// Returns the status and title of a task, or an error if not found.
 pub(crate) fn require_task_status(
     queue_file: &QueueFile,
@@ -320,6 +368,49 @@ mod tests {
 
         let err = require_task_status(&queue_file, &done_file, "RQ-9999").unwrap_err();
         assert!(err.to_string().contains("not found"));
+    }
+
+    #[test]
+    fn build_post_run_queue_mutation_plan_marks_pending_completion_as_mutating() -> Result<()> {
+        let temp = TempDir::new()?;
+        write_queue(temp.path(), TaskStatus::Todo)?;
+
+        let queue_file = queue::load_queue(&temp.path().join(".ralph/queue.json"))?;
+        let done_file = QueueFile::default();
+        let plan = build_post_run_queue_mutation_plan(&queue_file, &done_file, "RQ-0001")?;
+
+        assert_eq!(plan.task_status, TaskStatus::Todo);
+        assert!(plan.mark_task_done);
+        assert!(plan.will_mutate_queue_files());
+        assert_eq!(plan.archive_candidate_ids, vec!["RQ-0001".to_string()]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn build_post_run_queue_mutation_plan_detects_archived_done_noop() -> Result<()> {
+        let temp = TempDir::new()?;
+        write_queue(temp.path(), TaskStatus::Done)?;
+
+        let resolved = resolved_for_repo(temp.path());
+        queue::archive_terminal_tasks(
+            &resolved.queue_path,
+            &resolved.done_path,
+            &resolved.id_prefix,
+            resolved.id_width,
+            10,
+        )?;
+
+        let queue_file = queue::load_queue(&resolved.queue_path)?;
+        let done_file = queue::load_queue_or_default(&resolved.done_path)?;
+        let plan = build_post_run_queue_mutation_plan(&queue_file, &done_file, "RQ-0001")?;
+
+        assert!(plan.task_already_archived_done());
+        assert!(!plan.mark_task_done);
+        assert!(!plan.will_mutate_queue_files());
+        assert!(plan.archive_candidate_ids.is_empty());
+
+        Ok(())
     }
 
     #[test]
