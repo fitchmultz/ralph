@@ -30,6 +30,34 @@ fn base_issue_publish_args(task_id: &str) -> issue::QueueIssuePublishArgs {
     }
 }
 
+fn run_issue_publish(
+    resolved: &crate::config::Resolved,
+    force: bool,
+    args: issue::QueueIssuePublishArgs,
+) -> Result<()> {
+    issue::handle(
+        resolved,
+        force,
+        issue::QueueIssueArgs {
+            command: issue::QueueIssueCommand::Publish(args),
+        },
+    )
+}
+
+fn run_issue_publish_many(
+    resolved: &crate::config::Resolved,
+    force: bool,
+    args: issue::QueueIssuePublishManyArgs,
+) -> Result<()> {
+    issue::handle(
+        resolved,
+        force,
+        issue::QueueIssueArgs {
+            command: issue::QueueIssueCommand::PublishMany(args),
+        },
+    )
+}
+
 fn issue_task(
     id: &str,
     title: &str,
@@ -339,7 +367,7 @@ fn queue_issue_publish_dry_run_succeeds() -> Result<()> {
         ..args
     };
 
-    let result = issue::handle_publish(&resolved, true, args);
+    let result = run_issue_publish(&resolved, true, args);
     assert!(result.is_ok());
 
     Ok(())
@@ -372,7 +400,7 @@ fn queue_issue_publish_many_dry_run_filters() -> Result<()> {
         repo: None,
     };
 
-    let result = issue::handle_publish_many(&resolved, true, args);
+    let result = run_issue_publish_many(&resolved, true, args);
     assert!(result.is_ok());
 
     let queue = crate::queue::load_queue(&resolved.queue_path)?;
@@ -425,9 +453,7 @@ fn queue_issue_publish_many_exec_mixed_create_update() -> Result<()> {
         repo: None,
     };
 
-    with_prepend_path(&bin_dir, || {
-        issue::handle_publish_many(&resolved, true, args)
-    })?;
+    with_prepend_path(&bin_dir, || run_issue_publish_many(&resolved, true, args))?;
 
     let queue = crate::queue::load_queue(&resolved.queue_path)?;
     let first = queue
@@ -511,7 +537,7 @@ fn queue_issue_publish_many_skips_if_unchanged() -> Result<()> {
         repo: None,
     };
 
-    issue::handle_publish_many(&resolved, true, args)?;
+    run_issue_publish_many(&resolved, true, args)?;
     Ok(())
 }
 
@@ -563,10 +589,8 @@ fn queue_issue_publish_many_partial_failures_do_not_abort() -> Result<()> {
         assignee: vec![],
         repo: None,
     };
-    let err = with_prepend_path(&bin_dir, || {
-        issue::handle_publish_many(&resolved, true, args)
-    })
-    .expect_err("expected publish-many failure");
+    let err = with_prepend_path(&bin_dir, || run_issue_publish_many(&resolved, true, args))
+        .expect_err("expected publish-many failure");
     assert!(
         err.to_string().contains("completed with 1 failed task(s)")
             || err.to_string().contains("simulated failure"),
@@ -595,7 +619,7 @@ fn queue_issue_publish_fails_when_task_not_found() {
 
     let args = base_issue_publish_args("RQ-9999");
 
-    let err = issue::handle_publish(&resolved, true, args).expect_err("expected error");
+    let err = run_issue_publish(&resolved, true, args).expect_err("expected error");
     let msg = err.to_string();
     assert!(
         msg.contains("not found") || msg.contains("RQ-9999"),
@@ -615,7 +639,7 @@ fn queue_issue_publish_fails_when_gh_missing() -> Result<()> {
     let args = base_issue_publish_args("RQ-0001");
 
     let err =
-        with_path("", || issue::handle_publish(&resolved, true, args)).expect_err("expected error");
+        with_path("", || run_issue_publish(&resolved, true, args)).expect_err("expected error");
     let msg = err.to_string();
     assert!(
         msg.contains("GitHub CLI (`gh`) not found on PATH"),
@@ -643,7 +667,7 @@ fn queue_issue_publish_fails_when_gh_unauthenticated() -> Result<()> {
     );
 
     let args = base_issue_publish_args("RQ-0001");
-    let err = with_prepend_path(&bin_dir, || issue::handle_publish(&resolved, true, args))
+    let err = with_prepend_path(&bin_dir, || run_issue_publish(&resolved, true, args))
         .expect_err("expected error");
     let msg = err.to_string();
     assert!(
@@ -677,7 +701,7 @@ fn queue_issue_publish_creates_issue_and_persists_custom_fields() -> Result<()> 
         ..base_issue_publish_args("RQ-0001")
     };
 
-    with_prepend_path(&bin_dir, || issue::handle_publish(&resolved, true, args))?;
+    with_prepend_path(&bin_dir, || run_issue_publish(&resolved, true, args))?;
 
     let queue = crate::queue::load_queue(&resolved.queue_path)?;
     let task = queue
@@ -769,7 +793,7 @@ fn queue_issue_publish_updates_existing_issue_and_backfills_issue_number() -> Re
         ..base_issue_publish_args("RQ-0001")
     };
 
-    with_prepend_path(&bin_dir, || issue::handle_publish(&resolved, true, args))?;
+    with_prepend_path(&bin_dir, || run_issue_publish(&resolved, true, args))?;
 
     let queue = crate::queue::load_queue(&resolved.queue_path)?;
     let task = queue

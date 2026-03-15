@@ -53,7 +53,9 @@ pub use export::QueueExportArgs;
 pub use graph::QueueGraphArgs;
 pub use history::QueueHistoryArgs;
 pub use import::QueueImportArgs;
-pub use issue::QueueIssueArgs;
+pub use issue::{
+    QueueIssueArgs, QueueIssueCommand, QueueIssuePublishArgs, QueueIssuePublishManyArgs,
+};
 pub use list::QueueListArgs;
 pub use next::QueueNextArgs;
 pub use next_id::QueueNextIdArgs;

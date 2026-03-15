@@ -9,12 +9,12 @@ This is the canonical near-term roadmap for active follow-up work.
 ### 1. Split the remaining oversized Rust command and CLI surfaces
 
 Why first:
-- The current source scan still reports 44 source files over the 500 LOC target, and the highest-churn hotspots remain command-routing and CLI surfaces.
+- The current source scan still reports 43 source files over the 500 LOC target, and the highest-churn hotspots remain command-routing and CLI surfaces.
 - Command/CLI facades still mix routing, validation, formatting, and workflow orchestration in single files.
 - Decomposing these entrypoints first reduces double-moves before deeper runtime helpers are split.
 
 Scope:
-- Decompose the remaining oversized command and CLI modules (`crates/ralph/src/cli/queue/issue.rs`, `crates/ralph/src/commands/task/decompose/mod.rs`, `crates/ralph/src/commands/task/update.rs`, `crates/ralph/src/commands/context/wizard.rs`, and adjacent command helpers) into thinner facades plus focused companion files.
+- Decompose the remaining oversized command and CLI modules (`crates/ralph/src/commands/task/decompose/mod.rs`, `crates/ralph/src/commands/task/update.rs`, `crates/ralph/src/commands/context/wizard.rs`, and adjacent command helpers) into thinner facades plus focused companion files.
 - Preserve current CLI/help output, prompt behavior, and queue/task contracts while moving helpers and formatting logic out of the root modules.
 - Keep any moved test hubs thin and behavior-grouped when command splits require neighboring test-module moves.
 
