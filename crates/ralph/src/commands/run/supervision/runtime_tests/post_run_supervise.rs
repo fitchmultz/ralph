@@ -18,3 +18,5 @@ mod archive_and_dirty;
 mod ci_and_maintenance;
 #[path = "post_run_supervise/publish_modes.rs"]
 mod publish_modes;
+#[path = "post_run_supervise/revert_modes.rs"]
+mod revert_modes;
