@@ -1,6 +1,6 @@
 # Ralph Roadmap
 
-Last updated: 2026-03-15
+Last updated: 2026-03-16
 
 This is the canonical near-term roadmap for active follow-up work.
 
@@ -9,14 +9,14 @@ This is the canonical near-term roadmap for active follow-up work.
 ### 1. Split the remaining oversized Rust command and CLI surfaces
 
 Why first:
-- The current Rust file scan still reports 41 files over the 500 LOC target, and the highest-churn hotspots remain command-routing and CLI surfaces.
-- Command/CLI facades still mix routing, validation, formatting, and workflow orchestration in single files.
-- Decomposing these entrypoints first reduces double-moves before deeper runtime helpers are split.
+- The current Rust file scan still reports 40 files over the 500 LOC target, and the remaining command-facing hotspots are `commands/watch/event_loop.rs` plus several command/CLI test hubs.
+- These surfaces still mix watcher orchestration, routing, and large scenario groupings in single files.
+- Decomposing them first reduces double-moves before deeper runtime helpers and shared foundations are split.
 
 Scope:
-- Decompose the remaining oversized command and CLI modules (`crates/ralph/src/commands/context/wizard.rs` and adjacent command helpers) into thinner facades plus focused companion files.
-- Preserve current CLI/help output, prompt behavior, and queue/task contracts while moving helpers and formatting logic out of the root modules.
-- Keep any moved test hubs thin and behavior-grouped when command splits require neighboring test-module moves.
+- Decompose the remaining oversized command and CLI surfaces (`crates/ralph/src/commands/watch/event_loop.rs`, `crates/ralph/src/commands/run/tests/mod.rs`, `crates/ralph/src/commands/run/tests/phase_settings_matrix.rs`, `crates/ralph/src/commands/run/parallel/sync/tests.rs`, `crates/ralph/src/cli/queue/tests/issue.rs`, and adjacent command helpers) into thinner facades plus focused companion files/directories.
+- Preserve current watch-loop behavior, CLI/help output, and existing command-test contracts while moving helper logic out of the root modules.
+- Keep moved test hubs thin and behavior-grouped when command splits require neighboring suite-module moves.
 
 ### 2. Split the remaining oversized Rust runtime and operational helpers
 
