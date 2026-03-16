@@ -9,14 +9,14 @@ This is the canonical near-term roadmap for active follow-up work.
 ### 1. Split the remaining oversized Rust command and CLI surfaces
 
 Why first:
-- The current Rust file scan still reports 37 files over the 500 LOC target, and only two command/CLI hotspots remain above the line.
-- Those remaining surfaces still mix broad scenario coverage and command-facing contracts in single files.
-- Clearing them next removes the last oversized command/CLI blockers before deeper runtime helpers and shared foundations are split.
+- The current Rust file scan now reports 36 files over the 500 LOC target, and only one command/CLI hotspot remains above the line.
+- That remaining CLI surface still mixes broad scenario coverage and command-facing contracts in a single file.
+- Clearing it next removes the last oversized command/CLI blocker before deeper runtime helpers and shared foundations are split.
 
 Scope:
-- Decompose the remaining oversized command and CLI surfaces (`crates/ralph/src/commands/run/parallel/sync/tests.rs`, `crates/ralph/src/cli/queue/tests/issue.rs`, and any adjacent command-test helpers they require) into thinner facades plus focused companion files/directories.
-- Preserve current CLI/help output and existing command-test contracts while moving broad scenario/matrix logic out of the root modules.
-- Keep moved test hubs thin and behavior-grouped when command splits require neighboring suite-module moves.
+- Decompose the remaining oversized command/CLI surface (`crates/ralph/src/cli/queue/tests/issue.rs` and any adjacent queue-test helpers it requires) into a thinner hub plus focused companion files/directories.
+- Preserve current CLI/help output and existing queue-command test contracts while moving broad scenario/matrix logic out of the root modules.
+- Keep moved test hubs thin and behavior-grouped when the queue split requires neighboring suite-module moves.
 
 ### 2. Split the remaining oversized Rust runtime and operational helpers
 
