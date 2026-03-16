@@ -13,7 +13,7 @@
 //! - Planner keys are already uniquified among siblings before materialization.
 //! - Replacement safety checks must run before mutating queue state.
 
-use super::{
+use super::types::{
     DecompositionAttachTarget, DecompositionChildPolicy, DecompositionPreview, DecompositionSource,
     DependencyEdgePreview, PlannedNode, SourceKind,
 };

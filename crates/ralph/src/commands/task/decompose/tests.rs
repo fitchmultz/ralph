@@ -12,10 +12,17 @@
 //! - Test queues use local temp directories and repo-scoped `.ralph/*.jsonc` files.
 //! - Preview/write flows remain deterministic for the same planned tree.
 
-use super::*;
+use super::tree::normalize_response;
+use super::types::{
+    DecompositionAttachTarget, DecompositionChildPolicy, DecompositionPlan, DecompositionPreview,
+    DecompositionSource, DependencyEdgePreview, PlannedNode, RawDecompositionResponse,
+    RawPlannedNode, SourceKind, TaskDecomposeOptions,
+};
+use super::write_task_decomposition;
 use crate::config;
-use crate::contracts::{Config, QueueFile, Task};
+use crate::contracts::{Config, QueueFile, Task, TaskStatus};
 use crate::queue;
+use anyhow::Result;
 use tempfile::TempDir;
 
 #[test]
