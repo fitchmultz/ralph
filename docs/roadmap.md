@@ -14,7 +14,8 @@ Why first:
 - Doing this pass first improves the production seams that future feature work and maintenance will rely on.
 
 Scope:
-- Decompose the remaining oversized operational helpers (`crates/ralph/src/webhook/worker.rs`, `crates/ralph/src/webhook/diagnostics.rs`, `crates/ralph/src/queue/prune.rs`, `crates/ralph/src/queue/hierarchy.rs`, `crates/ralph/src/plugins/processor_executor.rs`, `crates/ralph/src/runutil/execution/orchestration.rs`, `crates/ralph/src/fsutil.rs`, `crates/ralph/src/execution_history.rs`, and adjacent support modules) into focused companions.
+- Decompose the remaining oversized operational helpers (`crates/ralph/src/webhook/diagnostics.rs`, `crates/ralph/src/queue/hierarchy.rs`, `crates/ralph/src/queue/prune.rs`, `crates/ralph/src/fsutil.rs`, `crates/ralph/src/runutil/execution/orchestration.rs`, and adjacent support modules) into focused companions.
+- Finish the remaining webhook split work before moving into queue/file-system/runtime utility modules so adjacent runtime churn stays localized.
 - Preserve webhook reload/retry contracts, queue safety behavior, and managed-subprocess invariants while extracting helpers from the root modules.
 - Keep shared helpers centralized only where duplication is real; otherwise prefer adjacent behavior-grouped modules.
 
