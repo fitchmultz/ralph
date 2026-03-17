@@ -10,13 +10,14 @@ This is the canonical near-term roadmap for active follow-up work.
 
 Why first:
 - This is the most meaningful remaining roadmap work because it touches reliability-sensitive production paths instead of pure maintenance-only test structure.
-- Queue-maintenance, filesystem helpers, runtime orchestration, and adjacent operational modules still mix orchestration, persistence, retries, and formatting in ways that increase failure risk during user-facing workflows.
+- Runtime orchestration and adjacent operational modules still mix orchestration, persistence, retries, and formatting in ways that increase failure risk during user-facing workflows.
 - Doing this pass first improves the production seams that future feature work and maintenance will rely on.
 
 Scope:
 - Progress (2026-03-17): `crates/ralph/src/queue/prune.rs` has been split into `queue/prune/{mod.rs, types.rs, core.rs, tests.rs}` following the established facade pattern while preserving prune behavior and caller imports.
-- Decompose the remaining oversized operational helpers (`crates/ralph/src/fsutil.rs`, `crates/ralph/src/runutil/execution/orchestration.rs`, and adjacent support modules) into focused companions.
-- Continue the runtime-oriented split pass across filesystem and runtime utility modules while keeping adjacent churn localized now that the queue-side prune split is complete.
+- Progress (2026-03-17): `crates/ralph/src/fsutil.rs` has been split into `fsutil/{mod.rs, atomic.rs, paths.rs, safeguard.rs, temp.rs, tests.rs}` following the established facade pattern while preserving all `crate::fsutil::*` imports and behavior.
+- Decompose the remaining oversized operational helpers (`crates/ralph/src/runutil/execution/orchestration.rs` and adjacent support modules) into focused companions.
+- Continue the runtime-oriented split pass across the remaining runtime utility modules while keeping adjacent churn localized now that the queue-side prune and fsutil splits are complete.
 - Preserve queue safety behavior, managed-subprocess invariants, and operational reliability contracts while extracting helpers from the root modules.
 - Keep shared helpers centralized only where duplication is real; otherwise prefer adjacent behavior-grouped modules.
 

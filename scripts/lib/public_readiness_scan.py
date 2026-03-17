@@ -120,9 +120,9 @@ def allowlisted_secret(rel_path: str, line: str) -> bool:
         return True
     if rel_path == "scripts/lib/public_readiness_scan.py":
         return True
-    if rel_path == "crates/ralph/src/fsutil.rs" and "AKIA" in line and "EXAMPLE" in line:
+    if rel_path == "crates/ralph/src/fsutil/tests.rs" and "AKIA" in line and "EXAMPLE" in line:
         return True
-    if rel_path == "crates/ralph/src/fsutil.rs" and "OPENSSH PRIVATE KEY" in line:
+    if rel_path == "crates/ralph/src/fsutil/tests.rs" and "OPENSSH PRIVATE KEY" in line:
         return True
     return False
 

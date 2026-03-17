@@ -84,7 +84,7 @@ scripts/              # Maintenance + release helper scripts
 - `lock.rs` - Queue file locking
 - `redaction.rs` - Sensitive data redaction
 - `git/` - Git operations
-- `fsutil.rs` - Filesystem utilities
+- `fsutil/` - Filesystem utilities (facade in `fsutil/mod.rs`)
 - `timeutil.rs` - Time handling
 - `template/` - Prompt template loading
 - `prompts_internal/` - Internal prompt composition
