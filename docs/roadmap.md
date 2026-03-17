@@ -1,6 +1,6 @@
 # Ralph Roadmap
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 
 This is the canonical near-term roadmap for active follow-up work.
 
@@ -57,16 +57,16 @@ Scope:
 ### 5. Remove the remaining measured Rust test-serialization bottlenecks
 
 Why fifth:
-- Headless profiling now shows the next slowest suites clearly, so remaining serialization and setup tax can be attacked with evidence instead of guesswork.
-- The cached `.ralph` fixture and faster `agent-ci` routing reduce baseline wait time, which makes the residual locked/serialized suites the next highest-impact local-iteration cost.
-- Cleaning those bottlenecks next compounds every future contributor loop without weakening coverage.
+- Headless profiling still provides the right evidence loop for this work, but the latest targeted reruns no longer show an adjacent parallel safety suite that clearly justifies another refactor pass.
+- The cached `.ralph` fixture and faster `agent-ci` routing have already removed the most obvious setup tax from the recently touched parallel suites.
+- Keep this lane evidence-driven and dormant until a future timing pass re-ranks a suite high enough to be worth the churn.
 
 Scope:
-- Use target-specific nextest profiles (`run_parallel_test`, `parallel_direct_push_test`, and adjacent parallel safety suites as needed) plus `target/profiling/nextest*.jsonl` artifacts to rank the remaining slow integration targets.
-- Re-profile each targeted suite immediately after every focused fixture/lock cutover instead of repeating whole-workspace sweeps.
+- Keep target-specific nextest profiles (`run_parallel_test`, `parallel_direct_push_test`, `parallel_done_json_safety_test`, and `doctor_contract_test` as needed) plus `target/profiling/nextest*.jsonl` artifacts as the ranking source of truth.
+- Re-profile a candidate suite immediately before editing it and again immediately after any focused fixture/lock cutover instead of repeating whole-workspace sweeps.
 - Narrow global-environment locks to only the tests that mutate PATH or shared process env; tests using explicit runner binary overrides should not serialize on `env_lock()`.
 - Keep real `ralph init` contract tests explicit while continuing to route pure fixture setup through cached seeded scaffolding.
-- Follow the latest targeted timing order to reduce churn: re-profile `doctor_contract_test` before touching it again, and only cut it over if fresh evidence still shows a meaningful remaining bottleneck.
+- Do not reopen `run_parallel_test`, `parallel_direct_push_test`, `parallel_done_json_safety_test`, or `doctor_contract_test` unless fresh measurements show they have re-emerged as worthwhile optimization targets.
 
 ### 6. Profile and tighten the headless macOS ship gate internals
 

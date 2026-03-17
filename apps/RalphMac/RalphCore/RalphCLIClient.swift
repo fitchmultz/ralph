@@ -194,7 +194,10 @@ public struct RalphCLIClient: Sendable {
             try Task.checkCancellation()
             return collected
         } onCancel: {
-            run.requestCancel(gracePeriod: timeoutConfiguration.terminationGracePeriod)
+            let cancellationRun = run
+            Task {
+                await cancellationRun.cancel(gracePeriod: timeoutConfiguration.terminationGracePeriod)
+            }
         }
     }
 

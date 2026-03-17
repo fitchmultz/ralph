@@ -1,161 +1,51 @@
 //! E2E integration tests for parallel run execution paths.
 //!
 //! Responsibilities:
-//! - Test path mapping, state initialization, and workspace synchronization
-//! - Verify task selection and worker coordination in parallel mode
-//! - Validate state persistence and worker lifecycle
+//! - Test path mapping, state initialization, and workspace synchronization.
+//! - Verify task selection and worker coordination in parallel mode.
+//! - Validate state persistence and worker lifecycle.
 //!
 //! Not handled here:
-//! - State recovery after crashes (see parallel_state_recovery_test.rs)
-//! - Queue mutation validation (see parallel_queue_mutation_test.rs)
+//! - State recovery after crashes (see `parallel_state_recovery_test.rs`).
+//! - Queue mutation validation (see `parallel_queue_mutation_test.rs`).
 //!
 //! Invariants/Assumptions:
 //! - Tests use explicit fake runner binary paths to avoid external dependencies.
 //! - Nested `ralph run loop --parallel ...` invocations hold `parallel_run_lock()` only for the overlapping run window.
-//! - Temp directories are created outside the repo.
+//! - Temp directories are created outside the repo and use disposable cached scaffolding.
 
 use anyhow::Result;
-use std::process::Command;
+use ralph::contracts::Task;
 
+#[path = "run_parallel_test/support.rs"]
+mod support;
 mod test_support;
 
-/// Helper to set up a bare remote repository and configure it as origin.
-fn setup_origin_remote(repo_path: &std::path::Path) -> Result<()> {
-    let remote = test_support::temp_dir_outside_repo();
-
-    let status = Command::new("git")
-        .current_dir(remote.path())
-        .args(["init", "--bare", "--quiet"])
-        .status()?;
-    anyhow::ensure!(status.success(), "git init --bare failed");
-
-    let remote_path = remote.path().to_string_lossy().to_string();
-    let status = Command::new("git")
-        .current_dir(repo_path)
-        .args(["remote", "add", "origin", remote_path.as_str()])
-        .status()?;
-    anyhow::ensure!(status.success(), "git remote add origin failed");
-
-    let status = Command::new("git")
-        .current_dir(repo_path)
-        .args(["push", "-u", "origin", "HEAD"])
-        .status()?;
-    anyhow::ensure!(status.success(), "git push -u origin HEAD failed");
-
-    Ok(())
-}
-
-// =============================================================================
-// Test: Parallel Mode Selects Multiple Tasks
-// =============================================================================
-
-/// Verify that parallel mode correctly selects and starts multiple tasks concurrently.
-///
-/// Setup: Create 3 todo tasks, run with --parallel 2 --max-tasks 2
-/// Expected: 2 tasks are selected and processed, parallel state file is created
 #[test]
 fn run_parallel_selects_multiple_tasks() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
+    let (repo, tasks) = configured_repo(&[
+        ("RQ-0001", "First parallel task"),
+        ("RQ-0002", "Second parallel task"),
+        ("RQ-0003", "Third parallel task"),
+    ])?;
 
-    // Setup git repo with origin remote
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
+    let (status, stdout, stderr) = repo.run_parallel(2);
+    let combined = format!("{stdout}{stderr}");
+    let state = repo.read_parallel_state_required()?;
 
-    // Create 3 todo tasks
-    let tasks = vec![
-        test_support::make_test_task(
-            "RQ-0001",
-            "First parallel task",
-            ralph::contracts::TaskStatus::Todo,
-        ),
-        test_support::make_test_task(
-            "RQ-0002",
-            "Second parallel task",
-            ralph::contracts::TaskStatus::Todo,
-        ),
-        test_support::make_test_task(
-            "RQ-0003",
-            "Third parallel task",
-            ralph::contracts::TaskStatus::Todo,
-        ),
-    ];
-    test_support::write_queue(temp.path(), &tasks)?;
-
-    // Seed cached Ralph scaffolding
-    test_support::seed_ralph_dir(temp.path())?;
-
-    // Create fake runner that exits 0 immediately
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
-
-    // Run parallel mode with 2 workers and max 2 tasks
-    let run_lock = test_support::parallel_run_lock().lock();
-    let (status, stdout, stderr) = test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "2",
-            "--force",
-        ],
-    );
-    drop(run_lock);
-
-    let combined = format!("{}{}", stdout, stderr);
-    eprintln!("Test output:\n{}", combined);
-    eprintln!("Exit status: {:?}", status);
-
-    // Verify parallel state file was created
-    let state = test_support::read_parallel_state(temp.path())?;
-
-    // With noop runners, the run may succeed or fail depending on environment.
-    // The key assertion is that the parallel state file is created
-    assert!(
-        state.is_some(),
-        "Parallel state file should be created\nstdout:\n{}\nstderr:\n{}",
-        stdout,
-        stderr
-    );
-
-    let state = state.unwrap();
-
-    // Access JSON fields using schema-v3 worker records.
-    let workers = state
-        .get("workers")
-        .and_then(|v| v.as_array())
-        .map(|v| v.len())
-        .unwrap_or(0);
-
-    // Verify that tasks were tracked as in-flight (or were started)
-    // Note: With fast noop runners, tasks may complete before we check state
-    // So we check either:
-    // 1. Tasks are in the in-flight list, OR
-    // 2. Tasks have been processed (may be in done or removed from queue)
-    let tasks_moved = count_tasks_in_done_or_removed(&tasks, temp.path())?;
+    let workers = worker_count(&state);
+    let tasks_moved = repo.count_tasks_in_done_or_removed(&tasks)?;
     let tasks_processed = workers + tasks_moved;
 
     assert!(
         tasks_processed >= 1 || combined.contains("RQ-0001") || combined.contains("parallel"),
         "Expected at least 1 task to be selected or processed. \
-         State: {} workers, {} moved. Output:\n{}",
-        workers,
-        tasks_moved,
-        combined
+         State: {workers} workers, {tasks_moved} moved. Output:\n{combined}"
     );
 
-    // Verify state file has valid structure
     let started_at = state
         .get("started_at")
-        .and_then(|v| v.as_str())
+        .and_then(|value| value.as_str())
         .unwrap_or("");
     assert!(
         !started_at.is_empty(),
@@ -164,79 +54,29 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
 
     let schema_version = state
         .get("schema_version")
-        .and_then(|v| v.as_u64())
+        .and_then(|value| value.as_u64())
         .unwrap_or(0);
     assert_eq!(schema_version, 3, "State should use current schema version");
+
+    assert!(
+        state
+            .get("workers")
+            .and_then(|value| value.as_array())
+            .is_some(),
+        "State should have workers array\nstdout:\n{stdout}\nstderr:\n{stderr}\nstatus:{status:?}"
+    );
 
     Ok(())
 }
 
-// =============================================================================
-// Test: Parallel Mode Handles Task Completion
-// =============================================================================
-
-/// Verify that parallel mode properly handles task completion and updates queue state.
-///
-/// Setup: Create 2 todo tasks with fake runner
-/// Expected: Tasks are processed, completion is detected, queue state is updated
 #[test]
 fn run_parallel_handles_task_completion() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
+    let (repo, _) =
+        configured_repo(&[("RQ-0001", "Task to complete"), ("RQ-0002", "Another task")])?;
 
-    // Setup git repo with origin remote
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
+    let (status, stdout, stderr) = repo.run_parallel(2);
+    let combined = format!("{stdout}{stderr}");
 
-    // Create 2 todo tasks
-    let tasks = vec![
-        test_support::make_test_task(
-            "RQ-0001",
-            "Task to complete",
-            ralph::contracts::TaskStatus::Todo,
-        ),
-        test_support::make_test_task(
-            "RQ-0002",
-            "Another task",
-            ralph::contracts::TaskStatus::Todo,
-        ),
-    ];
-    test_support::write_queue(temp.path(), &tasks)?;
-
-    // Seed cached Ralph scaffolding
-    test_support::seed_ralph_dir(temp.path())?;
-
-    // Create fake runner that simulates success
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
-
-    // Run parallel mode
-    let run_lock = test_support::parallel_run_lock().lock();
-    let (status, stdout, stderr) = test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "2",
-            "--force",
-        ],
-    );
-    drop(run_lock);
-
-    let combined = format!("{}{}", stdout, stderr);
-    eprintln!("Test output:\n{}", combined);
-    eprintln!("Exit status: {:?}", status);
-
-    // Verify output indicates tasks were processed
-    // The parallel mode should at least acknowledge the tasks or indicate parallel execution
     let has_task_reference = combined.contains("RQ-0001") || combined.contains("RQ-0002");
     let has_parallel_indicator = combined.contains("parallel")
         || combined.contains("Parallel")
@@ -246,204 +86,75 @@ fn run_parallel_handles_task_completion() -> Result<()> {
 
     assert!(
         has_task_reference || has_parallel_indicator,
-        "Expected output to reference tasks or indicate parallel mode execution. Output:\n{}",
-        combined
+        "Expected output to reference tasks or indicate parallel mode execution. Output:\n{combined}"
     );
 
-    // Verify parallel state file exists (even if empty, it should be created)
-    let state = test_support::read_parallel_state(temp.path())?;
-    if let Some(state) = state {
-        // If state exists, verify it has valid structure
+    if let Some(state) = repo.read_parallel_state()? {
         let schema_version = state
             .get("schema_version")
-            .and_then(|v| v.as_u64())
+            .and_then(|value| value.as_u64())
             .unwrap_or(0);
         assert_eq!(schema_version, 3, "State should use current schema version");
-
-        // Access schema-v3 worker entries.
-        let workers = state
-            .get("workers")
-            .and_then(|v| v.as_array())
-            .map(|v| v.len())
-            .unwrap_or(0);
-
-        let total_tracked = workers;
-        eprintln!("Parallel state: {} workers tracked", workers);
-
-        // With fast noop runners, tasks may complete very quickly
-        // The important thing is that the state file was created and is valid
         assert!(
-            total_tracked <= 2,
+            worker_count(&state) <= 2,
             "Should not track more tasks than were started"
         );
     }
 
-    // Verify workspace directories are handled (cleanup depends on config)
-    let workspace_dir = temp.path().join(".ralph/cache/parallel/workspaces");
-    if workspace_dir.exists() {
-        // If workspaces exist, they should be valid directories
-        for entry in std::fs::read_dir(&workspace_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                eprintln!("Workspace directory exists: {}", path.display());
-            }
-        }
+    for workspace in repo.workspace_dirs()? {
+        assert!(workspace.is_dir(), "Workspace should be a directory");
     }
 
     Ok(())
 }
 
-// =============================================================================
-// Test: Path Map Workspace Sync
-// =============================================================================
-
-/// Verify path mapping correctly syncs config/prompts into workspace clones.
 #[test]
 fn parallel_path_map_workspace_sync() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
-
-    // Setup git repo and init ralph
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
-
-    // Create task first (before init, as it creates .ralph dir)
-    let tasks = vec![test_support::make_test_task(
-        "RQ-0001",
-        "Test path mapping",
-        ralph::contracts::TaskStatus::Todo,
-    )];
-    test_support::write_queue(temp.path(), &tasks)?;
-
-    // Seed cached Ralph scaffolding
-    test_support::seed_ralph_dir(temp.path())?;
-
-    // Create config and prompts AFTER ralph_init
-    let config_path = temp.path().join(".ralph/config.jsonc");
-    std::fs::write(
-        &config_path,
+    let repo = support::RunParallelRepo::new()?;
+    repo.write_queue(&support::todo_tasks(&[("RQ-0001", "Test path mapping")]))?;
+    repo.write_relative_file(
+        ".ralph/config.jsonc",
         r#"{"version":2,"agent":{"runner":"opencode","model":"test-model"}}"#,
     )?;
-    std::fs::create_dir_all(temp.path().join(".ralph/prompts"))?;
-    std::fs::write(
-        temp.path().join(".ralph/prompts/worker.md"),
-        "# Custom prompt",
-    )?;
+    repo.write_relative_file(".ralph/prompts/worker.md", "# Custom prompt")?;
+    repo.configure_default_runner()?;
 
-    // Configure and run
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
+    let _ = repo.run_parallel(1);
 
-    let run_lock = test_support::parallel_run_lock().lock();
-    test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "1",
-            "--force",
-        ],
-    );
-    drop(run_lock);
+    for workspace in repo.workspace_dirs()? {
+        let workspace_config = workspace.join(".ralph/config.jsonc");
+        let workspace_prompt = workspace.join(".ralph/prompts/worker.md");
 
-    // Find the workspace directory
-    let workspaces_dir = temp.path().join(".ralph/workspaces");
-    if workspaces_dir.exists() {
-        // Check if any workspace has the synced config and prompts
-        for entry in std::fs::read_dir(&workspaces_dir)? {
-            let entry = entry?;
-            let workspace_path = entry.path();
-            let workspace_config = workspace_path.join(".ralph/config.jsonc");
-            let workspace_prompt = workspace_path.join(".ralph/prompts/worker.md");
+        if workspace_config.exists() {
+            let config_content = std::fs::read_to_string(&workspace_config)?;
+            assert!(
+                config_content.contains("test-model"),
+                "Config should be synced to workspace"
+            );
+        }
 
-            if workspace_config.exists() {
-                let config_content = std::fs::read_to_string(&workspace_config)?;
-                assert!(
-                    config_content.contains("test-model"),
-                    "Config should be synced to workspace"
-                );
-            }
-
-            if workspace_prompt.exists() {
-                let prompt_content = std::fs::read_to_string(&workspace_prompt)?;
-                assert_eq!(
-                    prompt_content, "# Custom prompt",
-                    "Prompt should be synced to workspace"
-                );
-            }
+        if workspace_prompt.exists() {
+            let prompt_content = std::fs::read_to_string(&workspace_prompt)?;
+            assert_eq!(
+                prompt_content, "# Custom prompt",
+                "Prompt should be synced to workspace"
+            );
         }
     }
-
-    // Queue/done should NOT be synced to workers (coordinator-only)
-    // This is implicitly tested by the fact that the coordinator maintains these files
 
     Ok(())
 }
 
-// =============================================================================
-// Test: State Initialization
-// =============================================================================
-
-/// Verify state file creation and content on parallel run startup.
 #[test]
 fn parallel_state_initialization() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
-
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
-
-    let tasks = vec![
-        test_support::make_test_task("RQ-0001", "Task 1", ralph::contracts::TaskStatus::Todo),
-        test_support::make_test_task("RQ-0002", "Task 2", ralph::contracts::TaskStatus::Todo),
-    ];
-    test_support::write_queue(temp.path(), &tasks)?;
-
-    test_support::seed_ralph_dir(temp.path())?;
-
-    // Verify state does NOT exist before run
-    let state_path = temp.path().join(".ralph/cache/parallel/state.json");
+    let (repo, _) = configured_repo(&[("RQ-0001", "Task 1"), ("RQ-0002", "Task 2")])?;
+    let state_path = repo.state_path();
     assert!(!state_path.exists(), "State should not exist before run");
 
-    // Configure and run
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
+    let _ = repo.run_parallel(1);
 
-    let run_lock = test_support::parallel_run_lock().lock();
-    test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "1",
-            "--force",
-        ],
-    );
-    drop(run_lock);
-
-    // State file should be created after run
     if state_path.exists() {
-        let state_content = std::fs::read_to_string(&state_path)?;
-        let state: serde_json::Value = serde_json::from_str(&state_content)?;
-
-        // Verify required fields exist (schema v3: direct-push mode)
+        let state = repo.read_parallel_state_required()?;
         assert!(
             state.get("schema_version").is_some(),
             "State should have schema_version"
@@ -456,314 +167,143 @@ fn parallel_state_initialization() -> Result<()> {
             state.get("target_branch").is_some(),
             "State should have target_branch"
         );
-
-        // Verify workers array exists (schema v3).
         assert!(state.get("workers").is_some(), "State should have workers");
     }
 
     Ok(())
 }
 
-// =============================================================================
-// Test: Worker Workspace State Sync
-// =============================================================================
-
-/// Verify sync.rs correctly copies allowlisted files and excludes directories.
 #[test]
 fn parallel_worker_workspace_state_sync() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
+    let repo = support::RunParallelRepo::new()?;
+    repo.write_queue(&support::todo_tasks(&[("RQ-0001", "Test sync")]))?;
+    repo.write_relative_file(".env", "SECRET_KEY=test")?;
+    repo.write_relative_file(".env.local", "LOCAL_SECRET=test")?;
+    repo.write_relative_file("target/debug/app", "binary")?;
+    repo.configure_default_runner()?;
 
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
+    let _ = repo.run_parallel(1);
 
-    // Create task first
-    let tasks = vec![test_support::make_test_task(
-        "RQ-0001",
-        "Test sync",
-        ralph::contracts::TaskStatus::Todo,
-    )];
-    test_support::write_queue(temp.path(), &tasks)?;
+    for workspace in repo.workspace_dirs()? {
+        let env_path = workspace.join(".env");
+        let env_local_path = workspace.join(".env.local");
 
-    // Seed cached Ralph scaffolding
-    test_support::seed_ralph_dir(temp.path())?;
-
-    // Create files that should be synced AFTER init
-    std::fs::write(temp.path().join(".env"), "SECRET_KEY=test")?;
-    std::fs::write(temp.path().join(".env.local"), "LOCAL_SECRET=test")?;
-
-    // Create files that should NOT be synced
-    std::fs::create_dir_all(temp.path().join("target/debug"))?;
-    std::fs::write(temp.path().join("target/debug/app"), "binary")?;
-
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
-
-    let run_lock = test_support::parallel_run_lock().lock();
-    test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "1",
-            "--force",
-        ],
-    );
-    drop(run_lock);
-
-    // Check workspace contents (if workspaces exist - they may be cleaned up immediately with noop runners)
-    let workspaces_dir = temp.path().join(".ralph/workspaces");
-    if workspaces_dir.exists() {
-        for entry in std::fs::read_dir(&workspaces_dir)? {
-            let entry = entry?;
-            let workspace_path = entry.path();
-
-            // .env and .env.local should be synced
-            let env_path = workspace_path.join(".env");
-            let env_local_path = workspace_path.join(".env.local");
-
-            if env_path.exists() {
-                let env_content = std::fs::read_to_string(&env_path)?;
-                assert_eq!(
-                    env_content, "SECRET_KEY=test",
-                    ".env should be synced to workspace"
-                );
-            }
-
-            if env_local_path.exists() {
-                let env_local_content = std::fs::read_to_string(&env_local_path)?;
-                assert_eq!(
-                    env_local_content, "LOCAL_SECRET=test",
-                    ".env.local should be synced to workspace"
-                );
-            }
-
-            // target/ directory should NOT be synced
-            let target_path = workspace_path.join("target");
-            assert!(
-                !target_path.exists(),
-                "target/ directory should not be synced to workspace"
+        if env_path.exists() {
+            assert_eq!(
+                std::fs::read_to_string(&env_path)?,
+                "SECRET_KEY=test",
+                ".env should be synced to workspace"
             );
         }
+
+        if env_local_path.exists() {
+            assert_eq!(
+                std::fs::read_to_string(&env_local_path)?,
+                "LOCAL_SECRET=test",
+                ".env.local should be synced to workspace"
+            );
+        }
+
+        assert!(
+            !workspace.join("target").exists(),
+            "target/ directory should not be synced to workspace"
+        );
     }
 
-    // Verify state file exists (proves parallel mode ran)
-    let state_path = temp.path().join(".ralph/cache/parallel/state.json");
     assert!(
-        state_path.exists(),
+        repo.state_path().exists(),
         "Parallel state file should exist after run"
     );
 
     Ok(())
 }
 
-// =============================================================================
-// Test: Task Selection Multiple Workers
-// =============================================================================
-
-/// Verify multiple tasks are selected and workers respect --parallel limit.
 #[test]
 fn parallel_task_selection_multiple_workers() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
+    let (repo, _) = configured_repo(&[
+        ("RQ-0001", "Task 1"),
+        ("RQ-0002", "Task 2"),
+        ("RQ-0003", "Task 3"),
+    ])?;
 
-    // Setup git repo with origin remote
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
+    let _ = repo.run_parallel(2);
 
-    // Create 3 todo tasks, run with --parallel 2 and --max-tasks 2
-    let tasks = vec![
-        test_support::make_test_task("RQ-0001", "Task 1", ralph::contracts::TaskStatus::Todo),
-        test_support::make_test_task("RQ-0002", "Task 2", ralph::contracts::TaskStatus::Todo),
-        test_support::make_test_task("RQ-0003", "Task 3", ralph::contracts::TaskStatus::Todo),
-    ];
-    test_support::write_queue(temp.path(), &tasks)?;
+    if let Some(state) = repo.read_parallel_state()?
+        && let Some(workers) = state.get("workers").and_then(|value| value.as_array())
+    {
+        assert!(
+            workers.len() <= 2,
+            "Should have at most 2 tracked workers (parallel limit)"
+        );
 
-    test_support::seed_ralph_dir(temp.path())?;
-
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
-
-    let run_lock = test_support::parallel_run_lock().lock();
-    test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "2",
-            "--force",
-        ],
-    );
-    drop(run_lock);
-
-    // Read state file to verify worker count
-    let state_path = temp.path().join(".ralph/cache/parallel/state.json");
-    if state_path.exists() {
-        let state_content = std::fs::read_to_string(&state_path)?;
-        let state: serde_json::Value = serde_json::from_str(&state_content)?;
-
-        if let Some(workers) = state.get("workers").and_then(|v| v.as_array()) {
-            // State should show at most 2 tracked workers (respects --parallel 2)
-            assert!(
-                workers.len() <= 2,
-                "Should have at most 2 tracked workers (parallel limit)"
-            );
-
-            // Verify task IDs are valid
-            for worker in workers {
-                if let Some(task_id) = worker.get("task_id").and_then(|v| v.as_str()) {
-                    assert!(
-                        task_id.starts_with("RQ-"),
-                        "Task ID should be valid: {}",
-                        task_id
-                    );
-                }
+        for worker in workers {
+            if let Some(task_id) = worker.get("task_id").and_then(|value| value.as_str()) {
+                assert!(
+                    task_id.starts_with("RQ-"),
+                    "Task ID should be valid: {task_id}"
+                );
             }
         }
     }
 
-    // Verify worker workspaces exist
-    let workspaces_dir = temp.path().join(".ralph/workspaces");
-    if workspaces_dir.exists() {
-        let workspace_count = std::fs::read_dir(&workspaces_dir)?.count();
-        // Should have created at most 2 workspaces (respects --parallel 2 and --max-tasks 2)
-        assert!(
-            workspace_count <= 2,
-            "Should have at most 2 worker workspaces"
-        );
-    }
+    assert!(
+        repo.workspace_dirs()?.len() <= 2,
+        "Should have at most 2 worker workspaces"
+    );
 
     Ok(())
 }
 
-// =============================================================================
-// Test: Handles Worker Completion
-// =============================================================================
-
-/// Verify task completion updates state and workers are tracked correctly.
 #[test]
 fn parallel_handles_worker_completion() -> Result<()> {
-    let temp = test_support::temp_dir_outside_repo();
+    let (repo, _) = configured_repo(&[("RQ-0001", "Complete task")])?;
 
-    // Setup git repo with origin remote
-    test_support::git_init(temp.path())?;
-    setup_origin_remote(temp.path())?;
-
-    let tasks = vec![test_support::make_test_task(
-        "RQ-0001",
-        "Complete task",
-        ralph::contracts::TaskStatus::Todo,
-    )];
-    test_support::write_queue(temp.path(), &tasks)?;
-
-    test_support::seed_ralph_dir(temp.path())?;
-
-    let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
-    test_support::configure_parallel_test_runner(
-        temp.path(),
-        "opencode",
-        "test-model",
-        &runner_path,
-        1,
-    )?;
-
-    let run_lock = test_support::parallel_run_lock().lock();
-    test_support::run_in_dir(
-        temp.path(),
-        &[
-            "run",
-            "loop",
-            "--parallel",
-            "2",
-            "--max-tasks",
-            "1",
-            "--force",
-        ],
+    let _ = repo.run_parallel(1);
+    assert!(
+        repo.state_path().exists(),
+        "State file should exist after run"
     );
-    drop(run_lock);
 
-    // Read state after run
-    let state_path = temp.path().join(".ralph/cache/parallel/state.json");
-
-    // State file should exist after run
-    assert!(state_path.exists(), "State file should exist after run");
-
-    if state_path.exists() {
-        let state_content = std::fs::read_to_string(&state_path)?;
-        let state: serde_json::Value = serde_json::from_str(&state_content)?;
-
-        // Verify workers field exists and contains valid task IDs.
-        if let Some(workers) = state.get("workers").and_then(|v| v.as_array()) {
-            for worker in workers {
-                if let Some(task_id) = worker.get("task_id").and_then(|v| v.as_str()) {
-                    assert!(
-                        task_id.starts_with("RQ-"),
-                        "Task ID should be valid: {}",
-                        task_id
-                    );
-                }
+    let state = repo.read_parallel_state_required()?;
+    if let Some(workers) = state.get("workers").and_then(|value| value.as_array()) {
+        for worker in workers {
+            if let Some(task_id) = worker.get("task_id").and_then(|value| value.as_str()) {
+                assert!(
+                    task_id.starts_with("RQ-"),
+                    "Task ID should be valid: {task_id}"
+                );
             }
         }
-
-        // Verify state structure (schema v3: direct-push mode)
-        assert!(
-            state.get("schema_version").is_some(),
-            "State should have schema_version"
-        );
-        assert!(
-            state.get("started_at").is_some(),
-            "State should have started_at"
-        );
-        assert!(
-            state.get("target_branch").is_some(),
-            "State should have target_branch"
-        );
     }
+
+    assert!(
+        state.get("schema_version").is_some(),
+        "State should have schema_version"
+    );
+    assert!(
+        state.get("started_at").is_some(),
+        "State should have started_at"
+    );
+    assert!(
+        state.get("target_branch").is_some(),
+        "State should have target_branch"
+    );
 
     Ok(())
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
+fn configured_repo(entries: &[(&str, &str)]) -> Result<(support::RunParallelRepo, Vec<Task>)> {
+    let repo = support::RunParallelRepo::new()?;
+    let tasks = support::todo_tasks(entries);
+    repo.write_queue(&tasks)?;
+    repo.configure_default_runner()?;
+    Ok((repo, tasks))
+}
 
-/// Count how many of the original tasks appear in done.json or are missing from queue.
-///
-/// This helps verify that tasks were processed even if they completed quickly
-/// and don't appear in the parallel state.
-fn count_tasks_in_done_or_removed(
-    original_tasks: &[ralph::contracts::Task],
-    dir: &std::path::Path,
-) -> Result<usize> {
-    let queue = test_support::read_queue(dir)?;
-    let done = test_support::read_done(dir)?;
-
-    let mut count = 0;
-    for task in original_tasks {
-        // Task is "processed" if it's in done OR not in queue (removed after completion)
-        let in_done = done.tasks.iter().any(|t| t.id == task.id);
-        let still_in_queue = queue.tasks.iter().any(|t| t.id == task.id);
-
-        if in_done || !still_in_queue {
-            count += 1;
-        }
-    }
-
-    Ok(count)
+fn worker_count(state: &serde_json::Value) -> usize {
+    state
+        .get("workers")
+        .and_then(|value| value.as_array())
+        .map(std::vec::Vec::len)
+        .unwrap_or(0)
 }
