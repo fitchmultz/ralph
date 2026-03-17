@@ -85,6 +85,7 @@ scripts/              # Maintenance + release helper scripts
 - `redaction.rs` - Sensitive data redaction
 - `git/` - Git operations
 - `fsutil/` - Filesystem utilities (facade in `fsutil/mod.rs`)
+- `runutil/` - Runner execution, retry/revert, CI-gate, and managed subprocess helpers (facade in `runutil.rs`)
 - `timeutil.rs` - Time handling
 - `template/` - Prompt template loading
 - `prompts_internal/` - Internal prompt composition

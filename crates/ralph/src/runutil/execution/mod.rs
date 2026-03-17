@@ -1,15 +1,18 @@
-//! Runner execution facade with consistent error handling.
+//! Purpose: Runner execution facade with consistent error handling.
 //!
 //! Responsibilities:
 //! - Re-export the runner execution types and orchestration entrypoints.
-//! - Keep backend wiring, continue-session policy, and orchestration split by concern.
+//! - Keep backend wiring, continue-session policy, retry admission, and orchestration split by concern.
 //!
-//! Not handled here:
-//! - Prompt template rendering.
-//! - Queue/task persistence.
+//! Scope:
+//! - Thin facade only; implementation lives in sibling execution companion modules.
 //!
-//! Invariants/assumptions:
+//! Usage:
+//! - Imported through `crate::runutil::execution::*` and re-exported by `crate::runutil`.
+//!
+//! Invariants/Assumptions:
 //! - Re-exports preserve the existing `crate::runutil::execution::*` test surface.
+//! - `mod orchestration;` resolves to the directory-backed facade under `execution/orchestration/`.
 
 mod backend;
 mod continue_session;

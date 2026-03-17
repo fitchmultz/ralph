@@ -1,14 +1,17 @@
-//! Runner execution state machine.
+//! Purpose: Runner execution state machine implementation.
 //!
 //! Responsibilities:
 //! - Execute runner invocations via a backend.
 //! - Apply retry, continue-session, revert, and error-shaping policy consistently.
 //!
-//! Not handled here:
-//! - Backend wiring details.
-//! - Prompt construction.
+//! Scope:
+//! - Main orchestration logic only.
+//! - Backend wiring details and regression coverage live in sibling companion modules.
 //!
-//! Invariants/assumptions:
+//! Usage:
+//! - Re-exported by `orchestration/mod.rs` for callers using `crate::runutil::execution`.
+//!
+//! Invariants/Assumptions:
 //! - Timeout safeguard capture is bounded.
 //! - Interruptions never retry.
 
@@ -19,17 +22,17 @@ use crate::constants::limits::MAX_SIGNAL_RESUMES;
 use crate::runner::{RetryableReason, RunnerFailureClass};
 use crate::{fsutil, runner};
 
-use super::super::abort::{RunAbort, RunAbortReason};
-use super::super::revert::{
+use super::super::super::abort::{RunAbort, RunAbortReason};
+use super::super::super::revert::{
     RevertOutcome, RevertSource, apply_git_revert_mode, format_revert_failure_message,
 };
-use super::super::{SeededRng, compute_backoff, format_duration};
-use super::backend::{
+use super::super::super::{SeededRng, compute_backoff, format_duration};
+use super::super::backend::{
     RealRunnerBackend, RunnerBackend, RunnerErrorMessages, RunnerInvocation, emit_operation,
     log_stderr_tail, wrap_output_handler_with_capture,
 };
-use super::continue_session::continue_or_rerun;
-use super::retry_policy::should_retry_with_repo_state;
+use super::super::continue_session::continue_or_rerun;
+use super::super::retry_policy::should_retry_with_repo_state;
 
 pub(crate) fn run_prompt_with_handling_backend<FNonZero, FOther>(
     invocation: RunnerInvocation<'_>,
@@ -162,7 +165,7 @@ where
                     );
 
                     if let Ok(ctrlc) = runner::ctrlc_state() {
-                        if super::super::shell::sleep_with_cancellation(
+                        if super::super::super::shell::sleep_with_cancellation(
                             delay,
                             Some(&ctrlc.interrupted),
                         )

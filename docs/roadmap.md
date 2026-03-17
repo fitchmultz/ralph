@@ -14,10 +14,10 @@ Why first:
 - Doing this pass first improves the production seams that future feature work and maintenance will rely on.
 
 Scope:
+- Progress (2026-03-17): `crates/ralph/src/runutil/execution/orchestration.rs` has been split into `runutil/execution/orchestration/{mod.rs, core.rs, tests.rs}` following the established directory-backed facade pattern while preserving the existing `crate::runutil::execution` surface and runner-handling behavior.
 - Progress (2026-03-17): `crates/ralph/src/queue/prune.rs` has been split into `queue/prune/{mod.rs, types.rs, core.rs, tests.rs}` following the established facade pattern while preserving prune behavior and caller imports.
 - Progress (2026-03-17): `crates/ralph/src/fsutil.rs` has been split into `fsutil/{mod.rs, atomic.rs, paths.rs, safeguard.rs, temp.rs, tests.rs}` following the established facade pattern while preserving all `crate::fsutil::*` imports and behavior.
-- Decompose the remaining oversized operational helpers (`crates/ralph/src/runutil/execution/orchestration.rs` and adjacent support modules) into focused companions.
-- Continue the runtime-oriented split pass across the remaining runtime utility modules while keeping adjacent churn localized now that the queue-side prune and fsutil splits are complete.
+- Continue the runtime-oriented split pass across the remaining runutil and operational helpers (`crates/ralph/src/runutil/retry.rs`, `crates/ralph/src/runutil/shell/mod.rs`, and adjacent support modules) while keeping adjacent churn localized now that `execution/orchestration`, queue-side prune, and fsutil have been cut over.
 - Preserve queue safety behavior, managed-subprocess invariants, and operational reliability contracts while extracting helpers from the root modules.
 - Keep shared helpers centralized only where duplication is real; otherwise prefer adjacent behavior-grouped modules.
 
