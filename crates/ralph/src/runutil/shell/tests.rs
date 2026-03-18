@@ -26,9 +26,11 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 #[cfg(unix)]
+use super::types::{CaptureLimits, ManagedProcessError, RetryWaitError};
+#[cfg(unix)]
 use super::{
-    CaptureLimits, ManagedCommand, ManagedProcessError, RetryWaitError, TimeoutClass,
-    execute_checked_command, execute_managed_command, sleep_with_cancellation,
+    ManagedCommand, TimeoutClass, execute_checked_command, execute_managed_command,
+    sleep_with_cancellation,
 };
 
 #[cfg(unix)]

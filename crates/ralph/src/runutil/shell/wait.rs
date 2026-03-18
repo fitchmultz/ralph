@@ -25,7 +25,7 @@ use std::time::{Duration, Instant};
 
 use crate::constants::timeouts;
 
-use super::TerminationReason;
+use super::types::TerminationReason;
 
 pub(super) struct ManagedChildOutcome {
     pub status: ExitStatus,
