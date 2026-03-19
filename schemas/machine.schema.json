@@ -2523,6 +2523,7 @@
         "type": "object"
       },
       "TaskPriority": {
+        "description": "Task priority used for queue ordering and display.",
         "enum": [
           "critical",
           "high",
@@ -3272,6 +3273,7 @@
         "type": "object"
       },
       "TaskPriority": {
+        "description": "Task priority used for queue ordering and display.",
         "enum": [
           "critical",
           "high",

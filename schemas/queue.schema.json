@@ -576,6 +576,7 @@
       "additionalProperties": false
     },
     "TaskPriority": {
+      "description": "Task priority used for queue ordering and display.",
       "type": "string",
       "enum": [
         "critical",

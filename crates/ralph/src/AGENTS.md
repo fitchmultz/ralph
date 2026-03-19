@@ -73,7 +73,7 @@ scripts/              # Maintenance + release helper scripts
 **Core Modules** (`src/`):
 - `cli/` - CLI argument definitions and command routing
 - `commands/` - Command implementations
-- `contracts/` - Data structures (Queue, Task, Config, Session, etc.)
+- `contracts/` - Data structures (Queue, Task, Config, Session, etc.; `contracts/task.rs` facade with companions under `contracts/task/`)
 - `runner/` - Runner execution, session management, and phase orchestration
 - `plugins/` - Plugin discovery, registry, and execution
 - `migration/` - Config and data migration system
