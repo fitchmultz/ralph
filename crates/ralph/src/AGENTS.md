@@ -87,7 +87,7 @@ scripts/              # Maintenance + release helper scripts
 - `fsutil/` - Filesystem utilities (facade in `fsutil/mod.rs`)
 - `runutil/` - Runner execution, retry/revert, CI-gate, and managed subprocess helpers (facade in `runutil.rs`)
 - `timeutil.rs` - Time handling
-- `template/` - Prompt template loading
+- `template/` - Prompt template loading (`variables.rs` facade with companion files under `template/variables/`)
 - `prompts_internal/` - Internal prompt composition
 
 ---

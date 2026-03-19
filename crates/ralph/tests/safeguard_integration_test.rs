@@ -151,8 +151,10 @@ fn runner_fails_and_safeguards_stdout() -> Result<()> {
     // 2. Add a task
     write_valid_single_todo_queue(dir.path())?;
 
-    // 3. Create a runner that prints and fails
-    let script = "#!/bin/sh\necho 'VALUABLE_LLM_OUTPUT'\nexit 1\n";
+    // 3. Create a runner that prints and fails.
+    // Drain stdin first so the runner exits with the intended failure instead of
+    // tripping a broken pipe while Ralph is still streaming prompt input.
+    let script = "#!/bin/sh\ncat > /dev/null\necho 'VALUABLE_LLM_OUTPUT'\nexit 1\n";
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.3-codex", Some(&runner_path))?;
 

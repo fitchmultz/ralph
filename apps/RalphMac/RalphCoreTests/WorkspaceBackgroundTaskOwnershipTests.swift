@@ -46,6 +46,7 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
 
         let logURL = rootDir.appendingPathComponent("cli-spec-bootstrap.log", isDirectory: false)
+        let pidFileURL = rootDir.appendingPathComponent("cli-spec-bootstrap.pid", isDirectory: false)
         let specURL = try WorkspaceRunnerConfigurationTestSupport.writeCLISpecDocument(
             in: rootDir,
             name: "cli-spec.json",
@@ -54,6 +55,7 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
 
         let script = """
             #!/bin/sh
+            echo $$ > "\(pidFileURL.path)"
             trap 'printf "canceled\\n" >> "\(logURL.path)"; exit 130' INT TERM
             printf 'started\n' >> "\(logURL.path)"
             sleep 5
@@ -77,13 +79,18 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
             (try? String(contentsOf: logURL, encoding: .utf8).contains("started")) == true
         }
         XCTAssertTrue(started)
+        let recordedPID = await RalphCoreTestSupport.waitForFile(pidFileURL, timeout: .seconds(2))
+        XCTAssertTrue(recordedPID)
 
         manager.closeWorkspace(workspace)
 
-        let canceled = await RalphCoreTestSupport.waitUntil(timeout: .seconds(3)) {
-            (try? String(contentsOf: logURL, encoding: .utf8).contains("canceled")) == true
-        }
-        XCTAssertTrue(canceled)
+        let pidText = try XCTUnwrap(
+            String(contentsOf: pidFileURL, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let pid = pid_t(try XCTUnwrap(Int32(pidText)))
+        let terminated = await RalphCoreTestSupport.waitForProcessExit(pid, timeout: .seconds(5))
+        XCTAssertTrue(terminated)
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         XCTAssertFalse(log.contains("finished"))

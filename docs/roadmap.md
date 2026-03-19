@@ -1,6 +1,6 @@
 # Ralph Roadmap
 
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 This is the canonical near-term roadmap for active follow-up work.
 
@@ -10,11 +10,11 @@ This is the canonical near-term roadmap for active follow-up work.
 
 Why first:
 - The remaining oversized command/CLI hotspot has been split, so shared-data and foundational modules now represent the leading structural debt in the Rust surface.
-- Foundational helpers such as template, agent-resolution, redaction, ETA, undo, and task-contract modules are broadly reused and still carry the highest maintenance leverage.
+- Foundational helpers such as template loading, agent-resolution, redaction, ETA, undo, and task-contract modules are broadly reused and still carry the highest maintenance leverage.
 - Clearing that shared-module debt next keeps the repo aligned with the <500 LOC target before new feature work expands those seams again.
 
 Scope:
-- Decompose the remaining oversized foundational modules (`crates/ralph/src/template/variables.rs`, `crates/ralph/src/agent/resolve.rs`, `crates/ralph/src/redaction.rs`, `crates/ralph/src/eta_calculator.rs`, `crates/ralph/src/undo.rs`, `crates/ralph/src/template/loader.rs`, `crates/ralph/src/contracts/task.rs`, and adjacent shared helpers) into thinner facades plus focused companions.
+- Decompose the remaining oversized foundational modules (`crates/ralph/src/template/loader.rs`, `crates/ralph/src/agent/resolve.rs`, `crates/ralph/src/redaction.rs`, `crates/ralph/src/eta_calculator.rs`, `crates/ralph/src/undo.rs`, `crates/ralph/src/contracts/task.rs`, and adjacent shared helpers) into thinner facades plus focused companions.
 - Preserve schema, normalization, redaction, and task-contract behavior exactly while moving parsing/formatting helpers out of the root files.
 - Prefer deterministic helper modules and avoid reopening stabilized command/runtime seams unless a true shared abstraction emerges.
 

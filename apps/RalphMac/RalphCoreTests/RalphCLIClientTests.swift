@@ -131,8 +131,10 @@ final class RalphCLIClientTests: RalphCoreTestCase {
         defer { RalphCoreTestSupport.assertRemoved(tempDir) }
 
         let logURL = tempDir.appendingPathComponent("run-and-collect-cancel.log", isDirectory: false)
+        let pidFileURL = tempDir.appendingPathComponent("run-and-collect-cancel.pid", isDirectory: false)
         let script = """
             #!/bin/sh
+            echo $$ > "\(pidFileURL.path)"
             trap 'printf "canceled\\n" >> "\(logURL.path)"; exit 130' INT TERM
             printf 'started\n' >> "\(logURL.path)"
             sleep 30
@@ -149,6 +151,8 @@ final class RalphCLIClientTests: RalphCoreTestCase {
             (try? String(contentsOf: logURL, encoding: .utf8).contains("started")) == true
         }
         XCTAssertTrue(started)
+        let recordedPID = await RalphCoreTestSupport.waitForFile(pidFileURL, timeout: .seconds(2))
+        XCTAssertTrue(recordedPID)
 
         task.cancel()
 
@@ -159,10 +163,13 @@ final class RalphCLIClientTests: RalphCoreTestCase {
             // Expected.
         }
 
-        let canceled = await RalphCoreTestSupport.waitUntil(timeout: .seconds(3)) {
-            (try? String(contentsOf: logURL, encoding: .utf8).contains("canceled")) == true
-        }
-        XCTAssertTrue(canceled)
+        let pidText = try XCTUnwrap(
+            String(contentsOf: pidFileURL, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let pid = pid_t(try XCTUnwrap(Int32(pidText)))
+        let terminated = await RalphCoreTestSupport.waitForProcessExit(pid, timeout: .seconds(5))
+        XCTAssertTrue(terminated)
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         XCTAssertFalse(log.contains("finished"))
