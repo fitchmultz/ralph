@@ -84,6 +84,7 @@ scripts/              # Maintenance + release helper scripts
 - `lock.rs` - Queue file locking
 - `redaction/` - Sensitive data redaction (`mod.rs` facade with companions under `redaction/`)
 - `eta_calculator/` - ETA models, calculators, and formatting (`eta_calculator.rs` facade with companions under `eta_calculator/`)
+- `undo/` - Undo snapshot models and operations (`undo.rs` facade with companions under `undo/`)
 - `git/` - Git operations
 - `fsutil/` - Filesystem utilities (facade in `fsutil/mod.rs`)
 - `runutil/` - Runner execution, retry/revert, CI-gate, and managed subprocess helpers (facade in `runutil.rs`)
