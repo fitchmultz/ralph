@@ -15,7 +15,7 @@ Why first:
 
 Scope:
 - Break remaining oversized Rust test and fixture files into thin suite roots plus behavior-grouped companions/directories when that structural cleanup is still worthwhile on its own.
-- Current highest-value remaining suite candidates are `task_cmd_test.rs`, `task_update_all_integration_test.rs`, `fsutil_test.rs`, `prompt_cmd_test.rs`, and the lock-contention/cleanup integration pair; keep that order unless fresh profiling points elsewhere.
+- Current highest-value remaining suite candidates are `task_update_all_integration_test.rs`, `fsutil_test.rs`, `prompt_cmd_test.rs`, `lock_contention_integration_test.rs`, and `lock_race_cleanup_test.rs`; keep that order unless fresh profiling points elsewhere.
 - Keep shared test support centralized only where duplication is real; otherwise prefer adjacent grouped helpers.
 - Use target-specific nextest profiles and `target/profiling/nextest*.jsonl` artifacts as the source of truth before reopening any test-speed pass.
 - Re-profile a candidate suite immediately before editing it and again immediately after any focused fixture/lock cutover instead of repeating whole-workspace sweeps.
