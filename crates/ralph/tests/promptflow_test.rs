@@ -120,7 +120,7 @@ fn build_single_phase_prompt_contains_required_elements() {
     )
     .unwrap();
 
-    assert!(prompt.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(prompt.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
     assert!(!prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
     assert!(prompt.contains(checklist));
     assert!(prompt.contains("single-pass execution mode"));
@@ -187,8 +187,8 @@ fn build_phase2_handoff_prompt_contains_required_elements() {
     assert!(prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 3"));
     assert!(prompt.contains("CURRENT TASK: RQ-1234"));
     assert!(prompt.contains(checklist));
-    assert!(prompt.contains("Do NOT intentionally defer follow-ups"));
-    assert!(prompt.contains("BLOCKERS (should be empty)"));
+    assert!(prompt.contains("resolve follow-ups, inconsistencies, missing tests"));
+    assert!(prompt.contains("concrete remediation steps"));
     assert!(prompt.contains("APPROVED PLAN"));
     assert!(prompt.contains(plan));
     assert!(prompt.contains("BASE_PROMPT"));
@@ -231,10 +231,8 @@ fn build_phase3_prompt_contains_required_elements() {
     assert!(prompt.contains(phase2_final));
     assert!(prompt.contains("CHECKLIST"));
     assert!(prompt.contains(base));
-    assert!(
-        prompt.contains("Investigate and resolve any risks, bugs, or suspicious leads you flag")
-    );
-    assert!(prompt.contains("Do NOT complete the task if any lead remains unresolved."));
+    assert!(prompt.contains("Leave it unchanged until terminal task bookkeeping is complete."));
+    assert!(prompt.contains("PREFERRED: investigate and resolve any risks"));
 }
 
 #[test]
@@ -244,10 +242,7 @@ fn iteration_checklist_requires_closing_flagged_issues() {
     let template = prompts::load_iteration_checklist(repo_root.path()).unwrap();
     let rendered = prompts::render_iteration_checklist(&template, "RQ-0002", &config).unwrap();
 
-    assert!(
-        rendered
-            .contains("Investigate and resolve any risks, bugs, or suspicious leads you identify")
-    );
+    assert!(rendered.contains("PREFERRED: investigate and resolve suspicious leads"));
 }
 
 #[test]
@@ -258,10 +253,7 @@ fn completion_checklist_requires_closing_flagged_issues() {
     let rendered =
         prompts::render_completion_checklist(&template, "RQ-0003", &config, false).unwrap();
 
-    assert!(
-        rendered
-            .contains("Investigate and resolve any risks, bugs, or suspicious leads you flagged")
-    );
+    assert!(rendered.contains("PREFERRED: investigate and resolve any risks"));
     assert!(rendered.contains("Run mode for this session: `normal`"));
 }
 
@@ -272,6 +264,6 @@ fn phase2_handoff_checklist_discourages_deferrals() {
     let template = prompts::load_phase2_handoff_checklist(repo_root.path()).unwrap();
     let rendered = prompts::render_phase2_handoff_checklist(&template, &config).unwrap();
 
-    assert!(rendered.contains("Do NOT intentionally defer"));
-    assert!(rendered.contains("BLOCKERS (should be empty)"));
+    assert!(rendered.contains("PREFERRED: resolve follow-ups"));
+    assert!(rendered.contains("If you are truly blocked"));
 }

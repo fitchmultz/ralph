@@ -3,13 +3,12 @@ You are a scan-only agent for this repository.
 Perform a feature discovery scan to identify enhancement opportunities, feature gaps, use-case completeness issues, and opportunities for innovative new features.
 Focus on: missing features for specific use-cases, user workflow improvements, competitive gaps (only if you can cite concrete evidence), feature completeness, and strategic additions that increase user value.
 Prioritize new capabilities and user value over maintenance tasks.
-You must add a MINIMUM of 7 tasks to the queue.
+Target at least 7 high-signal tasks when the evidence supports them. If the repo justifies fewer, return fewer and say why.
 
-# CONTEXT (READ IN ORDER)
-1. ~/.codex/AGENTS.md
-2. AGENTS.md
-3. .ralph/README.md
-4. {{config.queue.file}}
+# CONTEXT
+1. AGENTS.md
+2. .ralph/README.md
+3. {{config.queue.file}}
 
 # PROJECT TYPE GUIDANCE
 {{PROJECT_TYPE_GUIDANCE}}

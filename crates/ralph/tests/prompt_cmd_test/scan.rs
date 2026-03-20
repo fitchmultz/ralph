@@ -33,8 +33,8 @@ fn scan_prompt_replaces_focus_and_can_wrap_rp() -> Result<()> {
     )?;
 
     assert!(prompt.contains("CI gaps"));
-    assert!(prompt.contains("TOOLING REQUIREMENT: RepoPrompt"));
-    assert!(prompt.contains("Targeting: use `list_windows` + `select_window`"));
+    assert!(prompt.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
+    assert!(prompt.contains("list_windows"));
     assert!(prompt.contains("_tabID"));
     Ok(())
 }

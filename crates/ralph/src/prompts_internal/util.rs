@@ -39,48 +39,44 @@ pub(crate) struct RequiredPlaceholder {
 
 /// Instructions for tooling requirements when RepoPrompt tooling reminders are enabled.
 pub(crate) const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
-## TOOLING REQUIREMENT: RepoPrompt
-You are running in a RepoPrompt-enabled environment. You MUST use the RepoPrompt tools to explore and edit the codebase; do not rely on internal knowledge or assumptions. Verify everything.
+## REPOPROMPT TOOLING (WHEN CONNECTED)
+You are running in a RepoPrompt-enabled environment. Prefer RepoPrompt tools when they are available in this harness.
 
-Targeting: use `list_windows` + `select_window` (or pass `_windowID` on tool calls) and `manage_workspaces` with `list_tabs`/`select_tab` (or pass `_tabID`) to bind a stable window/tab context.
-Discovery/context: `manage_selection`, `get_file_tree`, `file_search`, `read_file`, `get_code_structure`, `workspace_context`, `prompt`.
-Edits: `apply_edits`, `file_actions`.
-Read-only git: `git` (status/diff/log/show/blame).
-Planning/review: `context_builder`, `list_models`, `chat_send`, `chats` when needed.
+When the RepoPrompt MCP server is connected, these tool groups are typically available:
+- Targeting: `list_windows` + `select_window` (or pass `_windowID`), `manage_workspaces`, `list_tabs` / `select_tab` (or pass `_tabID`)
+- Discovery/context: `manage_selection`, `get_file_tree`, `file_search`, `read_file`, `get_code_structure`, `workspace_context`, `prompt`
+- Edits: `apply_edits`, `file_actions`
+- Read-only git: `git` (`status`, `diff`, `log`, `show`, `blame`)
+- Planning/review: `context_builder`, `list_models`, `chat_send`, `chats`
 
-## CLI FALLBACK (when MCP tools are unavailable)
-If the RepoPrompt MCP server/tools are unavailable, use the RepoPrompt CLI instead:
-- Prefer `rp-cli` (always available); optionally use the `rp` wrapper if present (not available in all environments).
-- Check usage/examples first: run `rp-cli --help` and/or `rp -h`.
-- Syntax differs:
-  - `rp-cli` uses `-e` to execute an expression (example: `rp-cli -e 'tree'`)
-  - `rp` uses a simpler wrapper syntax (example: `rp 'tree'`)
-- `rp` is a convenience wrapper around `rp-cli`; if `rp` is missing, fall back to `rp-cli`.
-- Both `rp-cli` and `rp` are typically installed in `~/.local/bin/` and available on `PATH`.
+If RepoPrompt is unavailable or incomplete, use the best available repository tools in the current harness.
+
+## CLI FALLBACK (WHEN MCP TOOLS ARE UNAVAILABLE)
+If RepoPrompt MCP tools are unavailable, prefer the RepoPrompt CLI when it exists:
+- Start with `rp-cli --help`; optionally use `rp -h` if the wrapper is installed.
+- `rp-cli` commonly uses `-e` to execute an expression (example: `rp-cli -e 'tree'`).
+- `rp` is a convenience wrapper with simpler syntax (example: `rp 'tree'`).
+- If `rp` is missing, fall back to `rp-cli`.
 "#;
 
 pub(crate) const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
-## PLANNING REQUIREMENT: Use context_builder and write the plan to the cache
-To generate the plan, you MUST use the `context_builder` tool.
-1. BEFORE invoking `context_builder`, do a quick repo reality check using the available tools:
-   - Validate key assumptions in the task/evidence/plan/notes (e.g., referenced commands, entrypoints, files, features).
-   - Identify the most relevant files and any capability gaps or parity needs across user-facing entrypoints (CLI/API/UI/scripts).
-   - Feed these findings and file paths into the `context_builder` instructions along with the task context.
-2. Provide an extensively detailed `instructions` argument to `context_builder` that describes the CURRENT TASK (use the task provided in the prompt; do not pick another task). Within the `instructions` string you pass to `context_builder`, include guidance directing it to be generous with file selection: instruct `context_builder` that if there is any doubt whether a file might be needed for planning, it should be included. Direct `context_builder` to utilize its token budget generously and always include files that could possibly be needed by the planning agent.
-3. MANDATORY: set `response_type` to "plan". The `context_builder` MUST be executed with a plan requested as the response type.
-4. RepoPrompt produces a plan, but you own its correctness. If the plan contradicts repo reality, you must correct it before writing the plan to the mandated file path. Do this by adjusting the plan based on your findings and/or asking follow-ups via the provided chat ID.
-5. If you need a follow-up: first review the current Repo Prompt file selection, append (add) missing files do NOT replace selection), then ask the follow-up in the same chat context using the chat ID returned via the context_builder tool. Use the Repo Prompt manage selection add/append tool in your harness (for example, a `manage_selection` tool with `op=add`), not a tool that replaces the selection.
-6. Parity rule: if the repo exposes multiple user-facing entrypoints (CLI/API/UI/scripts), prefer parity over downgrading requirements or docs. Adjust the plan to implement the missing capability rather than changing the plan to fit a gap. If only one entrypoint exists, ignore this rule.
-7. FINAL PLAN WRITE: Write the final plan to the mandated file path using verbatim content from the RepoPrompt plan response, except for refinements you deem necessary and/or changes established via follow-up messages with the RepoPrompt chat planner.
+## REPOPROMPT PLANNING FLOW
+When `context_builder` is available, use it as the standard planning path. If it is unavailable, use the best available repo-inspection tools and still produce the required plan artifact.
+1. PREFERRED: do a quick repo reality check before planning:
+   - validate key assumptions from the task
+   - identify relevant files
+   - note capability gaps or parity needs across user-facing entrypoints
+2. PREFERRED: provide detailed `instructions` to `context_builder`, including the current task and generous file-selection guidance.
+3. Standard approach: set `response_type` to "plan" so the result is shaped for planning.
+4. RepoPrompt can draft the plan, but you own the final artifact. Correct it if repo reality disagrees.
+5. If follow-up is needed, append missing files to the existing selection and continue in the same chat context.
+6. PREFERRED: favor parity across CLI/API/UI/scripts when multiple entrypoints exist.
+7. REQUIRED: write the final plan to the plan cache path provided in the prompt. Phase 2 reads that file.
 
-## OUTPUT FORMAT (MANDATORY)
-- Do NOT print the plan in your reply.
-- Write the plan verbatim to the plan cache file specified in the prompt.
-- Use the available tooling to write the plan file directly.
-- After writing the file, respond only with a short confirmation (no plan text).
-
-Do NOT add any other text beyond the brief confirmation.
-Do NOT start implementation in Phase 1.
+## OUTPUT
+- REQUIRED: write the plan to the plan cache path provided in the prompt.
+- PREFERRED: reply with a brief confirmation instead of repeating the full plan text.
+- REQUIRED: do not start implementation in Phase 1.
 "#;
 
 pub(crate) fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String {

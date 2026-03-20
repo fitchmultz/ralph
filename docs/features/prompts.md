@@ -172,6 +172,11 @@ const TASK_BUILDER_REQUIRED: &[RequiredPlaceholder] = &[
 
 If an override is missing required placeholders, Ralph fails fast with a clear error message.
 
+### Instruction Files
+
+Configured `agent.instruction_files` are prepended as authoritative content at the top of every prompt.
+Ralph does not auto-inject `~/.codex/AGENTS.md` or repo `AGENTS.md`; prompt text should not imply otherwise.
+
 ---
 
 ## Available Prompts
@@ -418,25 +423,25 @@ When RepoPrompt tooling is enabled, Ralph injects additional instructions:
 
 ### Tool Injection (`repoprompt_tool_injection`)
 
-Adds the tooling requirement block:
+Adds preference-based RepoPrompt guidance:
 
 ```markdown
-## TOOLING REQUIREMENT: RepoPrompt
-You are running in a RepoPrompt-enabled environment. You MUST use the RepoPrompt tools...
-
-Targeting: use `list_windows` + `select_window`...
-Discovery/context: `manage_selection`, `get_file_tree`, `file_search`...
-Edits: `apply_edits`, `file_actions`...
+## REPOPROMPT TOOLING (WHEN CONNECTED)
+You are running in a RepoPrompt-enabled environment. Prefer RepoPrompt tools when they are available in this harness.
 ```
+
+The injected guidance describes the usual RepoPrompt MCP tool inventory while making it clear that other repository tools remain valid when RepoPrompt is unavailable.
 
 ### Plan Requirement (`repoprompt_plan_required`)
 
-Adds context_builder planning instructions:
+Adds RepoPrompt planning guidance:
 
 ```markdown
-## PLANNING REQUIREMENT: Use context_builder and write the plan to the cache
-To generate the plan, you MUST use the `context_builder` tool...
+## REPOPROMPT PLANNING FLOW
+When `context_builder` is available, use it as the standard planning path.
 ```
+
+The planning block still keeps the hard artifact boundary intact: Phase 1 must write the final plan to `{{PLAN_PATH}}` because later phases read that file.
 
 ### Configuration
 
@@ -456,11 +461,11 @@ Enable RepoPrompt integration in `.ralph/config.jsonc`:
 The instructions include a CLI fallback for when MCP tools are unavailable:
 
 ```markdown
-## CLI FALLBACK (when MCP tools are unavailable)
-If the RepoPrompt MCP server/tools are unavailable, use the RepoPrompt CLI:
-- Prefer `rp-cli` (always available)
-- Check usage: run `rp-cli --help`
-- Syntax: `rp-cli -e 'tree'`
+## CLI FALLBACK (WHEN MCP TOOLS ARE UNAVAILABLE)
+If RepoPrompt MCP tools are unavailable, prefer the RepoPrompt CLI when it exists:
+- Start with `rp-cli --help`
+- Optionally use `rp -h` if the wrapper is installed
+- `rp-cli` commonly uses `-e` to execute an expression such as `rp-cli -e 'tree'`
 ```
 
 ---

@@ -45,7 +45,8 @@ fn load_worker_phase2_handoff_prompt_falls_back_to_embedded_default_when_missing
     let prompt = load_worker_phase2_handoff_prompt(dir.path())?;
     assert!(prompt.contains("# IMPLEMENTATION MODE - PHASE 2"));
     assert!(!prompt.contains("so Phase 3 can close them"));
-    assert!(prompt.contains("BLOCKERS (should be empty)"));
+    assert!(prompt.contains("concise handoff summary"));
+    assert!(prompt.contains("concrete remediation steps"));
     Ok(())
 }
 

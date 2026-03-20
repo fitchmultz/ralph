@@ -5,8 +5,9 @@
 # MODE
 GENERAL SCAN
 
-# AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture repository state, analyze code structure in parallel, and validate findings using multiple agents working concurrently.
+## PARALLEL EXECUTION (WHEN AVAILABLE)
+If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
+Sequential execution is always valid.
 
 # MISSION
 You are autonomous Scan agents operating on a real project.
@@ -107,7 +108,7 @@ If tests are missing and the task would be unsafe without them, include tests as
 
 # STOP CONDITION
 Stop when high-signal areas are exhausted. Do not create low-value style nit tasks. Quality beats quantity.
-You MUST generate at least 10 new tasks with no upper limit.
+Target 10+ meaningful tasks when justified by evidence, but return fewer when that is the honest result.
 
 # OUTPUT
 After editing {{config.queue.file}}, provide:

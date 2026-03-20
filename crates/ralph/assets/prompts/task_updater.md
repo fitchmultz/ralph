@@ -2,14 +2,14 @@
 You are Task Updater for this repository.
 Examine {{TASK_ID}} in `{{config.queue.file}}` and refresh its fields based on current repository state.
 
-## AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture repository state, analyze files in parallel, and validate updates using multiple agents working concurrently.
+## PARALLEL EXECUTION (WHEN AVAILABLE)
+If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
+Sequential execution is always valid.
 
-# CONTEXT (READ IN ORDER)
-1. `~/.codex/AGENTS.md`
-2. `AGENTS.md`
-3. `.ralph/README.md`
-4. `{{config.queue.file}}`
+# CONTEXT
+1. `AGENTS.md`
+2. `.ralph/README.md`
+3. `{{config.queue.file}}`
 
 # INPUT
 Task ID to update:
@@ -17,10 +17,10 @@ Task ID to update:
 
 # INSTRUCTIONS
 ## OUTPUT TARGET
-- You must modify `{{config.queue.file}}` only.
-- Update only task {{TASK_ID}}. If the Task ID provided is "RQ-0000" all tasks in the queue should be reviewed and updated for accuracy.
-- Do not add new tasks.
-- Do not modify task IDs, status, or created_at timestamps.
+- REQUIRED: modify `{{config.queue.file}}` only.
+- REQUIRED: update only task {{TASK_ID}}. If the Task ID provided is "RQ-0000" all tasks in the queue should be reviewed and updated for accuracy.
+- REQUIRED: do not add new tasks.
+- REQUIRED: do not modify task IDs, status, or created_at timestamps.
 
 ## UPDATE RULES
 For the specified task:

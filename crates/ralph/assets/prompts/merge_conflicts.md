@@ -1,7 +1,8 @@
 # Merge Conflict Resolution
 
-## AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—analyze conflicts in parallel, resolve multiple files concurrently, and validate resolutions using multiple agents working together.
+## PARALLEL EXECUTION (WHEN AVAILABLE)
+If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
+Sequential execution is always valid.
 
 You are resolving Git merge conflicts.
 

@@ -58,7 +58,7 @@ fn load_phase2_handoff_checklist_falls_back_to_embedded_default_when_missing() -
     let checklist = load_phase2_handoff_checklist(dir.path())?;
     assert!(checklist.contains("PHASE 2 HANDOFF CHECKLIST"));
     assert!(!checklist.contains("follow-ups Phase 3 must close"));
-    assert!(checklist.contains("BLOCKERS (should be empty)"));
+    assert!(checklist.contains("If you are truly blocked"));
     Ok(())
 }
 

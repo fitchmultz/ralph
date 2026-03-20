@@ -26,8 +26,8 @@ fn render_worker_phase1_prompt_replaces_placeholders() -> Result<()> {
     assert!(rendered.contains("PHASE=2"));
     assert!(rendered.contains("PLAN=.ralph/cache/plans/RQ-0001.md"));
     assert!(rendered.contains("BASE"));
-    assert!(rendered.contains("TOOLING REQUIREMENT: RepoPrompt"));
-    assert!(rendered.contains("PLANNING REQUIREMENT"));
+    assert!(rendered.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
+    assert!(rendered.contains("REPOPROMPT PLANNING FLOW"));
     assert!(!rendered.contains("{{"));
     Ok(())
 }
@@ -49,8 +49,8 @@ fn render_worker_phase1_prompt_handles_repoprompt_flag_combinations() -> Result<
         false,
         &config,
     )?;
-    assert!(plan_only.contains("PLANNING REQUIREMENT"));
-    assert!(!plan_only.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(plan_only.contains("REPOPROMPT PLANNING FLOW"));
+    assert!(!plan_only.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
 
     let tool_only = render_worker_phase1_prompt(
         template,
@@ -64,8 +64,8 @@ fn render_worker_phase1_prompt_handles_repoprompt_flag_combinations() -> Result<
         true,
         &config,
     )?;
-    assert!(tool_only.contains("TOOLING REQUIREMENT: RepoPrompt"));
-    assert!(!tool_only.contains("PLANNING REQUIREMENT"));
+    assert!(tool_only.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
+    assert!(!tool_only.contains("REPOPROMPT PLANNING FLOW"));
 
     let none = render_worker_phase1_prompt(
         template,
@@ -79,8 +79,8 @@ fn render_worker_phase1_prompt_handles_repoprompt_flag_combinations() -> Result<
         false,
         &config,
     )?;
-    assert!(!none.contains("TOOLING REQUIREMENT: RepoPrompt"));
-    assert!(!none.contains("PLANNING REQUIREMENT"));
+    assert!(!none.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
+    assert!(!none.contains("REPOPROMPT PLANNING FLOW"));
     Ok(())
 }
 
@@ -148,7 +148,7 @@ fn render_worker_phase2_prompt_skips_repoprompt_when_not_required() -> Result<()
     assert!(rendered.contains("PLAN"));
     assert!(rendered.contains("CHECKLIST"));
     assert!(rendered.contains("BASE"));
-    assert!(!rendered.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(!rendered.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
     assert!(!rendered.contains("{{"));
     Ok(())
 }
@@ -284,7 +284,7 @@ fn render_worker_phase3_prompt_includes_review_and_base() -> Result<()> {
     assert!(rendered.contains("CHECKLIST"));
     assert!(rendered.contains("PHASE2 RESPONSE"));
     assert!(rendered.contains("BASE"));
-    assert!(rendered.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(rendered.contains("REPOPROMPT TOOLING (WHEN CONNECTED)"));
     assert!(!rendered.contains("{{"));
     Ok(())
 }

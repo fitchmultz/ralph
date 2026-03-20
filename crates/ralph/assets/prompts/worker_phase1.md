@@ -1,10 +1,11 @@
 <!-- Purpose: Phase 1 planning prompt wrapper. -->
 # PLANNING MODE - PHASE 1 OF {{TOTAL_PHASES}}
 
-## AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture state, make plans, execute work in parallel, and validate results using multiple agents working concurrently.
+## PARALLEL EXECUTION (WHEN AVAILABLE)
+If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
+Sequential execution is always valid.
 
-CURRENT TASK: {{TASK_ID}}. Do NOT switch tasks.
+CURRENT TASK: {{TASK_ID}}. Stay on this task.
 
 {{ITERATION_CONTEXT}}
 
@@ -13,34 +14,28 @@ CURRENT TASK: {{TASK_ID}}. Do NOT switch tasks.
 {{REPOPROMPT_BLOCK}}
 
 ## OUTPUT REQUIREMENT: PLAN ONLY
-You are in Phase 1 (Planning). You must NOT implement the changes.
+You are in Phase 1 (Planning). REQUIRED: do not implement changes in this phase.
 Your goal is to understand the task, refresh task metadata, and produce a detailed plan.
 
 {{TASK_REFRESH_INSTRUCTION}}
 
-## STRICT PROHIBITIONS (PHASE 1 ONLY)
-**DO NOT DO ANY OF THE FOLLOWING:**
-- DO NOT create or modify any files outside the allowed Phase 1 files
-- DO NOT run tests, the configured CI gate command (`{{config.agent.ci_gate_display}}`) when enabled, or any validation commands
-- DO NOT execute `git add`, `git commit`, or `git push`
-- DO NOT write, edit, or change any source code, configuration, or documentation files
-- DO NOT make any implementation changes whatsoever
+## PHASE 1 BOUNDARIES
+REQUIRED:
+- limit file edits to:
+  - `{{config.queue.file}}` only when the Task Refresh Step requires it
+  - the plan cache file at `{{PLAN_PATH}}`
+- do not modify source, config, or docs outside those files
+- do not run tests, the configured CI gate command (`{{config.agent.ci_gate_display}}`) when enabled, or implementation validation commands
+- do not run `git add`, `git commit`, or `git push`
 
-**PHASE 1 FILE EDITS ARE STRICTLY LIMITED TO:**
-- `{{config.queue.file}}` only when the Task Refresh Step requires it
-- The plan cache file at `{{PLAN_PATH}}`
-- No other file edits are allowed
+If implementation work starts accidentally, stop and revert any disallowed edits.
 
-**IF YOU START IMPLEMENTING:**
-- STOP immediately
-- Revert any file changes you made except allowed Phase 1 queue/plan updates
-
-## PLAN OUTPUT REQUIREMENT
-You MUST write the final plan directly to this file:
+## PLAN OUTPUT
+REQUIRED: write the final plan directly to this file:
 
 {{PLAN_PATH}}
 
-**Do NOT print the plan in your reply.** The plan must be written to the file path provided.
+A brief confirmation is sufficient; do not echo the full plan text back unless the harness requires it.
 Use the available tooling to write the plan file directly.
 
 The Execution Agent (Phase 2) who reads this plan has **NO KNOWLEDGE** of the user's original request, this conversation, or the task history.

@@ -65,8 +65,8 @@ Supported fields:
 - `reasoning_effort`: `low`, `medium`, `high`, `xhigh` (Codex only).
 - `iterations`: number of iterations to run per task (default: 1).
 - `followup_reasoning_effort`: reasoning effort for iterations after the first (Codex only).
-- `repoprompt_plan_required`: require RepoPrompt planning instructions (context_builder) during Phase 1.
-- `repoprompt_tool_injection`: inject RepoPrompt tooling reminders into prompts.
+- `repoprompt_plan_required`: inject RepoPrompt planning guidance (favoring `context_builder` when available) during Phase 1.
+- `repoprompt_tool_injection`: inject RepoPrompt tooling guidance into prompts when that environment is enabled.
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
 - `git_publish_mode`: automatic git publish behavior after successful runs. Supported values: `off`, `commit`, `commit_and_push` (default: `off`).
   **Safety note:** `commit_and_push` has the highest blast radius because it publishes to the remote repository automatically. Prefer `off` or `commit` unless you explicitly want automated publishing.

@@ -272,48 +272,57 @@ fn required_placeholders_pass_when_present() -> Result<()> {
 }
 
 #[test]
-fn repoprompt_planning_instruction_mentions_preflight_and_parity() {
+fn repoprompt_planning_instruction_keeps_plan_artifact_and_context_builder_guidance() {
     let instruction = REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION;
-    assert!(instruction.contains("RepoPrompt produces a plan, but you own its correctness"));
-    assert!(instruction.contains("quick repo reality check"));
-    assert!(instruction.contains("Parity rule"));
-    assert!(instruction.contains("append (add) missing files"));
-    assert!(instruction.contains("do NOT replace selection"));
-    assert!(instruction.contains("provided chat ID"));
-}
-
-#[test]
-fn repoprompt_required_instruction_mentions_tool_inventory() {
-    let instruction = REPOPROMPT_REQUIRED_INSTRUCTION;
-    let required_fragments = [
-        "TOOLING REQUIREMENT: RepoPrompt",
-        "list_windows",
-        "select_window",
-        "_windowID",
-        "manage_workspaces",
-        "list_tabs",
-        "select_tab",
-        "_tabID",
-        "manage_selection",
-        "get_file_tree",
-        "file_search",
-        "read_file",
-        "get_code_structure",
-        "workspace_context",
-        "prompt",
-        "apply_edits",
-        "file_actions",
-        "git",
-        "status/diff/log/show/blame",
-        "context_builder",
-        "list_models",
-        "chat_send",
-        "chats",
-    ];
-    for fragment in required_fragments {
+    for fragment in [
+        "When `context_builder` is available",
+        "quick repo reality check",
+        "response_type",
+        "plan cache path provided in the prompt",
+        "brief confirmation",
+    ] {
         assert!(
             instruction.contains(fragment),
             "instruction missing fragment: {fragment}"
+        );
+    }
+}
+
+#[test]
+fn repoprompt_required_instruction_describes_connected_tool_inventory() {
+    let instruction = REPOPROMPT_REQUIRED_INSTRUCTION;
+    for fragment in [
+        "REPOPROMPT TOOLING (WHEN CONNECTED)",
+        "Prefer RepoPrompt tools",
+        "list_windows",
+        "manage_selection",
+        "apply_edits",
+        "context_builder",
+        "CLI FALLBACK",
+        "rp-cli --help",
+    ] {
+        assert!(
+            instruction.contains(fragment),
+            "instruction missing fragment: {fragment}"
+        );
+    }
+}
+
+#[test]
+fn default_prompts_do_not_hardcode_global_agents_path() {
+    for id in [
+        PromptTemplateId::Worker,
+        PromptTemplateId::TaskBuilder,
+        PromptTemplateId::TaskUpdater,
+        PromptTemplateId::ScanInnovationV1,
+        PromptTemplateId::ScanMaintenanceV1,
+    ] {
+        assert!(
+            !prompt_template(id)
+                .embedded_default
+                .contains("~/.codex/AGENTS.md"),
+            "prompt {:?} still hardcodes ~/.codex/AGENTS.md",
+            id
         );
     }
 }

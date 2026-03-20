@@ -80,7 +80,8 @@ Phase 1 is strictly **read-only** except for:
 
 ### Plan Cache Format
 
-The plan is stored as Markdown in `.ralph/cache/plans/<TASK_ID>.md`:
+The plan is stored as non-empty Markdown in `.ralph/cache/plans/<TASK_ID>.md`.
+Ralph does not parse a fixed heading structure; the layout below is an illustrative example, not a required format:
 
 ```markdown
 # Implementation Plan for RQ-0001
@@ -135,8 +136,9 @@ Phase 2 is the **doing phase**. The AI agent implements the plan from Phase 1 (o
 5. Run CI gate
 6. Stop BEFORE task completion (supervision point)
 
-**No-Deferrals Policy (Phase 2)**:
-- Phase 2 is responsible for fully executing the Phase 1 plan and closing any newly discovered follow-ups, inconsistencies, or test gaps it finds along the way.
+**Phase 2 follow-up handling**:
+- Phase 2 should fully execute the Phase 1 plan and preferably close newly discovered follow-ups, inconsistencies, or test gaps it finds along the way.
+- If something truly cannot be resolved in Phase 2, the handoff should describe the blocker and the concrete next step for Phase 3.
 - Only true blockers may remain at handoff (this should be rare). If blocked, Phase 2 must list explicit remediation steps (commands/files/expected outcome).
 
 ### CI Gate Integration
