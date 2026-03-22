@@ -267,6 +267,18 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
             activeTasks: [],
             nextRunnableTaskID: nil
         )
+        let configAURL = try WorkspaceRunnerConfigurationTestSupport.writeConfigResolveDocument(
+            in: rootDir,
+            name: "config-a.json",
+            workspaceURL: workspaceAURL,
+            model: "model-a"
+        )
+        let configBURL = try WorkspaceRunnerConfigurationTestSupport.writeConfigResolveDocument(
+            in: rootDir,
+            name: "config-b.json",
+            workspaceURL: workspaceBURL,
+            model: "model-b"
+        )
         let systemInfoURL = rootDir.appendingPathComponent("system-info.json", isDirectory: false)
         try Data("{\"version\":1,\"cli_version\":\"1.0.0\"}\n".utf8).write(to: systemInfoURL)
 
@@ -289,6 +301,18 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
                 ;;
                 *)
                 cat "\(queueBURL.path)"
+                exit 0
+                ;;
+              esac
+              ;;
+              *"--no-color machine config resolve"*)
+              case "$PWD" in
+                */workspace-a)
+                cat "\(configAURL.path)"
+                exit 0
+                ;;
+                *)
+                cat "\(configBURL.path)"
                 exit 0
                 ;;
               esac

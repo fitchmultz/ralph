@@ -12,8 +12,11 @@
 //! - Commands run in coordinator repo context (CWD is repo root).
 //! - State file is at `.ralph/cache/parallel/state.json`.
 
-use crate::commands::run::parallel::state::{
-    ParallelStateFile, WorkerLifecycle, WorkerRecord, load_state, save_state, state_file_path,
+use crate::commands::run::parallel::{
+    BLOCKED_PUSH_MARKER_FILE, read_blocked_push_marker,
+    state::{
+        ParallelStateFile, WorkerLifecycle, WorkerRecord, load_state, save_state, state_file_path,
+    },
 };
 use crate::commands::run::queue_lock::{
     QueueLockCondition, QueueLockInspection, inspect_queue_lock,
@@ -40,6 +43,52 @@ struct ParallelLifecycleCounts {
 impl ParallelLifecycleCounts {
     fn has_active(self) -> bool {
         self.running > 0 || self.integrating > 0
+    }
+}
+
+#[derive(Debug, Default)]
+struct ParallelArtifactSummary {
+    retained_for_recovery: Vec<String>,
+    cleanup_drift: Vec<String>,
+}
+
+impl ParallelArtifactSummary {
+    fn has_retained_for_recovery(&self) -> bool {
+        !self.retained_for_recovery.is_empty()
+    }
+
+    fn has_cleanup_drift(&self) -> bool {
+        !self.cleanup_drift.is_empty()
+    }
+
+    fn retention_sentence(&self) -> Option<String> {
+        if !self.has_retained_for_recovery() {
+            return None;
+        }
+
+        Some(format!(
+            "Retained for recovery: {}.",
+            self.retained_for_recovery.join("; ")
+        ))
+    }
+
+    fn cleanup_drift_sentence(&self) -> Option<String> {
+        if !self.has_cleanup_drift() {
+            return None;
+        }
+
+        Some(format!("Cleanup drift: {}.", self.cleanup_drift.join("; ")))
+    }
+
+    fn append_to_detail(&self, base: impl Into<String>) -> String {
+        let mut parts = vec![base.into()];
+        if let Some(retention) = self.retention_sentence() {
+            parts.push(retention);
+        }
+        if let Some(drift) = self.cleanup_drift_sentence() {
+            parts.push(drift);
+        }
+        parts.join(" ")
     }
 }
 
@@ -127,8 +176,9 @@ fn build_parallel_status_guidance(
         ),
         Some(state) => {
             let counts = lifecycle_counts(state);
+            let artifacts = inspect_parallel_artifacts(state);
             if counts.has_active() {
-                let detail = format!(
+                let detail = artifacts.append_to_detail(format!(
                     "Parallel workers are active on target branch {}. running={}, integrating={}, completed={}, failed={}, blocked={}.",
                     state.target_branch,
                     counts.running,
@@ -136,7 +186,7 @@ fn build_parallel_status_guidance(
                     counts.completed,
                     counts.failed,
                     counts.blocked,
-                );
+                ));
                 (
                     None,
                     MachineContinuationSummary {
@@ -151,29 +201,30 @@ fn build_parallel_status_guidance(
                     },
                 )
             } else if counts.blocked > 0 {
+                let detail = artifacts.append_to_detail(format!(
+                    "{} blocked worker(s) are being skipped until you retry them. completed={}, failed={}.",
+                    counts.blocked, counts.completed, counts.failed,
+                ));
                 let blocking = BlockingState::operator_recovery(
                     BlockingStatus::Blocked,
                     "parallel",
                     "blocked_push",
                     None,
                     "Parallel execution is blocked on retained worker pushes.",
-                    format!(
-                        "{} blocked worker(s) are being skipped until you retry them. completed={}, failed={}.",
-                        counts.blocked, counts.completed, counts.failed,
-                    ),
+                    detail.clone(),
                     Some("ralph run parallel retry --task <TASK_ID>".to_string()),
                 );
                 (
                     Some(blocking.clone()),
                     MachineContinuationSummary {
                         headline: "Parallel execution is blocked on worker integration.".to_string(),
-                        detail: "No workers are actively progressing. Retry each blocked worker after resolving the underlying push, conflict, or CI issue.".to_string(),
+                        detail: artifacts.append_to_detail("No workers are actively progressing. Retry each blocked worker after resolving the underlying push, conflict, or CI issue."),
                         blocking: Some(blocking),
                         next_steps: vec![
                             step(
                                 "Inspect blocked workers",
                                 "ralph run parallel status --json",
-                                "Check the retained worker reasons and attempt counts.",
+                                "Check the retained worker reasons, workspace paths, and attempt counts.",
                             ),
                             step(
                                 "Retry one blocked worker",
@@ -189,29 +240,30 @@ fn build_parallel_status_guidance(
                     },
                 )
             } else if counts.failed > 0 {
+                let detail = artifacts.append_to_detail(format!(
+                    "{} worker(s) failed without active progress. completed={}. Inspect the failure reason before retrying.",
+                    counts.failed, counts.completed,
+                ));
                 let blocking = BlockingState::operator_recovery(
                     BlockingStatus::Stalled,
                     "parallel",
                     "worker_failed",
                     None,
                     "Parallel execution is stalled on worker failure.",
-                    format!(
-                        "{} worker(s) failed without active progress. completed={}. Inspect the failure reason before retrying.",
-                        counts.failed, counts.completed,
-                    ),
+                    detail.clone(),
                     Some("ralph run parallel retry --task <TASK_ID>".to_string()),
                 );
                 (
                     Some(blocking.clone()),
                     MachineContinuationSummary {
                         headline: "Parallel execution needs operator attention.".to_string(),
-                        detail: "No workers are currently running. Review the failed worker state, then retry the affected task when the underlying issue is fixed.".to_string(),
+                        detail: artifacts.append_to_detail("No workers are currently running. Review the failed worker state, then retry the affected task when the underlying issue is fixed."),
                         blocking: Some(blocking),
                         next_steps: vec![
                             step(
                                 "Inspect failed workers",
                                 "ralph run parallel status --json",
-                                "Review the stored failure reasons before retrying.",
+                                "Review the stored failure reasons and any unexpected retained artifacts before retrying.",
                             ),
                             step(
                                 "Retry one failed worker",
@@ -221,15 +273,38 @@ fn build_parallel_status_guidance(
                         ],
                     },
                 )
+            } else if artifacts.has_cleanup_drift() {
+                (
+                    None,
+                    MachineContinuationSummary {
+                        headline: "Parallel execution is idle with cleanup drift.".to_string(),
+                        detail: artifacts.append_to_detail(
+                            "No workers are active, blocked, or failed, but terminal-worker cleanup drift remains in the retained runtime artifacts.",
+                        ),
+                        blocking: None,
+                        next_steps: vec![
+                            step(
+                                "Inspect retained artifact paths",
+                                "ralph run parallel status --json",
+                                "Review which worker workspaces or bookkeeping files were left behind.",
+                            ),
+                            step(
+                                "Resume the coordinator after cleanup",
+                                "ralph run loop --parallel <N>",
+                                "Restart parallel execution once the retained artifacts match the reported worker state.",
+                            ),
+                        ],
+                    },
+                )
             } else {
                 (
                     None,
                     MachineContinuationSummary {
                         headline: "Parallel execution is idle.".to_string(),
-                        detail: format!(
+                        detail: artifacts.append_to_detail(format!(
                             "No workers are active, blocked, or failed. tracked workers: total={}, completed={}. Start another coordinator run if the queue still has pending work.",
                             counts.total, counts.completed,
-                        ),
+                        )),
                         blocking: None,
                         next_steps: vec![step(
                             "Resume the coordinator",
@@ -348,6 +423,87 @@ fn lifecycle_counts(state: &ParallelStateFile) -> ParallelLifecycleCounts {
     }
 }
 
+fn inspect_parallel_artifacts(state: &ParallelStateFile) -> ParallelArtifactSummary {
+    let mut summary = ParallelArtifactSummary::default();
+
+    for worker in &state.workers {
+        let workspace_exists = worker.workspace_path.exists();
+        let marker_path = worker.workspace_path.join(BLOCKED_PUSH_MARKER_FILE);
+        let marker_exists = marker_path.exists();
+        let marker = match read_blocked_push_marker(&worker.workspace_path) {
+            Ok(marker) => marker,
+            Err(err) => {
+                summary.cleanup_drift.push(format!(
+                    "{} has an unreadable blocked marker at {} ({err})",
+                    worker.task_id,
+                    marker_path.display(),
+                ));
+                None
+            }
+        };
+
+        match worker.lifecycle {
+            WorkerLifecycle::BlockedPush => {
+                if workspace_exists {
+                    let mut retained = format!(
+                        "{} keeps {}",
+                        worker.task_id,
+                        worker.workspace_path.display(),
+                    );
+                    if let Some(marker) = marker.as_ref() {
+                        retained.push_str(&format!(
+                            " with blocked marker {}/{}",
+                            marker.attempt, marker.max_attempts,
+                        ));
+                    } else if marker_exists {
+                        retained.push_str(" with unreadable blocked marker");
+                    } else {
+                        retained.push_str(" without a blocked marker file");
+                    }
+                    summary.retained_for_recovery.push(retained);
+                } else {
+                    summary.cleanup_drift.push(format!(
+                        "{} is blocked for retry but its workspace is missing ({})",
+                        worker.task_id,
+                        worker.workspace_path.display(),
+                    ));
+                }
+            }
+            WorkerLifecycle::Completed | WorkerLifecycle::Failed => {
+                if workspace_exists {
+                    summary.cleanup_drift.push(format!(
+                        "{} is {} but workspace cleanup left {} behind",
+                        worker.task_id,
+                        lifecycle_label(&worker.lifecycle),
+                        worker.workspace_path.display(),
+                    ));
+                }
+                if marker_exists {
+                    summary.cleanup_drift.push(format!(
+                        "{} is {} but blocked marker cleanup left {} behind",
+                        worker.task_id,
+                        lifecycle_label(&worker.lifecycle),
+                        marker_path.display(),
+                    ));
+                }
+            }
+            WorkerLifecycle::Running | WorkerLifecycle::Integrating => {}
+        }
+    }
+
+    summary
+}
+
+fn lifecycle_label(lifecycle: &WorkerLifecycle) -> &'static str {
+    match lifecycle {
+        WorkerLifecycle::Running => "running",
+        WorkerLifecycle::Integrating => "integrating",
+        WorkerLifecycle::Completed => "completed",
+        WorkerLifecycle::Failed => "failed",
+        WorkerLifecycle::BlockedPush => "blocked_push",
+    }
+}
+
 fn step(title: &str, command: &str, detail: &str) -> MachineContinuationAction {
     MachineContinuationAction {
         title: title.to_string(),
@@ -402,6 +558,7 @@ fn print_status_table(
                 println!("No workers tracked.");
             } else {
                 print_worker_groups(state);
+                print_artifact_summary(&inspect_parallel_artifacts(state));
             }
         }
     }
@@ -417,6 +574,28 @@ fn print_status_table(
                 next_step.detail
             );
         }
+    }
+}
+
+fn print_artifact_summary(summary: &ParallelArtifactSummary) {
+    if summary.retained_for_recovery.is_empty() && summary.cleanup_drift.is_empty() {
+        return;
+    }
+
+    if !summary.retained_for_recovery.is_empty() {
+        println!("Retained for Recovery:");
+        for line in &summary.retained_for_recovery {
+            println!("  {line}");
+        }
+        println!();
+    }
+
+    if !summary.cleanup_drift.is_empty() {
+        println!("Cleanup Drift:");
+        for line in &summary.cleanup_drift {
+            println!("  {line}");
+        }
+        println!();
     }
 }
 
@@ -565,5 +744,100 @@ pub fn parallel_retry(resolved: &crate::config::Resolved, task_id: &str) -> Resu
                 }
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use tempfile::TempDir;
+
+    fn blocked_marker_json(task_id: &str, attempt: u32, max_attempts: u32) -> String {
+        serde_json::json!({
+            "task_id": task_id,
+            "reason": "push rejected after conflict review",
+            "attempt": attempt,
+            "max_attempts": max_attempts,
+            "generated_at": "2026-03-22T00:00:00Z"
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn parallel_status_describes_retained_blocked_workspace() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join(".ralph/workspaces/RQ-1001");
+        std::fs::create_dir_all(workspace_path.join(".ralph/cache/parallel"))?;
+        std::fs::write(
+            workspace_path.join(BLOCKED_PUSH_MARKER_FILE),
+            blocked_marker_json("RQ-1001", 3, 5),
+        )?;
+
+        let mut state = ParallelStateFile::new("2026-03-21T12:00:00Z", "main");
+        let mut worker = WorkerRecord::new(
+            "RQ-1001",
+            workspace_path.clone(),
+            "2026-03-21T12:00:00Z".to_string(),
+        );
+        worker.mark_blocked(
+            "2026-03-21T12:05:00Z".to_string(),
+            "push rejected after conflict review",
+        );
+        worker.push_attempts = 3;
+        state.upsert_worker(worker);
+
+        let document = build_parallel_status_document(temp.path(), Some(&state))?;
+        assert_eq!(
+            document.blocking.as_ref().map(|state| state.status),
+            Some(BlockingStatus::Blocked)
+        );
+        assert!(
+            document
+                .continuation
+                .detail
+                .contains("Retained for recovery:")
+        );
+        assert!(
+            document
+                .continuation
+                .detail
+                .contains(&workspace_path.display().to_string())
+        );
+        assert!(document.continuation.detail.contains("blocked marker 3/5"));
+        Ok(())
+    }
+
+    #[test]
+    fn parallel_status_surfaces_cleanup_drift_without_active_workers() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join(".ralph/workspaces/RQ-2001");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        let mut state = ParallelStateFile::new("2026-03-21T12:00:00Z", "main");
+        let mut worker = WorkerRecord::new(
+            "RQ-2001",
+            workspace_path.clone(),
+            "2026-03-21T12:00:00Z".to_string(),
+        );
+        worker.mark_completed("2026-03-21T12:05:00Z".to_string());
+        state.upsert_worker(worker);
+
+        let document = build_parallel_status_document(temp.path(), Some(&state))?;
+        assert!(document.blocking.is_none());
+        assert!(document.continuation.headline.contains("cleanup drift"));
+        assert!(
+            document
+                .continuation
+                .detail
+                .contains("workspace cleanup left")
+        );
+        assert!(
+            document
+                .continuation
+                .detail
+                .contains(&workspace_path.display().to_string())
+        );
+        Ok(())
     }
 }

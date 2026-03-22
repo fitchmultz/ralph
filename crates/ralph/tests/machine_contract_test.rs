@@ -400,13 +400,27 @@ fn machine_parallel_status_surfaces_blocked_worker_operator_state() -> Result<()
     let state_dir = dir.path().join(".ralph/cache/parallel");
     std::fs::create_dir_all(&state_dir)?;
     let state_path = state_dir.join("state.json");
+    let workspace_path = dir.path().join(".ralph/workspaces/RQ-1001");
+    std::fs::create_dir_all(workspace_path.join(".ralph/cache/parallel"))?;
+    std::fs::write(
+        workspace_path.join(".ralph/cache/parallel/blocked_push.json"),
+        serde_json::json!({
+            "task_id": "RQ-1001",
+            "reason": "push rejected after conflict review",
+            "attempt": 3,
+            "max_attempts": 5,
+            "generated_at": "2026-03-21T12:05:00Z"
+        })
+        .to_string(),
+    )?;
+
     let state = serde_json::json!({
         "schema_version": 3,
         "started_at": "2026-03-21T12:00:00Z",
         "target_branch": "main",
         "workers": [{
             "task_id": "RQ-1001",
-            "workspace_path": dir.path().join(".ralph/workspaces/RQ-1001").display().to_string(),
+            "workspace_path": workspace_path.display().to_string(),
             "lifecycle": "blocked_push",
             "started_at": "2026-03-21T12:00:00Z",
             "completed_at": "2026-03-21T12:05:00Z",
@@ -429,6 +443,11 @@ fn machine_parallel_status_surfaces_blocked_worker_operator_state() -> Result<()
     assert_eq!(document["blocking"]["reason"]["scope"], "parallel");
     assert_eq!(document["blocking"]["reason"]["reason"], "blocked_push");
     assert_eq!(document["continuation"]["blocking"], document["blocking"]);
+    assert!(
+        document["continuation"]["detail"]
+            .as_str()
+            .is_some_and(|detail| detail.contains("Retained for recovery:"))
+    );
     assert_eq!(
         document["continuation"]["next_steps"][1]["command"],
         "ralph run parallel retry --task <TASK_ID>"

@@ -9,25 +9,26 @@ This is the canonical near-term roadmap for active follow-up work.
 ### 1. Finish the remaining parallel operator-state gaps through shared runtime surfaces
 
 Why first:
-- The serial run/resume/recovery path is aligned enough for now; the biggest remaining operator confusion is in retained parallel state and integration outcomes.
-- The remaining parallel gaps are retained workspaces/bookkeeping and post-run integration summaries.
+- The serial run/resume/recovery path is aligned enough for now; the biggest remaining operator confusion is in post-run parallel integration outcomes and app-side status parity.
+- The remaining parallel gaps are post-run integration summaries and app consumption of the shared parallel status model.
 - These fixes should stay on shared operator-state builders and continuation documents instead of creating more parallel-only wording paths.
 
 Primary outcome:
-- Parallel runs should explain what was retained, what completed, what failed, and what the operator should do next without source diving.
+- Parallel runs should explain integration outcomes and next steps from one shared operator-state model across CLI, machine, and app surfaces.
 
 Detailed execution plan:
 
-#### 1.1 Expose retained workspace and bookkeeping state explicitly
-- Show when a worker workspace or bookkeeping artifact was intentionally retained.
-- Distinguish retained-for-inspection from failed-to-clean-up states.
-
-#### 1.2 Clarify post-run integration outcomes
-- Make merge/rebase/push/integration outcomes read like operator summaries, not internal plumbing.
+#### 1.1 Clarify post-run integration outcomes
+- Turn merge/rebase/push/integration results into operator summaries instead of internal plumbing.
 - Keep success, retryable failure, and operator-action-required cases structurally distinct.
 
+#### 1.2 Project shared parallel status into app surfaces
+- Feed the app from `MachineParallelStatusDocument` and shared continuation state instead of parallel-only app wording.
+- Keep CLI, machine, and app status/recovery narration aligned from the same source.
+
 Exit criteria for item 1:
-- Parallel mode narrates retained-workspace and integration outcomes clearly across CLI, machine, and app surfaces.
+- Parallel mode narrates integration outcomes consistently across CLI, machine, and app surfaces.
+- The app consumes the same shared parallel-status model already used by CLI and machine output.
 - New wording paths are shared-first, not parallel-only forks.
 
 ### 2. Capture real local timing baselines, then tune the ship gate only if the data justifies it
@@ -35,7 +36,7 @@ Exit criteria for item 1:
 Why second:
 - The profiling workflow is already documented; the missing step is collecting fresh baseline artifacts and using them to make decisions.
 - Gate tuning without current measurements would create churn without confidence.
-- Timing work is safer after the ship-gate defaults noise is gone.
+- Timing work is safer after the remaining shared parallel-status work stops moving operator-facing surfaces.
 
 Primary outcome:
 - Ship-gate tuning discussions should point to current local artifacts, not anecdotes.
@@ -61,6 +62,7 @@ Exit criteria for item 2:
 
 - Keep completed roadmap items out of this file; replace them with the next active work only.
 - Prefer low-churn shared-runtime fixes before broader prompt, doc, or suite churn.
+- Finish shared Rust/machine operator-state builders before app-only presentation follow-ups on the same path.
 - Prefer operator-state clarity over maintenance-only cleanup when both are plausible next steps.
 - Preserve the hardened runtime split boundaries (`runutil/execution`, `runutil/retry`, `runutil/shell`, queue prune, fsutil, eta_calculator, undo, and contracts/task) while refactoring adjacent modules.
 - Do not reopen completed serial recovery alignment, queue-lock recovery alignment, macOS test-defaults isolation, macOS Settings/workspace-routing cutovers, or git/init/app split work unless a new regression appears.
