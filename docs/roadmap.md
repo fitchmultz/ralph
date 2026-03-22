@@ -18,18 +18,54 @@ Primary outcome:
 
 Detailed execution plan:
 
-#### 1.1 Tighten parallel only after serial recovery is boring
-- Do not spend major churn on `run parallel` UX until serial run/resume/supervision behavior is calm and legible.
-- When parallel work resumes, focus on the remaining gaps in this order: stale lock handling, retained-workspace/bookkeeping visibility, then post-run integration clarity.
+#### 1.1 Close the remaining parallel operator gaps with the lowest-churn shared paths first
+- Serial run/resume/recovery wording is aligned enough for now; only reopen it for regressions or shared-runtime cutovers.
+- Focus the remaining parallel gaps in this order: stale lock handling, retained-workspace/bookkeeping visibility, then post-run integration clarity.
 - Prefer shared operator-state builders and continuation documents over new parallel-only wording paths.
 
 Exit criteria for item 1:
 - Operators can explain what Ralph is doing now and why, without reading source code.
 - Session, waiting, and escalation messages are aligned across CLI and app surfaces.
 
-### 2. Keep maintenance and structural hygiene active, but only when it helps the operator-facing roadmap move faster
+### 2. Add durable local timing visibility, then use it to tune the headless ship gate with evidence
 
 Why second:
+- Operator-facing improvements are easier to sustain when local validation speed regressions are visible instead of discovered by feel.
+- Durable measurement keeps macOS gate tuning grounded in evidence instead of vibes.
+- `macos-ci` is still expensive enough that any relaxation of serialization or job caps should be justified with data and protected by contract coverage.
+
+Primary outcome:
+- Validation performance should be observable locally, reproducible, and trendable before any CI-gate simplification decisions are made.
+
+Detailed execution plan:
+
+#### 2.1 Provide one clear local profiling entrypoint
+- Add or document an opt-in command that writes machine-readable timing artifacts under `target/profiling/`.
+- Keep the entrypoint headless and local-first.
+
+#### 2.2 Measure the gates that actually influence iteration speed
+- Capture timings for:
+  - `make agent-ci`
+  - targeted nextest suites for run/resume/supervision/undo/operator flows
+  - doctests
+  - `macos-build`
+  - `macos-test`
+  - `macos-test-contracts`.
+
+#### 2.3 Separate Rust and Xcode timing stories
+- Measure Xcode targets separately from Rust/CLI targets.
+- Compare capped vs uncapped `RALPH_XCODE_JOBS` before changing defaults.
+
+#### 2.4 Use evidence before changing serialization or job caps
+- Do not relax xcodebuild serialization or default concurrency until profiling plus contract coverage show the tradeoff is safe.
+
+Exit criteria for item 2:
+- Timing artifacts exist and are easy to compare locally.
+- Gate-tuning discussions can reference data instead of anecdote.
+
+### 3. Keep maintenance and structural hygiene active, but only when it helps the operator-facing roadmap move faster
+
+Why third:
 - Cleanup matters when it makes the run/recover/supervise surfaces safer to change, easier to validate, and easier to explain.
 - Ralph already has the baseline architecture it needs; additional hygiene work should now be selective, evidence-driven, and tied to product-facing iteration speed.
 - A small maintenance lane keeps test and fixture debt from slowing the UX work above without letting maintenance become the default priority again.
@@ -39,61 +75,21 @@ Primary outcome:
 
 Detailed execution plan:
 
-#### 2.1 Split only where it improves failure locality or iteration speed
+#### 3.1 Split only where it improves failure locality or iteration speed
 - Prioritize large suites and fixtures that slow operator-critical work.
 - Keep `task_template_commands_test.rs` as the main known candidate, not an automatic next task.
 
-#### 2.2 Keep profiling evidence-driven
-- Re-profile before and after focused test work.
-- Use target-specific nextest artifacts under `target/profiling/` instead of intuition-driven speed work.
-
-#### 2.3 Keep environment isolation narrow and intentional
+#### 3.2 Keep environment isolation narrow and intentional
 - Serialize tests that mutate shared PATH or process-global env.
 - Avoid over-serializing tests that already use explicit runner overrides or isolated temp roots.
 
-#### 2.4 Preserve real contract coverage on core operator paths
+#### 3.3 Preserve real contract coverage on core operator paths
 - Keep real `ralph init`, queue/undo/recovery, and supervision coverage where behavior correctness matters.
 - Use cached or synthetic scaffolding only when the contract under test is not runtime fidelity.
 
-Exit criteria for item 2:
+Exit criteria for item 3:
 - Structural cleanup measurably reduces iteration pain on active roadmap paths.
 - Maintenance work stays in service of product-facing clarity and reliability.
-
-### 3. Add durable local timing visibility, then use it to tune the headless ship gate with evidence
-
-Why third:
-- Operator-facing improvements are easier to sustain when local validation speed regressions are visible instead of discovered by feel.
-- Durable measurement keeps maintenance work and macOS gate tuning grounded in evidence instead of vibes.
-- `macos-ci` is still expensive enough that any relaxation of serialization or job caps should be justified with data and protected by contract coverage.
-
-Primary outcome:
-- Validation performance should be observable locally, reproducible, and trendable before any CI-gate simplification decisions are made.
-
-Detailed execution plan:
-
-#### 3.1 Provide one clear local profiling entrypoint
-- Add or document an opt-in command that writes machine-readable timing artifacts under `target/profiling/`.
-- Keep the entrypoint headless and local-first.
-
-#### 3.2 Measure the gates that actually influence iteration speed
-- Capture timings for:
-  - `make agent-ci`
-  - targeted nextest suites for run/resume/supervision/undo/operator flows
-  - doctests
-  - `macos-build`
-  - `macos-test`
-  - `macos-test-contracts`.
-
-#### 3.3 Separate Rust and Xcode timing stories
-- Measure Xcode targets separately from Rust/CLI targets.
-- Compare capped vs uncapped `RALPH_XCODE_JOBS` before changing defaults.
-
-#### 3.4 Use evidence before changing serialization or job caps
-- Do not relax xcodebuild serialization or default concurrency until profiling plus contract coverage show the tradeoff is safe.
-
-Exit criteria for item 3:
-- Timing artifacts exist and are easy to compare locally.
-- Gate-tuning discussions can reference data instead of anecdote.
 
 ## Sequencing rules
 

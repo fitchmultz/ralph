@@ -41,7 +41,7 @@ pub(crate) use supervision::{CiFailure, post_run_supervise};
 pub(crate) use phases::PhaseType;
 
 pub use crate::agent::AgentOverrides;
-use crate::contracts::BlockingState;
+use crate::contracts::{BlockingReason, BlockingState};
 use crate::progress::ExecutionPhase;
 use std::sync::Arc;
 
@@ -105,11 +105,19 @@ pub(crate) fn emit_resume_decision(
     }
 }
 
+pub(crate) fn should_echo_blocked_state_without_handler(state: &BlockingState) -> bool {
+    !matches!(state.reason, BlockingReason::RunnerRecovery { .. })
+}
+
 pub(crate) fn emit_blocked_state_changed(state: &BlockingState, handler: Option<&RunEventHandler>) {
     if let Some(handler) = handler {
         handler(RunEvent::BlockedStateChanged {
             state: state.clone(),
         });
+        return;
+    }
+
+    if !should_echo_blocked_state_without_handler(state) {
         return;
     }
 

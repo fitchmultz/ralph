@@ -225,6 +225,15 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             workspace.runState.resumeState?.message,
             "Resume: refusing to continue timed-out session RQ-9000 without explicit confirmation."
         )
+        XCTAssertEqual(workspace.runState.blockingState?.status, .stalled)
+        XCTAssertEqual(
+            workspace.runState.blockingState?.reason,
+            .runnerRecovery(
+                scope: "run_session",
+                reason: "session_timed_out_requires_confirmation",
+                taskID: "RQ-9000"
+            )
+        )
     }
 
     func test_loadTasks_appliesPreflightBlockingStateAndClearsNextTask() async throws {
@@ -321,6 +330,36 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         XCTAssertEqual(workspace.runState.resumeState?.status, .resumingSameSession)
         XCTAssertEqual(workspace.runState.resumeState?.taskID, "RQ-7777")
         XCTAssertTrue(workspace.output.contains("Resume: continuing the interrupted session for task RQ-7777."))
+    }
+
+    func test_runNextTask_deduplicatesRunnerRecoveryConsoleNarration() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "runner-recovery-event")
+        )
+        var decoder = WorkspaceRunnerController.MachineRunOutputDecoder()
+        let items = decoder.append(
+            "{\"version\":3,\"kind\":\"resume_decision\",\"task_id\":\"RQ-7777\",\"phase\":null,\"message\":\"Resume: refusing to continue timed-out session RQ-7777 without explicit confirmation.\",\"payload\":{\"status\":\"refusing_to_resume\",\"scope\":\"run_session\",\"reason\":\"session_timed_out_requires_confirmation\",\"task_id\":\"RQ-7777\",\"message\":\"Resume: refusing to continue timed-out session RQ-7777 without explicit confirmation.\",\"detail\":\"The saved session is 25 hour(s) old, exceeding the configured 24-hour safety threshold.\"}}\n"
+                + "{\"version\":3,\"kind\":\"blocked_state_changed\",\"task_id\":\"RQ-7777\",\"phase\":null,\"message\":\"Resume: refusing to continue timed-out session RQ-7777 without explicit confirmation.\",\"payload\":{\"status\":\"stalled\",\"reason\":{\"kind\":\"runner_recovery\",\"scope\":\"run_session\",\"reason\":\"session_timed_out_requires_confirmation\",\"task_id\":\"RQ-7777\"},\"task_id\":\"RQ-7777\",\"message\":\"Resume: refusing to continue timed-out session RQ-7777 without explicit confirmation.\",\"detail\":\"The saved session is 25 hour(s) old, exceeding the configured 24-hour safety threshold.\"}}\n"
+        )
+
+        for item in items {
+            workspace.runnerController.applyMachineRunOutputItem(item, workspace: workspace)
+        }
+
+        XCTAssertEqual(workspace.runState.blockingState?.status, .stalled)
+        XCTAssertEqual(
+            workspace.runState.blockingState?.reason,
+            .runnerRecovery(
+                scope: "run_session",
+                reason: "session_timed_out_requires_confirmation",
+                taskID: "RQ-7777"
+            )
+        )
+        XCTAssertEqual(
+            workspace.output.components(separatedBy: "Resume: refusing to continue timed-out session RQ-7777 without explicit confirmation.").count,
+            2,
+            "message should appear exactly once in console output"
+        )
     }
 
     func test_runNextTask_appliesBlockingStateEvent() {

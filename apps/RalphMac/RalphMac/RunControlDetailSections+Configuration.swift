@@ -49,10 +49,24 @@ struct RunControlRunnerConfigurationSection: View {
 struct RunControlExecutionControlsSection: View {
     @ObservedObject var workspace: Workspace
 
+    private var displayBlockingState: Workspace.BlockingState? {
+        guard let blockingState = workspace.runState.blockingState else {
+            return nil
+        }
+        guard case let .runnerRecovery(scope, reason, taskID) = blockingState.reason,
+              let resumeState = workspace.runState.resumeState,
+              resumeState.scope == scope,
+              resumeState.reason == reason,
+              resumeState.taskID == taskID else {
+            return blockingState
+        }
+        return nil
+    }
+
     var body: some View {
         RunControlGlassSection("Controls") {
             VStack(spacing: 12) {
-                if let blockingState = workspace.runState.blockingState {
+                if let blockingState = displayBlockingState {
                     blockingStateView(blockingState)
                 }
 

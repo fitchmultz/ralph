@@ -44,6 +44,22 @@ final class WorkspaceRunnerController {
         runTask?.cancel()
     }
 
+    func applyResumeProjection(_ decision: MachineResumeDecision?, workspace: Workspace) {
+        workspace.runState.resumeState = decision?.asWorkspaceResumeState()
+        workspace.runState.setBlockingState(decision?.asWorkspaceBlockingState())
+    }
+
+    func applyConfigResolveDocument(_ document: MachineConfigResolveDocument, workspace: Workspace) {
+        workspace.updateResolvedPaths(document.paths)
+        applyResumeProjection(document.resumePreview, workspace: workspace)
+    }
+
+    func clearRunnerConfigState(_ runState: WorkspaceRunState) {
+        runState.currentRunnerConfig = nil
+        runState.resumeState = nil
+        runState.setBlockingState(nil)
+    }
+
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
         guard let workspace, !workspace.isShutDown else { return }
         await workspace.performRepositoryLoad(
@@ -53,9 +69,8 @@ final class WorkspaceRunnerController {
             clearFailure: { [runState = workspace.runState] in
                 runState.runnerConfigErrorMessage = nil
             },
-            handleMissingClient: { [runState = workspace.runState] in
-                runState.currentRunnerConfig = nil
-                runState.resumeState = nil
+            handleMissingClient: { [self, runState = workspace.runState] in
+                clearRunnerConfigState(runState)
                 runState.runnerConfigErrorMessage = "CLI client not available."
             },
             load: { client, workingDirectoryURL, retryConfiguration, onRetry in
@@ -70,8 +85,8 @@ final class WorkspaceRunnerController {
                 try Self.validateMachineConfigResolveVersion(document.version)
                 return document
             },
-            apply: { [workspace, runState = workspace.runState] decoded in
-                workspace.updateResolvedPaths(decoded.paths)
+            apply: { [self, workspace, runState = workspace.runState] decoded in
+                applyConfigResolveDocument(decoded, workspace: workspace)
                 let safety = decoded.safety
                 runState.currentRunnerConfig = Workspace.RunnerConfig(
                     model: decoded.config.agent?.model,
@@ -89,12 +104,10 @@ final class WorkspaceRunnerController {
                         interactiveApprovalSupported: safety.interactiveApprovalSupported
                     )
                 )
-                runState.resumeState = decoded.resumePreview?.asWorkspaceResumeState()
                 runState.runnerConfigErrorMessage = nil
             },
-            handleFailure: { [runState = workspace.runState] recoveryError in
-                runState.currentRunnerConfig = nil
-                runState.resumeState = nil
+            handleFailure: { [self, runState = workspace.runState] recoveryError in
+                clearRunnerConfigState(runState)
                 runState.runnerConfigErrorMessage = "Failed to load resolved runner configuration."
                 RalphLogger.shared.error(
                     "Failed to load runner configuration: \(recoveryError.fullErrorDetails)",

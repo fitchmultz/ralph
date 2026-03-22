@@ -1,8 +1,11 @@
 //! Auto-resume session tests for run command.
 
 use super::task_with_id_and_status;
-use crate::commands::run::run_session::{ResumeTaskValidation, validate_resumed_task};
-use crate::contracts::{QueueFile, TaskStatus};
+use crate::commands::run::{
+    run_session::{ResumeTaskValidation, validate_resumed_task},
+    should_echo_blocked_state_without_handler,
+};
+use crate::contracts::{BlockingState, QueueFile, TaskStatus};
 use crate::session;
 
 #[test]
@@ -214,7 +217,24 @@ fn invalid_phases_produces_user_facing_error() {
     );
 }
 
-/// Test edge cases for invalid phases values.
+/// Test that runner-recovery blockers do not reprint the same resume narration.
+#[test]
+fn runner_recovery_blocking_state_does_not_duplicate_default_stderr_output() {
+    let runner_recovery = BlockingState::runner_recovery(
+        "run_session",
+        "resume_confirmation_required",
+        Some("RQ-0001".to_string()),
+        "Resume: refusing to guess because task RQ-0001 has an interrupted session and confirmation is unavailable.",
+        "Re-run interactively to choose resume vs fresh, or pass --resume to continue automatically when safe.",
+    );
+    let dependency_blocked = BlockingState::dependency_blocked(2);
+
+    assert!(!should_echo_blocked_state_without_handler(&runner_recovery));
+    assert!(should_echo_blocked_state_without_handler(
+        &dependency_blocked
+    ));
+}
+
 #[test]
 fn invalid_phases_edge_cases() {
     for invalid_phase in [0u8, 4u8, 255u8] {

@@ -29,8 +29,7 @@ extension WorkspaceRunnerController {
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
                 workspace.runState.setBlockingState(nil)
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
-                    workspace.updateResolvedPaths(document.paths)
-                    workspace.runState.resumeState = document.resumePreview?.asWorkspaceResumeState()
+                    applyConfigResolveDocument(document, workspace: workspace)
                 }
             case .taskSelected:
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
@@ -44,7 +43,7 @@ extension WorkspaceRunnerController {
                 }
             case .resumeDecision:
                 if let decision = decodeResumeDecision(from: event.payload) {
-                    workspace.runState.resumeState = decision.asWorkspaceResumeState()
+                    applyResumeProjection(decision, workspace: workspace)
                     appendResumeDecision(decision, workspace: workspace)
                 } else if let message = event.message, !message.isEmpty {
                     appendConsoleText("\(message)\n", workspace: workspace)
@@ -56,7 +55,9 @@ extension WorkspaceRunnerController {
             case .blockedStateChanged:
                 if let state = decodeBlockingState(from: event.payload) {
                     workspace.runState.setBlockingState(state.asWorkspaceBlockingState())
-                    appendBlockingState(state, workspace: workspace)
+                    if !state.isRunnerRecovery {
+                        appendBlockingState(state, workspace: workspace)
+                    }
                 } else if let message = event.message, !message.isEmpty {
                     appendConsoleText("\(message)\n", workspace: workspace)
                 }
@@ -68,8 +69,7 @@ extension WorkspaceRunnerController {
                 }
             case .configResolved:
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
-                    workspace.updateResolvedPaths(document.paths)
-                    workspace.runState.resumeState = document.resumePreview?.asWorkspaceResumeState()
+                    applyConfigResolveDocument(document, workspace: workspace)
                 }
             case .warning:
                 if let message = event.message, !message.isEmpty {
@@ -178,6 +178,10 @@ extension WorkspaceRunnerController {
             case taskID = "task_id"
             case message
             case detail
+        }
+
+        var isRunnerRecovery: Bool {
+            reason.kind == "runner_recovery"
         }
 
         func asWorkspaceBlockingState() -> Workspace.BlockingState {

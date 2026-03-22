@@ -159,6 +159,24 @@ public struct MachineResumeDecision: Codable, Sendable, Equatable {
             detail: detail
         )
     }
+
+    public func asWorkspaceBlockingState() -> Workspace.BlockingState? {
+        switch reason {
+        case "runner_session_invalid",
+            "missing_runner_session_id",
+            "resume_confirmation_required",
+            "session_timed_out_requires_confirmation":
+            return Workspace.BlockingState(
+                status: .stalled,
+                reason: .runnerRecovery(scope: scope, reason: reason, taskID: taskID),
+                taskID: taskID,
+                message: message,
+                detail: detail
+            )
+        default:
+            return nil
+        }
+    }
 }
 
 public struct MachineConfigResolveDocument: Codable, Sendable, Equatable {
