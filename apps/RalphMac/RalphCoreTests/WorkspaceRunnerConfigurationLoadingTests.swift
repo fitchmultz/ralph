@@ -43,7 +43,10 @@ final class WorkspaceRunnerConfigurationLoadingTests: WorkspacePerformanceTestCa
             """
         let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: fixture.rootURL, body: script)
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
@@ -90,7 +93,10 @@ final class WorkspaceRunnerConfigurationLoadingTests: WorkspacePerformanceTestCa
             """
         let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: fixture.rootURL, name: "mock-ralph-safety", body: script)
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
@@ -136,7 +142,10 @@ final class WorkspaceRunnerConfigurationLoadingTests: WorkspacePerformanceTestCa
             body: successScript
         )
         let successClient = try RalphCLIClient(executableURL: successScriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: successClient)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: successClient
+        )
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
         XCTAssertEqual(workspace.runState.currentRunnerConfig?.model, "kimi-initial")

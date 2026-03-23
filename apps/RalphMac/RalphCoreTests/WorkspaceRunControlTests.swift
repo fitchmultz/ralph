@@ -86,8 +86,11 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         workspace.runNextTask()
 
@@ -155,8 +158,11 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         workspace.runNextTask(taskIDOverride: "RQ-5555", forceDirtyRepo: true)
 
@@ -215,7 +221,10 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
@@ -295,7 +304,10 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
 
         await workspace.loadTasks(retryConfiguration: .minimal)
 
@@ -458,8 +470,11 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         workspace.run(arguments: ["60"])
 
@@ -578,8 +593,11 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
             body: script
         )
         let client = try RalphCLIClient(executableURL: scriptURL)
-        workspace = Workspace(workingDirectoryURL: fixture.workspaceURL, client: client)
-                await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         let startedAt = Date()
         workspace.startLoop()
@@ -600,6 +618,71 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         XCTAssertTrue(workspace.output.contains("running second"))
         XCTAssertEqual(workspace.lastExitStatus?.code, 64)
         XCTAssertFalse(workspace.isLoopMode)
+    }
+
+    func test_loadParallelStatus_decodesSharedContinuationDocument() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(prefix: "ralph-workspace-parallel-status")
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let parallelStatusURL = fixture.rootURL.appendingPathComponent("parallel-status.json", isDirectory: false)
+        try """
+            {"version":2,"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Parallel workers are active on target branch main.","blocking":null,"next_steps":[{"title":"Inspect worker snapshot","command":"ralph run parallel status --json","detail":"Review lifecycle counts and retained worker details."}]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-7001","workspace_path":"\(fixture.workspaceURL.appendingPathComponent(".ralph/workspaces/RQ-7001", isDirectory: true).path)","lifecycle":"running","started_at":"2026-03-22T00:00:00Z","push_attempts":1}]}}
+            """.write(to: parallelStatusURL, atomically: true, encoding: .utf8)
+
+        let script = """
+            #!/bin/sh
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "run" ] && [ "$4" = "parallel-status" ]; then
+              cat "\(parallelStatusURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+
+        await workspace.loadParallelStatus(retryConfiguration: .minimal)
+
+        XCTAssertEqual(workspace.runState.parallelStatus?.headline, "Parallel execution is in progress.")
+        XCTAssertEqual(workspace.runState.parallelStatus?.snapshot.targetBranch, "main")
+        XCTAssertEqual(workspace.runState.parallelStatus?.snapshot.lifecycleCounts.running, 1)
+        XCTAssertEqual(workspace.runState.parallelStatus?.nextSteps.first?.command, "ralph run parallel status --json")
+    }
+
+    func test_beginRepositoryRetarget_clearsParallelStatusState() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "parallel-status-retarget")
+        )
+        workspace.runState.parallelStatus = Workspace.ParallelStatus(
+            headline: "Parallel execution is stalled on queue lock recovery.",
+            detail: "Unlock the queue before continuing.",
+            blocking: nil,
+            nextSteps: [],
+            snapshot: ParallelStatusSnapshot(
+                schemaVersion: 3,
+                targetBranch: "main",
+                workers: []
+            )
+        )
+        workspace.runState.parallelStatusLoading = true
+        workspace.runState.parallelStatusErrorMessage = "should clear"
+
+        _ = workspace.beginRepositoryRetarget(
+            to: RalphCoreTestSupport.workspaceURL(label: "parallel-status-retarget-next")
+        )
+
+        XCTAssertNil(workspace.runState.parallelStatus)
+        XCTAssertFalse(workspace.runState.parallelStatusLoading)
+        XCTAssertNil(workspace.runState.parallelStatusErrorMessage)
     }
 
     func test_updateWatcherHealth_surfacesOperationalIssue() {

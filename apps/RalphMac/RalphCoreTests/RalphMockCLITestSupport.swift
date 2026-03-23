@@ -4,6 +4,7 @@
  Responsibilities:
  - Centralize mock Ralph CLI script creation for RalphCore tests.
  - Generate machine-readable config, queue, graph, and CLI-spec fixtures with workspace-resolved paths.
+ - Build test workspaces that opt into mock clients without triggering unrelated repository refreshes.
  - Keep test payloads aligned with RalphCore Codable contracts so path and JSON shape drift is caught in one place.
 
  Does not handle:
@@ -120,6 +121,16 @@ enum RalphMockCLITestSupport {
             exit 64
             """
         return try makeExecutableScript(in: directory, name: name, body: script)
+    }
+
+    @MainActor
+    static func makeWorkspaceWithoutInitialRefresh(
+        workingDirectoryURL: URL,
+        client: RalphCLIClient
+    ) -> Workspace {
+        let workspace = Workspace(workingDirectoryURL: workingDirectoryURL)
+        workspace.client = client
+        return workspace
     }
 
     static func resolvedPaths(for workspaceURL: URL) -> MachineQueuePaths {
