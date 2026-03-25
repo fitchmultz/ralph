@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Shared machine-contract coverage for queue, run, doctor, and task recovery flows, plus the generated `machine.schema.json`, so app and automation clients can integrate against one versioned JSON surface.
+- Explicit operator blocking/resume-state modeling across CLI, machine output, and RalphMac so stalled, waiting, and recovery states are narrated consistently.
+- Durable watch-task identity metadata, atomic task mutation JSON flows, and safer queue repair/undo paths for structured recovery work.
+
 ### Changed
 
+- **Breaking (`0.3`)**: Ralph now requires the `0.3` config contract: config files must use `"version": 2`, `agent.git_publish_mode`, and the reserved built-in profiles `safe` / `power-user`; legacy `git_commit_push_enabled`, `quick`, and `thorough` flows are no longer the active contract. Run `ralph migrate --apply` after upgrading older repos.
+- Config, queue, and done workflows now center on the JSONC/runtime-cutover model, with clearer validation/migration messaging and no legacy JSON fallback guidance.
 - `make release-verify` now prepares and records a publish-ready local snapshot under `target/release-verifications/`, and `make release` publishes only if that exact snapshot still matches `HEAD`, release metadata, release notes, and artifacts.
+- Public-readiness scans, release artifact packaging, and CLI/app bundling now run through one hardened local release pipeline.
+- RalphMac queue refresh, window routing, settings smoke coverage, and run-control status handling were tightened so the shipped app behavior stays aligned with the CLI/machine contract.
+
+### Security
+
+- Repo-local CI gates, runner overrides, and project plugins are now trust-gated through local `.ralph/trust.jsonc`, and CI gate shell-string launchers are rejected.
 
 ## [0.2.2] - 2026-03-08
 
