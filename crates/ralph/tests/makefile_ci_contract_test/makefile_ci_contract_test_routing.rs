@@ -14,10 +14,46 @@
 //! - macOS target assertions treat lock orchestration as part of the public contract.
 
 use anyhow::{Context, Result};
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use super::makefile_ci_contract_test_support::{
-    extract_target_block, extract_target_dependencies, read_repo_makefile,
+    extract_target_block, extract_target_dependencies, read_repo_makefile, repo_root,
 };
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn run_bash_script(script: &str) -> Result<()> {
+    let output = Command::new("bash")
+        .arg("-lc")
+        .arg(script)
+        .output()
+        .context("run bash script")?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    anyhow::bail!(
+        "bash script failed with status {}\nstdout:\n{}\nstderr:\n{}",
+        output
+            .status
+            .code()
+            .map_or_else(|| "signal".to_string(), |code| code.to_string()),
+        stdout,
+        stderr
+    )
+}
+
+fn xcode_lock_helper_script() -> Result<String> {
+    let helper_path = repo_root()?.join("scripts/lib/xcodebuild-lock.sh");
+    Ok(shell_quote(&helper_path.display().to_string()))
+}
 
 #[test]
 fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<()> {
@@ -68,9 +104,16 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         makefile.contains("XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock"),
         "Makefile should define a dedicated Xcode build lock path"
     );
+    let xcode_lock_helper =
+        std::fs::read_to_string(repo_root()?.join("scripts/lib/xcodebuild-lock.sh"))
+            .context("read shared Xcode build lock helper")?;
     assert!(
-        makefile.contains("Waiting for Xcode build lock"),
-        "macOS Xcode targets should serialize concurrent xcodebuild invocations"
+        xcode_lock_helper.contains("Waiting for Xcode build lock"),
+        "macOS Xcode targets should report lock contention"
+    );
+    assert!(
+        xcode_lock_helper.contains("Removing stale Xcode build lock"),
+        "macOS Xcode targets should recover stale project-owned build locks"
     );
 
     for target in [
@@ -84,21 +127,34 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
             .with_context(|| format!("extract {target} block"))?;
         assert!(
             block.contains("lock_dir=\"$(XCODE_BUILD_LOCK_DIR)\""),
-            "{target} should acquire the shared Xcode build lock"
+            "{target} should configure the shared Xcode build lock path"
         );
         assert!(
-            block.contains("while ! mkdir \"$$lock_dir\""),
-            "{target} should wait for exclusive Xcode build access"
+            block.contains("source scripts/lib/xcodebuild-lock.sh"),
+            "{target} should source the shared Xcode build lock helper"
         );
         assert!(
-            block.contains("wait_notified=0"),
-            "{target} should initialize one-time lock wait logging state"
+            block.contains("ralph_acquire_xcode_build_lock"),
+            "{target} should acquire the shared Xcode build lock through the helper"
         );
         assert!(
-            block.contains("if [ \"$$wait_notified\" = \"0\" ]; then"),
-            "{target} should avoid repeating the lock wait message every poll cycle"
+            block.contains("ralph_release_xcode_build_lock"),
+            "{target} should release the shared Xcode build lock through the helper"
         );
     }
+
+    let macos_test_block =
+        extract_target_block(&makefile, "macos-test").context("extract macos-test block")?;
+    let ui_delegate_index = macos_test_block
+        .find("if [ \"$$include_ui_tests\" = \"1\" ]")
+        .context("locate macos-test UI delegation branch")?;
+    let helper_index = macos_test_block
+        .find("source scripts/lib/xcodebuild-lock.sh")
+        .context("locate macos-test lock helper")?;
+    assert!(
+        ui_delegate_index < helper_index,
+        "macos-test should delegate interactive UI coverage before acquiring the shared Xcode build lock"
+    );
 
     for target in ["macos-ui-retest", "macos-test-window-shortcuts"] {
         let block = extract_target_block(&makefile, target)
@@ -137,6 +193,111 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
     );
 
     Ok(())
+}
+
+#[test]
+fn test_xcode_lock_helper_recovers_ownerless_and_dead_owner_locks() -> Result<()> {
+    let temp_dir = tempfile::tempdir().context("create temp dir")?;
+    let ownerless_lock_dir = temp_dir.path().join("target/tmp/locks/ownerless.lock");
+    let dead_owner_lock_dir = temp_dir.path().join("target/tmp/locks/dead-owner.lock");
+    let helper_script = xcode_lock_helper_script()?;
+
+    let script = format!(
+        r#"set -euo pipefail
+source {helper_script}
+
+ownerless_lock_dir={ownerless_lock_dir}
+mkdir -p "$ownerless_lock_dir"
+touch -t 202001010000 "$ownerless_lock_dir"
+ralph_acquire_xcode_build_lock "$ownerless_lock_dir" "ownerless-stale"
+grep -q '^label: ownerless-stale$' "$(ralph_xcode_build_lock_owner_file "$ownerless_lock_dir")"
+ralph_release_xcode_build_lock "$ownerless_lock_dir"
+[ ! -d "$ownerless_lock_dir" ]
+
+dead_owner_lock_dir={dead_owner_lock_dir}
+mkdir -p "$dead_owner_lock_dir"
+cat >"$(ralph_xcode_build_lock_owner_file "$dead_owner_lock_dir")" <<'EOF'
+pid: 999999
+started_at: 2026-03-28T00:00:00Z
+command: make macos-build
+label: stale-build
+EOF
+ralph_acquire_xcode_build_lock "$dead_owner_lock_dir" "dead-owner-stale"
+grep -q '^label: dead-owner-stale$' "$(ralph_xcode_build_lock_owner_file "$dead_owner_lock_dir")"
+ralph_release_xcode_build_lock "$dead_owner_lock_dir"
+[ ! -d "$dead_owner_lock_dir" ]
+"#,
+        helper_script = helper_script,
+        ownerless_lock_dir = shell_quote(&ownerless_lock_dir.display().to_string()),
+        dead_owner_lock_dir = shell_quote(&dead_owner_lock_dir.display().to_string()),
+    );
+
+    run_bash_script(&script)
+}
+
+#[test]
+fn test_xcode_lock_helper_leaves_live_owner_locks_in_place() -> Result<()> {
+    let temp_dir = tempfile::tempdir().context("create temp dir")?;
+    let lock_dir = temp_dir.path().join("target/tmp/locks/live-owner.lock");
+    let ready_file = temp_dir.path().join("ready");
+    let helper_script = xcode_lock_helper_script()?;
+
+    let live_owner_script = format!(
+        r#"set -euo pipefail
+lock_dir={lock_dir}
+ready_file={ready_file}
+mkdir -p "$lock_dir"
+cat >"$lock_dir/owner" <<EOF
+pid: $$
+started_at: 2026-03-28T00:00:00Z
+command: make macos-build
+label: live-build
+EOF
+touch "$ready_file"
+sleep 30
+"#,
+        lock_dir = shell_quote(&lock_dir.display().to_string()),
+        ready_file = shell_quote(&ready_file.display().to_string()),
+    );
+
+    let mut child = Command::new("bash")
+        .arg("-lc")
+        .arg(live_owner_script)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("spawn live owner shell")?;
+
+    let wait_start = Instant::now();
+    while !ready_file.exists() {
+        if let Some(status) = child.try_wait().context("poll live owner shell")? {
+            anyhow::bail!("live owner shell exited before writing owner metadata: {status}");
+        }
+        if wait_start.elapsed() > Duration::from_secs(5) {
+            let _ = child.kill();
+            let _ = child.wait();
+            anyhow::bail!("timed out waiting for live owner metadata");
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    let stale_check = format!(
+        r#"set -euo pipefail
+source {helper_script}
+lock_dir={lock_dir}
+if ralph_xcode_build_lock_is_stale "$lock_dir"; then
+    echo "$RALPH_XCODE_LOCK_STALE_REASON"
+    exit 1
+fi
+"#,
+        helper_script = helper_script,
+        lock_dir = shell_quote(&lock_dir.display().to_string()),
+    );
+
+    let check_result = run_bash_script(&stale_check);
+    let _ = child.kill();
+    let _ = child.wait();
+    check_result
 }
 
 #[test]

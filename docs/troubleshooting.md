@@ -66,6 +66,8 @@ make macos-ui-retest
 
 If macOS prompts for password/Touch ID before a UI run, that is the system approving Accessibility/Automation for a rebuilt test bundle. Reduce repeated prompts by building once and then iterating with `make macos-ui-retest` instead of rebuilding every run.
 
+If an interrupted run strands `target/tmp/locks/xcodebuild.lock`, rerun the same target. Ralph now removes stale project-owned Xcode build locks automatically once the recorded owner PID is gone, and it keeps waiting only for live holders.
+
 If running on shared workstation, cap parallelism:
 
 ```bash

@@ -98,10 +98,10 @@ make coverage
 Why on-demand:
 
 - UI tests are headed and can take over keyboard/mouse.
-- Visual artifact capture is intentionally opt-in and can generate large files.
+- Visual artifact capture is intentionally opt-in and preserves `RalphMacUITests.xcresult` plus `summary.txt` for later review.
 - Coverage and UI suites are materially heavier than core gates.
 
-After reviewing visual evidence from `make macos-test-ui-artifacts`, clean up to control disk usage:
+After reviewing the preserved `.xcresult` bundle and summary from `make macos-test-ui-artifacts`, clean up to control disk usage:
 
 ```bash
 make macos-ui-artifacts-clean
