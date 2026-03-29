@@ -148,12 +148,7 @@ check_secret_patterns() {
         return 0
     fi
 
-    ralph_log_info "Scanning repo-wide working-tree text files for high-confidence secret patterns"
-    export RALPH_PUBLIC_SCAN_EXCLUDES
-    RALPH_PUBLIC_SCAN_EXCLUDES="$(printf '%s\n' "${PUBLIC_SCAN_EXCLUDES[@]}")"
-    python3 "$SCRIPT_DIR/lib/public_readiness_scan.py" secrets "$REPO_ROOT"
-
-    ralph_log_success "No high-confidence secret patterns found"
+    bash "$SCRIPT_DIR/lib/public_readiness_scan.sh" secrets "$REPO_ROOT"
 }
 
 check_markdown_links() {
@@ -162,12 +157,7 @@ check_markdown_links() {
         return 0
     fi
 
-    ralph_log_info "Checking repo-wide working-tree markdown links"
-    export RALPH_PUBLIC_SCAN_EXCLUDES
-    RALPH_PUBLIC_SCAN_EXCLUDES="$(printf '%s\n' "${PUBLIC_SCAN_EXCLUDES[@]}")"
-    python3 "$SCRIPT_DIR/lib/public_readiness_scan.py" links "$REPO_ROOT"
-
-    ralph_log_success "Markdown links look valid"
+    bash "$SCRIPT_DIR/lib/public_readiness_scan.sh" links "$REPO_ROOT"
 }
 
 run_ci_gate() {

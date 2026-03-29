@@ -387,19 +387,35 @@ fn test_profile_ship_gate_targets_define_canonical_bundle_and_cleanup() -> Resul
 }
 
 #[test]
-fn test_ci_docs_runs_markdown_link_scan() -> Result<()> {
+fn test_ci_docs_runs_focused_markdown_link_scan() -> Result<()> {
     let makefile = read_repo_makefile()?;
     let ci_docs_block =
         extract_target_block(&makefile, "ci-docs").context("extract ci-docs block")?;
+    let pre_public_check =
+        std::fs::read_to_string(repo_root()?.join("scripts/pre-public-check.sh"))
+            .context("read scripts/pre-public-check.sh")?;
 
     assert!(
         makefile.contains("make ci-docs     # Docs/community-only gate with markdown link checks"),
         "Makefile help should advertise the markdown-link behavior of ci-docs"
     );
     assert!(
-        ci_docs_block
-            .contains("./scripts/pre-public-check.sh --skip-ci --skip-clean --skip-secrets"),
-        "ci-docs should run the existing markdown link scan path"
+        ci_docs_block.contains("bash ./scripts/lib/public_readiness_scan.sh links"),
+        "ci-docs should run the focused markdown link scan entrypoint"
+    );
+    assert!(
+        !ci_docs_block.contains("pre-public-check.sh --skip-ci --skip-clean --skip-secrets"),
+        "ci-docs should not rerun broader pre-public checks via skip-flag combinations"
+    );
+    assert!(
+        pre_public_check
+            .contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" links \"$REPO_ROOT\""),
+        "pre-public-check should reuse the focused markdown link scan entrypoint with the resolved repo root"
+    );
+    assert!(
+        pre_public_check
+            .contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" secrets \"$REPO_ROOT\""),
+        "pre-public-check should reuse the focused secret scan entrypoint with the resolved repo root"
     );
 
     Ok(())

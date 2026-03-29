@@ -25,8 +25,27 @@ Exit criteria:
 - Profiling behavior stays unchanged from the operator’s point of view.
 - Contract tests no longer pin inline Makefile shell implementation.
 
+### 2. Relax brittle Makefile contract assertions after the gate surfaces settle
+
+Why second:
+- Current Makefile contract coverage still leans on exact help text and inline block text for some gate behaviors.
+- After profiling helper boundaries stabilize, the remaining work is reducing avoidable test churn.
+
+Primary outcome:
+- Makefile contract tests focus on operator-visible behavior and target wiring instead of incidental wording.
+
+Implementation steps:
+- Audit the remaining Makefile contract assertions that depend on exact help prose or large inline recipe fragments.
+- Keep strict assertions only where wording or inline structure is itself the public contract.
+- Prefer assertions on target presence, delegated commands, artifact paths, and gate selection behavior.
+
+Exit criteria:
+- Routine help-text cleanup does not break unrelated contract tests.
+- Contract coverage stays meaningful without pinning incidental implementation text.
+
 ## Sequencing rules
 
 - Keep completed work out of this file.
 - Prefer one canonical operator path over wrappers, aliases, or repeated prose.
+- Stabilize profiling helper boundaries before relaxing remaining test brittleness around them.
 - Preserve the hardened runtime split boundaries (`runutil/execution`, `runutil/retry`, `runutil/shell`, queue prune, fsutil, eta_calculator, undo, and contracts/task) while refactoring adjacent modules.

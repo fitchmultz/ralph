@@ -335,7 +335,7 @@ pre-commit: check-env-safety check-backup-artifacts format-check
 # Docs/community-only safety gate when no executable surface changed.
 ci-docs: check-env-safety check-backup-artifacts
 	@echo "→ Docs-only CI gate (no executable surface changed)..."
-	@./scripts/pre-public-check.sh --skip-ci --skip-clean --skip-secrets
+	@bash ./scripts/lib/public_readiness_scan.sh links
 	@echo ""
 	@echo "  ✓ Docs-only CI completed"
 
