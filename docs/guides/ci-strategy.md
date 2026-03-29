@@ -95,13 +95,9 @@ make macos-test-window-shortcuts
 make coverage
 ```
 
-Why on-demand:
+Use `make macos-ui-retest` for interactive iteration. Use `make macos-test-ui-artifacts` when you need a preserved `.xcresult` bundle plus `summary.txt` under a timestamped artifact directory.
 
-- UI tests are headed and can take over keyboard/mouse.
-- Visual artifact capture is intentionally opt-in and preserves `RalphMacUITests.xcresult` plus `summary.txt` for later review.
-- Coverage and UI suites are materially heavier than core gates.
-
-After reviewing the preserved `.xcresult` bundle and summary from `make macos-test-ui-artifacts`, clean up to control disk usage:
+After review, clean preserved UI artifacts:
 
 ```bash
 make macos-ui-artifacts-clean
@@ -120,7 +116,7 @@ RALPH_CI_JOBS=4 RALPH_XCODE_JOBS=4 make pre-public-check
 Defaults:
 
 - `RALPH_CI_JOBS=0` lets cargo/nextest use tool-managed parallelism for fastest local iteration.
-- `RALPH_XCODE_JOBS=4` keeps macOS app builds friendly by default.
+- `RALPH_XCODE_JOBS=0` keeps xcodebuild on tool-managed parallelism by default; set `RALPH_XCODE_JOBS=4` on shared workstations when you need a cap.
 - Set either value explicitly (for example `RALPH_CI_JOBS=4`) on shared workstations.
 
 ## Suggested Cadence
@@ -132,43 +128,32 @@ Defaults:
 
 ## Headless Profiling Loop
 
-When CI speed regresses, capture the same local evidence before and after changes:
+When CI speed regresses, capture evidence under one timestamped directory so timings, summary notes, and per-suite JSONL stay together:
 
 ```bash
+STAMP="$(date +%Y%m%d-%H%M%S)"
+PROFILE_DIR="target/profiling/${STAMP}-ship-gate"
+mkdir -p "$PROFILE_DIR"
+
 time make agent-ci
-NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --all-targets --locked --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > target/profiling/nextest.jsonl
 cargo test --workspace --doc --locked -- --include-ignored
-```
-
-Prefer headless paths first; interactive UI automation remains opt-in and out of the default gate.
-
-### Targeted Suite Profiling
-
-When cutting over a known slow integration target, avoid another workspace-wide sweep. Profile the exact suite before and after each focused change:
-
-```bash
-mkdir -p target/profiling
-
 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 \
 cargo nextest run --workspace --locked --test run_parallel_test \
   --show-progress none \
   --status-level none \
   --final-status-level none \
   --message-format libtest-json-plus \
-  > target/profiling/nextest.run_parallel_test.before.jsonl
-
-# apply one focused fixture/locking change
-
+  > "$PROFILE_DIR/nextest.run_parallel_test.jsonl"
 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 \
-cargo nextest run --workspace --locked --test run_parallel_test \
+cargo nextest run --workspace --locked --test parallel_direct_push_test \
   --show-progress none \
   --status-level none \
   --final-status-level none \
   --message-format libtest-json-plus \
-  > target/profiling/nextest.run_parallel_test.after.jsonl
+  > "$PROFILE_DIR/nextest.parallel_direct_push_test.jsonl"
 ```
 
-Use the same pattern for `parallel_direct_push_test` and any same-pattern follow-on suite.
+Add a short `summary.md` and `timings.tsv` beside those JSONL files for the final comparison. Prefer headless paths first; interactive UI automation remains opt-in and out of the default gate.
 
 Optimization rules for Rust integration tests:
 - Hold `env_lock()` only when mutating `PATH` or other process-global env vars.

@@ -25,8 +25,9 @@ XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock
 # Default to tool-managed Rust/nextest parallelism for fastest local iteration.
 # Set an explicit cap (for example `RALPH_CI_JOBS=4`) on shared workstations.
 RALPH_CI_JOBS ?= 0
-# Cap xcodebuild parallelism for local friendliness (set 0 for xcodebuild default).
-RALPH_XCODE_JOBS ?= 4
+# Default to xcodebuild-managed parallelism for best local throughput.
+# Set an explicit cap (for example `RALPH_XCODE_JOBS=4`) on shared workstations.
+RALPH_XCODE_JOBS ?= 0
 # Build stamp path to avoid duplicate release builds in a single make invocation.
 RALPH_STAMP_DIR ?= target/tmp/stamps
 RALPH_RELEASE_BUILD_STAMP := $(RALPH_STAMP_DIR)/ralph-release-build.stamp
@@ -98,7 +99,7 @@ help:
 	@echo ""
 	@echo "Resource knobs (optional):"
 	@echo "  RALPH_CI_JOBS=4     # Example cap for shared workstations (0 = tool default, fastest local iteration)"
-	@echo "  RALPH_XCODE_JOBS=4  # Caps xcodebuild parallelism (0 = xcodebuild default)"
+	@echo "  RALPH_XCODE_JOBS=4  # Example cap for shared workstations (0 = xcodebuild default)"
 	@echo "  rust-toolchain.toml is respected automatically when rustup is available"
 	@echo "  RALPH_UI_SCREENSHOT_MODE=timeline # off|checkpoints|timeline (for macos-ui-retest debugging)"
 	@echo "  RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUILaunchAndTaskFlowTests/test_createNewTask_viaQuickCreate # Target macOS UI retests"

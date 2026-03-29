@@ -104,6 +104,10 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         makefile.contains("XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock"),
         "Makefile should define a dedicated Xcode build lock path"
     );
+    assert!(
+        makefile.contains("RALPH_XCODE_JOBS ?= 0"),
+        "Makefile should default to xcodebuild-managed parallelism unless operators set an explicit cap"
+    );
     let xcode_lock_helper =
         std::fs::read_to_string(repo_root()?.join("scripts/lib/xcodebuild-lock.sh"))
             .context("read shared Xcode build lock helper")?;

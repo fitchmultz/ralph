@@ -122,7 +122,6 @@ Re-run UI tests without rebuilding bundles:
 
 ```bash
 make macos-ui-retest
-# Shared workstation: RALPH_XCODE_JOBS=4 make macos-ui-retest
 # Focus one test:
 RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUILaunchAndTaskFlowTests/test_createNewTask_viaQuickCreate make macos-ui-retest
 ```
@@ -131,31 +130,16 @@ Run all UI tests end-to-end in one command:
 
 ```bash
 make macos-test-ui
-# Shared workstation: RALPH_XCODE_JOBS=4 make macos-test-ui
 # macOS/Homebrew GNU Make users: gmake macos-test-ui
-```
-
-Run UI tests with preserved `.xcresult` output for later inspection:
-
-```bash
-make macos-test-ui-artifacts
-# writes timestamped artifacts under target/ui-artifacts/
-# includes .xcresult bundle and summary.txt
-# internally uses build-once + retest-only flow to reduce repeated approval prompts
-```
-
-After reviewing visuals, clean artifacts to avoid disk growth:
-
-```bash
-make macos-ui-artifacts-clean
 ```
 
 Run the focused window/tab shortcut regression suite:
 
 ```bash
 make macos-test-window-shortcuts
-# Shared workstation: RALPH_XCODE_JOBS=4 make macos-test-window-shortcuts
 ```
+
+For shared-workstation caps and preserved `.xcresult` capture with `make macos-test-ui-artifacts`, use `docs/guides/ci-strategy.md`.
 
 Test sources live in `apps/RalphMac/RalphMacUITests/`.
 

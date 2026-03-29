@@ -78,25 +78,4 @@ RALPH_CI_JOBS=4 RALPH_XCODE_JOBS=4 make macos-ci
 
 Symptom: UI run appears noisy/flaky but tests still pass, and you need inspectable visuals.
 
-Use artifact mode:
-
-```bash
-make macos-test-ui-artifacts
-```
-
-For targeted visual debugging without another rebuild:
-
-```bash
-RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUILaunchAndTaskFlowTests/test_createNewTask_viaQuickCreate make macos-ui-retest
-```
-
-This writes timestamped evidence under `target/ui-artifacts/<timestamp>/`:
-
-- `RalphMacUITests.xcresult`
-- `summary.txt` with the preserved bundle path and test scope
-
-After review, clean captured UI artifacts:
-
-```bash
-make macos-ui-artifacts-clean
-```
+Use `make macos-test-ui-artifacts` for preserved `.xcresult` output, and use `RALPH_UI_ONLY_TESTING=... make macos-ui-retest` for focused reruns. Keep the full artifact workflow in `docs/guides/ci-strategy.md`.
