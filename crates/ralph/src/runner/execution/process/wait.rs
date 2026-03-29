@@ -205,9 +205,6 @@ fn wait_for_child_polling(
 ) -> Result<ExitStatus, RunnerError> {
     let mut state = ProcessState::Running;
     let start = Instant::now();
-    #[cfg(not(unix))]
-    let mut kill_requested = false;
-
     loop {
         let now = Instant::now();
         if let Some(limit) = timeout
@@ -218,7 +215,6 @@ fn wait_for_child_polling(
             if let Err(e) = child.kill() {
                 log::debug!("Failed to send kill request to child process: {}", e);
             }
-            kill_requested = true;
         }
 
         if ctrlc.interrupted.load(Ordering::SeqCst) && state == ProcessState::Running {
@@ -229,7 +225,6 @@ fn wait_for_child_polling(
                     e
                 );
             }
-            kill_requested = true;
         }
 
         if let Some(interrupted_at) = interruption_started_at(state)
@@ -239,19 +234,11 @@ fn wait_for_child_polling(
             if let Err(e) = child.kill() {
                 log::debug!("Failed to send final kill request to child process: {}", e);
             }
-            kill_requested = true;
         }
 
         match child.try_wait() {
             Ok(Some(status)) => return finish_wait(state, status),
-            Ok(None) => {
-                if kill_requested
-                    && matches!(
-                        state,
-                        ProcessState::TimeoutInterrupt(_) | ProcessState::CtrlCInterrupt(_)
-                    )
-                {}
-            }
+            Ok(None) => {}
             Err(e) => return Err(RunnerError::Io(e)),
         }
 

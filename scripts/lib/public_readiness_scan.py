@@ -4,6 +4,7 @@ Purpose: Scan the Ralph working tree for public-readiness issues.
 Responsibilities:
 - Walk the repository working tree with explicit exclude rules.
 - Validate markdown links across repo-local documentation files.
+- Reject markdown links that resolve outside the repository root.
 - Detect high-confidence secret patterns in working-tree text files outside local-only exclusions.
 Scope:
 - Repository working-tree scanning only; release orchestration stays in shell scripts.
@@ -12,6 +13,7 @@ Usage:
 - python3 scripts/lib/public_readiness_scan.py secrets /path/to/repo
 Invariants/assumptions:
 - The caller provides the repository root as the final argument.
+- Markdown link targets must resolve within the repository root.
 - Excludes are provided through RALPH_PUBLIC_SCAN_EXCLUDES as newline-separated prefixes.
 """
 
@@ -98,7 +100,17 @@ def iter_repo_files(repo_root: Path, excludes: tuple[str, ...]) -> Iterator[Path
             yield repo_root / rel_path
 
 
-def read_text(path: Path) -> str | None:
+def read_text(path: Path, repo_root: Path, excludes: tuple[str, ...]) -> str | None:
+    # Skip symlinks that escape the working tree or land in excluded paths.
+    # Repo-local symlinks that resolve to scan-visible files are still scanned.
+    if path.is_symlink():
+        try:
+            resolved = path.resolve()
+            rel_resolved = resolved.relative_to(repo_root).as_posix()
+        except (OSError, ValueError):
+            return None
+        if is_excluded(rel_resolved, excludes):
+            return None
     try:
         data = path.read_bytes()
     except OSError:
@@ -132,9 +144,10 @@ def scan_links(repo_root: Path, excludes: tuple[str, ...]) -> int:
     for path in iter_repo_files(repo_root, excludes):
         if path.suffix != ".md":
             continue
-        text = read_text(path)
+        text = read_text(path, repo_root, excludes)
         if text is None:
             continue
+        source_path = path.resolve() if path.is_symlink() else path
         for raw_target in MARKDOWN_LINK_RE.findall(text):
             target = raw_target.strip().split()[0].strip("<>")
             if target.startswith(("http://", "https://", "mailto:", "#")):
@@ -144,7 +157,7 @@ def scan_links(repo_root: Path, excludes: tuple[str, ...]) -> int:
             target = target.split("#", 1)[0].split("?", 1)[0]
             if not target:
                 continue
-            resolved = (path.parent / target).resolve()
+            resolved = (source_path.parent / target).resolve()
             rel_markdown_path = path.relative_to(repo_root).as_posix()
             try:
                 resolved.relative_to(repo_root)
@@ -163,7 +176,7 @@ def scan_links(repo_root: Path, excludes: tuple[str, ...]) -> int:
 def scan_secrets(repo_root: Path, excludes: tuple[str, ...]) -> int:
     problems: list[str] = []
     for path in iter_repo_files(repo_root, excludes):
-        text = read_text(path)
+        text = read_text(path, repo_root, excludes)
         if text is None:
             continue
         rel_path = path.relative_to(repo_root).as_posix()
