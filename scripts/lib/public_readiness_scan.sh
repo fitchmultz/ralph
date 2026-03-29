@@ -10,7 +10,6 @@
 # Usage:
 # - scripts/lib/public_readiness_scan.sh links
 # - scripts/lib/public_readiness_scan.sh secrets
-# - scripts/lib/public_readiness_scan.sh links /path/to/repo
 # - scripts/lib/public_readiness_scan.sh --help
 # Invariants/assumptions:
 # - Run from any location; the script resolves the repo root automatically.
@@ -29,14 +28,13 @@ usage() {
 Run a focused public-readiness scan for Ralph.
 
 Usage:
-  scripts/lib/public_readiness_scan.sh <links|secrets> [REPO_ROOT]
+  scripts/lib/public_readiness_scan.sh <links|secrets>
   scripts/lib/public_readiness_scan.sh -h
   scripts/lib/public_readiness_scan.sh --help
 
 Examples:
   scripts/lib/public_readiness_scan.sh links
   scripts/lib/public_readiness_scan.sh secrets
-  scripts/lib/public_readiness_scan.sh links /path/to/repo
 
 Exit codes:
   0  Scan passed
@@ -47,8 +45,8 @@ EOF
 
 run_scan() {
     local mode="$1"
-    local repo_root="${2:-$REPO_ROOT}"
     local scan_py_path="${RALPH_PUBLIC_READINESS_SCAN_PY:-$SCRIPT_DIR/lib/public_readiness_scan.py}"
+    local repo_root="$REPO_ROOT"
 
     export RALPH_PUBLIC_SCAN_EXCLUDES
     RALPH_PUBLIC_SCAN_EXCLUDES="$(printf '%s\n' "${PUBLIC_SCAN_EXCLUDES[@]}")"
@@ -73,9 +71,17 @@ run_scan() {
 
 case "${1:-}" in
     links|secrets)
-        run_scan "$1" "${2:-$REPO_ROOT}"
+        if [ "$#" -ne 1 ]; then
+            usage >&2
+            exit 2
+        fi
+        run_scan "$1"
         ;;
     -h|--help)
+        if [ "$#" -ne 1 ]; then
+            usage >&2
+            exit 2
+        fi
         usage
         ;;
     *)

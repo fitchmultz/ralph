@@ -290,7 +290,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 ### Public-Release Guardrails
 - Required fast safety gate in CI: `check-env-safety` target now delegates to `scripts/pre-public-check.sh --skip-ci --skip-links --skip-clean`.
 - Convenience alias: `make check-repo-safety`.
-- `scripts/pre-public-check.sh` scans the repo working tree through `scripts/lib/public_readiness_scan.py`, using `PUBLIC_SCAN_EXCLUDES` for explicit local-only/runtime exclusions; keep docs honest about that scope.
+- `scripts/pre-public-check.sh` delegates focused scans through `scripts/lib/public_readiness_scan.sh`, which invokes `scripts/lib/public_readiness_scan.py` with `PUBLIC_SCAN_EXCLUDES`; keep docs honest about that scope.
 - `scripts/pre-public-check.sh` supports `--release-context`, enforces the `.ralph` tracked-file allowlist, and blocks tracked runtime dirs (`cache`, `logs`, `lock`, `workspaces`, `undo`, `webhooks`).
 - `scripts/release.sh` should derive the GitHub repo URL from `git remote origin` and set an explicit GitHub release title (`v<version>`); avoid hardcoded owner-specific release links inside automation.
 

@@ -10,19 +10,91 @@ use std::time::Duration;
 
 use crate::runner::execution::process::{test_ctrlc_state, wait_for_child};
 
-/// Creates a shell command that simulates a slow-exiting process.
-/// The process will sleep for `exit_delay_ms` after receiving SIGINT,
-/// then exit with the specified code.
-fn slow_exit_command(exit_delay_ms: u64, exit_code: i32) -> Command {
+/// Creates a command that exits after a configurable SIGINT cleanup delay and
+/// writes a readiness marker only after the SIGINT handler is installed.
+fn slow_exit_command(exit_delay_ms: u64, exit_code: i32, ready_file: &std::path::Path) -> Command {
     let script = format!(
-        r#"trap 'sleep 0.{exit_delay_ms}; exit {exit_code}' INT; while true; do sleep 1; done"#
+        r#"import pathlib
+import signal
+import sys
+import time
+
+ready_file = pathlib.Path(sys.argv[1])
+
+def handle(_signum, _frame):
+    time.sleep({delay_seconds:.3})
+    raise SystemExit({exit_code})
+
+signal.signal(signal.SIGINT, handle)
+ready_file.write_text("ready", encoding="utf-8")
+
+while True:
+    time.sleep(1)
+"#,
+        delay_seconds = exit_delay_ms as f64 / 1000.0,
+        exit_code = exit_code,
     );
-    let mut cmd = Command::new("sh");
+    let mut cmd = Command::new("python3");
     cmd.arg("-c")
         .arg(script)
+        .arg(ready_file)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     cmd
+}
+
+/// Creates a command that deterministically ignores SIGINT and keeps running.
+/// The child writes its readiness marker after installing the ignore handler.
+///
+/// Python's `signal.SIG_IGN` is more reliable here than shell `trap '' INT`,
+/// which can still exit early on some `/bin/sh` implementations under CI load.
+fn ignore_sigint_command(ready_file: &std::path::Path) -> Command {
+    let mut cmd = Command::new("python3");
+    cmd.arg("-c")
+        .arg(
+            r#"import pathlib
+import signal
+import sys
+import time
+
+ready_file = pathlib.Path(sys.argv[1])
+
+signal.signal(signal.SIGINT, signal.SIG_IGN)
+ready_file.write_text("ready", encoding="utf-8")
+
+while True:
+    time.sleep(1)
+"#,
+        )
+        .arg(ready_file)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    cmd
+}
+
+fn make_ready_file() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("create temp dir for process readiness");
+    let ready_file = dir.path().join("ready");
+    (dir, ready_file)
+}
+
+/// Waits until the child has written its readiness marker.
+fn wait_for_ready_file(child: &mut std::process::Child, ready_file: &std::path::Path) {
+    let start = std::time::Instant::now();
+    while !ready_file.exists() {
+        if let Some(status) = child
+            .try_wait()
+            .expect("poll child while waiting for ready")
+        {
+            panic!("test child exited before becoming ready: {status}");
+        }
+        if start.elapsed() > Duration::from_secs(5) {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("timed out waiting for test child readiness file");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 #[test]
@@ -38,7 +110,8 @@ fn test_process_exits_cleanly_after_timeout_interrupt() {
     //
     // With a short timeout, the process will receive SIGINT, then exit cleanly.
 
-    let mut cmd = slow_exit_command(1, 0); // 100ms delay, exit 0
+    let (_ready_dir, ready_file) = make_ready_file();
+    let mut cmd = slow_exit_command(100, 0, &ready_file); // 100ms delay, exit 0
 
     #[cfg(unix)]
     unsafe {
@@ -50,6 +123,7 @@ fn test_process_exits_cleanly_after_timeout_interrupt() {
     }
 
     let mut child = cmd.spawn().expect("Failed to spawn test process");
+    wait_for_ready_file(&mut child, &ready_file);
 
     let ctrlc = test_ctrlc_state();
     #[cfg(unix)]
@@ -80,16 +154,12 @@ fn test_process_times_out_and_is_killed() {
     // be killed with SIGKILL after the 2-second grace period.
     //
     // We create a process that:
-    // 1. Ignores SIGINT (trap '' INT)
+    // 1. Ignores SIGINT via `signal.SIG_IGN`
     // 2. Continues running
     // 3. Will be killed by SIGKILL after grace period
 
-    let script = r#"trap '' INT; while true; do sleep 1; done"#;
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c")
-        .arg(script)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    let (_ready_dir, ready_file) = make_ready_file();
+    let mut cmd = ignore_sigint_command(&ready_file);
 
     #[cfg(unix)]
     unsafe {
@@ -101,6 +171,7 @@ fn test_process_times_out_and_is_killed() {
     }
 
     let mut child = cmd.spawn().expect("Failed to spawn test process");
+    wait_for_ready_file(&mut child, &ready_file);
 
     let ctrlc = test_ctrlc_state();
     #[cfg(unix)]
@@ -144,7 +215,8 @@ fn test_process_exits_nonzero_after_timeout() {
     // receiving a timeout interrupt, RunnerError::Timeout is returned so that
     // callers can handle safeguard dumps and git revert appropriately.
 
-    let mut cmd = slow_exit_command(1, 42); // 100ms delay, exit 42
+    let (_ready_dir, ready_file) = make_ready_file();
+    let mut cmd = slow_exit_command(100, 42, &ready_file); // 100ms delay, exit 42
 
     #[cfg(unix)]
     unsafe {
@@ -156,6 +228,7 @@ fn test_process_exits_nonzero_after_timeout() {
     }
 
     let mut child = cmd.spawn().expect("Failed to spawn test process");
+    wait_for_ready_file(&mut child, &ready_file);
 
     let ctrlc = test_ctrlc_state();
     #[cfg(unix)]
@@ -188,7 +261,8 @@ fn test_ctrl_c_interrupt_handling() {
     // - When interrupted flag is set, SIGINT is sent
     // - If process exits cleanly after interrupt, it's treated as success
 
-    let mut cmd = slow_exit_command(1, 0); // 100ms delay, exit 0
+    let (_ready_dir, ready_file) = make_ready_file();
+    let mut cmd = slow_exit_command(100, 0, &ready_file); // 100ms delay, exit 0
 
     #[cfg(unix)]
     unsafe {
@@ -200,6 +274,7 @@ fn test_ctrl_c_interrupt_handling() {
     }
 
     let mut child = cmd.spawn().expect("Failed to spawn test process");
+    wait_for_ready_file(&mut child, &ready_file);
 
     let ctrlc = test_ctrlc_state();
     #[cfg(unix)]
@@ -263,16 +338,12 @@ fn test_no_timeout_no_interrupt_process_completes_normally() {
 }
 
 #[test]
-fn test_cleanup_clears_active_pgid_after_timeout() {
-    // This test verifies that active_pgid is cleared after a timeout error.
-    // This prevents stale process group references from affecting subsequent runs.
+fn test_wait_for_child_leaves_active_pgid_for_caller_cleanup() {
+    // This test verifies that `wait_for_child` does not clear `active_pgid` on its own.
+    // Higher-level cleanup owns that responsibility after timeout handling completes.
 
-    let script = r#"trap '' INT; while true; do sleep 1; done"#;
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c")
-        .arg(script)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    let (_ready_dir, ready_file) = make_ready_file();
+    let mut cmd = ignore_sigint_command(&ready_file);
 
     #[cfg(unix)]
     unsafe {
@@ -284,6 +355,7 @@ fn test_cleanup_clears_active_pgid_after_timeout() {
     }
 
     let mut child = cmd.spawn().expect("Failed to spawn test process");
+    wait_for_ready_file(&mut child, &ready_file);
 
     let ctrlc = test_ctrlc_state();
     #[cfg(unix)]
@@ -298,9 +370,8 @@ fn test_cleanup_clears_active_pgid_after_timeout() {
     // Wait for child - should return Timeout error
     let _ = wait_for_child(&mut child, &ctrlc, timeout);
 
-    // After timeout, active_pgid should be cleared by the cleanup logic
-    // (Note: wait_for_child itself doesn't clear active_pgid, that's done by
-    // the caller - but we verify the state is as expected)
+    // `wait_for_child` should leave `active_pgid` alone.
+    // Higher-level cleanup clears it after process supervision finishes.
     #[cfg(unix)]
     {
         let pgid = ctrlc.active_pgid.lock().unwrap();
@@ -345,35 +416,21 @@ fn test_pre_run_interrupt_returns_immediately() {
     );
 }
 
-/// Creates a shell command that simulates a slow-exiting process with configurable delay.
-/// The process will sleep for `exit_delay_ms` after receiving SIGINT,
-/// then exit with the specified code.
-fn slow_exit_command_with_delay(exit_delay_ms: u64, exit_code: i32) -> Command {
-    let script = format!(
-        r#"trap 'sleep 0.{exit_delay_ms}; exit {exit_code}' INT; while true; do sleep 1; done"#
-    );
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c")
-        .arg(script)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    cmd
-}
-
 #[test]
 fn test_ctrl_c_during_timeout_grace_period() {
     // This test verifies the behavior when Ctrl-C is pressed during the timeout
     // grace period (after timeout interrupt sent but before 2s grace expires).
     //
-    // Expected behavior: The timeout takes precedence because the safeguard
-    // mechanism needs to trigger (dumps/revert). Ctrl-C during timeout should
-    // still result in Timeout error, not Interrupted.
+    // Expected behavior: a timeout-triggered SIGINT still yields success when the
+    // process exits cleanly before the hard-kill deadline, even if Ctrl-C also
+    // arrives during that grace period.
     //
     // Process: traps SIGINT, waits 500ms, exits 0
     // Timeout: 50ms (triggers interrupt quickly)
     // Ctrl-C: fired at 200ms (during grace period)
 
-    let mut cmd = slow_exit_command_with_delay(5, 0); // 500ms delay, exit 0
+    let (_ready_dir, ready_file) = make_ready_file();
+    let mut cmd = slow_exit_command(500, 0, &ready_file); // 500ms delay, exit 0
 
     #[cfg(unix)]
     unsafe {
@@ -385,6 +442,7 @@ fn test_ctrl_c_during_timeout_grace_period() {
     }
 
     let mut child = cmd.spawn().expect("Failed to spawn test process");
+    wait_for_ready_file(&mut child, &ready_file);
 
     let ctrlc = test_ctrlc_state();
     #[cfg(unix)]

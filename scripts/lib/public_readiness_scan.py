@@ -145,10 +145,14 @@ def scan_links(repo_root: Path, excludes: tuple[str, ...]) -> int:
             if not target:
                 continue
             resolved = (path.parent / target).resolve()
+            rel_markdown_path = path.relative_to(repo_root).as_posix()
+            try:
+                resolved.relative_to(repo_root)
+            except ValueError:
+                missing.append(f"{rel_markdown_path}: target escapes repo root -> {raw_target}")
+                continue
             if not resolved.exists():
-                missing.append(
-                    f"{path.relative_to(repo_root).as_posix()}: missing target -> {raw_target}"
-                )
+                missing.append(f"{rel_markdown_path}: missing target -> {raw_target}")
 
     if missing:
         print("\n".join(missing))
@@ -180,7 +184,18 @@ def scan_secrets(repo_root: Path, excludes: tuple[str, ...]) -> int:
 
 def main() -> int:
     args = parse_args()
+    if not args.repo_root.strip():
+        print("repository root must not be empty", file=sys.stderr)
+        return 2
+
     repo_root = Path(args.repo_root).resolve()
+    if not repo_root.is_dir():
+        print(
+            f"repository root does not exist or is not a directory: {repo_root}",
+            file=sys.stderr,
+        )
+        return 2
+
     excludes = read_excludes()
 
     if args.mode == "links":

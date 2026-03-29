@@ -12,6 +12,7 @@
 //! - Contract files live at stable repo-relative paths.
 
 use std::path::PathBuf;
+use std::process::Command;
 
 fn repo_root() -> PathBuf {
     let exe = std::env::current_exe().expect("resolve current test executable path");
@@ -39,12 +40,20 @@ fn read_repo_file(relative_path: &str) -> String {
         .unwrap_or_else(|err| panic!("failed to read {relative_path}: {err}"))
 }
 
+fn public_readiness_scan_shell_helper_path() -> PathBuf {
+    repo_root().join("scripts/lib/public_readiness_scan.sh")
+}
+
+fn public_readiness_scan_python_path() -> PathBuf {
+    repo_root().join("scripts/lib/public_readiness_scan.py")
+}
+
 #[test]
 fn pre_public_check_uses_repo_wide_markdown_discovery() {
     let script = read_repo_file("scripts/pre-public-check.sh");
     let focused_scan_helper = read_repo_file("scripts/lib/public_readiness_scan.sh");
     assert!(
-        script.contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" links \"$REPO_ROOT\""),
+        script.contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" links"),
         "pre-public check should delegate markdown discovery to the focused repo-wide scan helper"
     );
     assert!(
@@ -129,5 +138,101 @@ fn makefile_release_build_uses_shared_bundle_entrypoint() {
     assert!(
         !makefile.contains("publish-crate:"),
         "Makefile should not expose a direct crates.io publish bypass outside the release transaction"
+    );
+}
+
+#[test]
+fn public_readiness_scan_rejects_missing_repo_root() {
+    let temp_dir = tempfile::tempdir().expect("create temp dir");
+    let missing_repo_root = temp_dir.path().join("missing-repo-root");
+
+    let output = Command::new("python3")
+        .arg(public_readiness_scan_python_path())
+        .arg("links")
+        .arg(&missing_repo_root)
+        .output()
+        .expect("run public-readiness scan helper");
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "public-readiness scan scanner should reject a missing repo root"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("repository root does not exist or is not a directory"),
+        "scanner should explain why the provided repo root was rejected"
+    );
+}
+
+#[test]
+fn public_readiness_scan_rejects_markdown_targets_outside_repo() {
+    let temp_dir = tempfile::tempdir().expect("create temp dir");
+    let repo_root = temp_dir.path().join("repo");
+    std::fs::create_dir(&repo_root).expect("create temp repo root");
+    std::fs::write(repo_root.join("README.md"), "[outside](../outside.md)\n")
+        .expect("write markdown fixture");
+    std::fs::write(temp_dir.path().join("outside.md"), "outside\n")
+        .expect("write escaped target fixture");
+
+    let output = Command::new("python3")
+        .arg(public_readiness_scan_python_path())
+        .arg("links")
+        .arg(&repo_root)
+        .env("RALPH_PUBLIC_SCAN_EXCLUDES", "")
+        .output()
+        .expect("run public-readiness scan helper");
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "public-readiness scan should reject markdown targets that escape the repo root"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("target escapes repo root"),
+        "scanner should explain why escaped markdown targets are invalid"
+    );
+}
+
+#[test]
+fn public_readiness_scan_rejects_help_with_extra_args() {
+    let output = Command::new("bash")
+        .arg(public_readiness_scan_shell_helper_path())
+        .arg("--help")
+        .arg("extra")
+        .output()
+        .expect("run public-readiness scan helper");
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "public-readiness scan helper should reject unexpected positional arguments"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Usage:"),
+        "helper should print usage for invalid argument combinations"
+    );
+}
+
+#[test]
+fn public_readiness_scan_rejects_links_with_extra_args() {
+    let output = Command::new("bash")
+        .arg(public_readiness_scan_shell_helper_path())
+        .arg("links")
+        .arg("extra")
+        .output()
+        .expect("run public-readiness scan helper");
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "public-readiness scan helper should reject extra args for normal modes"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Usage:"),
+        "helper should print usage for invalid argument combinations"
     );
 }

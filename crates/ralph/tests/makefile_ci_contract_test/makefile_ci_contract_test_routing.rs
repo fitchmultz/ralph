@@ -408,14 +408,12 @@ fn test_ci_docs_runs_focused_markdown_link_scan() -> Result<()> {
         "ci-docs should not rerun broader pre-public checks via skip-flag combinations"
     );
     assert!(
-        pre_public_check
-            .contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" links \"$REPO_ROOT\""),
-        "pre-public-check should reuse the focused markdown link scan entrypoint with the resolved repo root"
+        pre_public_check.contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" links"),
+        "pre-public-check should reuse the focused markdown link scan entrypoint"
     );
     assert!(
-        pre_public_check
-            .contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" secrets \"$REPO_ROOT\""),
-        "pre-public-check should reuse the focused secret scan entrypoint with the resolved repo root"
+        pre_public_check.contains("bash \"$SCRIPT_DIR/lib/public_readiness_scan.sh\" secrets"),
+        "pre-public-check should reuse the focused secret scan entrypoint"
     );
 
     Ok(())

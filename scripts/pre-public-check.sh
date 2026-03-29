@@ -148,7 +148,7 @@ check_secret_patterns() {
         return 0
     fi
 
-    bash "$SCRIPT_DIR/lib/public_readiness_scan.sh" secrets "$REPO_ROOT"
+    bash "$SCRIPT_DIR/lib/public_readiness_scan.sh" secrets
 }
 
 check_markdown_links() {
@@ -157,7 +157,7 @@ check_markdown_links() {
         return 0
     fi
 
-    bash "$SCRIPT_DIR/lib/public_readiness_scan.sh" links "$REPO_ROOT"
+    bash "$SCRIPT_DIR/lib/public_readiness_scan.sh" links
 }
 
 run_ci_gate() {
