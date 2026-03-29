@@ -361,7 +361,7 @@ release-gate:
 	fi
 
 profile-ship-gate: macos-preflight
-	@MAKE="$(MAKE)" RALPH_ENV_RESET="$(RALPH_ENV_RESET)" bash scripts/profile-ship-gate.sh run
+	@bash scripts/profile-ship-gate.sh run
 
 profile-ship-gate-clean:
 	@bash scripts/profile-ship-gate.sh clean

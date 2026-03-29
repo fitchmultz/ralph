@@ -356,6 +356,15 @@ fn test_profile_ship_gate_targets_delegate_to_script() -> Result<()> {
         script_path.exists(),
         "profile-ship-gate script should exist at scripts/profile-ship-gate.sh"
     );
+    let script = std::fs::read_to_string(&script_path).context("read profile-ship-gate.sh")?;
+    assert!(
+        script.contains("ralph_activate_pinned_rust_toolchain"),
+        "profile-ship-gate.sh should activate the pinned Rust toolchain via the shared helper"
+    );
+    assert!(
+        !script.contains("RALPH_ENV_RESET"),
+        "profile-ship-gate.sh should not depend on the removed env snippet"
+    );
     let mode = std::fs::metadata(&script_path)
         .context("stat profile-ship-gate.sh")?
         .permissions()

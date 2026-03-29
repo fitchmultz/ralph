@@ -12,15 +12,20 @@
 #   scripts/profile-ship-gate.sh clean   # remove all profiling bundles
 #   scripts/profile-ship-gate.sh -h
 # Invariants/Assumptions:
-#   - Must be run from the repo root where the Makefile lives.
-#   - MAKE and RALPH_ENV_RESET are injected by the Makefile wrapper.
+#   - Repo root and pinned Rust toolchain are resolved via shared shell helpers.
 #   - RALPH_CI_JOBS and RALPH_XCODE_JOBS are propagated through make.
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/ralph-shell.sh
+source "$SCRIPT_DIR/lib/ralph-shell.sh"
+REPO_ROOT="$(ralph_repo_root)"
+cd "$REPO_ROOT"
+ralph_activate_pinned_rust_toolchain
+
 readonly PROFILING_ROOT="target/profiling"
-MAKE="${MAKE:-make}"
-RALPH_ENV_RESET="${RALPH_ENV_RESET:-:}"
+MAKE_CMD="$(ralph_resolve_make_cmd)"
 
 # ---------------------------------------------------------------------------
 # Help
@@ -38,8 +43,6 @@ Options:
   -h, --help  Show this help message and exit.
 
 Environment:
-  MAKE               Make binary (default: make). Injected by Makefile wrapper.
-  RALPH_ENV_RESET    Shell prefix to activate the pinned Rust toolchain.
   RALPH_CI_JOBS      Cap parallel jobs for Cargo/nextest (0 = tool default).
   RALPH_XCODE_JOBS   Cap parallel jobs for xcodebuild (0 = tool default).
 
@@ -82,7 +85,7 @@ write_summary() {
         echo "- date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
         echo "- profile_dir: ${profile_dir}"
         echo '- retention: timestamped bundles are retained until explicit cleanup'
-        echo '- cleanup: make profile-ship-gate-clean'
+        echo "- cleanup: ${MAKE_CMD} profile-ship-gate-clean"
         echo
         echo '## Environment'
         echo
@@ -118,23 +121,23 @@ cmd_run() {
 
     echo "→ Capturing ship-gate profiling bundle under ${profile_dir}..."
 
-    run_timed_shell ci "${MAKE} --no-print-directory ci" \
+    run_timed_shell ci "${MAKE_CMD} --no-print-directory ci" \
         || { write_summary; exit 1; }
-    run_timed_shell nextest_run_parallel_test "${RALPH_ENV_RESET}; NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --locked --test run_parallel_test --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > '${profile_dir}/nextest.run_parallel_test.jsonl'" \
+    run_timed_shell nextest_run_parallel_test "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --locked --test run_parallel_test --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > '${profile_dir}/nextest.run_parallel_test.jsonl'" \
         || { write_summary; exit 1; }
-    run_timed_shell nextest_parallel_direct_push_test "${RALPH_ENV_RESET}; NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --locked --test parallel_direct_push_test --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > '${profile_dir}/nextest.parallel_direct_push_test.jsonl'" \
+    run_timed_shell nextest_parallel_direct_push_test "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --locked --test parallel_direct_push_test --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > '${profile_dir}/nextest.parallel_direct_push_test.jsonl'" \
         || { write_summary; exit 1; }
-    run_timed_shell macos_build "${MAKE} --no-print-directory macos-build" \
+    run_timed_shell macos_build "${MAKE_CMD} --no-print-directory macos-build" \
         || { write_summary; exit 1; }
-    run_timed_shell macos_test "${MAKE} --no-print-directory macos-test" \
+    run_timed_shell macos_test "${MAKE_CMD} --no-print-directory macos-test" \
         || { write_summary; exit 1; }
-    run_timed_shell macos_test_contracts "${MAKE} --no-print-directory macos-test-contracts" \
+    run_timed_shell macos_test_contracts "${MAKE_CMD} --no-print-directory macos-test-contracts" \
         || { write_summary; exit 1; }
 
     write_summary
     echo "  ✓ Profiling bundle: ${profile_dir}"
     echo "  ✓ Summary: ${summary_path}"
-    echo "  ℹ Retained until: make profile-ship-gate-clean"
+    echo "  ℹ Retained until: ${MAKE_CMD} profile-ship-gate-clean"
 }
 
 cmd_clean() {
