@@ -351,6 +351,14 @@ fn test_profile_ship_gate_targets_define_canonical_bundle_and_cleanup() -> Resul
         "profile-ship-gate should write timestamped profiling bundles under target/profiling"
     );
     assert!(
+        profile_block.contains("run_timed_shell ci \"$(MAKE) --no-print-directory ci\""),
+        "profile-ship-gate should time the deterministic ci gate instead of diff-sensitive routing"
+    );
+    assert!(
+        !profile_block.contains("agent-ci"),
+        "profile-ship-gate should not depend on diff-sensitive agent-ci routing"
+    );
+    assert!(
         profile_block.contains("timings_path=\"$$profile_dir/timings.tsv\""),
         "profile-ship-gate should capture timings.tsv"
     );

@@ -9,20 +9,38 @@ This is the canonical near-term roadmap for active follow-up work.
 ### 1. Finish collapsing macOS operator guidance onto one canonical doc path
 
 Why next:
-- The profiling and cleanup entrypoints now exist, but `Makefile` help, `docs/index.md`, `docs/features/app.md`, `docs/troubleshooting.md`, and `docs/guides/ci-strategy.md` still share overlapping macOS guidance.
-- The remaining work is now pure doc-surface cleanup, so it can land without touching the profiling contract again.
+- `Makefile` help, `docs/index.md`, `docs/features/app.md`, `docs/troubleshooting.md`, and `docs/guides/ci-strategy.md` still overlap on macOS validation, profiling, and UI-evidence guidance.
+- The profiling semantics are now stable enough that the remaining work is doc-surface cleanup only.
 
 Primary outcome:
 - The macOS CI/profile/UI-artifact workflow has one primary home, with short pointers elsewhere.
 
 Implementation steps:
 - Choose the canonical operator doc for macOS validation, profiling, and UI evidence capture.
-- Trim secondary surfaces to one-line pointers or examples only.
+- Trim secondary surfaces to one-line pointers or short examples only.
 - Remove wording that duplicates the shipped profiling and cleanup contract.
 
 Exit criteria:
 - The same macOS workflow is no longer described in multiple places with different levels of detail.
 - Secondary docs stay short and non-conflicting.
+
+### 2. Thin the profiling implementation behind the Makefile entrypoints
+
+Why second:
+- `profile-ship-gate` is still one of the densest shell blocks in the `Makefile`.
+- With the profiling semantics fixed, the remaining churn is now pure maintainability cleanup.
+
+Primary outcome:
+- The Makefile keeps thin profiling entrypoints while the orchestration lives in one focused helper.
+
+Implementation steps:
+- Move profiling orchestration into one dedicated helper while keeping `make profile-ship-gate` and `make profile-ship-gate-clean` as the operator-facing entrypoints.
+- Preserve the artifact layout and exit behavior unless there is a strong reason to change them.
+- Keep test coverage focused on the public entrypoints and artifact contract, not duplicated implementation details.
+
+Exit criteria:
+- The Makefile profiling targets are thin wrappers.
+- Profiling behavior stays unchanged from the operator’s point of view.
 
 ## Sequencing rules
 

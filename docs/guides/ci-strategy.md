@@ -134,7 +134,7 @@ When CI speed regresses, use the supported profiling entrypoint:
 make profile-ship-gate
 ```
 
-This writes one timestamped bundle under `target/profiling/<timestamp>-ship-gate/` with:
+This writes one timestamped bundle under `target/profiling/<timestamp>-ship-gate/` and times the same ship-gate phases every run (`make ci`, `make macos-build`, `make macos-test`, `make macos-test-contracts`), plus:
 
 - `timings.tsv`
 - `summary.md`

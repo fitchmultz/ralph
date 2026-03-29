@@ -405,8 +405,7 @@ profile-ship-gate: macos-preflight
 		} > "$$summary_path"; \
 	}; \
 	echo "→ Capturing ship-gate profiling bundle under $$profile_dir..."; \
-	run_timed_shell make_agent_ci "$(MAKE) --no-print-directory agent-ci" || { write_summary; exit 1; }; \
-	run_timed_shell cargo_doctests "$(RALPH_ENV_RESET); cargo test --workspace --doc --locked $(CARGO_JOBS_FLAG) -- --include-ignored" || { write_summary; exit 1; }; \
+	run_timed_shell ci "$(MAKE) --no-print-directory ci" || { write_summary; exit 1; }; \
 	run_timed_shell nextest_run_parallel_test "$(RALPH_ENV_RESET); NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --locked --test run_parallel_test --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > '$$profile_dir/nextest.run_parallel_test.jsonl'" || { write_summary; exit 1; }; \
 	run_timed_shell nextest_parallel_direct_push_test "$(RALPH_ENV_RESET); NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 cargo nextest run --workspace --locked --test parallel_direct_push_test --show-progress none --status-level none --final-status-level none --message-format libtest-json-plus > '$$profile_dir/nextest.parallel_direct_push_test.jsonl'" || { write_summary; exit 1; }; \
 	run_timed_shell macos_build "$(MAKE) --no-print-directory macos-build" || { write_summary; exit 1; }; \
