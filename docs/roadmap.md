@@ -6,26 +6,7 @@ This is the canonical near-term roadmap for active follow-up work.
 
 ## Active roadmap
 
-### 1. Fix watch comment parsing so content extraction is stable across modes
-
-**Why next**: `watch` comment detection currently uses capture-group position heuristics; `CommentType::All` produces different extracted content than specific modes, which then feeds watch task titles, notes, and identity/content hashes.
-
-**Outcome**: Watch comment extraction becomes mode-independent and stable for task materialization and identity bookkeeping.
-
-**Steps**:
-- Replace positional capture extraction in `commands/watch/comments.rs` with a single canonical capture shape.
-- Add regression coverage for `CommentType::All` vs specific-type parity, including identity/hash behavior.
-- Verify watch task materialization output stays stable and `make agent-ci` remains green.
-
-**Exit criteria**:
-- Extracted comment content is identical regardless of watch comment mode.
-- Watch identity/content hash coverage locks that behavior down.
-
-**Files in scope**: `crates/ralph/src/commands/watch/comments.rs`, `crates/ralph/src/commands/watch/identity.rs`, `crates/ralph/src/commands/watch/tasks/materialize.rs`, watch tests.
-
----
-
-### 2. Split runner orchestration hotspots in Phase 3 and core execution handling
+### 1. Split runner orchestration hotspots in Phase 3 and core execution handling
 
 **Why next**: `run_prompt_with_handling_backend` and `execute_phase3_review` remain high-complexity orchestration hubs with retry, revert, continue-session, CI, integration, and finalization logic intertwined. They are the highest-risk change surfaces in the runtime.
 
@@ -45,7 +26,7 @@ This is the canonical near-term roadmap for active follow-up work.
 
 ---
 
-### 3. Deduplicate macOS task-mutation encoding and clean up portable-path test debt
+### 2. Deduplicate macOS task-mutation encoding and clean up portable-path test debt
 
 **Why next**: The app still hand-assembles task field edits with stringly-typed field names while some tests continue to hardcode `/tmp` paths despite portable temp helpers.
 

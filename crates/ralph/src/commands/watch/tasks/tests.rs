@@ -13,10 +13,12 @@
 //! - Helper builders preserve the v1/v2 watch identity contracts under test.
 
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::PathBuf;
 
-use tempfile::TempDir;
+use tempfile::{NamedTempFile, TempDir};
 
+use crate::commands::watch::comments::{build_comment_regex, detect_comments};
 use crate::commands::watch::identity::{
     WATCH_FIELD_COMMENT_TYPE, WATCH_FIELD_CONTENT_HASH, WATCH_FIELD_FILE, WATCH_FIELD_FINGERPRINT,
     WATCH_FIELD_IDENTITY_KEY, WATCH_FIELD_LINE, WATCH_FIELD_LOCATION_KEY, WATCH_FIELD_VERSION,
@@ -176,6 +178,39 @@ fn create_task_from_comment_populates_v2_custom_fields() {
     assert!(task.custom_fields.contains_key(WATCH_FIELD_CONTENT_HASH));
     assert!(task.custom_fields.contains_key(WATCH_FIELD_LOCATION_KEY));
     assert!(task.custom_fields.contains_key(WATCH_FIELD_IDENTITY_KEY));
+}
+
+#[test]
+fn create_task_from_comment_is_mode_independent() {
+    let temp_dir = TempDir::new().unwrap();
+    let resolved = create_test_resolved(&temp_dir);
+    let mut source = NamedTempFile::new().unwrap();
+    writeln!(source, "// TODO: normalize watch output").unwrap();
+    source.flush().unwrap();
+
+    let all_regex = build_comment_regex(&[CommentType::All]).unwrap();
+    let todo_regex = build_comment_regex(&[CommentType::Todo]).unwrap();
+
+    let all_comments = detect_comments(source.path(), &all_regex).unwrap();
+    let todo_comments = detect_comments(source.path(), &todo_regex).unwrap();
+
+    assert_eq!(all_comments.len(), 1);
+    assert_eq!(todo_comments.len(), 1);
+
+    let all_task = create_task_from_comment(&all_comments[0], &resolved).unwrap();
+    let todo_task = create_task_from_comment(&todo_comments[0], &resolved).unwrap();
+
+    assert_eq!(all_task.title, todo_task.title);
+    assert_eq!(all_task.notes, todo_task.notes);
+    assert_eq!(all_task.scope, todo_task.scope);
+    assert_eq!(
+        all_task.custom_fields.get(WATCH_FIELD_CONTENT_HASH),
+        todo_task.custom_fields.get(WATCH_FIELD_CONTENT_HASH)
+    );
+    assert_eq!(
+        all_task.custom_fields.get(WATCH_FIELD_IDENTITY_KEY),
+        todo_task.custom_fields.get(WATCH_FIELD_IDENTITY_KEY)
+    );
 }
 
 #[test]

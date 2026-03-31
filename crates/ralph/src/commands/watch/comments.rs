@@ -12,7 +12,7 @@
 //!
 //! Invariants/assumptions:
 //! - Comment regex is case-insensitive.
-//! - Comment content is extracted from capture groups.
+//! - Comment extraction uses stable named captures for marker and content.
 //! - Context includes filename, line number, and truncated content.
 
 use crate::commands::watch::types::{CommentType, DetectedComment};
@@ -22,32 +22,34 @@ use std::path::Path;
 
 /// Build regex for detecting comments based on comment types.
 pub fn build_comment_regex(comment_types: &[CommentType]) -> Result<Regex> {
-    let mut patterns = Vec::new();
-
-    let has_all = comment_types.contains(&CommentType::All);
-
-    if has_all || comment_types.contains(&CommentType::Todo) {
-        patterns.push(r"TODO\s*[:;-]?\s*(.+)$");
-    }
-    if has_all || comment_types.contains(&CommentType::Fixme) {
-        patterns.push(r"FIXME\s*[:;-]?\s*(.+)$");
-    }
-    if has_all || comment_types.contains(&CommentType::Hack) {
-        patterns.push(r"HACK\s*[:;-]?\s*(.+)$");
-    }
-    if has_all || comment_types.contains(&CommentType::Xxx) {
-        patterns.push(r"XXX\s*[:;-]?\s*(.+)$");
-    }
-
-    if patterns.is_empty() {
-        patterns.push(r"(?:TODO|FIXME|HACK|XXX)\s*[:;-]?\s*(.+)$");
-    }
-
-    let combined = patterns.join("|");
-    let regex = Regex::new(&format!(r"(?i)({})", combined))
-        .context("Failed to compile comment detection regex")?;
+    let markers = selected_comment_markers(comment_types);
+    let combined = markers.join("|");
+    let regex = Regex::new(&format!(
+        r"(?i)(?P<marker>{combined})(?:\s*[:;-]\s*|\s+)(?P<content>.+)$"
+    ))
+    .context("Failed to compile comment detection regex")?;
 
     Ok(regex)
+}
+
+fn selected_comment_markers(comment_types: &[CommentType]) -> Vec<&'static str> {
+    let has_all = comment_types.contains(&CommentType::All) || comment_types.is_empty();
+    let mut markers = Vec::new();
+
+    if has_all || comment_types.contains(&CommentType::Todo) {
+        markers.push("TODO");
+    }
+    if has_all || comment_types.contains(&CommentType::Fixme) {
+        markers.push("FIXME");
+    }
+    if has_all || comment_types.contains(&CommentType::Hack) {
+        markers.push("HACK");
+    }
+    if has_all || comment_types.contains(&CommentType::Xxx) {
+        markers.push("XXX");
+    }
+
+    markers
 }
 
 /// Detect comments in a file.
@@ -59,12 +61,8 @@ pub fn detect_comments(file_path: &Path, regex: &Regex) -> Result<Vec<DetectedCo
 
     for (line_num, line) in content.lines().enumerate() {
         if let Some(captures) = regex.captures(line) {
-            // Extract the comment content
             let content = captures
-                .get(1)
-                .or_else(|| captures.get(2))
-                .or_else(|| captures.get(3))
-                .or_else(|| captures.get(4))
+                .name("content")
                 .map(|m| m.as_str().trim().to_string())
                 .unwrap_or_default();
 
@@ -72,10 +70,10 @@ pub fn detect_comments(file_path: &Path, regex: &Regex) -> Result<Vec<DetectedCo
                 continue;
             }
 
-            // Determine comment type from the match
-            let comment_type = determine_comment_type(line);
-
-            // Get context (surrounding lines)
+            let comment_type = captures
+                .name("marker")
+                .map(|m| comment_type_from_marker(m.as_str()))
+                .unwrap_or_else(|| determine_comment_type(line));
             let context = extract_context(&content, line_num + 1, file_path);
 
             comments.push(DetectedComment {
@@ -89,6 +87,16 @@ pub fn detect_comments(file_path: &Path, regex: &Regex) -> Result<Vec<DetectedCo
     }
 
     Ok(comments)
+}
+
+fn comment_type_from_marker(marker: &str) -> CommentType {
+    match marker.trim().to_ascii_uppercase().as_str() {
+        "TODO" => CommentType::Todo,
+        "FIXME" => CommentType::Fixme,
+        "HACK" => CommentType::Hack,
+        "XXX" => CommentType::Xxx,
+        _ => CommentType::All,
+    }
 }
 
 /// Determine the comment type from a line.
@@ -179,10 +187,9 @@ mod tests {
         let comments = detect_comments(temp_file.path(), &regex).unwrap();
 
         assert_eq!(comments.len(), 2);
-        // Content includes the marker because the regex captures differently for All
-        assert!(comments[0].content.contains("fix this bug"));
+        assert_eq!(comments[0].content, "fix this bug");
         assert_eq!(comments[0].comment_type, CommentType::Todo);
-        assert!(comments[1].content.contains("handle error"));
+        assert_eq!(comments[1].content, "handle error");
         assert_eq!(comments[1].comment_type, CommentType::Fixme);
     }
 
@@ -245,9 +252,9 @@ mod tests {
 
         let line = "// TODO: this is the important part";
         let captures = regex.captures(line).unwrap();
-        let content = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+        let content = captures.name("content").map(|m| m.as_str()).unwrap_or("");
 
-        assert!(content.contains("this is the important part"));
+        assert_eq!(content, "this is the important part");
     }
 
     // =====================================================================
@@ -285,12 +292,8 @@ mod tests {
         let regex = build_comment_regex(&[CommentType::Todo]).unwrap();
         let comments = detect_comments(temp_file.path(), &regex).unwrap();
 
-        // Both lines match - the capture logic uses the outer group (full match)
-        assert_eq!(comments.len(), 2);
-        // First comment captures "TODO:" (the full match)
-        assert!(comments[0].content.contains("TODO"));
-        // Second comment captures "TODO: has content"
-        assert!(comments[1].content.contains("has content"));
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0].content, "has content");
     }
 
     #[test]
@@ -331,5 +334,25 @@ mod tests {
         let comments = detect_comments(temp_file.path(), &regex).unwrap();
 
         assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0].content, "处理错误处理");
+        assert_eq!(comments[1].content, "🐛 bug fix");
+    }
+
+    #[test]
+    fn detect_comments_extracts_identical_content_across_modes() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "// TODO: normalize watch output").unwrap();
+        temp_file.flush().unwrap();
+
+        let all_regex = build_comment_regex(&[CommentType::All]).unwrap();
+        let todo_regex = build_comment_regex(&[CommentType::Todo]).unwrap();
+
+        let all_comments = detect_comments(temp_file.path(), &all_regex).unwrap();
+        let todo_comments = detect_comments(temp_file.path(), &todo_regex).unwrap();
+
+        assert_eq!(all_comments.len(), 1);
+        assert_eq!(todo_comments.len(), 1);
+        assert_eq!(all_comments[0].content, todo_comments[0].content);
+        assert_eq!(all_comments[0].comment_type, todo_comments[0].comment_type);
     }
 }
