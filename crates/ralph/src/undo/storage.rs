@@ -72,7 +72,9 @@ pub fn create_undo_snapshot(resolved: &Resolved, operation: &str) -> Result<Path
         Ok(pruned) if pruned > 0 => {
             log::debug!("pruned {} old undo snapshot(s)", pruned);
         }
-        Ok(_) => {}
+        Ok(_) => {
+            // The snapshot count was already within the retention limit, so nothing changed.
+        }
         Err(err) => {
             log::warn!("failed to prune undo snapshots: {:#}", err);
         }

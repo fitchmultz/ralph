@@ -253,6 +253,7 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
         try RalphMockCLITestSupport.writeQueueFile(in: workspaceAURL, tasks: [])
 
         let logURL = rootDir.appendingPathComponent("run-retarget.log", isDirectory: false)
+        let pidFileURL = rootDir.appendingPathComponent("run-retarget.pid", isDirectory: false)
         let queueAURL = try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(
             in: rootDir,
             name: "queue-a.json",
@@ -292,6 +293,7 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
               *"--no-color machine queue read"*)
               case "$PWD" in
                 */workspace-a)
+                echo $$ > "\(pidFileURL.path)"
                 trap 'printf "queue-read-canceled\\n" >> "\(logURL.path)"; exit 130' INT TERM
                 printf 'queue-read-started\n' >> "\(logURL.path)"
                 sleep 5
@@ -351,10 +353,14 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
         }
         XCTAssertTrue(retargetSettled)
 
-        let cancellationLogged = await RalphCoreTestSupport.waitUntil(timeout: .seconds(3)) {
-            (try? String(contentsOf: logURL, encoding: .utf8).contains("queue-read-canceled")) == true
-        }
-        XCTAssertTrue(cancellationLogged)
+        let pidRecorded = await RalphCoreTestSupport.waitForFile(pidFileURL, timeout: .seconds(2))
+        XCTAssertTrue(pidRecorded)
+
+        let pidText = try String(contentsOf: pidFileURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let pid = pid_t(try XCTUnwrap(Int32(pidText)))
+        let cancelled = await RalphCoreTestSupport.waitForProcessExit(pid, timeout: .seconds(5))
+        XCTAssertTrue(cancelled)
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         XCTAssertTrue(log.contains("queue-read-canceled"))

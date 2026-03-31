@@ -36,7 +36,9 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
     tmp.as_file().sync_all().context("sync temp file")?;
 
     match tmp.persist(path) {
-        Ok(_) => {}
+        Ok(_) => {
+            // Atomic replacement succeeded; no additional cleanup is needed here.
+        }
         Err(err) => {
             // Explicitly drop the temp file to ensure cleanup on persist failure.
             // PersistError contains both the error and the NamedTempFile handle;

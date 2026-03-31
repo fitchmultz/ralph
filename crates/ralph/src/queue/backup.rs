@@ -38,7 +38,9 @@ pub fn backup_queue(path: &Path, backup_dir: &Path) -> Result<std::path::PathBuf
                 MAX_QUEUE_BACKUP_FILES
             );
         }
-        Ok(_) => {}
+        Ok(_) => {
+            // The backup set already fit within the retention cap, so no files were removed.
+        }
         Err(err) => {
             log::warn!(
                 "failed to prune queue backups in {}: {:#}",
