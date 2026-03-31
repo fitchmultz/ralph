@@ -3,6 +3,7 @@
 use crate::contracts::Config;
 use crate::fsutil;
 use crate::prompts;
+use crate::prompts_internal;
 use anyhow::{Result, bail};
 use std::path::{Path, PathBuf};
 
@@ -247,7 +248,11 @@ pub fn build_merge_conflict_prompt(
     conflict_files: &[String],
     config: &Config,
 ) -> Result<String> {
-    prompts::render_merge_conflict_prompt(template, conflict_files, config)
+    prompts_internal::merge_conflicts::render_merge_conflict_prompt(
+        template,
+        conflict_files,
+        config,
+    )
 }
 
 #[cfg(test)]

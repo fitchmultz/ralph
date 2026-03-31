@@ -6,21 +6,7 @@ This is the canonical near-term roadmap for active follow-up work.
 
 ## Active roadmap
 
-### 1. Remove dead-code wrappers in `prompts.rs`
-
-**Why next**: Two `#[allow(dead_code)]` wrappers delegate to `prompts_internal::merge_conflicts` with zero callers. Trivial deletion now that the migration split landed.
-
-**Outcome**: Remove the wrappers. Callers can import directly from `prompts_internal::merge_conflicts` if they ever appear.
-
-**Steps**:
-- Delete `load_merge_conflict_prompt` and `render_merge_conflict_prompt` from `prompts.rs`.
-- Grep for call sites to confirm zero references.
-- `make agent-ci` green.
-
-**Exit criteria**:
-- No `#[allow(dead_code)]` in `prompts.rs`.
-
-**Files in scope**: `crates/ralph/src/prompts.rs`.
+No active near-term items.
 
 ---
 
