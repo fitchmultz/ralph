@@ -235,7 +235,7 @@ pub(crate) fn redact_webhook_destination(url: &str) -> String {
 
 /// Generate HMAC-SHA256 signature for webhook payload.
 pub(crate) fn generate_signature(body: &str, secret: &str) -> String {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     type HmacSha256 = Hmac<Sha256>;

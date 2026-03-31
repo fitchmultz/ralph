@@ -1243,7 +1243,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
 				SWIFT_UPCOMING_FEATURE_INTERNAL_IMPORTS_BY_DEFAULT = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Release;
 		};
@@ -1261,7 +1261,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
 				SWIFT_UPCOMING_FEATURE_INTERNAL_IMPORTS_BY_DEFAULT = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Debug;
 		};
@@ -1284,7 +1284,7 @@
 				PRODUCT_NAME = RalphCore;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Release;
 		};
@@ -1312,7 +1312,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
 				SWIFT_UPCOMING_FEATURE_INTERNAL_IMPORTS_BY_DEFAULT = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Release;
 		};
@@ -1340,7 +1340,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
 				SWIFT_UPCOMING_FEATURE_INTERNAL_IMPORTS_BY_DEFAULT = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Debug;
 		};
@@ -1358,7 +1358,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
 				SWIFT_UPCOMING_FEATURE_INTERNAL_IMPORTS_BY_DEFAULT = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Release;
 		};
@@ -1375,7 +1375,7 @@
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
 				SWIFT_UPCOMING_FEATURE_INTERNAL_IMPORTS_BY_DEFAULT = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Debug;
 		};
@@ -1398,7 +1398,7 @@
 				PRODUCT_NAME = RalphCore;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 			};
 			name = Debug;
 		};
@@ -1415,7 +1415,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph.uitests;
 				PRODUCT_NAME = RalphMacUITests;
 				SDKROOT = macosx;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 				TEST_TARGET_NAME = RalphMac;
 			};
 			name = Debug;
@@ -1433,7 +1433,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph.uitests;
 				PRODUCT_NAME = RalphMacUITests;
 				SDKROOT = macosx;
-				SWIFT_VERSION = 6.2;
+				SWIFT_VERSION = 6.3;
 				TEST_TARGET_NAME = RalphMac;
 			};
 			name = Release;
