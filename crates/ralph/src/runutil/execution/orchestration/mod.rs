@@ -17,6 +17,7 @@
 //! - Companion modules stay private to the orchestration boundary.
 
 mod core;
+mod failure_paths;
 
 #[cfg(test)]
 mod tests;
