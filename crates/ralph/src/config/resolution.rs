@@ -20,7 +20,7 @@ use crate::constants::defaults::DEFAULT_ID_WIDTH;
 use crate::constants::queue::{DEFAULT_DONE_FILE, DEFAULT_ID_PREFIX, DEFAULT_QUEUE_FILE};
 use crate::contracts::Config;
 use crate::fsutil;
-use crate::prompts_internal::util::validate_instruction_file_paths;
+use crate::prompts_internal::validate_instruction_file_paths;
 use anyhow::{Context, Result, bail};
 use std::env;
 use std::path::{Path, PathBuf};

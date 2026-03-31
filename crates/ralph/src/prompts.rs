@@ -158,11 +158,11 @@ pub(crate) fn wrap_with_instruction_files(
     prompt: &str,
     config: &Config,
 ) -> Result<String> {
-    prompts_internal::util::wrap_with_instruction_files(repo_root, prompt, config)
+    prompts_internal::wrap_with_instruction_files(repo_root, prompt, config)
 }
 
 pub(crate) fn instruction_file_warnings(repo_root: &Path, config: &Config) -> Vec<String> {
-    prompts_internal::util::instruction_file_warnings(repo_root, config)
+    prompts_internal::instruction_file_warnings(repo_root, config)
 }
 
 pub(crate) fn load_worker_prompt(repo_root: &Path) -> Result<String> {

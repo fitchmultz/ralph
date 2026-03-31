@@ -1,11 +1,23 @@
-//! Modular prompt templates and rendering.
+//! Purpose: Internal prompt-template facade and re-export hub.
 //!
-//! Responsibilities: provide a cohesive internal home for prompt template loading/rendering and
-//! re-export category-specific helpers for backward compatibility via `crate::prompts`.
-//! Not handled: CLI argument parsing, task queue IO, or prompt overrides outside `.ralph/prompts`.
-//! Invariants/assumptions: templates are validated for placeholders and `.ralph/prompts` overrides
-//! may be absent.
+//! Responsibilities:
+//! - Declare focused prompt companion modules.
+//! - Re-export stable prompt-loading and rendering entrypoints for crate-local callers.
+//! - Keep prompt registry and composition internals behind the facade.
+//!
+//! Scope:
+//! - Prompt template loading, rendering, and validation plumbing only.
+//! - Does not handle CLI parsing or queue/task IO.
+//!
+//! Usage:
+//! - Used through `crate::prompts_internal::*` from prompt wrappers and config code.
+//! - Keeps prompt implementation details localized under sibling modules.
+//!
+//! Invariants/Assumptions:
+//! - Re-exported entrypoints remain the canonical internal surface for moved helpers.
+//! - `.ralph/prompts` overrides may be absent.
 
+mod instructions;
 pub(crate) mod iteration;
 pub(crate) mod management;
 pub(crate) mod merge_conflicts;
@@ -18,6 +30,10 @@ pub(crate) mod task_updater;
 pub(crate) mod util;
 pub(crate) mod worker;
 pub(crate) mod worker_phases;
+
+pub(crate) use instructions::{
+    instruction_file_warnings, validate_instruction_file_paths, wrap_with_instruction_files,
+};
 
 #[cfg(test)]
 mod tests;

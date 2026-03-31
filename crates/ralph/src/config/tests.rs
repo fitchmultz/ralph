@@ -11,7 +11,7 @@
 //! - Integration tests (see `tests/` directory).
 
 use super::super::contracts::{Config, GitPublishMode, GitRevertMode};
-use super::super::prompts_internal::util::validate_instruction_file_paths;
+use super::super::prompts_internal::validate_instruction_file_paths;
 use super::RepoTrust;
 use super::layer::{ConfigLayer, apply_layer, load_layer, save_layer};
 use super::resolution::{
