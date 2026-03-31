@@ -119,7 +119,9 @@ pub fn start(resolved: &Resolved, args: DaemonStartArgs) -> Result<()> {
         // This is async-signal-safe per POSIX and safe to call here.
         unsafe {
             command.pre_exec(|| {
-                libc::setsid();
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
                 Ok(())
             });
         }
