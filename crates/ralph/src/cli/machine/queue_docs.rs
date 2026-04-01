@@ -492,3 +492,6 @@ fn step(title: &str, command: &str, detail: &str) -> MachineContinuationAction {
         detail: detail.to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests;
