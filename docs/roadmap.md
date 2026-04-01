@@ -8,8 +8,8 @@ Source: comprehensive codebase audit (`docs/audits/codebase-audit-2026-03-31.md`
 ## Active roadmap
 
 ### 1. Split next 3 production files in 400–500 LOC range
-- `git/status.rs`, `commands/run/supervision/ci.rs`, `commands/run/parallel/cleanup_guard.rs`
-- Why: these are now the largest remaining non-test Rust files still clustered near the hard limit, and each has clear extraction seams without changing runtime behavior.
+- `commands/task/decompose/support.rs`, `commands/init/readme.rs`, `commands/task/mod.rs`
+- Why: these are now the largest remaining non-test Rust files still near the hard limit, and each has obvious structural split seams without requiring behavior changes.
 
 ---
 
