@@ -60,6 +60,15 @@ pub(crate) fn should_fallback_to_fresh_continue(
                 || (text.contains("semantic failure with zero exit status")
                     && text.contains("opencode"))
         }
+        Runner::Cursor => {
+            text.contains("invalid session")
+                || text.contains("invalid chat")
+                || text.contains("session not found")
+                || text.contains("unknown session")
+                || text.contains("no session found")
+                || text.contains("no matching session")
+                || (text.contains("resume") && text.contains("not found"))
+        }
         _ => false,
     }
 }
@@ -150,4 +159,34 @@ pub(super) fn continue_or_rerun(
         invocation_session_id.map(str::to_string),
         None,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::contracts::Runner;
+    use crate::runner::RunnerError;
+
+    use super::should_fallback_to_fresh_continue;
+
+    #[test]
+    fn cursor_resume_unknown_session_falls_back_to_fresh() {
+        let err = RunnerError::NonZeroExit {
+            code: 1,
+            stdout: "".into(),
+            stderr: "session not found for resume".into(),
+            session_id: None,
+        };
+        assert!(should_fallback_to_fresh_continue(&Runner::Cursor, &err));
+    }
+
+    #[test]
+    fn cursor_resume_unrecognized_error_does_not_fallback() {
+        let err = RunnerError::NonZeroExit {
+            code: 1,
+            stdout: "".into(),
+            stderr: "unexpected failure".into(),
+            session_id: None,
+        };
+        assert!(!should_fallback_to_fresh_continue(&Runner::Cursor, &err));
+    }
 }

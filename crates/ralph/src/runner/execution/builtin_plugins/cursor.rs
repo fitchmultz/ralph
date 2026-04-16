@@ -21,6 +21,28 @@ use super::super::plugin_trait::{
 };
 use super::apply_analytics_env;
 
+fn assistant_stream_chunk(content: &JsonValue) -> Option<String> {
+    match content {
+        JsonValue::String(text) => {
+            if text.is_empty() {
+                None
+            } else {
+                Some(text.to_string())
+            }
+        }
+        JsonValue::Array(items) => {
+            let mut out = String::new();
+            for item in items {
+                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                    out.push_str(text);
+                }
+            }
+            if out.is_empty() { None } else { Some(out) }
+        }
+        _ => None,
+    }
+}
+
 /// Cursor plugin implementation.
 pub struct CursorPlugin;
 
@@ -67,11 +89,11 @@ impl RunnerPlugin for CursorPlugin {
             .build())
     }
 
-    fn parse_response_line(&self, line: &str, _buffer: &mut String) -> Option<String> {
+    fn parse_response_line(&self, line: &str, buffer: &mut String) -> Option<String> {
         let json = serde_json::from_str(line)
             .inspect_err(|e| log::trace!("Cursor response not valid JSON: {}", e))
             .ok()?;
-        CursorResponseParser.parse_json(&json)
+        CursorResponseParser.parse_json(&json, buffer)
     }
 }
 
@@ -80,9 +102,24 @@ pub struct CursorResponseParser;
 
 impl CursorResponseParser {
     /// Parse Cursor JSON response format.
-    pub(crate) fn parse_json(&self, json: &JsonValue) -> Option<String> {
+    ///
+    /// Current Cursor Agent `stream-json` emits `assistant` events (and optional
+    /// `--stream-partial-output` text deltas), optional legacy `message_end` envelopes,
+    /// and a terminal `result` event with the full concatenated assistant text.
+    pub(crate) fn parse_json(&self, json: &JsonValue, buffer: &mut String) -> Option<String> {
         match json.get("type").and_then(|t| t.as_str()) {
-            // Cursor stream-json emits a message_end envelope for final assistant output.
+            Some("assistant") => {
+                let message = json.get("message")?;
+                if message.get("role").and_then(|r| r.as_str()) != Some("assistant") {
+                    return None;
+                }
+
+                let content = message.get("content")?;
+                let chunk = assistant_stream_chunk(content)?;
+                buffer.push_str(&chunk);
+                Some(buffer.clone())
+            }
+            // Legacy/alternate envelope used by some Cursor Agent builds.
             Some("message_end") => {
                 let message = json.get("message")?;
                 if message.get("role").and_then(|r| r.as_str()) != Some("assistant") {
@@ -90,12 +127,17 @@ impl CursorResponseParser {
                 }
 
                 let content = message.get("content")?;
-                super::extract_text_content(content)
+                let text = super::extract_text_content(content)?;
+                buffer.clear();
+                buffer.push_str(&text);
+                Some(buffer.clone())
             }
-            // Some cursor builds also emit a terminal result event.
             Some("result") => {
                 let result = json.get("result")?;
-                super::extract_text_content(result)
+                let text = super::extract_text_content(result)?;
+                buffer.clear();
+                buffer.push_str(&text);
+                Some(buffer.clone())
             }
             _ => None,
         }
@@ -103,8 +145,8 @@ impl CursorResponseParser {
 }
 
 impl ResponseParser for CursorResponseParser {
-    fn parse(&self, json: &JsonValue, _buffer: &mut String) -> Option<String> {
-        self.parse_json(json)
+    fn parse(&self, json: &JsonValue, buffer: &mut String) -> Option<String> {
+        self.parse_json(json, buffer)
     }
 
     fn runner_id(&self) -> &str {

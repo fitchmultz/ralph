@@ -175,6 +175,45 @@ mod tests {
     }
 
     #[test]
+    fn response_registry_extracts_cursor_assistant_deltas() {
+        let registry = ResponseParserRegistry::new();
+        let runner = Runner::Cursor;
+
+        let stdout = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello "}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"World"}]}}"#;
+
+        let result = registry.extract_final_response(&runner, stdout);
+        assert_eq!(result, Some("Hello World".to_string()));
+    }
+
+    #[test]
+    fn response_registry_prefers_cursor_terminal_result_over_assistant_chunks() {
+        let registry = ResponseParserRegistry::new();
+        let runner = Runner::Cursor;
+
+        let stdout = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"partial"}]}}
+{"type":"result","subtype":"success","is_error":false,"result":"final"}"#;
+
+        let result = registry.extract_final_response(&runner, stdout);
+        assert_eq!(result, Some("final".to_string()));
+    }
+
+    #[test]
+    fn cursor_response_parser_accumulates_assistant_stream() {
+        let parser = CursorResponseParser;
+        let mut buffer = String::new();
+
+        let line1 = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello "}]}}"#;
+        let line2 = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"World"}]}}"#;
+
+        let result1 = parser.parse(&serde_json::from_str(line1).unwrap(), &mut buffer);
+        assert_eq!(result1, Some("Hello ".to_string()));
+
+        let result2 = parser.parse(&serde_json::from_str(line2).unwrap(), &mut buffer);
+        assert_eq!(result2, Some("Hello World".to_string()));
+    }
+
+    #[test]
     fn opencode_response_parser_accumulates_streaming_text() {
         let parser = OpencodeResponseParser;
         let mut buffer = String::new();

@@ -173,7 +173,7 @@ impl RunnerPlugin for BuiltInRunnerPlugin {
             Self::Claude => ClaudeResponseParser.parse_json(&json),
             Self::Kimi => KimiResponseParser.parse_json(&json),
             Self::Pi => PiResponseParser.parse_json(&json),
-            Self::Cursor => CursorResponseParser.parse_json(&json),
+            Self::Cursor => CursorResponseParser.parse_json(&json, buffer),
         }
     }
 
