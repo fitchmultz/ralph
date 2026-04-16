@@ -96,15 +96,20 @@ pub(crate) fn discover_plugins(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::io::Write;
     use tempfile::TempDir;
 
     fn write_manifest(dir: &Path, id: &str) -> anyhow::Result<()> {
+        write_manifest_named(dir, id, &format!("Plugin {}", id))
+    }
+
+    fn write_manifest_named(dir: &Path, id: &str, display_name: &str) -> anyhow::Result<()> {
         let manifest = crate::plugins::manifest::PluginManifest {
             api_version: super::super::PLUGIN_API_VERSION,
             id: id.to_string(),
             version: "1.0.0".to_string(),
-            name: format!("Plugin {}", id),
+            name: display_name.to_string(),
             description: None,
             runner: Some(crate::plugins::manifest::RunnerPlugin {
                 bin: "runner".to_string(),
@@ -143,46 +148,42 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn project_overrides_global() {
         let tmp = TempDir::new().unwrap();
-
-        // Create global plugin dir (mock HOME)
-        let global_root = tmp.path().join("global/plugins");
-        std::fs::create_dir_all(&global_root).unwrap();
-        let global_plugin = global_root.join("shared.plugin");
+        let fake_home = tmp.path().join("home");
+        let global_plugin = fake_home.join(".config/ralph/plugins/shared.plugin");
         std::fs::create_dir_all(&global_plugin).unwrap();
-        write_manifest(&global_plugin, "shared.plugin").unwrap();
+        write_manifest_named(&global_plugin, "shared.plugin", "global-plugin").unwrap();
 
-        // Create project plugin
         let project_plugin = tmp.path().join(".ralph/plugins/shared.plugin");
         std::fs::create_dir_all(&project_plugin).unwrap();
-        write_manifest(&project_plugin, "shared.plugin").unwrap();
+        write_manifest_named(&project_plugin, "shared.plugin", "project-plugin").unwrap();
 
-        // Temporarily override HOME
         let original_home = std::env::var_os("HOME");
-        // SAFETY: This is test code that temporarily modifies the process environment.
-        // We are in a single-threaded test context (enforced by test guard), so this
-        // won't cause data races. The original value is restored immediately after.
+        let fake_home_str = fake_home.to_str().expect("tempdir path is utf-8");
+        // SAFETY: Mutates process-global environment. `#[serial]` matches crate convention
+        // for HOME tests so this does not run concurrently with other tests that touch `HOME`.
         unsafe {
-            std::env::set_var("HOME", tmp.path().join("global").parent().unwrap());
+            std::env::set_var("HOME", fake_home_str);
         }
 
-        // We'll test this by checking that discover uses the right paths
-        // Since we can't easily override HOME in tests, let's verify the logic differently
-        // by checking that when both exist, project wins
+        let discovered = discover_plugins(tmp.path()).unwrap();
 
-        // Reset HOME
-        if let Some(h) = original_home {
-            // SAFETY: Restoring original HOME value in test context.
-            // Single-threaded test execution ensures no data races.
+        if let Some(h) = original_home.as_ref() {
+            // SAFETY: paired restore after `set_var` above; still under `#[serial]`.
             unsafe {
                 std::env::set_var("HOME", h);
             }
         } else {
-            // SAFETY: Removing HOME in test context. Single-threaded execution.
             unsafe {
                 std::env::remove_var("HOME");
             }
         }
+
+        assert_eq!(discovered.len(), 1);
+        let got = discovered.get("shared.plugin").unwrap();
+        assert_eq!(got.scope, PluginScope::Project);
+        assert_eq!(got.manifest.name, "project-plugin");
     }
 }
