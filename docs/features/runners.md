@@ -538,7 +538,7 @@ Each runner has a specialized parser that extracts the final assistant response:
 | **OpenCode** | `type="text"` | Accumulated streaming `part.text` |
 | **Kimi** | `role="assistant"` | `content[].text` |
 | **Pi** | `type="result"` | `result` field |
-| **Cursor** | `type="message_end"` with `role="assistant"` | `message.content` |
+| **Cursor** | Primary: `type="assistant"` (streaming `message.content`); legacy: `type="message_end"`; terminal: `type="result"` replaces streamed assistant text when present | `message.content` or `result` string |
 
 ### Tool Call Tracking
 
