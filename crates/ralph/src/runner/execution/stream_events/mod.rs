@@ -19,6 +19,7 @@ mod cursor;
 mod gemini;
 mod kimi;
 mod opencode;
+mod pi;
 
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -87,6 +88,7 @@ pub(crate) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
         StreamProtocol::Gemini => gemini::collect_lines(json, &mut lines),
         StreamProtocol::Kimi => kimi::collect_lines(json, &mut lines),
         StreamProtocol::Opencode => opencode::collect_lines(json, &mut lines),
+        StreamProtocol::Pi => pi::collect_lines(json, &mut lines),
         StreamProtocol::Unknown => {}
     }
     common::push_permission_denials(json, &mut lines);
@@ -101,6 +103,7 @@ enum StreamProtocol {
     Gemini,
     Kimi,
     Opencode,
+    Pi,
     Unknown,
 }
 
@@ -111,6 +114,8 @@ fn classify_protocol(json: &JsonValue) -> StreamProtocol {
     match event_type {
         Some("item.completed" | "item.started") => StreamProtocol::Codex,
         Some("tool_call") => StreamProtocol::Cursor,
+        Some("message_update" | "tool_execution_start") => StreamProtocol::Pi,
+        Some("message_end") if is_pi_message_end(json) => StreamProtocol::Pi,
         Some("assistant" | "message_end" | "result") => StreamProtocol::Claude,
         Some("message") if role == Some("assistant") => StreamProtocol::Gemini,
         Some("tool_result") => StreamProtocol::Gemini,
@@ -125,4 +130,18 @@ fn classify_protocol(json: &JsonValue) -> StreamProtocol {
         _ if role == Some("assistant") || role == Some("tool") => StreamProtocol::Kimi,
         _ => StreamProtocol::Unknown,
     }
+}
+
+fn is_pi_message_end(json: &JsonValue) -> bool {
+    let Some(message) = json.get("message") else {
+        return false;
+    };
+
+    if message.get("role").and_then(|role| role.as_str()) == Some("toolResult") {
+        return true;
+    }
+
+    message.get("api").is_some()
+        || message.get("provider").is_some()
+        || message.get("responseId").is_some()
 }

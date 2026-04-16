@@ -340,6 +340,67 @@ fn extract_display_lines_pi_message_end_tool_result() {
 }
 
 #[test]
+fn extract_display_lines_pi_message_end_tool_result_without_tool_name() {
+    let payload = json!({
+        "type": "message_end",
+        "message": {
+            "role": "toolResult",
+            "isError": false
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["[Tool] Tool (completed)"]
+    );
+}
+
+#[test]
+fn extract_display_lines_pi_message_update_thinking_end() {
+    let payload = json!({
+        "type": "message_update",
+        "assistantMessageEvent": {
+            "type": "thinking_end",
+            "content": "Inspecting the repository layout"
+        }
+    });
+    let lines = extract_display_lines(&payload);
+    assert_eq!(lines.len(), 1);
+    assert!(lines[0].contains("[Reasoning]"));
+    assert!(lines[0].contains("Inspecting the repository layout"));
+}
+
+#[test]
+fn extract_display_lines_pi_tool_execution_start_bash() {
+    let payload = json!({
+        "type": "tool_execution_start",
+        "toolName": "bash",
+        "args": {
+            "command": "git status --short",
+            "timeout": 20
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["[Tool] bash cmd=git status --short"]
+    );
+}
+
+#[test]
+fn extract_display_lines_pi_tool_execution_start_read() {
+    let payload = json!({
+        "type": "tool_execution_start",
+        "toolName": "read",
+        "args": {
+            "path": "src/main.rs"
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["[Tool] read path=src/main.rs"]
+    );
+}
+
+#[test]
 fn extract_display_lines_cursor_tool_call_mcp() {
     let payload = json!({
         "type": "tool_call",
