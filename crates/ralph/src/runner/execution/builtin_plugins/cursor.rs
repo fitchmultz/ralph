@@ -106,6 +106,11 @@ impl CursorResponseParser {
     /// Current Cursor Agent `stream-json` emits `assistant` events (and optional
     /// `--stream-partial-output` text deltas), optional legacy `message_end` envelopes,
     /// and a terminal `result` event with the full concatenated assistant text.
+    ///
+    /// `assistant` events follow a Gemini-style `delta` flag when present: `delta: true`
+    /// appends to the streaming buffer; explicit `delta: false` replaces the buffer with a
+    /// full snapshot (replay-safe when the same full snapshot is seen twice). When `delta` is
+    /// omitted, chunks still append so legacy Cursor streams without the flag keep working.
     pub(crate) fn parse_json(&self, json: &JsonValue, buffer: &mut String) -> Option<String> {
         match json.get("type").and_then(|t| t.as_str()) {
             Some("assistant") => {
@@ -115,9 +120,24 @@ impl CursorResponseParser {
                 }
 
                 let content = message.get("content")?;
-                let chunk = assistant_stream_chunk(content)?;
-                buffer.push_str(&chunk);
-                Some(buffer.clone())
+                let delta_flag = json
+                    .get("delta")
+                    .or_else(|| message.get("delta"))
+                    .and_then(|d| d.as_bool());
+
+                match delta_flag {
+                    Some(false) => {
+                        let text = super::extract_text_content(content)?;
+                        buffer.clear();
+                        buffer.push_str(&text);
+                        Some(buffer.clone())
+                    }
+                    Some(true) | None => {
+                        let chunk = assistant_stream_chunk(content)?;
+                        buffer.push_str(&chunk);
+                        Some(buffer.clone())
+                    }
+                }
             }
             // Legacy/alternate envelope used by some Cursor Agent builds.
             Some("message_end") => {

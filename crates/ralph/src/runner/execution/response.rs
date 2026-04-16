@@ -214,6 +214,42 @@ mod tests {
     }
 
     #[test]
+    fn cursor_response_parser_delta_true_accumulates_like_gemini() {
+        let parser = CursorResponseParser;
+        let mut buffer = String::new();
+
+        let line1 = r#"{"type":"assistant","delta":true,"message":{"role":"assistant","content":[{"type":"text","text":"Hi "}]}}"#;
+        let line2 = r#"{"type":"assistant","delta":true,"message":{"role":"assistant","content":[{"type":"text","text":"there"}]}}"#;
+
+        assert_eq!(
+            parser.parse(&serde_json::from_str(line1).unwrap(), &mut buffer),
+            Some("Hi ".to_string())
+        );
+        assert_eq!(
+            parser.parse(&serde_json::from_str(line2).unwrap(), &mut buffer),
+            Some("Hi there".to_string())
+        );
+    }
+
+    #[test]
+    fn cursor_response_parser_delta_false_snapshot_is_replay_idempotent() {
+        let parser = CursorResponseParser;
+        let mut buffer = String::new();
+
+        let line = r#"{"type":"assistant","delta":false,"message":{"role":"assistant","content":[{"type":"text","text":"full text"}]}}"#;
+        let json = serde_json::from_str::<serde_json::Value>(line).unwrap();
+
+        assert_eq!(
+            parser.parse(&json, &mut buffer),
+            Some("full text".to_string())
+        );
+        assert_eq!(
+            parser.parse(&json, &mut buffer),
+            Some("full text".to_string())
+        );
+    }
+
+    #[test]
     fn opencode_response_parser_accumulates_streaming_text() {
         let parser = OpencodeResponseParser;
         let mut buffer = String::new();
