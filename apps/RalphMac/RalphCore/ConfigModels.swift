@@ -53,6 +53,36 @@ public struct NotificationConfig: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - Webhook Config (partial; mirrors `agent.webhook` from machine-resolved config)
+
+/// Subset of CLI `WebhookConfig` needed for RalphCore decoding of `machine config resolve` payloads.
+/// Additional webhook keys from the CLI are ignored on decode.
+public struct WebhookConfig: Codable, Sendable, Equatable {
+    public var enabled: Bool?
+    public var url: String?
+    public var allowInsecureHttp: Bool?
+    public var allowPrivateTargets: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled
+        case url
+        case allowInsecureHttp = "allow_insecure_http"
+        case allowPrivateTargets = "allow_private_targets"
+    }
+
+    public init(
+        enabled: Bool? = nil,
+        url: String? = nil,
+        allowInsecureHttp: Bool? = nil,
+        allowPrivateTargets: Bool? = nil
+    ) {
+        self.enabled = enabled
+        self.url = url
+        self.allowInsecureHttp = allowInsecureHttp
+        self.allowPrivateTargets = allowPrivateTargets
+    }
+}
+
 // MARK: - Agent Config (partial for Settings UI)
 
 public struct AgentConfig: Codable, Sendable, Equatable {
@@ -63,6 +93,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     public var reasoningEffort: String?
     public var gitPublishMode: String?
     public var notification: NotificationConfig?
+    public var webhook: WebhookConfig?
 
     private enum CodingKeys: String, CodingKey {
         case runner
@@ -72,6 +103,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         case reasoningEffort = "reasoning_effort"
         case gitPublishMode = "git_publish_mode"
         case notification
+        case webhook
     }
 
     public init(
@@ -81,7 +113,8 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         iterations: Int? = nil,
         reasoningEffort: String? = nil,
         gitPublishMode: String? = nil,
-        notification: NotificationConfig? = nil
+        notification: NotificationConfig? = nil,
+        webhook: WebhookConfig? = nil
     ) {
         self.runner = runner
         self.model = model
@@ -90,6 +123,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         self.reasoningEffort = reasoningEffort
         self.gitPublishMode = gitPublishMode
         self.notification = notification
+        self.webhook = webhook
     }
 }
 
