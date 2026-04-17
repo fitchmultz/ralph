@@ -56,66 +56,138 @@ where
     pub other_msg: FOther,
 }
 
-pub(crate) trait RunnerBackend {
-    #[allow(clippy::too_many_arguments)]
-    fn run_prompt<'a>(
-        &mut self,
-        runner_kind: Runner,
-        work_dir: &Path,
-        bins: runner::RunnerBinaries<'a>,
-        model: Model,
-        reasoning_effort: Option<ReasoningEffort>,
-        runner_cli: runner::ResolvedRunnerCliOptions,
-        prompt: &str,
-        timeout: Option<Duration>,
-        permission_mode: Option<ClaudePermissionMode>,
-        output_handler: Option<runner::OutputHandler>,
-        output_stream: runner::OutputStream,
-        phase_type: PhaseType,
+pub(super) struct RunnerAttemptContext<'a> {
+    pub runner_kind: &'a Runner,
+    pub repo_root: &'a Path,
+    pub bins: runner::RunnerBinaries<'a>,
+    pub model: &'a Model,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub runner_cli: runner::ResolvedRunnerCliOptions,
+    pub timeout: Option<Duration>,
+    pub permission_mode: Option<ClaudePermissionMode>,
+    pub output_handler: Option<runner::OutputHandler>,
+    pub output_stream: runner::OutputStream,
+    pub phase_type: PhaseType,
+}
+
+impl RunnerAttemptContext<'_> {
+    pub(super) fn run_prompt_request<'request>(
+        &'request self,
+        prompt: &'request str,
         session_id: Option<String>,
-        plugins: Option<&crate::plugins::registry::PluginRegistry>,
+    ) -> RunnerBackendRunPrompt<'request> {
+        RunnerBackendRunPrompt {
+            runner_kind: self.runner_kind.clone(),
+            work_dir: self.repo_root,
+            bins: self.bins,
+            model: self.model.clone(),
+            reasoning_effort: self.reasoning_effort,
+            runner_cli: self.runner_cli,
+            prompt,
+            timeout: self.timeout,
+            permission_mode: self.permission_mode,
+            output_handler: self.output_handler.clone(),
+            output_stream: self.output_stream,
+            phase_type: self.phase_type,
+            session_id,
+            plugins: None,
+        }
+    }
+
+    pub(super) fn resume_session_request<'request>(
+        &'request self,
+        session_id: &'request str,
+        message: &'request str,
+    ) -> RunnerBackendResumeSession<'request> {
+        RunnerBackendResumeSession {
+            runner_kind: self.runner_kind.clone(),
+            work_dir: self.repo_root,
+            bins: self.bins,
+            model: self.model.clone(),
+            reasoning_effort: self.reasoning_effort,
+            runner_cli: self.runner_cli,
+            session_id,
+            message,
+            permission_mode: self.permission_mode,
+            timeout: self.timeout,
+            output_handler: self.output_handler.clone(),
+            output_stream: self.output_stream,
+            phase_type: self.phase_type,
+            plugins: None,
+        }
+    }
+}
+
+pub(crate) struct RunnerBackendRunPrompt<'a> {
+    pub runner_kind: Runner,
+    pub work_dir: &'a Path,
+    pub bins: runner::RunnerBinaries<'a>,
+    pub model: Model,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub runner_cli: runner::ResolvedRunnerCliOptions,
+    pub prompt: &'a str,
+    pub timeout: Option<Duration>,
+    pub permission_mode: Option<ClaudePermissionMode>,
+    pub output_handler: Option<runner::OutputHandler>,
+    pub output_stream: runner::OutputStream,
+    pub phase_type: PhaseType,
+    pub session_id: Option<String>,
+    pub plugins: Option<&'a crate::plugins::registry::PluginRegistry>,
+}
+
+pub(crate) struct RunnerBackendResumeSession<'a> {
+    pub runner_kind: Runner,
+    pub work_dir: &'a Path,
+    pub bins: runner::RunnerBinaries<'a>,
+    pub model: Model,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub runner_cli: runner::ResolvedRunnerCliOptions,
+    pub session_id: &'a str,
+    pub message: &'a str,
+    pub permission_mode: Option<ClaudePermissionMode>,
+    pub timeout: Option<Duration>,
+    pub output_handler: Option<runner::OutputHandler>,
+    pub output_stream: runner::OutputStream,
+    pub phase_type: PhaseType,
+    pub plugins: Option<&'a crate::plugins::registry::PluginRegistry>,
+}
+
+pub(crate) trait RunnerBackend {
+    fn run_prompt(
+        &mut self,
+        request: RunnerBackendRunPrompt<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError>;
 
-    #[allow(clippy::too_many_arguments)]
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        runner_kind: Runner,
-        work_dir: &Path,
-        bins: runner::RunnerBinaries<'a>,
-        model: Model,
-        reasoning_effort: Option<ReasoningEffort>,
-        runner_cli: runner::ResolvedRunnerCliOptions,
-        session_id: &str,
-        message: &str,
-        permission_mode: Option<ClaudePermissionMode>,
-        timeout: Option<Duration>,
-        output_handler: Option<runner::OutputHandler>,
-        output_stream: runner::OutputStream,
-        phase_type: PhaseType,
-        plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        request: RunnerBackendResumeSession<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError>;
 }
 
 pub(super) struct RealRunnerBackend;
 
 impl RunnerBackend for RealRunnerBackend {
-    fn run_prompt<'a>(
+    fn run_prompt(
         &mut self,
-        runner_kind: Runner,
-        work_dir: &Path,
-        bins: runner::RunnerBinaries<'a>,
-        model: Model,
-        reasoning_effort: Option<ReasoningEffort>,
-        runner_cli: runner::ResolvedRunnerCliOptions,
-        prompt: &str,
-        timeout: Option<Duration>,
-        permission_mode: Option<ClaudePermissionMode>,
-        output_handler: Option<runner::OutputHandler>,
-        output_stream: runner::OutputStream,
-        phase_type: PhaseType,
-        session_id: Option<String>,
-        plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        request: RunnerBackendRunPrompt<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
+        let RunnerBackendRunPrompt {
+            runner_kind,
+            work_dir,
+            bins,
+            model,
+            reasoning_effort,
+            runner_cli,
+            prompt,
+            timeout,
+            permission_mode,
+            output_handler,
+            output_stream,
+            phase_type,
+            session_id,
+            plugins,
+        } = request;
+
         runner::run_prompt(
             runner_kind,
             work_dir,
@@ -134,23 +206,27 @@ impl RunnerBackend for RealRunnerBackend {
         )
     }
 
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        runner_kind: Runner,
-        work_dir: &Path,
-        bins: runner::RunnerBinaries<'a>,
-        model: Model,
-        reasoning_effort: Option<ReasoningEffort>,
-        runner_cli: runner::ResolvedRunnerCliOptions,
-        session_id: &str,
-        message: &str,
-        permission_mode: Option<ClaudePermissionMode>,
-        timeout: Option<Duration>,
-        output_handler: Option<runner::OutputHandler>,
-        output_stream: runner::OutputStream,
-        phase_type: PhaseType,
-        plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        request: RunnerBackendResumeSession<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
+        let RunnerBackendResumeSession {
+            runner_kind,
+            work_dir,
+            bins,
+            model,
+            reasoning_effort,
+            runner_cli,
+            session_id,
+            message,
+            permission_mode,
+            timeout,
+            output_handler,
+            output_stream,
+            phase_type,
+            plugins,
+        } = request;
+
         runner::resume_session(
             runner_kind,
             work_dir,

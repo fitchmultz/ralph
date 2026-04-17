@@ -21,10 +21,13 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use super::super::backend::{RunnerBackend, RunnerErrorMessages, RunnerInvocation};
+use super::super::backend::{
+    RunnerBackend, RunnerBackendResumeSession, RunnerBackendRunPrompt, RunnerErrorMessages,
+    RunnerInvocation,
+};
 use super::run_prompt_with_handling_backend;
 use crate::commands::run::PhaseType;
-use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
+use crate::contracts::{GitRevertMode, Model, Runner};
 use crate::redaction::RedactedString;
 use crate::runner;
 
@@ -97,22 +100,9 @@ fn safeguard_dump_created_for_stderr_on_nonzero_exit() {
     struct MockNonZeroExitBackend;
 
     impl RunnerBackend for MockNonZeroExitBackend {
-        fn run_prompt<'a>(
+        fn run_prompt(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _prompt: &str,
-            _timeout: Option<Duration>,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _session_id: Option<String>,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendRunPrompt<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             Err(runner::RunnerError::NonZeroExit {
                 code: 1,
@@ -122,22 +112,9 @@ fn safeguard_dump_created_for_stderr_on_nonzero_exit() {
             })
         }
 
-        fn resume_session<'a>(
+        fn resume_session(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _session_id: &str,
-            _message: &str,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _timeout: Option<Duration>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendResumeSession<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }
@@ -168,22 +145,9 @@ fn safeguard_dump_created_for_stderr_on_terminated_by_signal() {
     struct MockTerminatedBySignalBackend;
 
     impl RunnerBackend for MockTerminatedBySignalBackend {
-        fn run_prompt<'a>(
+        fn run_prompt(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _prompt: &str,
-            _timeout: Option<Duration>,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _session_id: Option<String>,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendRunPrompt<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             Err(runner::RunnerError::TerminatedBySignal {
                 signal: Some(15),
@@ -193,22 +157,9 @@ fn safeguard_dump_created_for_stderr_on_terminated_by_signal() {
             })
         }
 
-        fn resume_session<'a>(
+        fn resume_session(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _session_id: &str,
-            _message: &str,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _timeout: Option<Duration>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendResumeSession<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }
@@ -239,22 +190,9 @@ fn no_safeguard_dump_for_empty_stderr() {
     struct MockEmptyStderrBackend;
 
     impl RunnerBackend for MockEmptyStderrBackend {
-        fn run_prompt<'a>(
+        fn run_prompt(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _prompt: &str,
-            _timeout: Option<Duration>,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _session_id: Option<String>,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendRunPrompt<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             Err(runner::RunnerError::NonZeroExit {
                 code: 1,
@@ -264,22 +202,9 @@ fn no_safeguard_dump_for_empty_stderr() {
             })
         }
 
-        fn resume_session<'a>(
+        fn resume_session(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _session_id: &str,
-            _message: &str,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _timeout: Option<Duration>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendResumeSession<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }
@@ -310,42 +235,16 @@ fn timeout_stdout_capture_survives_mutex_poison() {
     struct MockTimeoutBackend;
 
     impl RunnerBackend for MockTimeoutBackend {
-        fn run_prompt<'a>(
+        fn run_prompt(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _prompt: &str,
-            _timeout: Option<Duration>,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _session_id: Option<String>,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendRunPrompt<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             Err(runner::RunnerError::Timeout)
         }
 
-        fn resume_session<'a>(
+        fn resume_session(
             &mut self,
-            _runner_kind: Runner,
-            _work_dir: &Path,
-            _bins: runner::RunnerBinaries<'a>,
-            _model: Model,
-            _reasoning_effort: Option<ReasoningEffort>,
-            _runner_cli: runner::ResolvedRunnerCliOptions,
-            _session_id: &str,
-            _message: &str,
-            _permission_mode: Option<ClaudePermissionMode>,
-            _timeout: Option<Duration>,
-            _output_handler: Option<runner::OutputHandler>,
-            _output_stream: runner::OutputStream,
-            _phase_type: PhaseType,
-            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+            _request: RunnerBackendResumeSession<'_>,
         ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }
@@ -423,22 +322,9 @@ impl MockKnownInvalidResumeFallbackBackend {
 }
 
 impl RunnerBackend for MockKnownInvalidResumeFallbackBackend {
-    fn run_prompt<'a>(
+    fn run_prompt(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _prompt: &str,
-        _timeout: Option<Duration>,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _session_id: Option<String>,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendRunPrompt<'_>,
     ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
         self.run_calls += 1;
         if self.run_calls == 1 {
@@ -458,22 +344,9 @@ impl RunnerBackend for MockKnownInvalidResumeFallbackBackend {
         }
     }
 
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _session_id: &str,
-        _message: &str,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _timeout: Option<Duration>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendResumeSession<'_>,
     ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
         self.resume_calls += 1;
         Err(self

@@ -113,10 +113,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "model_used": "composer-2",
         "roadmap_item": "1",
-        "runner_used": "cursor"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "runner_used": "cursor",
+        "model_used": "composer-2"
       }
     },
     {
@@ -157,9 +157,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "cursor",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
         "executive_finding": "10",
-        "runner_used": "cursor",
         "model_used": "composer-2"
       }
     },
@@ -206,10 +206,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "cursor",
+        "roadmap_item": "2",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
         "model_used": "composer-2",
-        "roadmap_item": "2"
+        "runner_used": "cursor"
       }
     },
     {
@@ -252,10 +252,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "4",
-        "model_used": "gpt-5.4",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex",
+        "roadmap_item": "4"
       }
     },
     {
@@ -300,10 +300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "roadmap_item": "3",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "runner_used": "codex"
       }
     },
     {
@@ -345,10 +345,59 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "6",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "model_used": "gpt-5.4"
+        "roadmap_item": "6",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
+      }
+    },
+    {
+      "id": "RQ-0009",
+      "status": "done",
+      "title": "Reduce `too_many_arguments` debt starting at runutil orchestration",
+      "description": "Audit cites systemic `#[allow(clippy::too_many_arguments)]` suppressions and highlights `runutil/execution/orchestration/core.rs::run_runner_attempt`. Introduce parameter objects (e.g. `RunRunnerAttemptCtx`) beginning with orchestration hotspots, without changing external behavior. Outcome: smaller function surfaces, fewer suppressions, easier maintenance in runner execution paths.\n\nValidation: `run_runner_attempt` in `crates/ralph/src/runutil/execution/orchestration/core.rs` is explicitly `#[allow(clippy::too_many_arguments)]` and takes many parameters (`runner_kind`, `repo_root`, `bins`, `model`, `reasoning_effort`, `runner_cli`, `prompt`, `timeout`, `permission_mode`, `output_handler`, `output_stream`, `phase_type`, `session_id`). `RunnerBackend::run_prompt` in `backend.rs` is also `#[allow(clippy::too_many_arguments)]`.",
+      "priority": "medium",
+      "tags": [
+        "audit",
+        "refactor",
+        "runutil",
+        "clippy"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/execution/orchestration/core.rs",
+        "crates/ralph/src/runutil/execution/orchestration/failure_paths.rs",
+        "crates/ralph/src/runutil/execution/backend.rs",
+        "cargo clippy -p ralph",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #1, Complexity section with `run_runner_attempt` excerpt, Short-term #7).",
+        "Repo: `crates/ralph/src/runutil/execution/orchestration/core.rs` `run_runner_attempt` (~348–364); `RunnerBackend::run_prompt` allow in `backend.rs`; `queue validate` passed (2026-04-16)."
+      ],
+      "plan": [
+        "Inventory orchestration `too_many_arguments` sites (`core.rs`, `backend.rs` trait methods).",
+        "Introduce a param object and migrate `run_runner_attempt` and related call sites with minimal behavior change.",
+        "Remove or narrow `allow` attributes where resolved; run clippy/tests."
+      ],
+      "notes": [
+        "Introduced backend request/context structs for runner run/resume calls.",
+        "Collapsed orchestration and failure-path runner attempt parameters into shared contexts.",
+        "Removed runutil/execution too_many_arguments suppressions without behavior changes.",
+        "Verified with cargo clippy/test using package ralph-agent-loop and make ci."
+      ],
+      "request": "Reduce `#[allow(clippy::too_many_arguments)]` debt starting at `run_runner_attempt` in `crates/ralph/src/runutil/execution/orchestration/core.rs`: introduce a parameter object (e.g. `RunRunnerAttemptCtx`), migrate call sites and related orchestration/backend surfaces with no behavior change, then narrow or remove allows where resolved. Run `cargo clippy -p ralph` and `cargo test -p ralph`. Scope: this task only—no new queue items.",
+      "created_at": "2026-04-16T18:52:52Z",
+      "updated_at": "2026-04-17T18:40:50.301204000Z",
+      "completed_at": "2026-04-17T18:40:50.301204000Z",
+      "started_at": "2026-04-17T18:22:24.574505000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "codex",
+        "model_used": "gpt-5.4",
+        "roadmap_item": "7",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     }
   ]
