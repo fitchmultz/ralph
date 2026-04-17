@@ -38,6 +38,7 @@ mod tests {
     use super::*;
     use anyhow::anyhow;
     use log::{LevelFilter, Log, Metadata, Record};
+    use serial_test::serial;
     use std::sync::{Mutex, OnceLock};
 
     struct TestLogger;
@@ -86,6 +87,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn with_scope_logs_start_and_end_on_success() -> Result<()> {
         let (state, _) = take_logs();
 
@@ -111,6 +113,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn with_scope_logs_error_on_failure() {
         let (state, _) = take_logs();
 

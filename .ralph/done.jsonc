@@ -32,7 +32,8 @@
       "started_at": "2026-02-01T10:02:00Z",
       "depends_on": [],
       "blocks": [],
-      "relates_to": []
+      "relates_to": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0002",
@@ -70,7 +71,53 @@
         "RQ-0001"
       ],
       "blocks": [],
-      "relates_to": []
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0003",
+      "status": "done",
+      "title": "Fix flaky HOME mutation in plugins discovery test",
+      "description": "The audit flags `plugins/discovery.rs::project_overrides_global` for mutating `HOME` without `#[serial]`, which can flake under parallel tests and makes the SAFETY comment inaccurate. Add `#[serial]` (or remove the env mutation) so the test matches its isolation claims. Outcome: stable parallel test runs and accurate safety documentation for that test.\n\nValidation: In `crates/ralph/src/plugins/discovery.rs`, `project_overrides_global` (around lines 146–187) uses `unsafe { std::env::set_var(\"HOME\", ...) }` and documents single-threaded assumptions, but the test module is not `#[serial]`. The test body currently ends after restoring `HOME` and performs no assertions on `discover_plugins`, so fixing isolation may pair naturally with completing the intended override assertion.",
+      "priority": "medium",
+      "tags": [
+        "audit",
+        "testing",
+        "plugins"
+      ],
+      "scope": [
+        "crates/ralph/src/plugins/discovery.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User requested queue tasks from `/tmp/ralph-codebase-audit.md` (Finding #7, Quick win #1, `plugins/discovery.rs` excerpt).",
+        "Repo: `crates/ralph/src/plugins/discovery.rs` — `project_overrides_global` mutates `HOME` via `set_var`/`remove_var` without `#[serial]`; `cargo run --manifest-path crates/ralph/Cargo.toml -- queue validate` succeeded (2026-04-16)."
+      ],
+      "plan": [
+        "Inspect `project_overrides_global` in `crates/ralph/src/plugins/discovery.rs` and decide between `#[serial]` vs removing `HOME` mutation.",
+        "Read `/tmp/ralph-codebase-audit.md` Quick win #1 if still available for original audit wording.",
+        "Add `#[serial]` (or refactor to avoid `set_var` on `HOME`) per project `serial_test` conventions.",
+        "Run `cargo test -p ralph` for `plugins::discovery` tests and ensure no parallel env leakage."
+      ],
+      "notes": [
+        "Added #[serial] and aligned SAFETY with HOME-mutation convention.",
+        "Fixed global plugin layout to HOME/.config/ralph/plugins; assert project scope and manifest name.",
+        "Introduced write_manifest_named for distinct global vs project manifests."
+      ],
+      "request": "Confirm `project_overrides_global` in `crates/ralph/src/plugins/discovery.rs` still flakes or mis-documents isolation. Fix by adding `#[serial]` (per project conventions) or removing `HOME` mutation; add the missing assertion that project-scoped plugin discovery actually overrides global. Run `cargo test -p ralph` for `plugins::discovery`. Scope: this task only—no new queue items.",
+      "created_at": "2026-04-16T18:52:52Z",
+      "updated_at": "2026-04-16T23:30:07.802262000Z",
+      "completed_at": "2026-04-16T23:30:07.802262000Z",
+      "started_at": "2026-04-16T23:19:09.526380000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "composer-2",
+        "roadmap_item": "1",
+        "runner_used": "cursor"
+      }
     }
   ]
 }

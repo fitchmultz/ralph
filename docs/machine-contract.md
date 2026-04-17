@@ -162,6 +162,7 @@ When present, the document-level `blocking` mirrors `continuation.blocking` so a
 
 Parallel status now returns a continuation-oriented document instead of a raw state blob alone:
 - optional top-level `blocking`
+- `lifecycle_counts` with per-lifecycle worker totals (required; see `MachineParallelLifecycleCounts` in `schemas/machine.schema.json`)
 - `continuation` with a headline, detail, optional blocking payload, and explicit next-step commands
 - raw `status` payload with the persisted worker snapshot
 

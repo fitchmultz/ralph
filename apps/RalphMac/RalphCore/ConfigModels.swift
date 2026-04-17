@@ -267,22 +267,49 @@ public struct ParallelWorkerStatus: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-public struct ParallelLifecycleCounts: Sendable, Equatable {
+public struct ParallelLifecycleCounts: Sendable, Equatable, Codable {
     public let running: Int
     public let integrating: Int
     public let completed: Int
     public let failed: Int
     public let blocked: Int
+    public let total: Int
 
-    init(workers: [ParallelWorkerStatus]) {
-        running = workers.filter { $0.lifecycle == .running }.count
-        integrating = workers.filter { $0.lifecycle == .integrating }.count
-        completed = workers.filter { $0.lifecycle == .completed }.count
-        failed = workers.filter { $0.lifecycle == .failed }.count
-        blocked = workers.filter { $0.lifecycle == .blockedPush }.count
+    private enum CodingKeys: String, CodingKey {
+        case running
+        case integrating
+        case completed
+        case failed
+        case blocked
+        case total
     }
 
-    public var total: Int { running + integrating + completed + failed + blocked }
+    public init(running: Int, integrating: Int, completed: Int, failed: Int, blocked: Int, total: Int) {
+        self.running = running
+        self.integrating = integrating
+        self.completed = completed
+        self.failed = failed
+        self.blocked = blocked
+        self.total = total
+    }
+
+    init(workers: [ParallelWorkerStatus]) {
+        let running = workers.filter { $0.lifecycle == .running }.count
+        let integrating = workers.filter { $0.lifecycle == .integrating }.count
+        let completed = workers.filter { $0.lifecycle == .completed }.count
+        let failed = workers.filter { $0.lifecycle == .failed }.count
+        let blocked = workers.filter { $0.lifecycle == .blockedPush }.count
+        let total = running + integrating + completed + failed + blocked
+        self.init(
+            running: running,
+            integrating: integrating,
+            completed: completed,
+            failed: failed,
+            blocked: blocked,
+            total: total
+        )
+    }
+
     public var hasActive: Bool { running > 0 || integrating > 0 }
 }
 
@@ -290,14 +317,50 @@ public struct ParallelStatusSnapshot: Codable, Sendable, Equatable {
     public let schemaVersion: Int?
     public let targetBranch: String?
     public let workers: [ParallelWorkerStatus]
+    /// When present on `machine run parallel-status` documents, mirrors the top-level `lifecycle_counts` field.
+    private let documentLifecycleCounts: ParallelLifecycleCounts?
 
     enum CodingKeys: String, CodingKey {
         case schemaVersion = "schema_version"
         case targetBranch = "target_branch"
         case workers
+        case documentLifecycleCounts = "lifecycle_counts"
     }
 
-    public var lifecycleCounts: ParallelLifecycleCounts { ParallelLifecycleCounts(workers: workers) }
+    public init(
+        schemaVersion: Int?,
+        targetBranch: String?,
+        workers: [ParallelWorkerStatus],
+        documentLifecycleCounts: ParallelLifecycleCounts? = nil
+    ) {
+        self.schemaVersion = schemaVersion
+        self.targetBranch = targetBranch
+        self.workers = workers
+        self.documentLifecycleCounts = documentLifecycleCounts
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+        targetBranch = try container.decodeIfPresent(String.self, forKey: .targetBranch)
+        workers = try container.decodeIfPresent([ParallelWorkerStatus].self, forKey: .workers) ?? []
+        documentLifecycleCounts = try container.decodeIfPresent(
+            ParallelLifecycleCounts.self,
+            forKey: .documentLifecycleCounts
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(schemaVersion, forKey: .schemaVersion)
+        try container.encodeIfPresent(targetBranch, forKey: .targetBranch)
+        try container.encode(workers, forKey: .workers)
+        try container.encodeIfPresent(documentLifecycleCounts, forKey: .documentLifecycleCounts)
+    }
+
+    public var lifecycleCounts: ParallelLifecycleCounts {
+        documentLifecycleCounts ?? ParallelLifecycleCounts(workers: workers)
+    }
 }
 
 public struct ParallelStatusStep: Sendable, Equatable {
@@ -307,21 +370,36 @@ public struct ParallelStatusStep: Sendable, Equatable {
 
 struct MachineParallelStatusDocument: Decodable, Sendable, Equatable {
     let version: Int
+    let lifecycleCounts: ParallelLifecycleCounts
     let blocking: WorkspaceRunnerController.MachineBlockingState?
     let continuation: WorkspaceContinuationSummary
     let status: ParallelStatusSnapshot
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case lifecycleCounts = "lifecycle_counts"
+        case blocking
+        case continuation
+        case status
+    }
 
     var effectiveBlocking: WorkspaceRunnerController.MachineBlockingState? {
         blocking ?? continuation.blocking
     }
 
     func asWorkspaceParallelStatus() -> Workspace.ParallelStatus {
-        Workspace.ParallelStatus(
+        let snapshot = ParallelStatusSnapshot(
+            schemaVersion: status.schemaVersion,
+            targetBranch: status.targetBranch,
+            workers: status.workers,
+            documentLifecycleCounts: lifecycleCounts
+        )
+        return Workspace.ParallelStatus(
             headline: continuation.headline,
             detail: continuation.detail,
             blocking: effectiveBlocking?.asWorkspaceBlockingState(),
             nextSteps: continuation.nextSteps.map { ParallelStatusStep(command: $0.command, detail: $0.detail) },
-            snapshot: status
+            snapshot: snapshot
         )
     }
 }

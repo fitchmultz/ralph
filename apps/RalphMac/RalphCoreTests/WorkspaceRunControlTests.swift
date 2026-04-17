@@ -627,7 +627,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
 
         let parallelStatusURL = fixture.rootURL.appendingPathComponent("parallel-status.json", isDirectory: false)
         try """
-            {"version":2,"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Parallel workers are active on target branch main.","blocking":null,"next_steps":[{"title":"Inspect worker snapshot","command":"ralph run parallel status --json","detail":"Review lifecycle counts and retained worker details."}]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-7001","workspace_path":"\(fixture.workspaceURL.appendingPathComponent(".ralph/workspaces/RQ-7001", isDirectory: true).path)","lifecycle":"running","started_at":"2026-03-22T00:00:00Z","push_attempts":1}]}}
+            {"version":2,"lifecycle_counts":{"running":1,"integrating":0,"completed":0,"failed":0,"blocked":0,"total":1},"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Parallel workers are active on target branch main.","blocking":null,"next_steps":[{"title":"Inspect worker snapshot","command":"ralph run parallel status --json","detail":"Review lifecycle counts and retained worker details."}]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-7001","workspace_path":"\(fixture.workspaceURL.appendingPathComponent(".ralph/workspaces/RQ-7001", isDirectory: true).path)","lifecycle":"running","started_at":"2026-03-22T00:00:00Z","push_attempts":1}]}}
             """.write(to: parallelStatusURL, atomically: true, encoding: .utf8)
 
         let script = """
@@ -662,7 +662,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         try await assertParallelStatusLoadFailure(
             prefix: "ralph-workspace-parallel-version-failure",
             payload: """
-                {"version":99,"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-7001","lifecycle":"running"}]}}
+                {"version":99,"lifecycle_counts":{"running":0,"integrating":0,"completed":0,"failed":0,"blocked":0,"total":0},"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-7001","lifecycle":"running"}]}}
                 """
         )
     }
@@ -671,7 +671,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         try await assertParallelStatusLoadFailure(
             prefix: "ralph-workspace-parallel-json-failure",
             payload: """
-                {"version":2,
+                {"version":2,"lifecycle_counts":{"running":0,"integrating":0,"completed":0,"failed":0,"blocked":0,"total":0},
                 """
         )
     }
@@ -680,7 +680,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         try await assertParallelStatusLoadFailure(
             prefix: "ralph-workspace-parallel-missing-field-failure",
             payload: """
-                {"version":2,"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[]}}
+                {"version":2,"lifecycle_counts":{"running":0,"integrating":0,"completed":0,"failed":0,"blocked":0,"total":0},"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[]}}
                 """
         )
     }
@@ -814,7 +814,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         )
         let parallelStatusURL = fixture.rootURL.appendingPathComponent("parallel-status.json", isDirectory: false)
         try """
-            {"version":2,"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-2222","lifecycle":"running"}]}}
+            {"version":2,"lifecycle_counts":{"running":1,"integrating":0,"completed":0,"failed":0,"blocked":0,"total":1},"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-2222","lifecycle":"running"}]}}
             """.write(to: parallelStatusURL, atomically: true, encoding: .utf8)
 
         let script = """
@@ -929,7 +929,7 @@ final class WorkspaceRunControlTests: WorkspacePerformanceTestCase {
         )
         let parallelStatusURL = fixture.rootURL.appendingPathComponent("parallel-status.json", isDirectory: false)
         try """
-            {"version":2,"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[{"title":"Inspect worker snapshot","command":"ralph run parallel status --json","detail":"Review retained worker lifecycles."}]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-8111","workspace_path":"\(fixture.workspaceURL.appendingPathComponent(".ralph/workspaces/RQ-8111", isDirectory: true).path)","lifecycle":"running","started_at":"2026-03-22T00:00:00Z","push_attempts":1}]}}
+            {"version":2,"lifecycle_counts":{"running":1,"integrating":0,"completed":0,"failed":0,"blocked":0,"total":1},"blocking":null,"continuation":{"headline":"Parallel execution is in progress.","detail":"Retained worker state still exists for this repository.","blocking":null,"next_steps":[{"title":"Inspect worker snapshot","command":"ralph run parallel status --json","detail":"Review retained worker lifecycles."}]},"status":{"schema_version":3,"target_branch":"main","workers":[{"task_id":"RQ-8111","workspace_path":"\(fixture.workspaceURL.appendingPathComponent(".ralph/workspaces/RQ-8111", isDirectory: true).path)","lifecycle":"running","started_at":"2026-03-22T00:00:00Z","push_attempts":1}]}}
             """.write(to: parallelStatusURL, atomically: true, encoding: .utf8)
 
         let script = """

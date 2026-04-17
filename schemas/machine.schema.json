@@ -2863,6 +2863,51 @@
           "detail"
         ],
         "type": "object"
+      },
+      "MachineParallelLifecycleCounts": {
+        "additionalProperties": false,
+        "description": "Worker counts by lifecycle for `machine run parallel-status` (document v3+).",
+        "properties": {
+          "blocked": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "completed": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "failed": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "integrating": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "running": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "running",
+          "integrating",
+          "completed",
+          "failed",
+          "blocked",
+          "total"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2881,6 +2926,9 @@
       "continuation": {
         "$ref": "#/$defs/MachineContinuationSummary"
       },
+      "lifecycle_counts": {
+        "$ref": "#/$defs/MachineParallelLifecycleCounts"
+      },
       "status": true,
       "version": {
         "format": "uint32",
@@ -2890,6 +2938,7 @@
     },
     "required": [
       "version",
+      "lifecycle_counts",
       "continuation",
       "status"
     ],
