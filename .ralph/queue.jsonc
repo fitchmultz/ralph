@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0005",
-      "status": "todo",
-      "title": "Replace webhook runtime thread-spawn `.expect()` with graceful degradation",
-      "description": "`webhook/worker/runtime.rs` uses `.expect()` when spawning delivery workers; under resource pressure this can abort the whole CLI. Return `Result` (or equivalent) and degrade to synchronous delivery or disable webhooks for the run with a clear operator-visible warning. Outcome: webhook subsystem does not crash the process on thread spawn failure.\n\nValidation: `WebhookDispatcher::new` in `crates/ralph/src/webhook/worker/runtime.rs` panics on `startup_sender.send`, `thread::Builder::spawn`, startup `recv_timeout`, and `dispatcher_for_config` uses `.expect(\"dispatcher initialized\")` on the cached dispatcher.",
-      "priority": "high",
-      "tags": [
-        "audit",
-        "webhook",
-        "resilience",
-        "error-handling"
-      ],
-      "scope": [
-        "crates/ralph/src/webhook/worker/runtime.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #4, Error Handling section with `runtime.rs` cite, Quick win #3).",
-        "Repo: `crates/ralph/src/webhook/worker/runtime.rs` lines ~164–188 (`expect` on worker/scheduler spawn and startup handshake), ~236 (`expect(\"dispatcher initialized\")`); `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Inventory all `.expect(` sites in `webhook/worker/runtime.rs` (worker spawn, scheduler spawn, startup barrier, dispatcher cache).",
-        "Read audit Quick win #3 if available.",
-        "Refactor spawn paths to propagate errors and choose a documented fallback path.",
-        "Add regression tests simulating failure where feasible (or unit-test the decision helper).",
-        "Run targeted webhook/runtime tests."
-      ],
-      "notes": [],
-      "request": "In `crates/ralph/src/webhook/worker/runtime.rs`, replace `.expect()` on worker/scheduler spawn, startup handshake, and dispatcher init with `Result` propagation and a defined fallback: degrade to sync delivery or disable webhooks for the run with a clear operator-visible warning—no process abort on thread spawn failure. Add regression coverage where practical. Run webhook/runtime tests. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "3"
-      }
-    },
-    {
       "id": "RQ-0008",
       "status": "todo",
       "title": "Make runner stream decoding UTF-8 safe across fixed read chunks",
@@ -263,8 +224,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "8"
+        "roadmap_item": "8",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     }
   ]

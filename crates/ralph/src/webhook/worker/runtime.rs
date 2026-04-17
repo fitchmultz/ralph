@@ -15,11 +15,15 @@
 //! - Runtime settings are rebuilt when the effective mode/config changes.
 //! - Retry scheduling stays off worker threads so failing endpoints do not sleep in place.
 //! - Dispatcher teardown must not leak background threads or retain stale queue channels across rebuilds.
+//! - When the inbound retry channel disconnects during a rebuild, the scheduler still honors pending
+//!   `ready_at` deadlines before exiting so in-flight retries are not dropped.
 
 use crate::contracts::WebhookConfig;
-use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
+use anyhow::Context;
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded, unbounded};
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::BinaryHeap;
+use std::io;
 use std::sync::{Arc, OnceLock, RwLock, Weak};
 use std::time::{Duration, Instant};
 
@@ -49,6 +53,7 @@ enum RuntimeMode {
 struct DispatcherState {
     mode: RuntimeMode,
     dispatcher: Option<Arc<WebhookDispatcher>>,
+    disabled_reason: Option<String>,
 }
 
 impl Default for DispatcherState {
@@ -56,6 +61,7 @@ impl Default for DispatcherState {
         Self {
             mode: RuntimeMode::Standard,
             dispatcher: None,
+            disabled_reason: None,
         }
     }
 }
@@ -77,6 +83,22 @@ pub(super) struct DeliveryTask {
 pub(super) struct ScheduledRetry {
     pub(super) ready_at: Instant,
     pub(super) task: DeliveryTask,
+}
+
+trait ThreadSpawner {
+    fn spawn(&self, name: String, task: Box<dyn FnOnce() + Send + 'static>) -> io::Result<()>;
+}
+
+#[derive(Debug, Default)]
+struct OsThreadSpawner;
+
+impl ThreadSpawner for OsThreadSpawner {
+    fn spawn(&self, name: String, task: Box<dyn FnOnce() + Send + 'static>) -> io::Result<()> {
+        std::thread::Builder::new()
+            .name(name)
+            .spawn(task)
+            .map(|_| ())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -139,7 +161,14 @@ impl DispatcherSettings {
 }
 
 impl WebhookDispatcher {
-    fn new(settings: DispatcherSettings) -> Arc<Self> {
+    fn new(settings: DispatcherSettings) -> anyhow::Result<Arc<Self>> {
+        Self::new_with_spawner(settings, &OsThreadSpawner)
+    }
+
+    fn new_with_spawner(
+        settings: DispatcherSettings,
+        spawner: &impl ThreadSpawner,
+    ) -> anyhow::Result<Arc<Self>> {
         let (ready_sender, ready_receiver) = bounded(settings.queue_capacity);
         let (retry_sender, retry_receiver) = unbounded();
         let startup_signals = settings.worker_count.saturating_add(1);
@@ -151,42 +180,56 @@ impl WebhookDispatcher {
             retry_sender: Arc::new(retry_sender),
         });
 
-        diagnostics::set_queue_capacity(settings.queue_capacity);
-
         for worker_id in 0..settings.worker_count {
             let ready_receiver = ready_receiver.clone();
             let retry_sender = Arc::downgrade(&dispatcher.retry_sender);
             let startup_sender = startup_sender.clone();
             let thread_name = format!("ralph-webhook-worker-{worker_id}");
-            std::thread::Builder::new()
-                .name(thread_name)
-                .spawn(move || {
-                    startup_sender
-                        .send(())
-                        .expect("signal webhook delivery worker startup");
-                    worker_loop(ready_receiver, retry_sender)
-                })
-                .expect("spawn webhook delivery worker");
+            spawner
+                .spawn(
+                    thread_name,
+                    Box::new(move || {
+                        if let Err(err) = startup_sender.send(()) {
+                            log::warn!(
+                                "Webhook delivery worker startup signal skipped because dispatcher startup was abandoned: {err}"
+                            );
+                            return;
+                        }
+
+                        worker_loop(ready_receiver, retry_sender)
+                    }),
+                )
+                .with_context(|| format!("spawn webhook delivery worker {worker_id}"))?;
         }
 
         let scheduler_ready = Arc::downgrade(&dispatcher.ready_sender);
         let scheduler_startup_sender = startup_sender.clone();
-        std::thread::Builder::new()
-            .name("ralph-webhook-retry-scheduler".to_string())
-            .spawn(move || {
-                scheduler_startup_sender
-                    .send(())
-                    .expect("signal webhook retry scheduler startup");
-                retry_scheduler_loop(retry_receiver, scheduler_ready)
-            })
-            .expect("spawn webhook retry scheduler");
+        spawner
+            .spawn(
+                "ralph-webhook-retry-scheduler".to_string(),
+                Box::new(move || {
+                    if let Err(err) = scheduler_startup_sender.send(()) {
+                        log::warn!(
+                            "Webhook retry scheduler startup signal skipped because dispatcher startup was abandoned: {err}"
+                        );
+                        return;
+                    }
+
+                    retry_scheduler_loop(retry_receiver, scheduler_ready)
+                }),
+            )
+            .context("spawn webhook retry scheduler")?;
         drop(startup_sender);
 
-        for _ in 0..startup_signals {
-            startup_receiver
-                .recv_timeout(DISPATCHER_STARTUP_TIMEOUT)
-                .expect("wait for webhook dispatcher thread startup");
+        for started_count in 0..startup_signals {
+            if let Err(err) = startup_receiver.recv_timeout(DISPATCHER_STARTUP_TIMEOUT) {
+                anyhow::bail!(
+                    "wait for webhook dispatcher thread startup ({started_count}/{startup_signals} ready): {err}"
+                );
+            }
         }
+
+        diagnostics::set_queue_capacity(settings.queue_capacity);
 
         log::debug!(
             "Webhook dispatcher started with {} workers and queue capacity {}",
@@ -194,7 +237,7 @@ impl WebhookDispatcher {
             settings.queue_capacity
         );
 
-        dispatcher
+        Ok(dispatcher)
     }
 }
 
@@ -218,8 +261,30 @@ fn with_dispatcher_state_write<T>(mut f: impl FnMut(&mut DispatcherState) -> T) 
     }
 }
 
-pub(super) fn dispatcher_for_config(config: &WebhookConfig) -> Arc<WebhookDispatcher> {
+pub(super) fn dispatcher_for_config(config: &WebhookConfig) -> Option<Arc<WebhookDispatcher>> {
+    dispatcher_for_config_with_factory(config, WebhookDispatcher::new)
+}
+
+#[cfg(test)]
+fn dispatcher_for_config_with_spawner(
+    config: &WebhookConfig,
+    spawner: &impl ThreadSpawner,
+) -> Option<Arc<WebhookDispatcher>> {
+    dispatcher_for_config_with_factory(config, |settings| {
+        WebhookDispatcher::new_with_spawner(settings, spawner)
+    })
+}
+
+fn dispatcher_for_config_with_factory(
+    config: &WebhookConfig,
+    mut build_dispatcher: impl FnMut(DispatcherSettings) -> anyhow::Result<Arc<WebhookDispatcher>>,
+) -> Option<Arc<WebhookDispatcher>> {
     with_dispatcher_state_write(|state| {
+        if state.disabled_reason.is_some() {
+            log::debug!("Webhooks disabled for this run after dispatcher startup failure");
+            return None;
+        }
+
         let settings = DispatcherSettings::for_mode(config, &state.mode);
         let needs_rebuild = state
             .dispatcher
@@ -227,14 +292,22 @@ pub(super) fn dispatcher_for_config(config: &WebhookConfig) -> Arc<WebhookDispat
             .is_none_or(|dispatcher| dispatcher.settings != settings);
 
         if needs_rebuild {
-            state.dispatcher = Some(WebhookDispatcher::new(settings));
+            match build_dispatcher(settings) {
+                Ok(dispatcher) => state.dispatcher = Some(dispatcher),
+                Err(err) => {
+                    let reason = format!("{err:#}");
+                    state.dispatcher = None;
+                    state.disabled_reason = Some(reason.clone());
+                    diagnostics::set_queue_capacity(0);
+                    log::warn!(
+                        "Webhook delivery disabled for this run: failed to start dispatcher runtime: {reason}"
+                    );
+                    return None;
+                }
+            }
         }
 
-        state
-            .dispatcher
-            .as_ref()
-            .expect("dispatcher initialized")
-            .clone()
+        state.dispatcher.as_ref().cloned()
     })
 }
 
@@ -272,6 +345,17 @@ fn retry_scheduler_loop(
                     if pending.is_empty() {
                         break;
                     }
+                    // Inbound retry channel closed (dispatcher rebuild/teardown) while we still have
+                    // timer-delayed retries: `recv_timeout` returns `Disconnected` immediately on every
+                    // call, so we must wait out `ready_at` deadlines here or those retries never enqueue.
+                    let wait = pending
+                        .peek()
+                        .map(|entry| entry.0.ready_at.saturating_duration_since(Instant::now()));
+                    if let Some(delay) = wait
+                        && !delay.is_zero()
+                    {
+                        std::thread::sleep(delay);
+                    }
                     None
                 }
             },
@@ -291,7 +375,9 @@ fn retry_scheduler_loop(
                 break;
             }
 
-            let RetryQueueEntry(scheduled) = pending.pop().expect("pending retry exists");
+            let Some(RetryQueueEntry(scheduled)) = pending.pop() else {
+                break;
+            };
             let Some(ready_sender) = ready_sender.upgrade() else {
                 let error = anyhow::anyhow!(
                     "webhook dispatcher shut down before retry enqueue: ready queue unavailable"
@@ -321,16 +407,26 @@ fn retry_scheduler_loop(
                 }
             }
         }
+
+        if pending.is_empty() {
+            match retry_receiver.try_recv() {
+                Err(TryRecvError::Disconnected) => break,
+                Ok(_) | Err(TryRecvError::Empty) => {}
+            }
+        }
     }
 }
 
 #[cfg(test)]
-pub(crate) fn current_dispatcher_settings_for_tests(config: &WebhookConfig) -> (usize, usize) {
-    let dispatcher = dispatcher_for_config(config);
-    (
-        dispatcher.settings.queue_capacity,
-        dispatcher.settings.worker_count,
-    )
+pub(crate) fn current_dispatcher_settings_for_tests(
+    config: &WebhookConfig,
+) -> Option<(usize, usize)> {
+    dispatcher_for_config(config).map(|dispatcher| {
+        (
+            dispatcher.settings.queue_capacity,
+            dispatcher.settings.worker_count,
+        )
+    })
 }
 
 #[cfg(test)]
@@ -338,6 +434,90 @@ pub(crate) fn reset_dispatcher_for_tests() {
     with_dispatcher_state_write(|state| {
         state.mode = RuntimeMode::Standard;
         state.dispatcher = None;
+        state.disabled_reason = None;
     });
     super::delivery::install_test_transport_for_tests(None);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Debug)]
+    struct FailingThreadSpawner;
+
+    impl ThreadSpawner for FailingThreadSpawner {
+        fn spawn(
+            &self,
+            _name: String,
+            _task: Box<dyn FnOnce() + Send + 'static>,
+        ) -> io::Result<()> {
+            Err(io::Error::new(
+                io::ErrorKind::WouldBlock,
+                "simulated thread exhaustion",
+            ))
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct SilentThreadSpawner;
+
+    impl ThreadSpawner for SilentThreadSpawner {
+        fn spawn(
+            &self,
+            _name: String,
+            _task: Box<dyn FnOnce() + Send + 'static>,
+        ) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct CountingSpawner {
+        calls: AtomicUsize,
+    }
+
+    impl ThreadSpawner for CountingSpawner {
+        fn spawn(
+            &self,
+            _name: String,
+            _task: Box<dyn FnOnce() + Send + 'static>,
+        ) -> io::Result<()> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Err(io::Error::other(
+                "dispatcher should stay disabled after startup failure",
+            ))
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn thread_spawn_failure_disables_webhooks_for_run_without_panic() {
+        reset_dispatcher_for_tests();
+        let config = WebhookConfig::default();
+
+        let dispatcher = dispatcher_for_config_with_spawner(&config, &FailingThreadSpawner);
+        assert!(dispatcher.is_none());
+
+        let counting_spawner = CountingSpawner::default();
+        let retry = dispatcher_for_config_with_spawner(&config, &counting_spawner);
+        assert!(retry.is_none());
+        assert_eq!(counting_spawner.calls.load(Ordering::SeqCst), 0);
+
+        reset_dispatcher_for_tests();
+    }
+
+    #[test]
+    #[serial]
+    fn startup_handshake_timeout_disables_webhooks_without_panic() {
+        reset_dispatcher_for_tests();
+        let config = WebhookConfig::default();
+
+        let dispatcher = dispatcher_for_config_with_spawner(&config, &SilentThreadSpawner);
+        assert!(dispatcher.is_none());
+
+        reset_dispatcher_for_tests();
+    }
 }

@@ -142,7 +142,14 @@ pub(crate) fn send_webhook_payload_internal(
         return false;
     }
 
-    let dispatcher = dispatcher_for_config(config);
+    let Some(dispatcher) = dispatcher_for_config(config) else {
+        diagnostics::note_dropped_message();
+        log::debug!(
+            "Webhook dispatcher unavailable; dropping event={} after dispatcher startup failure",
+            payload.event
+        );
+        return false;
+    };
     let policy = config.queue_policy.unwrap_or_default();
     let msg = DeliveryTask {
         msg: WebhookMessage {
