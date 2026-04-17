@@ -17,7 +17,8 @@ use crate::contracts::{GitRevertMode, Model, Runner};
 use crate::runner;
 use crate::runutil::{
     RunnerBackend, RunnerBackendResumeSession, RunnerBackendRunPrompt, RunnerErrorMessages,
-    RunnerInvocation,
+    RunnerExecutionContext, RunnerFailureHandling, RunnerInvocation, RunnerRetryState,
+    RunnerSettings,
 };
 use std::fs;
 use std::path::Path;
@@ -66,31 +67,39 @@ pub(super) fn commit_file(dir: &TempDir, filename: &str, content: &str, message:
 
 pub(super) fn base_invocation<'a>(repo_root: &'a Path) -> RunnerInvocation<'a> {
     RunnerInvocation {
-        repo_root,
-        runner_kind: Runner::Codex,
-        bins: runner::RunnerBinaries {
-            codex: "codex",
-            opencode: "opencode",
-            gemini: "gemini",
-            claude: "claude",
-            cursor: "agent",
-            kimi: "kimi",
-            pi: "pi",
+        settings: RunnerSettings {
+            repo_root,
+            runner_kind: Runner::Codex,
+            bins: runner::RunnerBinaries {
+                codex: "codex",
+                opencode: "opencode",
+                gemini: "gemini",
+                claude: "claude",
+                cursor: "agent",
+                kimi: "kimi",
+                pi: "pi",
+            },
+            model: Model::Gpt53Codex,
+            reasoning_effort: None,
+            runner_cli: runner::ResolvedRunnerCliOptions::default(),
+            timeout: None,
+            permission_mode: None,
+            output_handler: None,
+            output_stream: runner::OutputStream::Terminal,
         },
-        model: Model::Gpt53Codex,
-        reasoning_effort: None,
-        runner_cli: runner::ResolvedRunnerCliOptions::default(),
-        prompt: "test prompt",
-        timeout: None,
-        permission_mode: None,
-        revert_on_error: false,
-        git_revert_mode: GitRevertMode::Disabled,
-        output_handler: None,
-        output_stream: runner::OutputStream::Terminal,
-        revert_prompt: None,
-        phase_type: PhaseType::Implementation,
-        session_id: None,
-        retry_policy: crate::runutil::RunnerRetryPolicy::default(),
+        execution: RunnerExecutionContext {
+            prompt: "test prompt",
+            phase_type: PhaseType::Implementation,
+            session_id: None,
+        },
+        failure: RunnerFailureHandling {
+            revert_on_error: false,
+            git_revert_mode: GitRevertMode::Disabled,
+            revert_prompt: None,
+        },
+        retry: RunnerRetryState {
+            policy: crate::runutil::RunnerRetryPolicy::default(),
+        },
     }
 }
 

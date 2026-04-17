@@ -37,8 +37,8 @@ pub(crate) use abort::{
 pub(crate) use ci_gate::execute_ci_gate;
 
 pub(crate) use execution::{
-    RunnerErrorMessages, RunnerInvocation, run_prompt_with_handling,
-    should_fallback_to_fresh_continue,
+    RunnerErrorMessages, RunnerExecutionContext, RunnerFailureHandling, RunnerInvocation,
+    RunnerRetryState, RunnerSettings, run_prompt_with_handling, should_fallback_to_fresh_continue,
 };
 
 pub(crate) use retry::{

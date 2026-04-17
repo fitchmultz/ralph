@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0011",
-      "status": "todo",
-      "title": "Formalize runner invocation context types (settings vs execution)",
-      "description": "Audit suggests splitting large `RunnerInvocation` into cohesive types (e.g. `RunnerSettings` + `RunnerExecutionContext`, `RunnerRetryState`) to narrow destructuring-heavy call paths. This is architectural follow-through after param-object work. Outcome: clearer boundaries between configuration and per-attempt execution state without functional regressions.\n\nValidation: `RunnerInvocation<'a>` in `crates/ralph/src/runutil/execution/backend.rs` bundles repo path, runner kind/binaries, model, CLI options, prompt, timeouts, git/revert knobs, output hooks, phase/session IDs, and `RunnerRetryPolicy` in one struct (~fields at lines 26–44), which matches the audit’s “wide invocation context” coupling concern.",
-      "priority": "low",
-      "tags": [
-        "audit",
-        "architecture",
-        "runner"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil/execution/orchestration/",
-        "crates/ralph/src/runutil/execution/backend.rs",
-        "crates/ralph/src/runner/",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #8, Architecture coupling note on `RunnerInvocation`, Long-term #9).",
-        "Repo: `crates/ralph/src/runutil/execution/backend.rs` `struct RunnerInvocation`; `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Map current `RunnerInvocation` fields and consumers using the audit coupling note as guidance.",
-        "Introduce context types and migrate incrementally with compiler-driven refactors.",
-        "Ensure machine/CLI execution paths remain aligned; run broad `ralph` crate tests."
-      ],
-      "notes": [],
-      "request": "Split the wide `RunnerInvocation` in `crates/ralph/src/runutil/execution/backend.rs` into cohesive types (e.g. settings vs per-attempt execution context, retry state) per the audit; migrate orchestration and runner call sites incrementally with no functional regressions. Run broad `cargo test -p ralph`. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "9"
-      }
-    },
-    {
       "id": "RQ-0007",
       "status": "todo",
       "title": "Tune `redact_hex_tokens` to preserve legitimate hex identifiers in logs",

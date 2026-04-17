@@ -24,23 +24,62 @@ use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffo
 use crate::{outpututil, runner};
 
 pub(crate) struct RunnerInvocation<'a> {
+    pub settings: RunnerSettings<'a>,
+    pub execution: RunnerExecutionContext<'a>,
+    pub failure: RunnerFailureHandling,
+    pub retry: RunnerRetryState,
+}
+
+pub(crate) struct RunnerSettings<'a> {
     pub repo_root: &'a Path,
     pub runner_kind: Runner,
     pub bins: runner::RunnerBinaries<'a>,
     pub model: Model,
     pub reasoning_effort: Option<ReasoningEffort>,
     pub runner_cli: runner::ResolvedRunnerCliOptions,
-    pub prompt: &'a str,
     pub timeout: Option<Duration>,
     pub permission_mode: Option<ClaudePermissionMode>,
-    pub revert_on_error: bool,
-    pub git_revert_mode: GitRevertMode,
     pub output_handler: Option<runner::OutputHandler>,
     pub output_stream: runner::OutputStream,
-    pub revert_prompt: Option<super::super::revert::RevertPromptHandler>,
+}
+
+impl RunnerSettings<'_> {
+    pub(super) fn attempt_context<'context>(
+        &'context self,
+        output_handler: Option<runner::OutputHandler>,
+        phase_type: PhaseType,
+    ) -> RunnerAttemptContext<'context> {
+        RunnerAttemptContext {
+            runner_kind: &self.runner_kind,
+            repo_root: self.repo_root,
+            bins: self.bins,
+            model: &self.model,
+            reasoning_effort: self.reasoning_effort,
+            runner_cli: self.runner_cli,
+            timeout: self.timeout,
+            permission_mode: self.permission_mode,
+            output_handler,
+            output_stream: self.output_stream,
+            phase_type,
+        }
+    }
+}
+
+pub(crate) struct RunnerExecutionContext<'a> {
+    pub prompt: &'a str,
     pub phase_type: PhaseType,
     pub session_id: Option<String>,
-    pub retry_policy: super::super::RunnerRetryPolicy,
+}
+
+pub(crate) struct RunnerFailureHandling {
+    pub revert_on_error: bool,
+    pub git_revert_mode: GitRevertMode,
+    pub revert_prompt: Option<super::super::revert::RevertPromptHandler>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct RunnerRetryState {
+    pub policy: super::super::RunnerRetryPolicy,
 }
 
 pub(crate) struct RunnerErrorMessages<'a, FNonZero, FOther>

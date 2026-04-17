@@ -23,7 +23,8 @@ use std::time::Duration;
 
 use super::super::backend::{
     RunnerBackend, RunnerBackendResumeSession, RunnerBackendRunPrompt, RunnerErrorMessages,
-    RunnerInvocation,
+    RunnerExecutionContext, RunnerFailureHandling, RunnerInvocation, RunnerRetryState,
+    RunnerSettings,
 };
 use super::run_prompt_with_handling_backend;
 use crate::commands::run::PhaseType;
@@ -53,23 +54,31 @@ fn test_invocation<'a>(
     session_id: Option<String>,
 ) -> RunnerInvocation<'a> {
     RunnerInvocation {
-        repo_root,
-        runner_kind,
-        bins: test_bins(),
-        model,
-        reasoning_effort: None,
-        runner_cli: runner::ResolvedRunnerCliOptions::default(),
-        prompt,
-        timeout,
-        permission_mode: None,
-        revert_on_error,
-        git_revert_mode: GitRevertMode::Disabled,
-        output_handler: None,
-        output_stream: runner::OutputStream::HandlerOnly,
-        revert_prompt: None,
-        phase_type: PhaseType::Implementation,
-        session_id,
-        retry_policy: Default::default(),
+        settings: RunnerSettings {
+            repo_root,
+            runner_kind,
+            bins: test_bins(),
+            model,
+            reasoning_effort: None,
+            runner_cli: runner::ResolvedRunnerCliOptions::default(),
+            timeout,
+            permission_mode: None,
+            output_handler: None,
+            output_stream: runner::OutputStream::HandlerOnly,
+        },
+        execution: RunnerExecutionContext {
+            prompt,
+            phase_type: PhaseType::Implementation,
+            session_id,
+        },
+        failure: RunnerFailureHandling {
+            revert_on_error,
+            git_revert_mode: GitRevertMode::Disabled,
+            revert_prompt: None,
+        },
+        retry: RunnerRetryState {
+            policy: Default::default(),
+        },
     }
 }
 

@@ -70,23 +70,31 @@ pub(super) fn execute_runner_pass(
 
     let output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
-            repo_root: &resolved.repo_root,
-            runner_kind: settings.runner.clone(),
-            bins,
-            model: settings.model.clone(),
-            reasoning_effort: settings.reasoning_effort,
-            runner_cli: settings.runner_cli,
-            prompt: &final_prompt,
-            timeout: None,
-            permission_mode,
-            revert_on_error,
-            git_revert_mode,
-            output_handler,
-            output_stream,
-            revert_prompt,
-            phase_type,
-            session_id,
-            retry_policy,
+            settings: runutil::RunnerSettings {
+                repo_root: &resolved.repo_root,
+                runner_kind: settings.runner.clone(),
+                bins,
+                model: settings.model.clone(),
+                reasoning_effort: settings.reasoning_effort,
+                runner_cli: settings.runner_cli,
+                timeout: None,
+                permission_mode,
+                output_handler,
+                output_stream,
+            },
+            execution: runutil::RunnerExecutionContext {
+                prompt: &final_prompt,
+                phase_type,
+                session_id,
+            },
+            failure: runutil::RunnerFailureHandling {
+                revert_on_error,
+                git_revert_mode,
+                revert_prompt,
+            },
+            retry: runutil::RunnerRetryState {
+                policy: retry_policy,
+            },
         },
         runutil::RunnerErrorMessages {
             log_label,

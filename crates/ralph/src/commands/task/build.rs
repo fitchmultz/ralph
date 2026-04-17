@@ -141,27 +141,35 @@ fn build_task_impl(
 
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
-            repo_root: &resolved.repo_root,
-            runner_kind: settings.runner,
-            bins,
-            model: settings.model,
-            reasoning_effort: settings.reasoning_effort,
-            runner_cli: settings.runner_cli,
-            prompt: &prompt,
-            timeout: None,
-            permission_mode: settings.permission_mode,
-            revert_on_error: false,
-            git_revert_mode: resolved
-                .config
-                .agent
-                .git_revert_mode
-                .unwrap_or(crate::contracts::GitRevertMode::Ask),
-            output_handler: None,
-            output_stream: runner::OutputStream::Terminal,
-            revert_prompt: None,
-            phase_type: PhaseType::SinglePhase,
-            session_id: None,
-            retry_policy,
+            settings: runutil::RunnerSettings {
+                repo_root: &resolved.repo_root,
+                runner_kind: settings.runner,
+                bins,
+                model: settings.model,
+                reasoning_effort: settings.reasoning_effort,
+                runner_cli: settings.runner_cli,
+                timeout: None,
+                permission_mode: settings.permission_mode,
+                output_handler: None,
+                output_stream: runner::OutputStream::Terminal,
+            },
+            execution: runutil::RunnerExecutionContext {
+                prompt: &prompt,
+                phase_type: PhaseType::SinglePhase,
+                session_id: None,
+            },
+            failure: runutil::RunnerFailureHandling {
+                revert_on_error: false,
+                git_revert_mode: resolved
+                    .config
+                    .agent
+                    .git_revert_mode
+                    .unwrap_or(crate::contracts::GitRevertMode::Ask),
+                revert_prompt: None,
+            },
+            retry: runutil::RunnerRetryState {
+                policy: retry_policy,
+            },
         },
         runutil::RunnerErrorMessages {
             log_label: "task builder",

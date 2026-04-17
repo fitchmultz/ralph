@@ -50,9 +50,9 @@ fn run_prompt_user_revert_returns_abort_reason() {
     fs::write(&file_path, "modified").expect("modify file");
 
     let mut invocation = base_invocation(dir.path());
-    invocation.revert_on_error = true;
-    invocation.git_revert_mode = GitRevertMode::Ask;
-    invocation.revert_prompt = Some(Arc::new(|_context| Ok(RevertDecision::Revert)));
+    invocation.failure.revert_on_error = true;
+    invocation.failure.git_revert_mode = GitRevertMode::Ask;
+    invocation.failure.revert_prompt = Some(Arc::new(|_context| Ok(RevertDecision::Revert)));
 
     let mut backend = NonZeroBackend;
     let err =
@@ -74,9 +74,9 @@ fn timeout_applies_git_revert_mode_and_saves_safeguard_dump_when_stdout_is_avail
     fs::write(&file_path, "modified").expect("modify file");
 
     let mut invocation = base_invocation(dir.path());
-    invocation.timeout = Some(Duration::from_millis(10));
-    invocation.revert_on_error = true;
-    invocation.git_revert_mode = GitRevertMode::Enabled;
+    invocation.settings.timeout = Some(Duration::from_millis(10));
+    invocation.failure.revert_on_error = true;
+    invocation.failure.git_revert_mode = GitRevertMode::Enabled;
 
     let mut backend = TimeoutBackend {
         emitted: "hello from runner before timeout\n".to_string(),
@@ -119,7 +119,7 @@ fn timeout_applies_git_revert_mode_and_saves_safeguard_dump_when_stdout_is_avail
 fn run_prompt_passes_output_stream_to_backend() {
     let dir = TempDir::new().expect("temp dir");
     let mut invocation = base_invocation(dir.path());
-    invocation.output_stream = crate::runner::OutputStream::HandlerOnly;
+    invocation.settings.output_stream = crate::runner::OutputStream::HandlerOnly;
 
     let mut backend = CaptureBackend {
         seen_output_stream: None,

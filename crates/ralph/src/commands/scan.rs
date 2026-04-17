@@ -178,27 +178,35 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
 
     let output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
-            repo_root: &resolved.repo_root,
-            runner_kind: settings.runner,
-            bins,
-            model: settings.model,
-            reasoning_effort: settings.reasoning_effort,
-            runner_cli: settings.runner_cli,
-            prompt: &prompt,
-            timeout: None,
-            permission_mode: settings.permission_mode,
-            revert_on_error: true,
-            git_revert_mode: opts.git_revert_mode,
-            output_handler: opts.output_handler.clone(),
-            output_stream: if opts.output_handler.is_some() {
-                runner::OutputStream::HandlerOnly
-            } else {
-                runner::OutputStream::Terminal
+            settings: runutil::RunnerSettings {
+                repo_root: &resolved.repo_root,
+                runner_kind: settings.runner,
+                bins,
+                model: settings.model,
+                reasoning_effort: settings.reasoning_effort,
+                runner_cli: settings.runner_cli,
+                timeout: None,
+                permission_mode: settings.permission_mode,
+                output_handler: opts.output_handler.clone(),
+                output_stream: if opts.output_handler.is_some() {
+                    runner::OutputStream::HandlerOnly
+                } else {
+                    runner::OutputStream::Terminal
+                },
             },
-            revert_prompt: opts.revert_prompt.clone(),
-            phase_type: PhaseType::SinglePhase,
-            session_id: None,
-            retry_policy,
+            execution: runutil::RunnerExecutionContext {
+                prompt: &prompt,
+                phase_type: PhaseType::SinglePhase,
+                session_id: None,
+            },
+            failure: runutil::RunnerFailureHandling {
+                revert_on_error: true,
+                git_revert_mode: opts.git_revert_mode,
+                revert_prompt: opts.revert_prompt.clone(),
+            },
+            retry: runutil::RunnerRetryState {
+                policy: retry_policy,
+            },
         },
         runutil::RunnerErrorMessages {
             log_label: "scan runner",

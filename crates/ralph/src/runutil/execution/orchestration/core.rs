@@ -45,23 +45,10 @@ where
     FOther: FnOnce(runner::RunnerError) -> String,
 {
     let RunnerInvocation {
-        repo_root,
-        runner_kind,
-        bins,
-        model,
-        reasoning_effort,
-        runner_cli,
-        prompt,
-        timeout,
-        permission_mode,
-        revert_on_error,
-        git_revert_mode,
-        output_handler,
-        output_stream,
-        revert_prompt,
-        phase_type,
-        session_id: invocation_session_id,
-        retry_policy,
+        settings,
+        execution,
+        failure,
+        retry,
     } = invocation;
     let RunnerErrorMessages {
         log_label,
@@ -72,32 +59,23 @@ where
         other_msg,
     } = messages;
 
-    let should_capture_timeout_stdout = revert_on_error && timeout.is_some();
+    let should_capture_timeout_stdout = failure.revert_on_error && settings.timeout.is_some();
     let (timeout_stdout_capture, effective_output_handler) = if should_capture_timeout_stdout {
-        let (capture, handler) =
-            wrap_output_handler_with_capture(output_handler, TIMEOUT_STDOUT_CAPTURE_MAX_BYTES);
+        let (capture, handler) = wrap_output_handler_with_capture(
+            settings.output_handler.clone(),
+            TIMEOUT_STDOUT_CAPTURE_MAX_BYTES,
+        );
         (Some(capture), handler)
     } else {
-        (None, output_handler)
+        (None, settings.output_handler.clone())
     };
 
     let mut attempt: u32 = 1;
-    let max_attempts = retry_policy.max_attempts;
+    let max_attempts = retry.policy.max_attempts;
     let mut rng = SeededRng::new();
     let mut signal_resume_attempts: u8 = 0;
-    let attempt_context = RunnerAttemptContext {
-        runner_kind: &runner_kind,
-        repo_root,
-        bins,
-        model: &model,
-        reasoning_effort,
-        runner_cli,
-        timeout,
-        permission_mode,
-        output_handler: effective_output_handler.clone(),
-        output_stream,
-        phase_type,
-    };
+    let attempt_context =
+        settings.attempt_context(effective_output_handler.clone(), execution.phase_type);
 
     emit_operation(
         &effective_output_handler,
@@ -107,20 +85,20 @@ where
     let mut result = run_runner_attempt(
         backend,
         &attempt_context,
-        prompt,
-        invocation_session_id.clone(),
+        execution.prompt,
+        execution.session_id.clone(),
     );
 
     loop {
         match result {
             Ok(output) => return Ok(output),
             Err(runner::RunnerError::Interrupted) => {
-                let message = if revert_on_error {
+                let message = if failure.revert_on_error {
                     let outcome = apply_git_revert_mode(
-                        repo_root,
-                        git_revert_mode,
+                        settings.repo_root,
+                        failure.git_revert_mode,
                         log_label,
-                        revert_prompt.as_ref(),
+                        failure.revert_prompt.as_ref(),
                     )?;
                     format_revert_failure_message(interrupted_msg, outcome)
                 } else {
@@ -132,19 +110,23 @@ where
                 )));
             }
             Err(ref err) => {
-                let classification = err.classify(&runner_kind);
+                let classification = err.classify(&settings.runner_kind);
                 if attempt < max_attempts
                     && matches!(classification, RunnerFailureClass::Retryable(_))
-                    && should_retry_with_repo_state(repo_root, revert_on_error, git_revert_mode)?
+                    && should_retry_with_repo_state(
+                        settings.repo_root,
+                        failure.revert_on_error,
+                        failure.git_revert_mode,
+                    )?
                 {
-                    if revert_on_error
-                        && git_revert_mode == crate::contracts::GitRevertMode::Enabled
-                        && let Err(err) = crate::git::revert_uncommitted(repo_root)
+                    if failure.revert_on_error
+                        && failure.git_revert_mode == crate::contracts::GitRevertMode::Enabled
+                        && let Err(err) = crate::git::revert_uncommitted(settings.repo_root)
                     {
                         log::warn!("Failed to auto-revert before retry: {}", err);
                     }
 
-                    let delay = compute_backoff(retry_policy, attempt, &mut rng);
+                    let delay = compute_backoff(retry.policy, attempt, &mut rng);
                     let reason_str = match classification {
                         RunnerFailureClass::Retryable(RetryableReason::RateLimited) => "rate limit",
                         RunnerFailureClass::Retryable(RetryableReason::TemporaryUnavailable) => {
@@ -191,8 +173,8 @@ where
                     result = run_runner_attempt(
                         backend,
                         &attempt_context,
-                        prompt,
-                        invocation_session_id.clone(),
+                        execution.prompt,
+                        execution.session_id.clone(),
                     );
                     continue;
                 }
@@ -201,12 +183,12 @@ where
                     Ok(_) => unreachable!(),
                     Err(runner::RunnerError::Timeout) => {
                         return Err(handle_timeout_failure(
-                            repo_root,
-                            git_revert_mode,
+                            settings.repo_root,
+                            failure.git_revert_mode,
                             log_label,
-                            revert_prompt.as_ref(),
+                            failure.revert_prompt.as_ref(),
                             timeout_stdout_capture.as_ref(),
-                            revert_on_error,
+                            failure.revert_on_error,
                             timeout_msg,
                         )?);
                     }
@@ -219,14 +201,14 @@ where
                         backend,
                         &attempt_context,
                         FailureRecoveryContext {
-                            git_revert_mode,
+                            git_revert_mode: failure.git_revert_mode,
                             log_label,
-                            revert_prompt: revert_prompt.as_ref(),
+                            revert_prompt: failure.revert_prompt.as_ref(),
                             timeout_stdout_capture: timeout_stdout_capture.as_ref(),
-                            revert_on_error,
+                            revert_on_error: failure.revert_on_error,
                         },
                         FailureSessionIds {
-                            invocation: invocation_session_id.as_deref(),
+                            invocation: execution.session_id.as_deref(),
                             error: error_session_id.as_deref(),
                         },
                         NonZeroExitDetails {
@@ -253,9 +235,9 @@ where
                             &mut signal_resume_attempts,
                             signal,
                             &attempt_context,
-                            prompt,
+                            execution.prompt,
                             FailureSessionIds {
-                                invocation: invocation_session_id.as_deref(),
+                                invocation: execution.session_id.as_deref(),
                                 error: error_session_id.as_deref(),
                             },
                         ) {
@@ -267,14 +249,14 @@ where
                             backend,
                             &attempt_context,
                             FailureRecoveryContext {
-                                git_revert_mode,
+                                git_revert_mode: failure.git_revert_mode,
                                 log_label,
-                                revert_prompt: revert_prompt.as_ref(),
+                                revert_prompt: failure.revert_prompt.as_ref(),
                                 timeout_stdout_capture: timeout_stdout_capture.as_ref(),
-                                revert_on_error,
+                                revert_on_error: failure.revert_on_error,
                             },
                             FailureSessionIds {
-                                invocation: invocation_session_id.as_deref(),
+                                invocation: execution.session_id.as_deref(),
                                 error: error_session_id.as_deref(),
                             },
                             terminated_msg,
@@ -290,11 +272,11 @@ where
                     }
                     Err(err) => {
                         return Err(handle_other_failure(
-                            repo_root,
-                            git_revert_mode,
+                            settings.repo_root,
+                            failure.git_revert_mode,
                             log_label,
-                            revert_prompt.as_ref(),
-                            revert_on_error,
+                            failure.revert_prompt.as_ref(),
+                            failure.revert_on_error,
                             other_msg(err),
                         )?);
                     }

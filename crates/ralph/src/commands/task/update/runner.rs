@@ -45,27 +45,35 @@ pub(super) fn run_task_updater(
 
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
-            repo_root: &resolved.repo_root,
-            runner_kind: runner_settings.runner,
-            bins,
-            model: runner_settings.model.clone(),
-            reasoning_effort: runner_settings.reasoning_effort,
-            runner_cli: runner_settings.runner_cli,
-            prompt,
-            timeout: None,
-            permission_mode: runner_settings.permission_mode,
-            revert_on_error: true,
-            git_revert_mode: resolved
-                .config
-                .agent
-                .git_revert_mode
-                .unwrap_or(crate::contracts::GitRevertMode::Ask),
-            output_handler: None,
-            output_stream: runner::OutputStream::Terminal,
-            revert_prompt: None,
-            phase_type: PhaseType::SinglePhase,
-            session_id: None,
-            retry_policy,
+            settings: runutil::RunnerSettings {
+                repo_root: &resolved.repo_root,
+                runner_kind: runner_settings.runner,
+                bins,
+                model: runner_settings.model.clone(),
+                reasoning_effort: runner_settings.reasoning_effort,
+                runner_cli: runner_settings.runner_cli,
+                timeout: None,
+                permission_mode: runner_settings.permission_mode,
+                output_handler: None,
+                output_stream: runner::OutputStream::Terminal,
+            },
+            execution: runutil::RunnerExecutionContext {
+                prompt,
+                phase_type: PhaseType::SinglePhase,
+                session_id: None,
+            },
+            failure: runutil::RunnerFailureHandling {
+                revert_on_error: true,
+                git_revert_mode: resolved
+                    .config
+                    .agent
+                    .git_revert_mode
+                    .unwrap_or(crate::contracts::GitRevertMode::Ask),
+                revert_prompt: None,
+            },
+            retry: runutil::RunnerRetryState {
+                policy: retry_policy,
+            },
         },
         runutil::RunnerErrorMessages {
             log_label: "task updater",
