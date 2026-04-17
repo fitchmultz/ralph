@@ -451,7 +451,7 @@
       "id": "RQ-0007",
       "status": "done",
       "title": "Tune `redact_hex_tokens` to preserve legitimate hex identifiers in logs",
-      "description": "`redaction/patterns.rs::redact_hex_tokens` redacts any long hex run, obscuring git SHAs and hashes. Tighten policy (prefix-based sensitivity, higher threshold, or both) while keeping secret safety. Outcome: logs remain safe but more debuggable for common hex-shaped identifiers.\n\nValidation: `redact_hex_tokens` redacts contiguous ASCII hex runs of length ≥ 32 at alphanumeric word boundaries (`crates/ralph/src/redaction/patterns.rs`), which matches common 40-char git SHA1 and 64-char SHA256 hex representations.",
+      "description": "`redaction/patterns.rs::redact_hex_tokens` redacts any long hex run, obscuring git SHAs and hashes. Tighten policy (prefix-based sensitivity, higher threshold, or both) while keeping secret safety. Outcome: logs remain safe but more debuggable for common hex-shaped identifiers.\n\nValidation (post-change): `redact_hex_tokens` redacts contiguous ASCII hex runs at alphanumeric word boundaries when length ≥ 96, or when length ≥ 32 and a sensitive context word appears in the ~80 characters before the run (`crates/ralph/src/redaction/patterns.rs`). Common 40-char git SHA1 and 64-char SHA256 hex identifiers are preserved unless labeled by sensitive context.",
       "priority": "medium",
       "tags": [
         "audit",
