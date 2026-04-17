@@ -15,10 +15,12 @@
 //! - Runtime settings are rebuilt when the effective mode/config changes.
 //! - Retry scheduling stays off worker threads so failing endpoints do not sleep in place.
 //! - Dispatcher teardown must not leak background threads or retain stale queue channels across rebuilds.
+//! - When the inbound retry channel disconnects during a rebuild, the scheduler still honors pending
+//!   `ready_at` deadlines before exiting so in-flight retries are not dropped.
 
 use crate::contracts::WebhookConfig;
 use anyhow::Context;
-use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded, unbounded};
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::BinaryHeap;
 use std::io;
@@ -343,6 +345,17 @@ fn retry_scheduler_loop(
                     if pending.is_empty() {
                         break;
                     }
+                    // Inbound retry channel closed (dispatcher rebuild/teardown) while we still have
+                    // timer-delayed retries: `recv_timeout` returns `Disconnected` immediately on every
+                    // call, so we must wait out `ready_at` deadlines here or those retries never enqueue.
+                    let wait = pending
+                        .peek()
+                        .map(|entry| entry.0.ready_at.saturating_duration_since(Instant::now()));
+                    if let Some(delay) = wait
+                        && !delay.is_zero()
+                    {
+                        std::thread::sleep(delay);
+                    }
                     None
                 }
             },
@@ -394,6 +407,13 @@ fn retry_scheduler_loop(
                 }
             }
         }
+
+        if pending.is_empty() {
+            match retry_receiver.try_recv() {
+                Err(TryRecvError::Disconnected) => break,
+                Ok(_) | Err(TryRecvError::Empty) => {}
+            }
+        }
     }
 }
 
@@ -422,6 +442,7 @@ pub(crate) fn reset_dispatcher_for_tests() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[derive(Debug)]
@@ -472,6 +493,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn thread_spawn_failure_disables_webhooks_for_run_without_panic() {
         reset_dispatcher_for_tests();
         let config = WebhookConfig::default();
@@ -488,6 +510,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn startup_handshake_timeout_disables_webhooks_without_panic() {
         reset_dispatcher_for_tests();
         let config = WebhookConfig::default();
