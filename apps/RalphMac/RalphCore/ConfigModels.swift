@@ -339,7 +339,7 @@ public struct ParallelStatusSnapshot: Codable, Sendable, Equatable {
         self.documentLifecycleCounts = documentLifecycleCounts
     }
 
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
         targetBranch = try container.decodeIfPresent(String.self, forKey: .targetBranch)
@@ -350,7 +350,7 @@ public struct ParallelStatusSnapshot: Codable, Sendable, Equatable {
         )
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(schemaVersion, forKey: .schemaVersion)
         try container.encodeIfPresent(targetBranch, forKey: .targetBranch)
