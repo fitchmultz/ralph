@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0008",
-      "status": "todo",
-      "title": "Make runner stream decoding UTF-8 safe across fixed read chunks",
-      "description": "`runner/execution/stream_reader.rs` uses `String::from_utf8_lossy` on fixed 8KB chunks, which can split UTF-8 sequences and emit replacement characters. Buffer partial UTF-8 across reads or use a line-oriented decode strategy appropriate for the stream format. Outcome: non-ASCII runner output renders correctly without U+FFFD artifacts from chunk boundaries.\n\nValidation: Both `spawn_reader` and `spawn_json_reader` use `let mut buf = [0u8; 8192]` then `String::from_utf8_lossy(&buf[..read])` before line assembly / `append_to_buffer`, so multibyte sequences split across reads can surface as U+FFFD in the lossy string path.",
-      "priority": "medium",
-      "tags": [
-        "audit",
-        "correctness",
-        "runner",
-        "streaming"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/stream_reader.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #3, Rust-specific section, Short-term #6).",
-        "Repo: `crates/ralph/src/runner/execution/stream_reader.rs` (`spawn_reader` ~35–42, `spawn_json_reader` ~68–80); `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Re-read audit Finding #3 and proposed fixes if available.",
-        "Implement cross-chunk UTF-8 buffering (or alternative) with focused unit tests including split codepoints.",
-        "Regression-test representative runner stream parsing paths if present."
-      ],
-      "notes": [],
-      "request": "Fix UTF-8 safety in `crates/ralph/src/runner/execution/stream_reader.rs`: avoid `from_utf8_lossy` on raw 8KB chunks splitting multibyte sequences; buffer partial UTF-8 across reads or decode in a line-safe way so runner NDJSON/text does not show U+FFFD at chunk boundaries. Add tests with split codepoints. Run `cargo test -p ralph` for stream reader paths. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "roadmap_item": "6",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
-      }
-    },
-    {
       "id": "RQ-0009",
       "status": "todo",
       "title": "Reduce `too_many_arguments` debt starting at runutil orchestration",
@@ -112,8 +75,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "9"
+        "roadmap_item": "9",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -149,8 +112,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "5",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "5"
       }
     },
     {
@@ -224,8 +187,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "8",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "8"
       }
     }
   ]

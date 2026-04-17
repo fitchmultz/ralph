@@ -13,6 +13,38 @@
 //! - Shared output buffers must never exceed configured hard limits.
 
 use super::*;
+use std::io::{self, Read};
+
+struct ChunkedReader {
+    chunks: Vec<Vec<u8>>,
+    next: usize,
+}
+
+impl ChunkedReader {
+    fn split_inside(input: &str, marker: &str, bytes_into_marker: usize) -> Self {
+        let marker_start = input.find(marker).expect("marker in input");
+        let split_at = marker_start + bytes_into_marker;
+        Self {
+            chunks: vec![
+                input.as_bytes()[..split_at].to_vec(),
+                input.as_bytes()[split_at..].to_vec(),
+            ],
+            next: 0,
+        }
+    }
+}
+
+impl Read for ChunkedReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let Some(chunk) = self.chunks.get(self.next) else {
+            return Ok(0);
+        };
+        assert!(chunk.len() <= buf.len());
+        buf[..chunk.len()].copy_from_slice(chunk);
+        self.next += 1;
+        Ok(chunk.len())
+    }
+}
 
 #[test]
 fn max_line_length_constant_is_10mb() {
@@ -153,6 +185,35 @@ fn spawn_reader_handles_normal_output() {
 }
 
 #[test]
+fn spawn_reader_preserves_utf8_split_across_reads() {
+    let input = "plain stderr before 😀 after\n";
+    let reader = ChunkedReader::split_inside(input, "😀", 2);
+    let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let handled = Arc::new(Mutex::new(Vec::new()));
+    let handler: OutputHandler = Arc::new(Box::new({
+        let handled = Arc::clone(&handled);
+        move |text: &str| handled.lock().unwrap().push(text.to_string())
+    }));
+
+    let handle = spawn_reader(
+        reader,
+        StreamSink::Stderr,
+        Arc::clone(&buffer),
+        Some(handler),
+        OutputStream::HandlerOnly,
+    );
+
+    handle.join().unwrap().unwrap();
+
+    let guard = buffer.lock().unwrap();
+    assert_eq!(guard.as_str(), input);
+    assert!(!guard.contains('\u{FFFD}'));
+
+    let handled = handled.lock().unwrap();
+    assert_eq!(handled.concat(), input);
+}
+
+#[test]
 fn spawn_json_reader_handles_empty_input() {
     let reader = Cursor::new(b"");
     let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
@@ -242,6 +303,37 @@ fn spawn_json_reader_handles_partial_line_at_eof() {
 
     let guard = buffer.lock().unwrap();
     assert!(guard.contains("partial"));
+}
+
+#[test]
+fn spawn_json_reader_preserves_utf8_split_across_reads() {
+    let input = r#"{"type":"text","part":{"text":"json before 😀 after"}}"#.to_string() + "\n";
+    let reader = ChunkedReader::split_inside(&input, "😀", 1);
+    let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let session_id_buf: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let handled = Arc::new(Mutex::new(Vec::new()));
+    let handler: OutputHandler = Arc::new(Box::new({
+        let handled = Arc::clone(&handled);
+        move |line: &str| handled.lock().unwrap().push(line.to_string())
+    }));
+
+    let handle = spawn_json_reader(
+        reader,
+        StreamSink::Stdout,
+        Arc::clone(&buffer),
+        Some(handler),
+        OutputStream::HandlerOnly,
+        session_id_buf,
+    );
+
+    handle.join().unwrap().unwrap();
+
+    let guard = buffer.lock().unwrap();
+    assert_eq!(guard.as_str(), input);
+    assert!(!guard.contains('\u{FFFD}'));
+
+    let handled = handled.lock().unwrap();
+    assert_eq!(handled.as_slice(), ["json before 😀 after\n"]);
 }
 
 #[test]

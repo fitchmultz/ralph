@@ -10,7 +10,8 @@
 //! - Debug logging policy outside stream readers.
 //!
 //! Invariants/Assumptions:
-//! - Readers assume UTF-8 input (lossy decoding for invalid bytes).
+//! - Readers preserve valid UTF-8 across read boundaries.
+//! - Invalid or incomplete EOF bytes are decoded lossily.
 //! - JSON parsing remains best-effort; non-JSON lines are passed through.
 
 use std::io::Write;

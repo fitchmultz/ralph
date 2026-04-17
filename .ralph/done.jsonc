@@ -113,10 +113,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "composer-2",
-        "runner_used": "cursor",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "1"
+        "model_used": "composer-2",
+        "roadmap_item": "1",
+        "runner_used": "cursor"
       }
     },
     {
@@ -159,8 +159,8 @@
       "custom_fields": {
         "audit_reference": "/tmp/ralph-codebase-audit.md",
         "executive_finding": "10",
-        "model_used": "composer-2",
-        "runner_used": "cursor"
+        "runner_used": "cursor",
+        "model_used": "composer-2"
       }
     },
     {
@@ -206,10 +206,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "2",
         "runner_used": "cursor",
-        "model_used": "composer-2"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "composer-2",
+        "roadmap_item": "2"
       }
     },
     {
@@ -252,10 +252,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "4",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
-        "roadmap_item": "4"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "runner_used": "codex"
       }
     },
     {
@@ -300,10 +300,55 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "roadmap_item": "3"
+        "roadmap_item": "3",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
+      }
+    },
+    {
+      "id": "RQ-0008",
+      "status": "done",
+      "title": "Make runner stream decoding UTF-8 safe across fixed read chunks",
+      "description": "`runner/execution/stream_reader.rs` uses `String::from_utf8_lossy` on fixed 8KB chunks, which can split UTF-8 sequences and emit replacement characters. Buffer partial UTF-8 across reads or use a line-oriented decode strategy appropriate for the stream format. Outcome: non-ASCII runner output renders correctly without U+FFFD artifacts from chunk boundaries.\n\nValidation: Both `spawn_reader` and `spawn_json_reader` use `let mut buf = [0u8; 8192]` then `String::from_utf8_lossy(&buf[..read])` before line assembly / `append_to_buffer`, so multibyte sequences split across reads can surface as U+FFFD in the lossy string path.",
+      "priority": "medium",
+      "tags": [
+        "audit",
+        "correctness",
+        "runner",
+        "streaming"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/stream_reader.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #3, Rust-specific section, Short-term #6).",
+        "Repo: `crates/ralph/src/runner/execution/stream_reader.rs` (`spawn_reader` ~35–42, `spawn_json_reader` ~68–80); `queue validate` passed (2026-04-16)."
+      ],
+      "plan": [
+        "Re-read audit Finding #3 and proposed fixes if available.",
+        "Implement cross-chunk UTF-8 buffering (or alternative) with focused unit tests including split codepoints.",
+        "Regression-test representative runner stream parsing paths if present."
+      ],
+      "notes": [
+        "Buffered partial UTF-8 bytes across runner stream reads for raw and JSON paths.",
+        "Added split-codepoint regressions for spawn_reader and spawn_json_reader.",
+        "Verified reader tests and full make ci gate."
+      ],
+      "request": "Fix UTF-8 safety in `crates/ralph/src/runner/execution/stream_reader.rs`: avoid `from_utf8_lossy` on raw 8KB chunks splitting multibyte sequences; buffer partial UTF-8 across reads or decode in a line-safe way so runner NDJSON/text does not show U+FFFD at chunk boundaries. Add tests with split codepoints. Run `cargo test -p ralph` for stream reader paths. Scope: this task only—no new queue items.",
+      "created_at": "2026-04-16T18:52:52Z",
+      "updated_at": "2026-04-17T17:34:01.807889000Z",
+      "completed_at": "2026-04-17T17:34:01.807889000Z",
+      "started_at": "2026-04-17T17:19:00.355125000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "roadmap_item": "6",
+        "runner_used": "codex",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "gpt-5.4"
       }
     }
   ]
