@@ -309,7 +309,10 @@ pub fn calculate_velocity_for_today(
         };
         if let Some(day_stats) = stats.daily.get(&date) {
             total += day_stats.completed_count;
-            if best_day.is_none() || day_stats.completed_count > best_day.as_ref().unwrap().1 {
+            if best_day
+                .as_ref()
+                .is_none_or(|(_, best_count)| day_stats.completed_count > *best_count)
+            {
                 best_day = Some((date, day_stats.completed_count));
             }
         }

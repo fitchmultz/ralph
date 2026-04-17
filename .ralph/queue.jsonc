@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0013",
-      "status": "todo",
-      "title": "Clean up `best_day` update logic in productivity calculations",
-      "description": "Audit flags `productivity/calculations.rs` around line ~312 for `best_day.as_ref().unwrap().1` after an `is_none()` check — sound but brittle style. Prefer `match`, `if let`, or `map_or` for clarity and future lint-friendliness. Outcome: equivalent behavior with clearer control flow.\n\nValidation: `crates/ralph/src/productivity/calculations.rs` uses `if best_day.is_none() || day_stats.completed_count > best_day.as_ref().unwrap().1` before assigning `best_day = Some((date, ...))` (pattern around lines 304–313), matching the audit’s style concern.",
-      "priority": "low",
-      "tags": [
-        "audit",
-        "code-quality",
-        "productivity"
-      ],
-      "scope": [
-        "crates/ralph/src/productivity/calculations.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Executive Top-10 Finding #10, Code Quality excerpt for `best_day`).",
-        "Repo: `crates/ralph/src/productivity/calculations.rs` `best_day` update branch (~304–313); `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Open `crates/ralph/src/productivity/calculations.rs` and locate the `best_day` aggregation loop.",
-        "Refactor the conditional update to avoid `unwrap()` even behind guards (`map_or` / `match`).",
-        "Run productivity/unit tests touching calculations."
-      ],
-      "notes": [],
-      "request": "Refactor `best_day` updates in `crates/ralph/src/productivity/calculations.rs` to remove `best_day.as_ref().unwrap()` after `is_none()` guards—use `match`, `if let`, or `map_or` for equivalent behavior and clearer control flow. Run productivity/calculation tests. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "executive_finding": "10"
-      }
-    },
-    {
       "id": "RQ-0004",
       "status": "todo",
       "title": "Harden webhook URL validation against unsafe destinations",
@@ -112,8 +76,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "4",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "4"
       }
     },
     {
@@ -228,8 +192,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "7",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "7"
       }
     },
     {
@@ -266,8 +230,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "9"
+        "roadmap_item": "9",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -303,8 +267,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "5"
+        "roadmap_item": "5",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -378,8 +342,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "8",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "8"
       }
     }
   ]
