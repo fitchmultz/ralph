@@ -115,7 +115,8 @@ pub struct WebhookConfig {
     #[schemars(range(min = 0, max = 10))]
     pub retry_count: Option<u32>,
 
-    /// Retry backoff base in milliseconds (default: 1000, max: 30000).
+    /// Base interval for exponential webhook retry delays in milliseconds (default: 1000, max: 30000).
+    /// Actual delays apply bounded jitter and cap at 30 seconds between attempts.
     #[schemars(range(min = 100, max = 30000))]
     pub retry_backoff_ms: Option<u32>,
 

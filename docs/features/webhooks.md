@@ -38,7 +38,7 @@ Webhooks are configured via the `agent.webhook` section in your config file (`.r
 | `events` | string[] | `null` | List of events to subscribe to (see [Event Filtering](#event-filtering)) |
 | `timeout_secs` | number | `30` | HTTP request timeout (1-300 seconds) |
 | `retry_count` | number | `3` | Retry attempts for failed deliveries (0-10) |
-| `retry_backoff_ms` | number | `1000` | Base backoff between retries in ms (100-30000) |
+| `retry_backoff_ms` | number | `1000` | Base interval for exponential retry delays in ms (100-30000); delays include bounded jitter and cap at 30 seconds |
 | `queue_capacity` | number | `500` | Maximum pending webhooks in queue (10-10000) |
 | `parallel_queue_multiplier` | number | `2.0` | Parallel-mode queue capacity multiplier (1.0-10.0) |
 | `queue_policy` | string | `"drop_oldest"` | Backpressure policy when queue is full |

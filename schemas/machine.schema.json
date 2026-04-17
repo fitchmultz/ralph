@@ -1719,7 +1719,7 @@
           },
           "retry_backoff_ms": {
             "default": null,
-            "description": "Retry backoff base in milliseconds (default: 1000, max: 30000).",
+            "description": "Base interval for exponential webhook retry delays in milliseconds (default: 1000, max: 30000).\nActual delays apply bounded jitter and cap at 30 seconds between attempts.",
             "format": "uint32",
             "maximum": 30000,
             "minimum": 100,

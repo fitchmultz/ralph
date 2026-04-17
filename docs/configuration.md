@@ -461,7 +461,7 @@ Supported fields:
   - Use `["*"]` to subscribe to all events including new ones
 - `timeout_secs`: request timeout in seconds (default: `30`, max: `300`).
 - `retry_count`: number of retry attempts for failed deliveries (default: `3`, max: `10`).
-- `retry_backoff_ms`: retry backoff base in milliseconds (default: `1000`, max: `30000`).
+- `retry_backoff_ms`: base interval in milliseconds for exponential webhook retry delays (default: `1000`, max: `30000`); delays include bounded jitter and cap at 30 seconds between attempts.
 - `queue_capacity`: maximum number of pending webhooks in the delivery queue (default: `500`, range: `10-10000`).
 - `parallel_queue_multiplier`: multiplier for effective queue capacity in parallel mode (default: `2.0`, range: `1.0-10.0`).
 - `queue_policy`: backpressure policy when queue is full (default: `drop_oldest`).
