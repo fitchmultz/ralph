@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0012",
-      "status": "todo",
-      "title": "Improve debug-mode observability for which redaction rules fired",
-      "description": "Long-term audit item: in debug mode, log which class of redaction applied (structural vs env-value vs hex) to aid tuning without leaking secret material. Outcome: operators can diagnose over-redaction or missed patterns more quickly during local debugging.\n\nValidation: Redaction is layered in `crates/ralph/src/redaction/patterns.rs` (`redact_sensitive_strings` composes SSH, hex, and key/value passes); there is no first-class “which stage modified the output” telemetry today—debug operators must infer from output shape alone.",
-      "priority": "low",
-      "tags": [
-        "audit",
-        "observability",
-        "redaction"
-      ],
-      "scope": [
-        "crates/ralph/src/redaction/",
-        "crates/ralph/src/redaction/logging.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Long-term roadmap item #10).",
-        "Repo: `crates/ralph/src/redaction/patterns.rs` pipeline composition; `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Identify redaction entry points (`patterns.rs`, `logging.rs`, safeguard dump paths) and existing debug logging conventions.",
-        "Add safe, category-level debug signals (no raw secrets) behind appropriate verbosity flags.",
-        "Add tests ensuring secrets never appear in emitted debug metadata."
-      ],
-      "notes": [],
-      "request": "In debug mode, emit safe category-level signals for which redaction stage modified output (structural vs env-value vs hex) in `crates/ralph/src/redaction/`—no raw secrets. Follow existing debug/verbosity patterns; add tests proving secrets never appear in debug metadata. Run `cargo test -p ralph`. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "10"
-      }
-    },
-    {
       "id": "RQ-0010",
       "status": "todo",
       "title": "Clarify PID-lock staleness policy for PID reuse edge cases",

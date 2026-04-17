@@ -34,6 +34,23 @@ fn env_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
+struct EnvVarGuard {
+    key: &'static str,
+}
+
+impl EnvVarGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        unsafe { std::env::set_var(key, value) };
+        Self { key }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        unsafe { std::env::remove_var(self.key) };
+    }
+}
+
 #[test]
 fn looks_sensitive_env_key_matches_expected_values() {
     let cases = [
@@ -210,6 +227,53 @@ fn redact_text_reads_latest_sensitive_env_values_without_manual_cache_clear() {
     assert!(second.contains(REDACTED));
 }
 
+#[test]
+fn redact_text_writes_safe_debug_metadata_for_fired_classes() {
+    let _debug_guard = debug_lock().lock().expect("debug log lock");
+    let _env_guard = env_lock().lock().expect("env lock");
+    reset_debug_log();
+    let dir = tempdir().expect("tempdir");
+    enable_debug_log(dir.path()).expect("enable debug log");
+    let _api_token = EnvVarGuard::set("API_TOKEN", "supersecretenvvalue");
+    let contextual_hex = "abcdef0123456789abcdef0123456789";
+    let structural_secret = "structuralsecret";
+
+    let input = format!(
+        "API_KEY={structural_secret} session token {contextual_hex} env supersecretenvvalue"
+    );
+    let output = redact_text(&input);
+
+    assert!(!output.contains(structural_secret));
+    assert!(!output.contains(contextual_hex));
+    assert!(!output.contains("supersecretenvvalue"));
+
+    let debug_log = dir.path().join(".ralph/logs/debug.log");
+    let contents = std::fs::read_to_string(&debug_log).expect("read log");
+    let metadata_lines: Vec<&str> = contents
+        .lines()
+        .filter(|line| line.starts_with("[REDACTION]"))
+        .collect();
+    assert!(
+        metadata_lines.contains(&"[REDACTION] classes=structural,hex,env-value material=omitted"),
+        "metadata: {metadata_lines:?}"
+    );
+    for line in metadata_lines {
+        assert!(!line.contains(structural_secret), "metadata: {line}");
+        assert!(!line.contains(contextual_hex), "metadata: {line}");
+        assert!(!line.contains("supersecretenvvalue"), "metadata: {line}");
+    }
+    assert!(
+        !contents.contains(structural_secret),
+        "debug log: {contents}"
+    );
+    assert!(!contents.contains(contextual_hex), "debug log: {contents}");
+    assert!(
+        !contents.contains("supersecretenvvalue"),
+        "debug log: {contents}"
+    );
+    reset_debug_log();
+}
+
 struct MockLogger {
     last_msg: std::sync::Arc<std::sync::Mutex<String>>,
 }
@@ -274,5 +338,16 @@ fn redacted_logger_writes_raw_log_to_debug_log() {
     let debug_log = dir.path().join(".ralph/logs/debug.log");
     let contents = std::fs::read_to_string(&debug_log).expect("read log");
     assert!(contents.contains("API_KEY=secret123"), "log: {contents}");
+    let metadata_lines: Vec<&str> = contents
+        .lines()
+        .filter(|line| line.starts_with("[REDACTION]"))
+        .collect();
+    assert!(
+        metadata_lines.contains(&"[REDACTION] classes=structural material=omitted"),
+        "metadata: {metadata_lines:?}"
+    );
+    for line in metadata_lines {
+        assert!(!line.contains("secret123"), "metadata: {line}");
+    }
     reset_debug_log();
 }

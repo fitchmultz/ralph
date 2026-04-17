@@ -4,6 +4,7 @@
 //! - Redact known secret-shaped substrings such as key-value pairs, bearer
 //!   tokens, AWS tokens, SSH blocks, high-risk hex strings, and sensitive env
 //!   values.
+//! - Emit safe class-level debug metadata when redaction changes text.
 //! - Preserve non-secret text, including non-ASCII content.
 //!
 //! Scope:
@@ -30,12 +31,70 @@ pub fn redact_text(value: &str) -> String {
         return value.to_string();
     }
 
+    let mut telemetry = RedactionTelemetry::default();
+
     let with_pairs = redact_key_value_pairs(value);
+    telemetry.record_structural_change(value, &with_pairs);
     let with_bearer = redact_bearer_tokens(&with_pairs);
+    telemetry.record_structural_change(&with_pairs, &with_bearer);
     let with_aws = redact_aws_keys(&with_bearer);
+    telemetry.record_structural_change(&with_bearer, &with_aws);
     let with_ssh = redact_ssh_keys(&with_aws);
+    telemetry.record_structural_change(&with_aws, &with_ssh);
     let with_hex = redact_hex_tokens(&with_ssh);
-    redact_sensitive_env_values(&with_hex)
+    telemetry.record_hex_change(&with_ssh, &with_hex);
+    let redacted = redact_sensitive_env_values(&with_hex);
+    telemetry.record_env_value_change(&with_hex, &redacted);
+    emit_redaction_telemetry(telemetry);
+    redacted
+}
+
+#[derive(Clone, Copy, Default)]
+struct RedactionTelemetry {
+    structural: bool,
+    hex: bool,
+    env_value: bool,
+}
+
+impl RedactionTelemetry {
+    fn record_structural_change(&mut self, before: &str, after: &str) {
+        self.structural |= before != after;
+    }
+
+    fn record_hex_change(&mut self, before: &str, after: &str) {
+        self.hex |= before != after;
+    }
+
+    fn record_env_value_change(&mut self, before: &str, after: &str) {
+        self.env_value |= before != after;
+    }
+
+    fn any(self) -> bool {
+        self.structural || self.hex || self.env_value
+    }
+}
+
+fn emit_redaction_telemetry(telemetry: RedactionTelemetry) {
+    if !telemetry.any() {
+        return;
+    }
+
+    crate::debuglog::with_debug_log(|log| {
+        let mut classes = Vec::with_capacity(3);
+        if telemetry.structural {
+            classes.push("structural");
+        }
+        if telemetry.hex {
+            classes.push("hex");
+        }
+        if telemetry.env_value {
+            classes.push("env-value");
+        }
+        let _ = log.write(&format!(
+            "[REDACTION] classes={} material=omitted\n",
+            classes.join(",")
+        ));
+    });
 }
 
 fn push_next_char(out: &mut String, text: &str, index: &mut usize) {
