@@ -36,11 +36,11 @@ fn parallel_init_rebuilds_dispatcher_with_deterministic_capacity() {
     config.parallel_queue_multiplier = Some(2.0);
 
     let standard = current_dispatcher_settings_for_tests(&config);
-    assert_eq!(standard, (50, 4));
+    assert_eq!(standard, Some((50, 4)));
 
     init_worker_for_parallel(&config, 5);
     let parallel = current_dispatcher_settings_for_tests(&config);
-    assert_eq!(parallel, (500, 5));
+    assert_eq!(parallel, Some((500, 5)));
 }
 
 #[test]

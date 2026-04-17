@@ -113,10 +113,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "1",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "model_used": "composer-2",
-        "runner_used": "cursor"
+        "runner_used": "cursor",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "1"
       }
     },
     {
@@ -157,10 +157,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "executive_finding": "10",
         "model_used": "composer-2",
-        "runner_used": "cursor",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "runner_used": "cursor"
       }
     },
     {
@@ -206,10 +206,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "cursor",
-        "model_used": "composer-2",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "roadmap_item": "2",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "runner_used": "cursor",
+        "model_used": "composer-2"
       }
     },
     {
@@ -252,10 +252,58 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "4",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex",
+        "roadmap_item": "4"
+      }
+    },
+    {
+      "id": "RQ-0005",
+      "status": "done",
+      "title": "Replace webhook runtime thread-spawn `.expect()` with graceful degradation",
+      "description": "`webhook/worker/runtime.rs` uses `.expect()` when spawning delivery workers; under resource pressure this can abort the whole CLI. Return `Result` (or equivalent) and degrade to synchronous delivery or disable webhooks for the run with a clear operator-visible warning. Outcome: webhook subsystem does not crash the process on thread spawn failure.\n\nValidation: `WebhookDispatcher::new` in `crates/ralph/src/webhook/worker/runtime.rs` panics on `startup_sender.send`, `thread::Builder::spawn`, startup `recv_timeout`, and `dispatcher_for_config` uses `.expect(\"dispatcher initialized\")` on the cached dispatcher.",
+      "priority": "high",
+      "tags": [
+        "audit",
+        "webhook",
+        "resilience",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/worker/runtime.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #4, Error Handling section with `runtime.rs` cite, Quick win #3).",
+        "Repo: `crates/ralph/src/webhook/worker/runtime.rs` lines ~164–188 (`expect` on worker/scheduler spawn and startup handshake), ~236 (`expect(\"dispatcher initialized\")`); `queue validate` passed (2026-04-16)."
+      ],
+      "plan": [
+        "Inventory all `.expect(` sites in `webhook/worker/runtime.rs` (worker spawn, scheduler spawn, startup barrier, dispatcher cache).",
+        "Read audit Quick win #3 if available.",
+        "Refactor spawn paths to propagate errors and choose a documented fallback path.",
+        "Add regression tests simulating failure where feasible (or unit-test the decision helper).",
+        "Run targeted webhook/runtime tests."
+      ],
+      "notes": [
+        "Made webhook dispatcher startup fallible and disabled webhooks for the run on startup failure instead of panicking.",
+        "Updated enqueue path to drop webhook events with diagnostics when dispatcher initialization is unavailable.",
+        "Added runtime regression tests for thread-spawn failure and startup-handshake timeout.",
+        "Verified with targeted webhook tests and make ci."
+      ],
+      "request": "In `crates/ralph/src/webhook/worker/runtime.rs`, replace `.expect()` on worker/scheduler spawn, startup handshake, and dispatcher init with `Result` propagation and a defined fallback: degrade to sync delivery or disable webhooks for the run with a clear operator-visible warning—no process abort on thread spawn failure. Add regression coverage where practical. Run webhook/runtime tests. Scope: this task only—no new queue items.",
+      "created_at": "2026-04-16T18:52:52Z",
+      "updated_at": "2026-04-17T15:58:56.658145000Z",
+      "completed_at": "2026-04-17T15:58:56.658145000Z",
+      "started_at": "2026-04-17T15:36:04.907323000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4",
+        "roadmap_item": "3"
       }
     }
   ]
