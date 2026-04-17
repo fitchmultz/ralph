@@ -13,15 +13,18 @@
 //!
 //! Invariants/Assumptions:
 //! - Every user-visible destination string is redacted before logging or persistence.
-//! - Retry delays are deterministic from configured backoff and attempt number.
+//! - Retry delays use exponential backoff with bounded jitter and a fixed cap.
 //! - Test transport injection stays crate-local and fully in-process.
 
 use anyhow::Context;
 
 use crate::contracts::validate_webhook_destination_url;
 use crossbeam_channel::Sender;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::Weak;
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[cfg(test)]
 use std::sync::{Arc, OnceLock, RwLock};
@@ -29,6 +32,11 @@ use std::sync::{Arc, OnceLock, RwLock};
 use super::super::diagnostics;
 use super::super::types::WebhookMessage;
 use super::runtime::{DeliveryTask, ScheduledRetry};
+
+const WEBHOOK_RETRY_MAX_DELAY: Duration = Duration::from_secs(30);
+const WEBHOOK_RETRY_JITTER_PER_MILLE: i32 = 200;
+
+static WEBHOOK_RETRY_JITTER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub(super) fn handle_delivery_task(
     task: DeliveryTask,
@@ -112,11 +120,59 @@ pub(super) fn handle_delivery_task(
 }
 
 fn retry_delay(base: Duration, retry_number: u32) -> Duration {
+    retry_delay_with_jitter(base, retry_number, random_jitter_per_mille())
+}
+
+fn retry_delay_with_jitter(base: Duration, retry_number: u32, jitter_per_mille: i32) -> Duration {
+    let multiplier = exponential_retry_multiplier(retry_number);
     let millis = base
         .as_millis()
-        .saturating_mul(retry_number as u128)
+        .saturating_mul(multiplier)
+        .min(WEBHOOK_RETRY_MAX_DELAY.as_millis());
+    let bounded_jitter = jitter_per_mille.clamp(
+        -WEBHOOK_RETRY_JITTER_PER_MILLE,
+        WEBHOOK_RETRY_JITTER_PER_MILLE,
+    );
+    let jittered = apply_jitter(millis, bounded_jitter)
+        .min(WEBHOOK_RETRY_MAX_DELAY.as_millis())
         .min(u64::MAX as u128) as u64;
-    Duration::from_millis(millis)
+
+    Duration::from_millis(jittered)
+}
+
+fn exponential_retry_multiplier(retry_number: u32) -> u128 {
+    if retry_number == 0 {
+        return 0;
+    }
+
+    1u128
+        .checked_shl(retry_number.saturating_sub(1))
+        .unwrap_or(u128::MAX)
+}
+
+fn apply_jitter(millis: u128, jitter_per_mille: i32) -> u128 {
+    let scale = 1000i128 + jitter_per_mille as i128;
+    if scale <= 0 {
+        return 0;
+    }
+
+    millis.saturating_mul(scale as u128) / 1000
+}
+
+fn random_jitter_per_mille() -> i32 {
+    let mut hasher = DefaultHasher::new();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let counter = WEBHOOK_RETRY_JITTER_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+    now.hash(&mut hasher);
+    counter.hash(&mut hasher);
+    std::process::id().hash(&mut hasher);
+
+    let span = (WEBHOOK_RETRY_JITTER_PER_MILLE as u64).saturating_mul(2);
+    (hasher.finish() % (span + 1)) as i32 - WEBHOOK_RETRY_JITTER_PER_MILLE
 }
 
 fn deliver_attempt(msg: &WebhookMessage) -> anyhow::Result<()> {
@@ -296,5 +352,79 @@ pub(crate) fn install_test_transport_for_tests(handler: Option<TestTransportHand
             let mut guard = poisoned.into_inner();
             *guard = handler;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retry_delay_uses_exponential_sequence_without_jitter() {
+        let base = Duration::from_millis(100);
+
+        assert_eq!(
+            retry_delay_with_jitter(base, 1, 0),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 2, 0),
+            Duration::from_millis(200)
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 3, 0),
+            Duration::from_millis(400)
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 4, 0),
+            Duration::from_millis(800)
+        );
+    }
+
+    #[test]
+    fn retry_delay_applies_bounded_jitter() {
+        let base = Duration::from_millis(1000);
+
+        assert_eq!(
+            retry_delay_with_jitter(base, 1, -WEBHOOK_RETRY_JITTER_PER_MILLE),
+            Duration::from_millis(800)
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 1, WEBHOOK_RETRY_JITTER_PER_MILLE),
+            Duration::from_millis(1200)
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 1, -999),
+            Duration::from_millis(800)
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 1, 999),
+            Duration::from_millis(1200)
+        );
+    }
+
+    #[test]
+    fn retry_delay_caps_final_delay_after_jitter() {
+        let base = Duration::from_millis(10_000);
+
+        assert_eq!(
+            retry_delay_with_jitter(base, 4, WEBHOOK_RETRY_JITTER_PER_MILLE),
+            WEBHOOK_RETRY_MAX_DELAY
+        );
+        assert_eq!(
+            retry_delay_with_jitter(base, 10, 0),
+            WEBHOOK_RETRY_MAX_DELAY
+        );
+    }
+
+    #[test]
+    fn retry_delay_handles_extreme_retry_numbers() {
+        let delay = retry_delay_with_jitter(
+            Duration::from_millis(u64::MAX),
+            u32::MAX,
+            WEBHOOK_RETRY_JITTER_PER_MILLE,
+        );
+
+        assert_eq!(delay, WEBHOOK_RETRY_MAX_DELAY);
     }
 }

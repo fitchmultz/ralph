@@ -62,24 +62,32 @@ public struct WebhookConfig: Codable, Sendable, Equatable {
     public var url: String?
     public var allowInsecureHttp: Bool?
     public var allowPrivateTargets: Bool?
+    public var retryCount: UInt32?
+    public var retryBackoffMs: UInt32?
 
     private enum CodingKeys: String, CodingKey {
         case enabled
         case url
         case allowInsecureHttp = "allow_insecure_http"
         case allowPrivateTargets = "allow_private_targets"
+        case retryCount = "retry_count"
+        case retryBackoffMs = "retry_backoff_ms"
     }
 
     public init(
         enabled: Bool? = nil,
         url: String? = nil,
         allowInsecureHttp: Bool? = nil,
-        allowPrivateTargets: Bool? = nil
+        allowPrivateTargets: Bool? = nil,
+        retryCount: UInt32? = nil,
+        retryBackoffMs: UInt32? = nil
     ) {
         self.enabled = enabled
         self.url = url
         self.allowInsecureHttp = allowInsecureHttp
         self.allowPrivateTargets = allowPrivateTargets
+        self.retryCount = retryCount
+        self.retryBackoffMs = retryBackoffMs
     }
 }
 

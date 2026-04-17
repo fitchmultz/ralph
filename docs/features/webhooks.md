@@ -38,7 +38,7 @@ Webhooks are configured via the `agent.webhook` section in your config file (`.r
 | `events` | string[] | `null` | List of events to subscribe to (see [Event Filtering](#event-filtering)) |
 | `timeout_secs` | number | `30` | HTTP request timeout (1-300 seconds) |
 | `retry_count` | number | `3` | Retry attempts for failed deliveries (0-10) |
-| `retry_backoff_ms` | number | `1000` | Base backoff between retries in ms (100-30000) |
+| `retry_backoff_ms` | number | `1000` | Base interval for exponential retry delays in ms (100-30000); delays include bounded jitter and cap at 30 seconds |
 | `queue_capacity` | number | `500` | Maximum pending webhooks in queue (10-10000) |
 | `parallel_queue_multiplier` | number | `2.0` | Parallel-mode queue capacity multiplier (1.0-10.0) |
 | `queue_policy` | string | `"drop_oldest"` | Backpressure policy when queue is full |
@@ -471,10 +471,12 @@ Ralph's webhook system follows **best-effort delivery semantics**:
 Failed deliveries are automatically retried with exponential backoff:
 
 1. Initial attempt (immediate)
-2. Retry 1: after `retry_backoff_ms * 1`
-3. Retry 2: after `retry_backoff_ms * 2`
-4. Retry 3: after `retry_backoff_ms * 3`
+2. Retry 1: after roughly `retry_backoff_ms`
+3. Retry 2: after roughly `retry_backoff_ms * 2`
+4. Retry 3: after roughly `retry_backoff_ms * 4`
 - ...up to `retry_count` attempts
+
+Retry timing includes bounded jitter to avoid synchronized retry storms and is capped at 30 seconds.
 
 **Retryable failures**: Timeouts, connection errors, HTTP 5xx responses  
 **Non-retryable failures**: HTTP 4xx responses (except 429), invalid URL

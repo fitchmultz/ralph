@@ -165,7 +165,9 @@ fn replay_dry_run_does_not_mutate_replay_counts() {
 }
 
 #[test]
+#[serial]
 fn replay_execute_only_increments_eligible_records() {
+    reset_webhook_test_state();
     let repo_root = tempfile::tempdir().expect("tempdir");
     let config = webhook_test_config();
     crate::webhook::diagnostics::write_failure_records_for_tests(

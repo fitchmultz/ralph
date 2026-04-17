@@ -516,7 +516,7 @@ HTTP webhook configuration for external integrations.
 | `events` | `string[]` | `null` | Events to subscribe to (use `["*"]` for all) |
 | `timeout_secs` | `number` | `30` | Request timeout (1-300) |
 | `retry_count` | `number` | `3` | Retry attempts (0-10) |
-| `retry_backoff_ms` | `number` | `1000` | Retry backoff (100-30000) |
+| `retry_backoff_ms` | `number` | `1000` | Base for exponential retry delays (100-30000); bounded jitter; 30s cap between attempts |
 | `queue_capacity` | `number` | `500` | Delivery queue size (10-10000) |
 | `parallel_queue_multiplier` | `number` | `2.0` | Parallel-mode queue capacity multiplier (1.0-10.0) |
 | `queue_policy` | `"drop_oldest" \| "drop_new" \| "block_with_timeout"` | `"drop_oldest"` | Backpressure policy |

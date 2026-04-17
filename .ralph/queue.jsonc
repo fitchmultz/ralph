@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0006",
-      "status": "todo",
-      "title": "Implement exponential webhook retry backoff with jitter and cap",
-      "description": "Audit notes `webhook/worker/delivery.rs::retry_delay` uses linear backoff (`base × retry_number`), which can hammer endpoints during outages. Switch to exponential backoff with jitter and a maximum cap, preserving existing timeout/redaction behavior. Outcome: retry storm risk is reduced under prolonged failures.\n\nValidation: `retry_delay` is `Duration::from_millis(base.as_millis().saturating_mul(retry_number as u128).min(...))` — strictly linear in `retry_number` with no jitter or exponential term.",
-      "priority": "high",
-      "tags": [
-        "audit",
-        "webhook",
-        "performance",
-        "resilience"
-      ],
-      "scope": [
-        "crates/ralph/src/webhook/worker/delivery.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #5, Performance section on `retry_delay`, Quick win #4).",
-        "Repo: `crates/ralph/src/webhook/worker/delivery.rs` `fn retry_delay(base: Duration, retry_number: u32)` (~lines 112–117); `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Inspect current `retry_delay` and call graph in `delivery.rs` (scheduled retry path uses `retry_delay(task.msg.config.retry_backoff, retry_number)`).",
-        "Implement exponential+jitter+cap with deterministic unit tests for backoff sequence bounds.",
-        "Validate behavior under configured retry limits and document any config surface changes if required.",
-        "Run webhook delivery tests."
-      ],
-      "notes": [],
-      "request": "Replace linear `retry_delay` in `crates/ralph/src/webhook/worker/delivery.rs` with exponential backoff, jitter, and a maximum cap; keep existing timeout and redaction behavior. Add tests for bounded delay sequences. Run webhook delivery tests. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "roadmap_item": "4",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
-      }
-    },
-    {
       "id": "RQ-0005",
       "status": "todo",
       "title": "Replace webhook runtime thread-spawn `.expect()` with graceful degradation",
@@ -74,8 +36,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "3",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "3"
       }
     },
     {
@@ -111,8 +73,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "6"
+        "roadmap_item": "6",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -189,8 +151,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "9",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "9"
       }
     },
     {
@@ -301,8 +263,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "8",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "8"
       }
     }
   ]
