@@ -115,8 +115,8 @@
       "custom_fields": {
         "model_used": "composer-2",
         "runner_used": "cursor",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "1"
+        "roadmap_item": "1",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -158,8 +158,57 @@
       "relates_to": [],
       "custom_fields": {
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "model_used": "composer-2",
         "executive_finding": "10",
+        "model_used": "composer-2",
+        "runner_used": "cursor"
+      }
+    },
+    {
+      "id": "RQ-0004",
+      "status": "done",
+      "title": "Harden webhook URL validation against unsafe destinations",
+      "description": "Per the audit, `WebhookConfig.url` is passed to delivery without scheme allowlist or SSRF-style guards (loopback, link-local, IMDS-style hosts). Implement validation in `contracts/config/webhook.rs`: prefer HTTPS-only by default, optional opt-in for plaintext, and validation-time warnings or rejects for risky targets. Outcome: webhook destinations cannot trivially pivot to local/metadata endpoints without explicit operator intent.\n\nValidation: `WebhookConfig` in `crates/ralph/src/contracts/config/webhook.rs` exposes `url: Option<String>` (serde field) with merge/event/timeout fields documented, but there is no URL safety policy in that module today; `deliver_attempt` in `webhook/worker/delivery.rs` forwards the configured URL string straight into `send_request`.",
+      "priority": "high",
+      "tags": [
+        "audit",
+        "security",
+        "webhook",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config/webhook.rs",
+        "crates/ralph/src/webhook/worker/delivery.rs",
+        "schemas/",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #2, Security section on `WebhookConfig.url`, Quick win #2).",
+        "Repo: `crates/ralph/src/contracts/config/webhook.rs` (`WebhookConfig.url`); delivery uses `msg.config.url` in `deliver_attempt`; `queue validate` passed (2026-04-16)."
+      ],
+      "plan": [
+        "Trace config load/merge path for `WebhookConfig` and where URL is first considered valid.",
+        "Review `/tmp/ralph-codebase-audit.md` security subsection and Quick win #2 if available.",
+        "Design allowlist/default-HTTPS policy and config knob if needed (align with schema + docs patterns).",
+        "Implement URL validation with tests covering loopback, link-local, and acceptable HTTPS cases.",
+        "Run `cargo test -p ralph` for affected modules."
+      ],
+      "notes": [
+        "HTTPS-only default; optional http + private-target opt-ins",
+        "validate at config load, enqueue, and delivery",
+        "tests: contract URL rules, config validation, fixtures updated"
+      ],
+      "request": "Validate `WebhookConfig.url` usage end-to-end (`contracts/config/webhook.rs` through `webhook/worker/delivery.rs`). Add URL safety: default HTTPS-only, optional opt-in for http, and reject or clearly warn on loopback, link-local, and metadata-style hosts unless explicitly allowed. Update schema/tests as needed. Run `cargo test -p ralph`. Scope: this task only—no new queue items.",
+      "created_at": "2026-04-16T18:52:52Z",
+      "updated_at": "2026-04-17T01:49:22.358216000Z",
+      "completed_at": "2026-04-17T01:49:22.358216000Z",
+      "started_at": "2026-04-17T01:32:56.893785000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "2",
+        "model_used": "composer-2",
         "runner_used": "cursor"
       }
     }

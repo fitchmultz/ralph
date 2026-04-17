@@ -8,8 +8,11 @@
 //! Not handled here:
 //! - Actual webhook delivery (see `crate::webhook` module).
 
+use anyhow::{Context, bail};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use url::{Host, Url};
 
 /// Webhook event subscription type for config.
 /// Each variant corresponds to a WebhookEventType, plus Wildcard for "all events".
@@ -84,6 +87,19 @@ pub struct WebhookConfig {
     /// Webhook endpoint URL (required when enabled).
     pub url: Option<String>,
 
+    /// When `true`, allow `http://` webhook URLs. Default is HTTPS-only (`false` / unset).
+    #[schemars(
+        description = "Opt-in to allow plaintext http:// webhook URLs (default: HTTPS only)."
+    )]
+    pub allow_insecure_http: Option<bool>,
+
+    /// When `true`, allow loopback, link-local, and common cloud metadata hostnames/IPs.
+    /// Default blocks these SSRF-adjacent targets unless explicitly opted in.
+    #[schemars(
+        description = "Opt-in to allow loopback, link-local (169.254/…), and metadata-style hosts."
+    )]
+    pub allow_private_targets: Option<bool>,
+
     /// Secret key for HMAC-SHA256 signature generation.
     /// When set, webhooks include an X-Ralph-Signature header.
     pub secret: Option<String>,
@@ -127,6 +143,12 @@ impl WebhookConfig {
         }
         if other.url.is_some() {
             self.url = other.url;
+        }
+        if other.allow_insecure_http.is_some() {
+            self.allow_insecure_http = other.allow_insecure_http;
+        }
+        if other.allow_private_targets.is_some() {
+            self.allow_private_targets = other.allow_private_targets;
         }
         if other.secret.is_some() {
             self.secret = other.secret;
@@ -181,6 +203,117 @@ impl WebhookConfig {
                 .any(|e| e.as_str() == event || e.as_str() == "*"),
         }
     }
+}
+
+/// Validate webhook URL when `agent.webhook.enabled` is true (requires non-empty URL and safety rules).
+pub(crate) fn validate_webhook_settings(cfg: &WebhookConfig) -> anyhow::Result<()> {
+    if !cfg.enabled.unwrap_or(false) {
+        return Ok(());
+    }
+    let Some(raw) = cfg.url.as_deref() else {
+        bail!(
+            "agent.webhook.enabled=true requires agent.webhook.url to be set to an absolute https:// URL"
+        );
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        bail!("agent.webhook.enabled=true requires a non-empty agent.webhook.url");
+    }
+    validate_webhook_destination_url(
+        trimmed,
+        cfg.allow_insecure_http.unwrap_or(false),
+        cfg.allow_private_targets.unwrap_or(false),
+    )
+}
+
+/// Validate a webhook destination URL for delivery or config-time checks.
+///
+/// - Only `http` and `https` schemes are accepted.
+/// - `http` requires `allow_insecure_http`.
+/// - Loopback, IPv4 link-local (`169.254.0.0/16`), IPv6 link-local, and common metadata hostnames
+///   are rejected unless `allow_private_targets` is true.
+pub(crate) fn validate_webhook_destination_url(
+    raw_url: &str,
+    allow_insecure_http: bool,
+    allow_private_targets: bool,
+) -> anyhow::Result<()> {
+    let trimmed = raw_url.trim();
+    if trimmed.is_empty() {
+        bail!("webhook URL is empty");
+    }
+
+    let parsed = Url::parse(trimmed).context("webhook URL must be a valid absolute URL")?;
+
+    match parsed.scheme() {
+        "https" => {}
+        "http" => {
+            if !allow_insecure_http {
+                bail!(
+                    "webhook URL uses http://; only https:// is allowed by default. \
+                     Set agent.webhook.allow_insecure_http=true to permit plaintext HTTP (not recommended)."
+                );
+            }
+        }
+        other => {
+            bail!(
+                "webhook URL scheme {other:?} is not allowed; only http:// and https:// are supported"
+            );
+        }
+    }
+
+    if parsed.host_str().is_none_or(|h| h.is_empty()) {
+        bail!("webhook URL must include a non-empty host");
+    }
+
+    if !allow_private_targets && url_host_is_ssrf_risk(&parsed) {
+        bail!(
+            "webhook URL targets a loopback, link-local, or cloud-metadata-style host, which is blocked by default. \
+             Set agent.webhook.allow_private_targets=true only if you intentionally send webhooks to such a destination."
+        );
+    }
+
+    Ok(())
+}
+
+fn url_host_is_ssrf_risk(url: &Url) -> bool {
+    match url.host() {
+        Some(Host::Ipv4(ip)) => ip_is_blocked_private_adjacent(IpAddr::V4(ip)),
+        Some(Host::Ipv6(ip)) => ip_is_blocked_private_adjacent(IpAddr::V6(ip)),
+        Some(Host::Domain(domain)) => domain_host_is_risky(domain),
+        None => true,
+    }
+}
+
+fn ip_is_blocked_private_adjacent(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => ipv4_is_risky(v4),
+        IpAddr::V6(v6) => ipv6_is_risky(v6),
+    }
+}
+
+fn ipv4_is_risky(ip: Ipv4Addr) -> bool {
+    ip.is_loopback() || ip.is_link_local() || ip.is_unspecified()
+}
+
+fn ipv6_is_risky(ip: Ipv6Addr) -> bool {
+    if let Some(mapped) = ip.to_ipv4_mapped() {
+        return ipv4_is_risky(mapped);
+    }
+    ip.is_loopback() || ip.is_unicast_link_local() || ip.is_unspecified()
+}
+
+fn domain_host_is_risky(domain: &str) -> bool {
+    if let Ok(ip) = domain.parse::<IpAddr>() {
+        return ip_is_blocked_private_adjacent(ip);
+    }
+    let lower = domain.to_ascii_lowercase();
+    if lower == "localhost" || lower.ends_with(".localhost") {
+        return true;
+    }
+    if lower == "metadata.google.internal" {
+        return true;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -247,5 +380,70 @@ mod tests {
             ..Default::default()
         };
         assert!(!config.is_event_enabled("task_created"));
+    }
+
+    #[test]
+    fn validate_destination_accepts_public_https() {
+        validate_webhook_destination_url("https://hooks.example.com/ralph", false, false).unwrap();
+    }
+
+    #[test]
+    fn validate_destination_rejects_http_by_default() {
+        let err = validate_webhook_destination_url("http://hooks.example.com/ralph", false, false)
+            .unwrap_err();
+        assert!(err.to_string().contains("http://"));
+    }
+
+    #[test]
+    fn validate_destination_allows_http_when_opted_in() {
+        validate_webhook_destination_url("http://hooks.example.com/ralph", true, false).unwrap();
+    }
+
+    #[test]
+    fn validate_destination_rejects_loopback_https() {
+        assert!(validate_webhook_destination_url("https://127.0.0.1/hook", false, false).is_err());
+        assert!(validate_webhook_destination_url("https://[::1]/hook", false, false).is_err());
+    }
+
+    #[test]
+    fn validate_destination_rejects_link_local_ipv4() {
+        assert!(
+            validate_webhook_destination_url("https://169.254.169.254/latest", false, false)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_destination_rejects_metadata_hostname() {
+        assert!(
+            validate_webhook_destination_url("https://metadata.google.internal/", false, false)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_destination_allows_risky_targets_when_opted_in() {
+        validate_webhook_destination_url("https://127.0.0.1/hook", false, true).unwrap();
+        validate_webhook_destination_url("http://127.0.0.1/hook", true, true).unwrap();
+    }
+
+    #[test]
+    fn validate_settings_skips_url_when_disabled() {
+        let cfg = WebhookConfig {
+            enabled: Some(false),
+            url: Some("https://127.0.0.1/nope".to_string()),
+            ..Default::default()
+        };
+        validate_webhook_settings(&cfg).unwrap();
+    }
+
+    #[test]
+    fn validate_settings_requires_url_when_enabled() {
+        let cfg = WebhookConfig {
+            enabled: Some(true),
+            url: None,
+            ..Default::default()
+        };
+        assert!(validate_webhook_settings(&cfg).is_err());
     }
 }

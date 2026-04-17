@@ -80,6 +80,8 @@ fn failed_delivery_records_store_redacted_destination() {
             timeout: Duration::from_secs(1),
             retry_count: 0,
             retry_backoff: Duration::from_millis(10),
+            allow_insecure_http: false,
+            allow_private_targets: false,
         },
     };
 

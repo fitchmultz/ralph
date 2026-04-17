@@ -32,7 +32,10 @@ pub use config::{
     PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig, RunnerRetryConfig,
     ScanPromptVersion, WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy,
 };
-pub(crate) use config::{builtin_profile, builtin_profile_names, is_reserved_profile_name};
+pub(crate) use config::{
+    builtin_profile, builtin_profile_names, is_reserved_profile_name,
+    validate_webhook_destination_url, validate_webhook_settings,
+};
 
 // Re-exports from blocking module (operator-facing stalled/waiting state)
 pub use blocking::{BlockingReason, BlockingState, BlockingStatus};

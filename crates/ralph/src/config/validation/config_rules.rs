@@ -19,7 +19,9 @@ use super::{
     validate_agent_binary_paths,
 };
 use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PARALLEL_WORKERS, MIN_PHASES};
-use crate::contracts::{Config, builtin_profile_names, is_reserved_profile_name};
+use crate::contracts::{
+    Config, builtin_profile_names, is_reserved_profile_name, validate_webhook_settings,
+};
 use anyhow::{Result, bail};
 use std::path::Component;
 
@@ -94,6 +96,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
 
     validate_agent_binary_paths(&cfg.agent, "agent")?;
     validate_ci_gate_config(cfg.agent.ci_gate.as_ref(), "agent")?;
+    validate_webhook_settings(&cfg.agent.webhook)?;
 
     if let Some(profiles) = cfg.profiles.as_ref() {
         for (name, patch) in profiles {

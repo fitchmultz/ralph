@@ -56,6 +56,8 @@ pub(super) fn webhook_test_config() -> WebhookConfig {
     WebhookConfig {
         enabled: Some(true),
         url: Some("http://127.0.0.1:9/webhook".to_string()),
+        allow_insecure_http: Some(true),
+        allow_private_targets: Some(true),
         secret: None,
         events: Some(vec![WebhookEventSubscription::Wildcard]),
         timeout_secs: Some(1),

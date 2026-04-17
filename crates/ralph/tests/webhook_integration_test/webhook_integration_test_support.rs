@@ -66,6 +66,8 @@ pub(super) fn base_webhook_config(port: u16) -> WebhookConfig {
     WebhookConfig {
         enabled: Some(true),
         url: Some(format!("http://127.0.0.1:{port}/webhook")),
+        allow_insecure_http: Some(true),
+        allow_private_targets: Some(true),
         secret: None,
         events: None,
         timeout_secs: Some(5),

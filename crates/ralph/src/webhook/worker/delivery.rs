@@ -17,6 +17,8 @@
 //! - Test transport injection stays crate-local and fully in-process.
 
 use anyhow::Context;
+
+use crate::contracts::validate_webhook_destination_url;
 use crossbeam_channel::Sender;
 use std::sync::Weak;
 use std::time::{Duration, Instant};
@@ -123,6 +125,12 @@ fn deliver_attempt(msg: &WebhookMessage) -> anyhow::Result<()> {
         .url
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("Webhook URL not configured"))?;
+    validate_webhook_destination_url(
+        url,
+        msg.config.allow_insecure_http,
+        msg.config.allow_private_targets,
+    )
+    .context("webhook URL failed safety validation")?;
     let destination = redact_webhook_destination(url);
 
     let body = serde_json::to_string(&msg.payload)?;

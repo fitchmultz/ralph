@@ -36,6 +36,7 @@
 		3DC376DB93E9E2696CDF5493 /* DependencyGraphAccessibilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA48F75E84AD1531DC4D4BB9 /* DependencyGraphAccessibilityView.swift */; };
 		42E952AA6330EAF1A5FCB51B /* RalphMacApp+Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2A6FA188F5AC6CE2F53870 /* RalphMacApp+Support.swift */; };
 		4531CFF0D6FF4741BB54C467 /* RalphModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */; };
+		E1E2D3C4B5A6978899AABBCC /* ConfigModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A6978899AABBCC /* ConfigModelsTests.swift */; };
 		48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BA912C259042DDA03E653F /* RalphMacApp.swift */; };
 		49E9CACFFF6345C7A6ABA4FA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CB923D360143EED14F7540 /* AppDelegate.swift */; };
 		4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42A /* Workspace.swift */; };
@@ -320,6 +321,7 @@
 		31B301E8A7CC431E930E753D /* RalphCLIHealthChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIHealthChecker.swift; sourceTree = "<group>"; };
 		3298F69D10A0636C5327AF65 /* WorkingDirectoryHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkingDirectoryHeader.swift; sourceTree = "<group>"; };
 		34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModelsTests.swift; sourceTree = "<group>"; };
+		F1E2D3C4B5A6978899AABBCC /* ConfigModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModelsTests.swift; sourceTree = "<group>"; };
 		38AF699276C60CB8F9BE71F3 /* RalphMacUIConflictTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUIConflictTests.swift; sourceTree = "<group>"; };
 		3ABCA66572BF4FE381DD0476 /* RalphCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RalphCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B2049E5EB874641A1DFB5CA /* QueueFileWatcherRuntime.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QueueFileWatcherRuntime.swift; sourceTree = "<group>"; };
@@ -624,6 +626,7 @@
 				7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */,
 				7496516A44544D58A079C2B7 /* NavigationViewModelTests.swift */,
 				34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */,
+				F1E2D3C4B5A6978899AABBCC /* ConfigModelsTests.swift */,
 				65F63B68A6B84D5195D20137 /* RalphE2ESmokeTests.swift */,
 				C0944A9447A23AA1748EC80A /* VersionValidatorTests.swift */,
 				DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */,
@@ -1051,6 +1054,7 @@
 				3A50AB4D19664FC7A750A366 /* RalphCLIClientTests.swift in Sources */,
 				3A50AB4D19664FC7A750A367 /* NavigationViewModelTests.swift in Sources */,
 				4531CFF0D6FF4741BB54C467 /* RalphModelsTests.swift in Sources */,
+				E1E2D3C4B5A6978899AABBCC /* ConfigModelsTests.swift in Sources */,
 				DA8C4A1F9FDD44F5BCDE5CB9 /* RalphE2ESmokeTests.swift in Sources */,
 				E4635AF24A810EE76495C30B /* VersionValidatorTests.swift in Sources */,
 				268217A233EEC82D9B6E9767 /* RetryHelperTests.swift in Sources */,

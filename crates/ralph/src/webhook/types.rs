@@ -149,6 +149,8 @@ pub struct ResolvedWebhookConfig {
     pub timeout: Duration,
     pub retry_count: u32,
     pub retry_backoff: Duration,
+    pub allow_insecure_http: bool,
+    pub allow_private_targets: bool,
 }
 
 impl ResolvedWebhookConfig {
@@ -161,6 +163,8 @@ impl ResolvedWebhookConfig {
             timeout: Duration::from_secs(config.timeout_secs.unwrap_or(30) as u64),
             retry_count: config.retry_count.unwrap_or(3),
             retry_backoff: Duration::from_millis(config.retry_backoff_ms.unwrap_or(1000) as u64),
+            allow_insecure_http: config.allow_insecure_http.unwrap_or(false),
+            allow_private_targets: config.allow_private_targets.unwrap_or(false),
         }
     }
 }

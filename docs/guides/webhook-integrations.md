@@ -159,6 +159,8 @@ python slack_proxy.py
     "webhook": {
       "enabled": true,
       "url": "http://localhost:5000/webhook",
+      "allow_insecure_http": true,
+      "allow_private_targets": true,
       "secret": "your-random-secret",
       "events": ["task_completed", "task_failed", "task_started"]
     }
@@ -329,6 +331,8 @@ python discord_proxy.py
     "webhook": {
       "enabled": true,
       "url": "http://localhost:5001/webhook",
+      "allow_insecure_http": true,
+      "allow_private_targets": true,
       "secret": "your-random-secret",
       "events": ["task_completed", "task_failed", "task_started"]
     }
@@ -511,6 +515,8 @@ python github_proxy.py
     "webhook": {
       "enabled": true,
       "url": "http://localhost:5002/webhook",
+      "allow_insecure_http": true,
+      "allow_private_targets": true,
       "secret": "your-random-secret",
       "events": ["task_completed", "task_failed"]
     }

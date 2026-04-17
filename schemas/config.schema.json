@@ -83,6 +83,8 @@
         "scan_prompt_version": "v2",
         "session_timeout_hours": 24,
         "webhook": {
+          "allow_insecure_http": null,
+          "allow_private_targets": null,
           "enabled": null,
           "events": null,
           "parallel_queue_multiplier": null,
@@ -462,6 +464,8 @@
           "description": "Webhook configuration for HTTP task event notifications.",
           "$ref": "#/$defs/WebhookConfig",
           "default": {
+            "allow_insecure_http": null,
+            "allow_private_targets": null,
             "enabled": null,
             "events": null,
             "parallel_queue_multiplier": null,
@@ -1305,6 +1309,22 @@
       "description": "Webhook configuration for HTTP task event notifications.",
       "type": "object",
       "properties": {
+        "allow_insecure_http": {
+          "description": "Opt-in to allow plaintext http:// webhook URLs (default: HTTPS only).",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "allow_private_targets": {
+          "description": "Opt-in to allow loopback, link-local (169.254/…), and metadata-style hosts.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
         "enabled": {
           "description": "Enable webhook notifications (default: false).",
           "type": [

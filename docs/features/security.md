@@ -591,6 +591,14 @@ Use `auto_edits` or `yolo` for automated workflows.
 
 Ralph can emit webhook events for external integrations (Slack, Discord, CI systems, dashboards).
 
+### Destination URL policy
+
+When `agent.webhook.enabled` is true, Ralph validates `agent.webhook.url` before delivery:
+
+- Only `http://` and `https://` schemes are accepted; other schemes are rejected.
+- `http://` is rejected unless `agent.webhook.allow_insecure_http` is `true`.
+- Loopback, IPv4 link-local (`169.254.0.0/16`), IPv6 link-local, `localhost` / `*.localhost`, and `metadata.google.internal` are rejected unless `agent.webhook.allow_private_targets` is `true`.
+
 ### HMAC-SHA256 Signatures
 
 When a webhook secret is configured, Ralph signs all webhook payloads with HMAC-SHA256:

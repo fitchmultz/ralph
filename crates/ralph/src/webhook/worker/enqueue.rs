@@ -16,7 +16,7 @@
 //! - Queue drop metrics/logs are recorded centrally from the policy branch.
 //! - Replay enqueue bypasses event subscription filtering but still respects global enable/url checks.
 
-use crate::contracts::{WebhookConfig, WebhookQueuePolicy};
+use crate::contracts::{WebhookConfig, WebhookQueuePolicy, validate_webhook_destination_url};
 use crossbeam_channel::{SendTimeoutError, Sender, TrySendError};
 use std::time::Duration;
 
@@ -129,18 +129,27 @@ pub(crate) fn send_webhook_payload_internal(
         }
     };
 
+    if let Err(err) = validate_webhook_destination_url(
+        url.as_str(),
+        resolved.allow_insecure_http,
+        resolved.allow_private_targets,
+    ) {
+        log::warn!(
+            "Webhook URL rejected by safety policy for event={}: {:#}",
+            payload.event,
+            err
+        );
+        return false;
+    }
+
     let dispatcher = dispatcher_for_config(config);
     let policy = config.queue_policy.unwrap_or_default();
     let msg = DeliveryTask {
         msg: WebhookMessage {
             payload,
             config: ResolvedWebhookConfig {
-                enabled: resolved.enabled,
                 url: Some(url),
-                secret: resolved.secret,
-                timeout: resolved.timeout,
-                retry_count: resolved.retry_count,
-                retry_backoff: resolved.retry_backoff,
+                ..resolved
             },
         },
         attempt: 0,

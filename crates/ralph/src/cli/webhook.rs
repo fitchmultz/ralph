@@ -135,6 +135,8 @@ fn handle_test(args: &TestArgs, resolved: &crate::config::Resolved) -> Result<()
     // Ensure enabled for test
     config.enabled = Some(true);
 
+    crate::contracts::validate_webhook_settings(&config)?;
+
     // For non-task events, temporarily enable them for this test
     // This ensures new events can be tested without modifying config
     if config.events.is_none() {

@@ -56,6 +56,7 @@ pub(crate) use profiles::{builtin_profile, builtin_profile_names, is_reserved_pr
 pub use queue::{QueueAgingThresholds, QueueConfig};
 pub use retry::RunnerRetryConfig;
 pub use webhook::{WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy};
+pub(crate) use webhook::{validate_webhook_destination_url, validate_webhook_settings};
 
 /// Root configuration struct for Ralph.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

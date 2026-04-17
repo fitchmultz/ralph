@@ -510,12 +510,15 @@ HTTP webhook configuration for external integrations.
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Enable webhooks |
 | `url` | `string` | `null` | Webhook endpoint URL |
+| `allow_insecure_http` | `boolean` | `false` | Allow `http://` URLs (default HTTPS-only) |
+| `allow_private_targets` | `boolean` | `false` | Allow loopback, link-local, and metadata-style hosts |
 | `secret` | `string` | `null` | HMAC-SHA256 secret for signatures |
 | `events` | `string[]` | `null` | Events to subscribe to (use `["*"]` for all) |
 | `timeout_secs` | `number` | `30` | Request timeout (1-300) |
 | `retry_count` | `number` | `3` | Retry attempts (0-10) |
 | `retry_backoff_ms` | `number` | `1000` | Retry backoff (100-30000) |
-| `queue_capacity` | `number` | `100` | Delivery queue size (10-10000) |
+| `queue_capacity` | `number` | `500` | Delivery queue size (10-10000) |
+| `parallel_queue_multiplier` | `number` | `2.0` | Parallel-mode queue capacity multiplier (1.0-10.0) |
 | `queue_policy` | `"drop_oldest" \| "drop_new" \| "block_with_timeout"` | `"drop_oldest"` | Backpressure policy |
 
 #### Events

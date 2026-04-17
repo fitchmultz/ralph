@@ -90,6 +90,8 @@ fn resolved_config_defaults() {
     assert_eq!(resolved.timeout, Duration::from_secs(30));
     assert_eq!(resolved.retry_count, 3);
     assert_eq!(resolved.retry_backoff, Duration::from_millis(1000));
+    assert!(!resolved.allow_insecure_http);
+    assert!(!resolved.allow_private_targets);
 }
 
 #[test]
@@ -332,6 +334,25 @@ fn webhook_config_merge_includes_queue_fields() {
 
     assert_eq!(base.queue_capacity, Some(200));
     assert_eq!(base.queue_policy, Some(WebhookQueuePolicy::DropNew));
+}
+
+#[test]
+fn webhook_config_merge_includes_url_policy_fields() {
+    let mut base = WebhookConfig {
+        allow_insecure_http: Some(false),
+        allow_private_targets: Some(false),
+        ..Default::default()
+    };
+    let other = WebhookConfig {
+        allow_insecure_http: Some(true),
+        allow_private_targets: Some(true),
+        ..Default::default()
+    };
+
+    base.merge_from(other);
+
+    assert_eq!(base.allow_insecure_http, Some(true));
+    assert_eq!(base.allow_private_targets, Some(true));
 }
 
 #[test]

@@ -64,6 +64,28 @@ fn save_layer_writes_version_and_round_trips() -> Result<()> {
 }
 
 #[test]
+fn validate_config_rejects_webhook_loopback_when_enabled() {
+    let mut cfg = Config::default();
+    cfg.agent.webhook.enabled = Some(true);
+    cfg.agent.webhook.url = Some("https://127.0.0.1/hook".to_string());
+
+    let err = validate_config(&cfg).expect_err("expected loopback webhook URL to fail");
+    assert!(err.to_string().contains("loopback") || err.to_string().contains("link-local"));
+}
+
+#[test]
+fn validate_config_rejects_webhook_http_without_opt_in() {
+    let mut cfg = Config::default();
+    cfg.agent.webhook.enabled = Some(true);
+    cfg.agent.webhook.url = Some("https://hooks.example.com/ok".to_string());
+    validate_config(&cfg).expect("https public URL should validate");
+
+    cfg.agent.webhook.url = Some("http://hooks.example.com/plain".to_string());
+    let err = validate_config(&cfg).expect_err("http without opt-in should fail");
+    assert!(err.to_string().contains("http://"));
+}
+
+#[test]
 fn validate_config_rejects_reserved_profile_names() {
     let cfg = Config {
         profiles: Some(std::collections::BTreeMap::from([(

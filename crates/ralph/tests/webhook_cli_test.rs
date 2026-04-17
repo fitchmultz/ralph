@@ -36,6 +36,8 @@ fn write_webhook_config(dir: &std::path::Path) -> Result<()> {
     config["agent"]["webhook"] = serde_json::json!({
         "enabled": true,
         "url": "http://127.0.0.1:9/webhook",
+        "allow_insecure_http": true,
+        "allow_private_targets": true,
         "events": ["*"],
         "retry_count": 0,
         "retry_backoff_ms": 1,

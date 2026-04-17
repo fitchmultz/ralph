@@ -14,7 +14,7 @@
 
 use super::ci_gate::validate_ci_gate_config;
 use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PHASES};
-use crate::contracts::{AgentConfig, PhaseOverrides, Runner};
+use crate::contracts::{AgentConfig, PhaseOverrides, Runner, validate_webhook_settings};
 use anyhow::{Result, bail};
 
 pub fn validate_agent_binary_paths(agent: &AgentConfig, label: &str) -> Result<()> {
@@ -70,6 +70,9 @@ pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
 
     validate_agent_binary_paths(agent, label)?;
     validate_ci_gate_config(agent.ci_gate.as_ref(), label)?;
+    if let Err(err) = validate_webhook_settings(&agent.webhook) {
+        bail!("Invalid {label}.webhook: {err:#}");
+    }
     Ok(())
 }
 
