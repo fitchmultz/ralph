@@ -48,6 +48,8 @@ final class ConfigModelsTests: RalphCoreTestCase {
                 "url": "https://hooks.example.com/ralph",
                 "allow_insecure_http": true,
                 "allow_private_targets": true,
+                "retry_count": 5,
+                "retry_backoff_ms": 2000,
                 "secret": "redacted",
                 "timeout_secs": 30
               }
@@ -64,5 +66,7 @@ final class ConfigModelsTests: RalphCoreTestCase {
         XCTAssertEqual(webhook.url, "https://hooks.example.com/ralph")
         XCTAssertEqual(webhook.allowInsecureHttp, true)
         XCTAssertEqual(webhook.allowPrivateTargets, true)
+        XCTAssertEqual(webhook.retryCount, 5)
+        XCTAssertEqual(webhook.retryBackoffMs, 2000)
     }
 }
