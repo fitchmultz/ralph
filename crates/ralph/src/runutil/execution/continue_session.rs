@@ -14,14 +14,10 @@
 //! - Fresh continue fallbacks stay conservative and runner-specific.
 //! - Unknown resume failures must still hard-fail instead of silently rerunning.
 
-use std::path::Path;
-use std::time::Duration;
-
-use crate::commands::run::PhaseType;
-use crate::contracts::{ClaudePermissionMode, Model, ReasoningEffort, Runner};
+use crate::contracts::Runner;
 use crate::runner;
 
-use super::backend::RunnerBackend;
+use super::backend::{RunnerAttemptContext, RunnerBackend};
 
 fn continue_session_error_text(err: &runner::RunnerError) -> String {
     match err {
@@ -87,51 +83,25 @@ fn choose_continue_session_id<'a>(
         })
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn continue_or_rerun(
     backend: &mut impl RunnerBackend,
-    runner_kind: &Runner,
-    repo_root: &Path,
-    bins: runner::RunnerBinaries<'_>,
-    model: &Model,
-    reasoning_effort: Option<ReasoningEffort>,
-    runner_cli: runner::ResolvedRunnerCliOptions,
+    attempt: &RunnerAttemptContext<'_>,
     continue_message: &str,
     fresh_prompt: &str,
-    timeout: Option<Duration>,
-    permission_mode: Option<ClaudePermissionMode>,
-    output_handler: Option<runner::OutputHandler>,
-    output_stream: runner::OutputStream,
-    phase_type: PhaseType,
     invocation_session_id: Option<&str>,
     error_session_id: Option<&str>,
 ) -> Result<runner::RunnerOutput, runner::RunnerError> {
     let continue_session_id = choose_continue_session_id(error_session_id, invocation_session_id);
     if let Some(session_id) = continue_session_id {
-        match backend.resume_session(
-            runner_kind.clone(),
-            repo_root,
-            bins,
-            model.clone(),
-            reasoning_effort,
-            runner_cli,
-            session_id,
-            continue_message,
-            permission_mode,
-            timeout,
-            output_handler.clone(),
-            output_stream,
-            phase_type,
-            None,
-        ) {
+        match backend.resume_session(attempt.resume_session_request(session_id, continue_message)) {
             Ok(output) => {
                 eprintln!(
                     "Resume: continuing the existing runner session for phase {:?}.",
-                    phase_type
+                    attempt.phase_type
                 );
                 return Ok(output);
             }
-            Err(err) if should_fallback_to_fresh_continue(runner_kind, &err) => {
+            Err(err) if should_fallback_to_fresh_continue(attempt.runner_kind, &err) => {
                 eprintln!(
                     "Resume: existing runner session could not be reused; starting a fresh invocation."
                 );
@@ -144,20 +114,7 @@ pub(super) fn continue_or_rerun(
     }
 
     backend.run_prompt(
-        runner_kind.clone(),
-        repo_root,
-        bins,
-        model.clone(),
-        reasoning_effort,
-        runner_cli,
-        fresh_prompt,
-        timeout,
-        permission_mode,
-        output_handler,
-        output_stream,
-        phase_type,
-        invocation_session_id.map(str::to_string),
-        None,
+        attempt.run_prompt_request(fresh_prompt, invocation_session_id.map(str::to_string)),
     )
 }
 

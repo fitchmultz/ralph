@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0009",
-      "status": "todo",
-      "title": "Reduce `too_many_arguments` debt starting at runutil orchestration",
-      "description": "Audit cites systemic `#[allow(clippy::too_many_arguments)]` suppressions and highlights `runutil/execution/orchestration/core.rs::run_runner_attempt`. Introduce parameter objects (e.g. `RunRunnerAttemptCtx`) beginning with orchestration hotspots, without changing external behavior. Outcome: smaller function surfaces, fewer suppressions, easier maintenance in runner execution paths.\n\nValidation: `run_runner_attempt` in `crates/ralph/src/runutil/execution/orchestration/core.rs` is explicitly `#[allow(clippy::too_many_arguments)]` and takes many parameters (`runner_kind`, `repo_root`, `bins`, `model`, `reasoning_effort`, `runner_cli`, `prompt`, `timeout`, `permission_mode`, `output_handler`, `output_stream`, `phase_type`, `session_id`). `RunnerBackend::run_prompt` in `backend.rs` is also `#[allow(clippy::too_many_arguments)]`.",
-      "priority": "medium",
-      "tags": [
-        "audit",
-        "refactor",
-        "runutil",
-        "clippy"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil/execution/orchestration/core.rs",
-        "crates/ralph/src/runutil/execution/orchestration/failure_paths.rs",
-        "crates/ralph/src/runutil/execution/backend.rs",
-        "cargo clippy -p ralph",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #1, Complexity section with `run_runner_attempt` excerpt, Short-term #7).",
-        "Repo: `crates/ralph/src/runutil/execution/orchestration/core.rs` `run_runner_attempt` (~348–364); `RunnerBackend::run_prompt` allow in `backend.rs`; `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Inventory orchestration `too_many_arguments` sites (`core.rs`, `backend.rs` trait methods).",
-        "Introduce a param object and migrate `run_runner_attempt` and related call sites with minimal behavior change.",
-        "Remove or narrow `allow` attributes where resolved; run clippy/tests."
-      ],
-      "notes": [],
-      "request": "Reduce `#[allow(clippy::too_many_arguments)]` debt starting at `run_runner_attempt` in `crates/ralph/src/runutil/execution/orchestration/core.rs`: introduce a parameter object (e.g. `RunRunnerAttemptCtx`), migrate call sites and related orchestration/backend surfaces with no behavior change, then narrow or remove allows where resolved. Run `cargo clippy -p ralph` and `cargo test -p ralph`. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "7"
-      }
-    },
-    {
       "id": "RQ-0011",
       "status": "todo",
       "title": "Formalize runner invocation context types (settings vs execution)",
@@ -75,8 +35,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "9",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "9"
       }
     },
     {

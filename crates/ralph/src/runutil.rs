@@ -50,4 +50,7 @@ pub(crate) use shell::{
 };
 
 #[cfg(test)]
-pub(crate) use execution::{RunnerBackend, run_prompt_with_handling_backend};
+pub(crate) use execution::{
+    RunnerBackend, RunnerBackendResumeSession, RunnerBackendRunPrompt,
+    run_prompt_with_handling_backend,
+};

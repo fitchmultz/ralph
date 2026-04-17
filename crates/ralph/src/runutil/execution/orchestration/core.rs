@@ -15,14 +15,9 @@
 //! - Timeout safeguard capture is bounded.
 //! - Interruptions never retry.
 
-use std::path::Path;
-use std::time::Duration;
-
 use anyhow::Result;
 
-use crate::commands::run::PhaseType;
 use crate::constants::buffers::TIMEOUT_STDOUT_CAPTURE_MAX_BYTES;
-use crate::contracts::{ClaudePermissionMode, Model, ReasoningEffort, Runner};
 use crate::runner;
 use crate::runner::{RetryableReason, RunnerFailureClass};
 
@@ -30,12 +25,13 @@ use super::super::super::abort::{RunAbort, RunAbortReason};
 use super::super::super::revert::{apply_git_revert_mode, format_revert_failure_message};
 use super::super::super::{SeededRng, compute_backoff, format_duration};
 use super::super::backend::{
-    RealRunnerBackend, RunnerBackend, RunnerErrorMessages, RunnerInvocation, emit_operation,
-    wrap_output_handler_with_capture,
+    RealRunnerBackend, RunnerAttemptContext, RunnerBackend, RunnerErrorMessages, RunnerInvocation,
+    emit_operation, wrap_output_handler_with_capture,
 };
 use super::super::retry_policy::should_retry_with_repo_state;
 use super::failure_paths::{
-    FailureOutcome, handle_non_zero_exit, handle_other_failure, handle_signal_recovery,
+    FailureOutcome, FailureRecoveryContext, FailureSessionIds, NonZeroExitDetails,
+    handle_non_zero_exit, handle_other_failure, handle_signal_recovery,
     handle_terminated_signal_failure, handle_timeout_failure,
 };
 
@@ -89,6 +85,19 @@ where
     let max_attempts = retry_policy.max_attempts;
     let mut rng = SeededRng::new();
     let mut signal_resume_attempts: u8 = 0;
+    let attempt_context = RunnerAttemptContext {
+        runner_kind: &runner_kind,
+        repo_root,
+        bins,
+        model: &model,
+        reasoning_effort,
+        runner_cli,
+        timeout,
+        permission_mode,
+        output_handler: effective_output_handler.clone(),
+        output_stream,
+        phase_type,
+    };
 
     emit_operation(
         &effective_output_handler,
@@ -97,18 +106,8 @@ where
 
     let mut result = run_runner_attempt(
         backend,
-        &runner_kind,
-        repo_root,
-        bins,
-        &model,
-        reasoning_effort,
-        runner_cli,
+        &attempt_context,
         prompt,
-        timeout,
-        permission_mode,
-        effective_output_handler.clone(),
-        output_stream,
-        phase_type,
         invocation_session_id.clone(),
     );
 
@@ -191,18 +190,8 @@ where
                     );
                     result = run_runner_attempt(
                         backend,
-                        &runner_kind,
-                        repo_root,
-                        bins,
-                        &model,
-                        reasoning_effort,
-                        runner_cli,
+                        &attempt_context,
                         prompt,
-                        timeout,
-                        permission_mode,
-                        effective_output_handler.clone(),
-                        output_stream,
-                        phase_type,
                         invocation_session_id.clone(),
                     );
                     continue;
@@ -228,27 +217,23 @@ where
                         session_id: error_session_id,
                     }) => match handle_non_zero_exit(
                         backend,
-                        &runner_kind,
-                        repo_root,
-                        bins,
-                        &model,
-                        reasoning_effort,
-                        runner_cli,
-                        timeout,
-                        permission_mode,
-                        effective_output_handler.clone(),
-                        output_stream,
-                        phase_type,
-                        invocation_session_id.as_deref(),
-                        error_session_id.as_deref(),
-                        git_revert_mode,
-                        log_label,
-                        revert_prompt.as_ref(),
-                        timeout_stdout_capture.as_ref(),
-                        revert_on_error,
-                        code,
-                        &stdout,
-                        &stderr,
+                        &attempt_context,
+                        FailureRecoveryContext {
+                            git_revert_mode,
+                            log_label,
+                            revert_prompt: revert_prompt.as_ref(),
+                            timeout_stdout_capture: timeout_stdout_capture.as_ref(),
+                            revert_on_error,
+                        },
+                        FailureSessionIds {
+                            invocation: invocation_session_id.as_deref(),
+                            error: error_session_id.as_deref(),
+                        },
+                        NonZeroExitDetails {
+                            code,
+                            stdout: &stdout,
+                            stderr: &stderr,
+                        },
                         &mut non_zero_msg,
                     )? {
                         FailureOutcome::Continue(next_result) => {
@@ -265,22 +250,14 @@ where
                     }) => {
                         if let Some(next_result) = handle_signal_recovery(
                             backend,
-                            &effective_output_handler,
                             &mut signal_resume_attempts,
                             signal,
-                            &runner_kind,
-                            repo_root,
-                            bins,
-                            &model,
-                            reasoning_effort,
-                            runner_cli,
+                            &attempt_context,
                             prompt,
-                            timeout,
-                            permission_mode,
-                            output_stream,
-                            phase_type,
-                            invocation_session_id.as_deref(),
-                            error_session_id.as_deref(),
+                            FailureSessionIds {
+                                invocation: invocation_session_id.as_deref(),
+                                error: error_session_id.as_deref(),
+                            },
                         ) {
                             result = next_result;
                             continue;
@@ -288,24 +265,18 @@ where
 
                         match handle_terminated_signal_failure(
                             backend,
-                            &runner_kind,
-                            repo_root,
-                            bins,
-                            &model,
-                            reasoning_effort,
-                            runner_cli,
-                            timeout,
-                            permission_mode,
-                            effective_output_handler.clone(),
-                            output_stream,
-                            phase_type,
-                            invocation_session_id.as_deref(),
-                            error_session_id.as_deref(),
-                            git_revert_mode,
-                            log_label,
-                            revert_prompt.as_ref(),
-                            timeout_stdout_capture.as_ref(),
-                            revert_on_error,
+                            &attempt_context,
+                            FailureRecoveryContext {
+                                git_revert_mode,
+                                log_label,
+                                revert_prompt: revert_prompt.as_ref(),
+                                timeout_stdout_capture: timeout_stdout_capture.as_ref(),
+                                revert_on_error,
+                            },
+                            FailureSessionIds {
+                                invocation: invocation_session_id.as_deref(),
+                                error: error_session_id.as_deref(),
+                            },
                             terminated_msg,
                             &stdout,
                             &stderr,
@@ -345,37 +316,11 @@ where
     run_prompt_with_handling_backend(invocation, messages, &mut backend)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn run_runner_attempt(
     backend: &mut impl RunnerBackend,
-    runner_kind: &Runner,
-    repo_root: &Path,
-    bins: runner::RunnerBinaries<'_>,
-    model: &Model,
-    reasoning_effort: Option<ReasoningEffort>,
-    runner_cli: runner::ResolvedRunnerCliOptions,
+    attempt_context: &RunnerAttemptContext<'_>,
     prompt: &str,
-    timeout: Option<Duration>,
-    permission_mode: Option<ClaudePermissionMode>,
-    output_handler: Option<runner::OutputHandler>,
-    output_stream: runner::OutputStream,
-    phase_type: PhaseType,
     session_id: Option<String>,
 ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
-    backend.run_prompt(
-        runner_kind.clone(),
-        repo_root,
-        bins,
-        model.clone(),
-        reasoning_effort,
-        runner_cli,
-        prompt,
-        timeout,
-        permission_mode,
-        output_handler,
-        output_stream,
-        phase_type,
-        session_id,
-        None,
-    )
+    backend.run_prompt(attempt_context.run_prompt_request(prompt, session_id))
 }

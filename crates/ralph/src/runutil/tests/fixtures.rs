@@ -13,13 +13,15 @@
 //! - Test backends only implement the code paths required by their owning tests.
 
 use crate::commands::run::PhaseType;
-use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
+use crate::contracts::{GitRevertMode, Model, Runner};
 use crate::runner;
-use crate::runutil::{RunnerBackend, RunnerErrorMessages, RunnerInvocation};
+use crate::runutil::{
+    RunnerBackend, RunnerBackendResumeSession, RunnerBackendRunPrompt, RunnerErrorMessages,
+    RunnerInvocation,
+};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
 use tempfile::TempDir;
 
 type TestRunnerErrorMessages =
@@ -108,45 +110,19 @@ pub(super) struct TimeoutBackend {
 }
 
 impl RunnerBackend for TimeoutBackend {
-    fn run_prompt<'a>(
+    fn run_prompt(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _prompt: &str,
-        _timeout: Option<Duration>,
-        _permission_mode: Option<ClaudePermissionMode>,
-        output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _session_id: Option<String>,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        request: RunnerBackendRunPrompt<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
-        if let Some(handler) = output_handler {
+        if let Some(handler) = request.output_handler {
             (handler)(&self.emitted);
         }
         Err(runner::RunnerError::Timeout)
     }
 
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _session_id: &str,
-        _message: &str,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _timeout: Option<Duration>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendResumeSession<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for a timeout-only test backend");
     }
@@ -155,42 +131,16 @@ impl RunnerBackend for TimeoutBackend {
 pub(super) struct InterruptBackend;
 
 impl RunnerBackend for InterruptBackend {
-    fn run_prompt<'a>(
+    fn run_prompt(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _prompt: &str,
-        _timeout: Option<Duration>,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _session_id: Option<String>,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendRunPrompt<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         Err(runner::RunnerError::Interrupted)
     }
 
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _session_id: &str,
-        _message: &str,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _timeout: Option<Duration>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendResumeSession<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for interrupt test");
     }
@@ -199,22 +149,9 @@ impl RunnerBackend for InterruptBackend {
 pub(super) struct NonZeroBackend;
 
 impl RunnerBackend for NonZeroBackend {
-    fn run_prompt<'a>(
+    fn run_prompt(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _prompt: &str,
-        _timeout: Option<Duration>,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _session_id: Option<String>,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendRunPrompt<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         Err(runner::RunnerError::NonZeroExit {
             code: 1,
@@ -224,22 +161,9 @@ impl RunnerBackend for NonZeroBackend {
         })
     }
 
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _session_id: &str,
-        _message: &str,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _timeout: Option<Duration>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendResumeSession<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for non-zero test");
     }
@@ -250,43 +174,17 @@ pub(super) struct CaptureBackend {
 }
 
 impl RunnerBackend for CaptureBackend {
-    fn run_prompt<'a>(
+    fn run_prompt(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _prompt: &str,
-        _timeout: Option<Duration>,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _output_handler: Option<runner::OutputHandler>,
-        output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _session_id: Option<String>,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        request: RunnerBackendRunPrompt<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
-        self.seen_output_stream = Some(output_stream);
+        self.seen_output_stream = Some(request.output_stream);
         Err(runner::RunnerError::Interrupted)
     }
 
-    fn resume_session<'a>(
+    fn resume_session(
         &mut self,
-        _runner_kind: Runner,
-        _work_dir: &Path,
-        _bins: runner::RunnerBinaries<'a>,
-        _model: Model,
-        _reasoning_effort: Option<ReasoningEffort>,
-        _runner_cli: runner::ResolvedRunnerCliOptions,
-        _session_id: &str,
-        _message: &str,
-        _permission_mode: Option<ClaudePermissionMode>,
-        _timeout: Option<Duration>,
-        _output_handler: Option<runner::OutputHandler>,
-        _output_stream: runner::OutputStream,
-        _phase_type: PhaseType,
-        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
+        _request: RunnerBackendResumeSession<'_>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for output-stream capture test");
     }
