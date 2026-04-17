@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Redact known secret-shaped substrings such as key-value pairs, bearer
-//!   tokens, AWS tokens, SSH blocks, long hex strings, and sensitive env
+//!   tokens, AWS tokens, SSH blocks, high-risk hex strings, and sensitive env
 //!   values.
 //! - Preserve non-secret text, including non-ASCII content.
 //!
@@ -20,6 +20,10 @@
 use crate::constants::defaults::REDACTED;
 
 use super::env::{get_sensitive_env_values, looks_sensitive_label};
+
+const MIN_CONTEXTUAL_HEX_TOKEN_LEN: usize = 32;
+const MIN_UNLABELED_HEX_TOKEN_LEN: usize = 96;
+const HEX_CONTEXT_WINDOW: usize = 80;
 
 pub fn redact_text(value: &str) -> String {
     if value.trim().is_empty() {
@@ -74,14 +78,18 @@ fn redact_aws_keys(text: &str) -> String {
 
         if i + 40 <= bytes.len() {
             let mut is_secret = true;
+            let mut has_non_hex_secret_char = false;
             for j in 0..40 {
                 let b = bytes[i + j];
                 if !(b.is_ascii_alphanumeric() || b == b'/' || b == b'+' || b == b'=') {
                     is_secret = false;
                     break;
                 }
+                if !b.is_ascii_hexdigit() {
+                    has_non_hex_secret_char = true;
+                }
             }
-            if is_secret {
+            if is_secret && has_non_hex_secret_char {
                 let word_boundary_start = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
                 let word_boundary_end =
                     i + 40 == bytes.len() || !bytes[i + 40].is_ascii_alphanumeric();
@@ -129,8 +137,7 @@ fn redact_hex_tokens(text: &str) -> String {
             while i < bytes.len() && bytes[i].is_ascii_hexdigit() {
                 i += 1;
             }
-            let len = i - start;
-            if len >= 32 {
+            if should_redact_hex_token(text, start, i) {
                 let word_boundary_start = start == 0 || !bytes[start - 1].is_ascii_alphanumeric();
                 let word_boundary_end = i == bytes.len() || !bytes[i].is_ascii_alphanumeric();
 
@@ -145,6 +152,65 @@ fn redact_hex_tokens(text: &str) -> String {
         }
     }
     out
+}
+
+fn should_redact_hex_token(text: &str, start: usize, end: usize) -> bool {
+    let len = end - start;
+    len >= MIN_UNLABELED_HEX_TOKEN_LEN
+        || (len >= MIN_CONTEXTUAL_HEX_TOKEN_LEN && has_sensitive_hex_context(text, start))
+}
+
+fn has_sensitive_hex_context(text: &str, token_start: usize) -> bool {
+    let mut context_start = token_start.saturating_sub(HEX_CONTEXT_WINDOW);
+    while !text.is_char_boundary(context_start) {
+        context_start += 1;
+    }
+
+    let context = text[context_start..token_start]
+        .trim_end_matches(|ch: char| ch.is_ascii_whitespace() || ch == '"' || ch == '\'');
+    if context.is_empty() {
+        return false;
+    }
+
+    let normalized = normalize_hex_context(context);
+    normalized
+        .split_whitespace()
+        .rev()
+        .take(4)
+        .any(is_sensitive_hex_context_word)
+}
+
+fn normalize_hex_context(context: &str) -> String {
+    context
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                ' '
+            }
+        })
+        .collect()
+}
+
+fn is_sensitive_hex_context_word(word: &str) -> bool {
+    matches!(
+        word,
+        "auth"
+            | "authorization"
+            | "bearer"
+            | "credential"
+            | "credentials"
+            | "hmac"
+            | "key"
+            | "password"
+            | "passwd"
+            | "secret"
+            | "signature"
+            | "signing"
+            | "token"
+            | "webhook"
+    )
 }
 
 fn redact_key_value_pairs(text: &str) -> String {

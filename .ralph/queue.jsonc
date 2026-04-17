@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0007",
-      "status": "todo",
-      "title": "Tune `redact_hex_tokens` to preserve legitimate hex identifiers in logs",
-      "description": "`redaction/patterns.rs::redact_hex_tokens` redacts any long hex run, obscuring git SHAs and hashes. Tighten policy (prefix-based sensitivity, higher threshold, or both) while keeping secret safety. Outcome: logs remain safe but more debuggable for common hex-shaped identifiers.\n\nValidation: `redact_hex_tokens` redacts contiguous ASCII hex runs of length ≥ 32 at alphanumeric word boundaries (`crates/ralph/src/redaction/patterns.rs`), which matches common 40-char git SHA1 and 64-char SHA256 hex representations.",
-      "priority": "medium",
-      "tags": [
-        "audit",
-        "observability",
-        "redaction"
-      ],
-      "scope": [
-        "crates/ralph/src/redaction/patterns.rs",
-        "crates/ralph/src/redaction/tests.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #6, Security section on `redact_hex_tokens`, Quick win #5).",
-        "Repo: `crates/ralph/src/redaction/patterns.rs` `redact_hex_tokens` (~lines 121–147); `queue validate` passed (2026-04-16)."
-      ],
-      "plan": [
-        "Review audit Quick win #5 and current `redact_hex_tokens` behavior in `patterns.rs`.",
-        "Choose and implement a tightened rule set with snapshot/unit tests for SHA-like strings vs secrets.",
-        "Verify redaction still covers intended secret shapes (webhook signing tokens, etc.)."
-      ],
-      "notes": [],
-      "request": "Tighten `redact_hex_tokens` in `crates/ralph/src/redaction/patterns.rs` so legitimate hex identifiers (e.g. git SHAs) remain readable while high-risk secret-shaped runs stay redacted—use threshold, prefix/context rules, or both. Extend `redaction/tests.rs` with SHA-like vs secret cases. Run `cargo test -p ralph` for redaction. Scope: this task only—no new queue items.",
-      "created_at": "2026-04-16T18:52:52Z",
-      "updated_at": "2026-04-16T20:37:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "5"
-      }
-    },
-    {
       "id": "RQ-0012",
       "status": "todo",
       "title": "Improve debug-mode observability for which redaction rules fired",
@@ -109,8 +72,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "8"
+        "roadmap_item": "8",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     }
   ]

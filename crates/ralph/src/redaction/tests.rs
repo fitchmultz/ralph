@@ -92,6 +92,60 @@ fn redact_text_masks_bearer_tokens() {
 }
 
 #[test]
+fn redact_text_preserves_sha_like_hex_identifiers() {
+    let git_sha = "0123456789abcdef0123456789abcdef01234567";
+    let sha256 = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    let input = format!("commit {git_sha} artifact sha256:{sha256}");
+
+    let output = redact_text(&input);
+
+    assert_eq!(output, input);
+}
+
+#[test]
+fn redact_text_masks_sensitive_context_hex_tokens() {
+    let session_token = "abcdef0123456789abcdef0123456789";
+    let webhook_signature = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    let input =
+        format!("session token {session_token}; X-Ralph-Signature: sha256={webhook_signature}");
+
+    let output = redact_text(&input);
+
+    assert!(!output.contains(session_token));
+    assert!(!output.contains(webhook_signature));
+    assert!(output.contains("session token [REDACTED]"));
+    assert!(output.contains("X-Ralph-Signature: sha256=[REDACTED]"));
+}
+
+#[test]
+fn redact_text_masks_unlabeled_very_long_hex_tokens() {
+    let secret_blob = concat!(
+        "abcdef0123456789abcdef0123456789",
+        "abcdef0123456789abcdef0123456789",
+        "abcdef0123456789abcdef0123456789"
+    );
+    let input = format!("raw blob {secret_blob}");
+
+    let output = redact_text(&input);
+
+    assert!(!output.contains(secret_blob));
+    assert!(output.contains("raw blob [REDACTED]"));
+}
+
+#[test]
+fn redact_text_preserves_hex_sha_while_masking_aws_secret_access_key() {
+    let git_sha = "0123456789abcdef0123456789abcdef01234567";
+    let aws_secret = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+    let input = format!("commit {git_sha} aws {aws_secret}");
+
+    let output = redact_text(&input);
+
+    assert!(output.contains(git_sha));
+    assert!(!output.contains(aws_secret));
+    assert!(output.contains("aws [REDACTED]"));
+}
+
+#[test]
 fn redact_text_handles_non_ascii() {
     let input = "Read AGENTS.md — voila âêîö 你好";
     let output = redact_text(input);

@@ -157,10 +157,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "executive_finding": "10",
-        "runner_used": "cursor",
         "model_used": "composer-2",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "runner_used": "cursor",
+        "executive_finding": "10"
       }
     },
     {
@@ -206,10 +206,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "2",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "runner_used": "cursor",
         "model_used": "composer-2",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "roadmap_item": "2"
       }
     },
     {
@@ -253,9 +253,9 @@
       "relates_to": [],
       "custom_fields": {
         "roadmap_item": "4",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -302,8 +302,8 @@
       "custom_fields": {
         "roadmap_item": "3",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -345,10 +345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.4",
         "roadmap_item": "6",
-        "audit_reference": "/tmp/ralph-codebase-audit.md"
+        "runner_used": "codex",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -395,9 +395,9 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
+        "roadmap_item": "7",
         "model_used": "gpt-5.4",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "7"
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
       }
     },
     {
@@ -441,10 +441,55 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "9",
         "runner_used": "codex",
-        "roadmap_item": "9"
+        "model_used": "gpt-5.4",
+        "audit_reference": "/tmp/ralph-codebase-audit.md"
+      }
+    },
+    {
+      "id": "RQ-0007",
+      "status": "done",
+      "title": "Tune `redact_hex_tokens` to preserve legitimate hex identifiers in logs",
+      "description": "`redaction/patterns.rs::redact_hex_tokens` redacts any long hex run, obscuring git SHAs and hashes. Tighten policy (prefix-based sensitivity, higher threshold, or both) while keeping secret safety. Outcome: logs remain safe but more debuggable for common hex-shaped identifiers.\n\nValidation (post-change): `redact_hex_tokens` redacts contiguous ASCII hex runs at alphanumeric word boundaries when length ≥ 96, or when length ≥ 32 and a sensitive context word appears in the ~80 characters before the run (`crates/ralph/src/redaction/patterns.rs`). Common 40-char git SHA1 and 64-char SHA256 hex identifiers are preserved unless labeled by sensitive context.",
+      "priority": "medium",
+      "tags": [
+        "audit",
+        "observability",
+        "redaction"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction/patterns.rs",
+        "crates/ralph/src/redaction/tests.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User requested tasks from `/tmp/ralph-codebase-audit.md` (Finding #6, Security section on `redact_hex_tokens`, Quick win #5).",
+        "Repo: `crates/ralph/src/redaction/patterns.rs` `redact_hex_tokens` (~lines 121–147); `queue validate` passed (2026-04-16)."
+      ],
+      "plan": [
+        "Review audit Quick win #5 and current `redact_hex_tokens` behavior in `patterns.rs`.",
+        "Choose and implement a tightened rule set with snapshot/unit tests for SHA-like strings vs secrets.",
+        "Verify redaction still covers intended secret shapes (webhook signing tokens, etc.)."
+      ],
+      "notes": [
+        "Preserved common standalone SHA-like hex identifiers while keeping context-labeled and very long hex redaction.",
+        "Tightened AWS secret-access-key fallback so pure 40-character hex SHAs are not masked.",
+        "Added unit and integration coverage for git SHA/SHA256 identifiers, webhook signatures, long hex blobs, and AWS secrets."
+      ],
+      "request": "Tighten `redact_hex_tokens` in `crates/ralph/src/redaction/patterns.rs` so legitimate hex identifiers (e.g. git SHAs) remain readable while high-risk secret-shaped runs stay redacted—use threshold, prefix/context rules, or both. Extend `redaction/tests.rs` with SHA-like vs secret cases. Run `cargo test -p ralph` for redaction. Scope: this task only—no new queue items.",
+      "created_at": "2026-04-16T18:52:52Z",
+      "updated_at": "2026-04-17T20:25:41.741463000Z",
+      "completed_at": "2026-04-17T20:25:41.741463000Z",
+      "started_at": "2026-04-17T20:05:05.653274000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "roadmap_item": "5",
+        "runner_used": "codex",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "gpt-5.4"
       }
     }
   ]

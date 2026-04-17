@@ -52,9 +52,9 @@ Ralph applies multiple redaction patterns in sequence:
 | **Key-Value Pairs** | Keys matching sensitive labels | `API_KEY=secret` → `API_KEY=[REDACTED]` |
 | **Bearer Tokens** | Content after `Bearer ` | `Authorization: Bearer token123` → `Authorization: Bearer [REDACTED]` |
 | **AWS Keys** | AKIA-prefixed access keys | `AKIAIOSFODNN7EXAMPLE` → `[REDACTED]` |
-| **AWS Secrets** | 40-char base64-like strings | `[0-9a-zA-Z/+=]{40}` → `[REDACTED]` |
+| **AWS Secrets** | 40-char base64-like strings that are not pure hex | Pure 40-char git SHAs stay readable; AWS secret access keys still match |
 | **SSH Keys** | PEM-encoded keys | `-----BEGIN...END-----` → `[REDACTED]` |
-| **Hex Tokens** | 32+ character hex strings | `deadbeef...` (32+ chars) → `[REDACTED]` |
+| **Hex Tokens** | Very long hex runs (≥96 chars), or ≥32 chars when preceded by sensitive words (for example `token`, `secret`, `signature`) within ~80 characters; alphanumeric word boundaries apply | Standalone git SHAs/hashes typically stay readable |
 | **Env Variables** | Values of sensitive env vars | `MY_SECRET=value` → `[REDACTED]` |
 
 ### Sensitive Environment Variables
