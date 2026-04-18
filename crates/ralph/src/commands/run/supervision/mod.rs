@@ -129,6 +129,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn post_run_supervise(
     resolved: &crate::config::Resolved,
+    held_queue_lock: Option<&crate::lock::DirLock>,
     task_id: &str,
     git_revert_mode: GitRevertMode,
     git_publish_mode: GitPublishMode,
@@ -144,7 +145,8 @@ pub(crate) fn post_run_supervise(
     let label = format!("PostRunSupervise for {}", task_id.trim());
     logging::with_scope(&label, || {
         let (mut queue_file, mut done_file) =
-            maintain_and_validate_queues(resolved).context("Initial queue maintenance failed")?;
+            maintain_and_validate_queues(resolved, held_queue_lock)
+                .context("Initial queue maintenance failed")?;
         let mut repo_dirty = !git::status_porcelain(&resolved.repo_root)?
             .trim()
             .is_empty();
@@ -167,7 +169,7 @@ pub(crate) fn post_run_supervise(
                 |_| {},
             )?;
 
-            let (q, d) = maintain_and_validate_queues(resolved)
+            let (q, d) = maintain_and_validate_queues(resolved, held_queue_lock)
                 .context("Post-CI queue maintenance failed")?;
             queue_file = q;
             done_file = d;

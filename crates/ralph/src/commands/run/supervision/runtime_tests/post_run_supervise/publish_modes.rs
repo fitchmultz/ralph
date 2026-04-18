@@ -92,6 +92,7 @@ fn post_run_supervise_errors_on_push_failure_when_enabled() -> anyhow::Result<()
     let resolved = resolved_for_repo(temp.path());
     let err = post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::CommitAndPush,
@@ -140,6 +141,7 @@ fn post_run_supervise_skips_push_when_disabled() -> anyhow::Result<()> {
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,
@@ -167,6 +169,7 @@ fn post_run_supervise_commit_mode_commits_without_pushing() -> anyhow::Result<()
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Commit,
@@ -214,6 +217,7 @@ fn post_run_supervise_noop_archived_done_commit_and_push_pushes_existing_ahead_c
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::CommitAndPush,
@@ -251,6 +255,7 @@ fn post_run_supervise_noop_archived_done_commit_mode_skips_push_for_existing_ahe
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Commit,
@@ -287,6 +292,7 @@ fn post_run_supervise_allows_productivity_json_dirty() -> anyhow::Result<()> {
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::CommitAndPush,

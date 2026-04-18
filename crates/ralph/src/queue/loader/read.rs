@@ -1,19 +1,18 @@
-//! Queue loader entrypoints for plain reads, parse repair, and explicit repair flows.
+//! Queue loader entrypoints for plain reads and parse repair.
 //!
 //! Responsibilities:
 //! - Load queue files with plain JSONC parsing or in-memory parse repair.
 //! - Coordinate queue/done loading for read-only validation flows.
-//! - Expose explicit repair-and-validate flows that persist queue maintenance.
+//! - Keep semantic repair writes out of read paths.
 //!
 //! Not handled here:
-//! - Timestamp normalization details (see `maintenance`).
+//! - Timestamp normalization details (see `queue::repair`).
 //! - Validation rule definitions (see `queue::validation`).
 //!
 //! Invariants/assumptions:
 //! - Read-only flows never write queue or done files.
-//! - Explicit repair flows may persist normalized timestamps and backfilled fields.
+//! - Semantic repair application is handled by undo-backed queue repair APIs.
 
-use super::maintenance::maintain_and_save_loaded_queues;
 use super::validation::validate_loaded_queues;
 use crate::config::Resolved;
 use crate::contracts::QueueFile;
@@ -131,36 +130,6 @@ pub fn load_and_validate_queues(
 ) -> Result<(QueueFile, Option<QueueFile>)> {
     let (queue_file, done_for_validation, _done_path_exists) =
         load_queue_set_with_repair(resolved, include_done)?;
-    validate_loaded_queues(resolved, &queue_file, &done_for_validation)?;
-
-    let done_file = if include_done {
-        Some(done_for_validation)
-    } else {
-        None
-    };
-
-    Ok((queue_file, done_file))
-}
-
-/// Explicitly repair queue/done timestamp maintenance and persist the result before validation.
-///
-/// Unlike [`load_and_validate_queues`], this API mutates queue/done files on disk when it
-/// normalizes non-UTC timestamps or backfills missing terminal `completed_at` values.
-pub fn repair_and_validate_queues(
-    resolved: &Resolved,
-    include_done: bool,
-) -> Result<(QueueFile, Option<QueueFile>)> {
-    let (mut queue_file, mut done_for_validation, done_path_exists) =
-        load_queue_set_with_repair(resolved, true)?;
-
-    maintain_and_save_loaded_queues(
-        &resolved.queue_path,
-        &mut queue_file,
-        &resolved.done_path,
-        done_path_exists,
-        &mut done_for_validation,
-    )?;
-
     validate_loaded_queues(resolved, &queue_file, &done_for_validation)?;
 
     let done_file = if include_done {

@@ -38,6 +38,7 @@ fn post_run_supervise_ci_failure_enabled_reverts_dirty_repo_before_queue_mutatio
 
     let err = post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Enabled,
         GitPublishMode::Off,
@@ -110,6 +111,7 @@ fn post_run_supervise_ci_failure_ask_uses_prompt_handler_and_keeps_dirty_repo() 
 
     let err = post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Ask,
         GitPublishMode::Off,

@@ -57,6 +57,7 @@ fn load_phase3_task_snapshot(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn finalize_phase3_if_done(
     resolved: &config::Resolved,
+    queue_lock: Option<&crate::lock::DirLock>,
     task_id: &str,
     git_revert_mode: GitRevertMode,
     git_publish_mode: GitPublishMode,
@@ -79,6 +80,7 @@ pub(super) fn finalize_phase3_if_done(
 
     crate::commands::run::post_run_supervise(
         resolved,
+        queue_lock,
         task_id,
         git_revert_mode,
         git_publish_mode,

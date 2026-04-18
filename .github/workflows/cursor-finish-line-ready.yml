@@ -1,11 +1,12 @@
-# Purpose: Emit a single GitHub check that turns green only after the demo Cursor
+# Purpose: Publish a PR-head GitHub check that turns green only after the demo Cursor
 #   propagation automations have all completed successfully for the current PR head SHA.
 # Responsibilities: Watch target Cursor Automation check completions, wait for the
-#   full set to settle on the same head SHA, and expose one cheap readiness check that
-#   PR Finish Line can trigger from.
+#   full set to settle on the same head SHA, and mirror readiness onto a dedicated
+#   `Cursor Finish Line Ready` check run attached to that PR head SHA.
 # Scope: Demo automation sequencing only; this is not canonical repository CI.
 # Usage: Runs on check_run.completed for the three prerequisite check names only; resolves
-#   the PR via REST when the webhook payload omits pull_requests (common for GitHub App checks).
+#   the PR via REST when the webhook payload omits pull_requests (common for GitHub App
+#   checks), then creates/updates a PR-visible check run via the Checks API.
 # Invariants/Assumptions: Local `make agent-ci` remains the source-of-truth gate; the
 #   three target Cursor Automation checks publish normal GitHub check runs on PR heads.
 # Note: GitHub may skip firing check_run-triggered workflows when the *triggering* suite
@@ -20,7 +21,7 @@ on:
       - completed
 
 permissions:
-  checks: read
+  checks: write
   contents: read
   pull-requests: read
 
@@ -49,12 +50,15 @@ jobs:
               'Cursor Automation: Config Surface Sync',
               'Cursor Automation: Idempotency Surface Propagator',
             ];
+            const finishLineCheckName = 'Cursor Finish Line Ready';
             const observed = context.payload.check_run;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const headSha = observed?.check_suite?.head_sha;
             const pollIntervalMs = 30_000;
             const deadlineMs = Date.now() + 35 * 60 * 1000;
+            const detailsUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            let finishLineCheckRunId = null;
 
             if (!headSha) {
               core.setFailed('Missing check_suite.head_sha on check_run payload.');
@@ -62,13 +66,6 @@ jobs:
             }
 
             core.info(`Observed check run ${observed.name} (${observed.status}/${observed.conclusion || 'n/a'}) for ${headSha}.`);
-
-            if (observed.conclusion && observed.conclusion !== 'success') {
-              core.setFailed(
-                `Prerequisite check did not succeed: ${observed.name} conclusion=${observed.conclusion}`
-              );
-              return;
-            }
 
             let prs = (observed.pull_requests || []).filter(
               (pr) => pr.base?.repo?.full_name === `${owner}/${repo}`
@@ -95,6 +92,14 @@ jobs:
               return;
             }
 
+            const prLabel = prs.map((pr) => `#${pr.number}`).join(', ');
+
+            const compareCheckRuns = (left, right) => {
+              const leftKey = `${left.started_at || ''}|${left.completed_at || ''}|${left.id}`;
+              const rightKey = `${right.started_at || ''}|${right.completed_at || ''}|${right.id}`;
+              return leftKey.localeCompare(rightKey);
+            };
+
             const pickLatestByName = (checkRuns) => {
               const latest = new Map();
               for (const run of checkRuns) {
@@ -102,17 +107,85 @@ jobs:
                   continue;
                 }
                 const previous = latest.get(run.name);
-                if (!previous) {
-                  latest.set(run.name, run);
-                  continue;
-                }
-                const previousKey = `${previous.started_at || ''}|${previous.completed_at || ''}|${previous.id}`;
-                const currentKey = `${run.started_at || ''}|${run.completed_at || ''}|${run.id}`;
-                if (currentKey > previousKey) {
+                if (!previous || compareCheckRuns(previous, run) < 0) {
                   latest.set(run.name, run);
                 }
               }
               return latest;
+            };
+
+            const formatSnapshot = (snapshot) =>
+              snapshot
+                .map((entry) => {
+                  const state =
+                    entry.status === 'completed'
+                      ? `${entry.status}/${entry.conclusion}`
+                      : entry.status;
+                  return `- ${entry.name}: ${state}`;
+                })
+                .join('\n');
+
+            const findReusableFinishLineCheckRun = async () => {
+              const { data } = await github.rest.checks.listForRef({
+                owner,
+                repo,
+                ref: headSha,
+                check_name: finishLineCheckName,
+                per_page: 100,
+              });
+              const matches = (data.check_runs || [])
+                .filter((run) => run.name === finishLineCheckName)
+                .sort((left, right) => compareCheckRuns(right, left));
+              return matches.find((run) => run.status !== 'completed') || null;
+            };
+
+            const upsertFinishLineCheckRun = async ({ status, conclusion, title, summary }) => {
+              if (!finishLineCheckRunId) {
+                const existing = await findReusableFinishLineCheckRun();
+                if (existing) {
+                  finishLineCheckRunId = existing.id;
+                }
+              }
+
+              const output = { title, summary };
+
+              if (finishLineCheckRunId) {
+                const payload = {
+                  owner,
+                  repo,
+                  check_run_id: finishLineCheckRunId,
+                  status,
+                  details_url: detailsUrl,
+                  output,
+                };
+                if (status === 'completed') {
+                  payload.conclusion = conclusion;
+                  payload.completed_at = new Date().toISOString();
+                }
+                const { data } = await github.rest.checks.update(payload);
+                finishLineCheckRunId = data.id;
+                return data;
+              }
+
+              const payload = {
+                owner,
+                repo,
+                name: finishLineCheckName,
+                head_sha: headSha,
+                status,
+                details_url: detailsUrl,
+                external_id: `cursor-finish-line-ready:${headSha}`,
+                output,
+              };
+              if (status === 'completed') {
+                payload.conclusion = conclusion;
+                payload.completed_at = new Date().toISOString();
+              } else {
+                payload.started_at = new Date().toISOString();
+              }
+              const { data } = await github.rest.checks.create(payload);
+              finishLineCheckRunId = data.id;
+              return data;
             };
 
             while (true) {
@@ -142,23 +215,73 @@ jobs:
               );
 
               if (failed.length > 0) {
-                core.setFailed(
-                  `Finish-line prerequisites failed for ${headSha}: ${failed.map((entry) => `${entry.name}=${entry.conclusion}`).join(', ')}`
-                );
+                const message = `Finish-line prerequisites failed for ${headSha}: ${failed.map((entry) => `${entry.name}=${entry.conclusion}`).join(', ')}`;
+                await upsertFinishLineCheckRun({
+                  status: 'completed',
+                  conclusion: 'failure',
+                  title: 'Cursor automation prerequisites failed',
+                  summary: [
+                    `PRs: ${prLabel}`,
+                    `Commit: ${headSha}`,
+                    '',
+                    message,
+                    '',
+                    formatSnapshot(snapshot),
+                  ].join('\n'),
+                });
+                core.setFailed(message);
                 return;
               }
 
               if (missing.length === 0 && pending.length === 0) {
+                await upsertFinishLineCheckRun({
+                  status: 'completed',
+                  conclusion: 'success',
+                  title: 'Cursor automation prerequisites ready',
+                  summary: [
+                    `PRs: ${prLabel}`,
+                    `Commit: ${headSha}`,
+                    '',
+                    'All required Cursor automation checks completed successfully.',
+                    '',
+                    formatSnapshot(snapshot),
+                  ].join('\n'),
+                });
                 core.notice(`All Cursor automation prerequisites completed successfully for ${headSha}.`);
                 return;
               }
 
               if (Date.now() >= deadlineMs) {
-                core.setFailed(
-                  `Timed out waiting for Cursor automation prerequisites on ${headSha}. Missing: ${missing.map((entry) => entry.name).join(', ') || 'none'}. Pending: ${pending.map((entry) => `${entry.name}=${entry.status}`).join(', ') || 'none'}.`
-                );
+                const message = `Timed out waiting for Cursor automation prerequisites on ${headSha}. Missing: ${missing.map((entry) => entry.name).join(', ') || 'none'}. Pending: ${pending.map((entry) => `${entry.name}=${entry.status}`).join(', ') || 'none'}.`;
+                await upsertFinishLineCheckRun({
+                  status: 'completed',
+                  conclusion: 'failure',
+                  title: 'Cursor automation prerequisites timed out',
+                  summary: [
+                    `PRs: ${prLabel}`,
+                    `Commit: ${headSha}`,
+                    '',
+                    message,
+                    '',
+                    formatSnapshot(snapshot),
+                  ].join('\n'),
+                });
+                core.setFailed(message);
                 return;
               }
+
+              await upsertFinishLineCheckRun({
+                status: 'in_progress',
+                title: 'Waiting for Cursor automation prerequisites',
+                summary: [
+                  `PRs: ${prLabel}`,
+                  `Commit: ${headSha}`,
+                  '',
+                  'Waiting for all required Cursor automation checks to complete successfully.',
+                  '',
+                  formatSnapshot(snapshot),
+                ].join('\n'),
+              });
 
               await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
             }

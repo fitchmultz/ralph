@@ -92,6 +92,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
             match ctx.post_run_mode {
                 PostRunMode::Normal => crate::commands::run::post_run_supervise(
                     ctx.resolved,
+                    ctx.queue_lock,
                     ctx.task_id,
                     ctx.git_revert_mode,
                     ctx.git_publish_mode,

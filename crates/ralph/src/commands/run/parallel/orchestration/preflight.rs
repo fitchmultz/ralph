@@ -75,8 +75,10 @@ pub(super) fn prepare_parallel_run(
 
     signal::clear_stop_signal_at_loop_start(&cache_dir);
 
-    let (queue_file, _done_file) = queue::repair_and_validate_queues(resolved, true)
-        .context("Parallel preflight: validate queue/done set")?;
+    let (queue_file, _done_file) =
+        queue::load_and_validate_queues(resolved, true).context(
+            "Parallel preflight is read-only; run `ralph queue repair --dry-run` and then `ralph queue repair` to apply undo-backed normalization before retrying",
+        )?;
 
     path_map::map_resolved_path_into_workspace(
         &resolved.repo_root,

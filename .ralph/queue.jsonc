@@ -2,58 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0016",
-      "status": "todo",
-      "title": "Unify queue repair behind undo-backed apply paths",
-      "description": "Principles violated: C) DRY knowledge, F) Fail fast appropriately, H) Operational hygiene, J) Consistency/Integrity. Runtime paths call repair_and_validate_queues, which can persist queue and done normalization during selection, preflight, or supervision without creating an undo checkpoint. Explicit queue repair creates undo, so the repair contract is split across surfaces. Minimal fix: separate repair planning from repair application, make mutating repair go through one undo-backed apply path, and ensure runtime paths either stay read-only and report canonical repair guidance or intentionally create undo before writing.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "queue",
-        "undo",
-        "runner"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/loader/read.rs",
-        "crates/ralph/src/queue/loader/maintenance.rs",
-        "crates/ralph/src/queue/repair.rs",
-        "crates/ralph/src/commands/run/parallel/worker_selection.rs",
-        "crates/ralph/src/commands/run/parallel/orchestration/preflight.rs",
-        "crates/ralph/src/commands/run/supervision/queue_ops.rs",
-        "crates/ralph/src/commands/doctor/queue.rs",
-        "crates/ralph/src/cli/machine/queue_docs.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/queue/loader/read.rs:149 :: repair_and_validate_queues is documented as explicit repair that persists queue maintenance.",
-        "path: crates/ralph/src/queue/loader/read.rs:156 :: repair_and_validate_queues calls maintain_and_save_loaded_queues.",
-        "path: crates/ralph/src/queue/loader/maintenance.rs:137 :: maintain_and_save_loaded_queues saves active queue changes.",
-        "path: crates/ralph/src/queue/loader/maintenance.rs:141 :: maintain_and_save_loaded_queues saves done archive changes.",
-        "path: crates/ralph/src/commands/run/parallel/worker_selection.rs:27 :: parallel worker selection calls repair_and_validate_queues.",
-        "path: crates/ralph/src/commands/run/parallel/orchestration/preflight.rs:78 :: parallel preflight calls repair_and_validate_queues.",
-        "path: crates/ralph/src/commands/run/supervision/queue_ops.rs:27 :: post-run supervision calls repair_and_validate_queues.",
-        "path: crates/ralph/src/commands/doctor/queue.rs:273 :: doctor auto-fix calls queue::repair::repair_queue directly, with no visible queue lock or undo snapshot.",
-        "path: crates/ralph/src/cli/machine/queue_docs.rs:245 :: explicit queue repair creates an undo snapshot before applying repair.",
-        "workflow: rg -n \"repair_and_validate_queues\\(|maintain_and_save_loaded_queues|create_undo_snapshot\" crates/ralph/src/queue/loader crates/ralph/src/commands/run/parallel crates/ralph/src/commands/run/supervision crates/ralph/src/cli/machine/queue_docs.rs -g '*.rs' :: found mutating runtime repair calls and only explicit machine queue repair creating undo."
-      ],
-      "plan": [
-        "Introduce a pure repair planner/report that computes timestamp, field, and ID repairs without writing.",
-        "Route all mutating queue repair through one apply function that requires a queue lock and creates an undo snapshot before any write.",
-        "Change runtime selection, parallel preflight, supervision, and doctor auto-fix to either use read-only planning with blocking guidance or the new undo-backed apply path.",
-        "Collapse duplicate repair semantics between queue::loader maintenance and queue::repair so one source owns repair rules.",
-        "Verify by adding regression tests for non-UTC timestamp normalization in runtime paths and confirming undo snapshots exist before persisted repair writes."
-      ],
-      "notes": [],
-      "request": "scan: Simplify code while preserving nuanced runner behavior",
-      "created_at": "2026-04-17T23:11:06Z",
-      "updated_at": "2026-04-17T23:11:06Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0014",
       "status": "todo",
       "title": "Redact public-readiness secret scan findings",

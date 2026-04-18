@@ -203,6 +203,7 @@ pub fn run_one_impl(
 
     let exec_result = execute_iteration_phases(
         resolved,
+        ctx._queue_lock.as_ref(),
         agent_overrides,
         &task,
         &task_id,

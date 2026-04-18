@@ -129,6 +129,7 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
     assert!(stdout.contains("\"fixed_timestamps\": 2"));
     assert!(stdout.contains("\"remapped_ids\""));
     assert!(stdout.contains("ralph queue validate"));
+    assert_repair_undo_snapshot_created(dir.path())?;
 
     // Verify file content
     let queue_path = dir.path().join(".ralph/queue.jsonc");
@@ -314,4 +315,41 @@ fn assert_single_id(task: &serde_json::Value, field: &str, expected_id: &str) {
         Some(expected_id),
         "{field} should be updated to the remapped ID"
     );
+}
+
+fn assert_repair_undo_snapshot_created(repo_root: &Path) -> Result<()> {
+    let undo_dir = repo_root.join(".ralph/cache/undo");
+    let snapshots = std::fs::read_dir(&undo_dir)?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("undo-") && name.ends_with(".json"))
+        })
+        .collect::<Vec<_>>();
+
+    anyhow::ensure!(
+        snapshots.len() == 1,
+        "expected exactly one undo snapshot after repair in {}, found {}",
+        undo_dir.display(),
+        snapshots.len()
+    );
+
+    let snapshot: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&snapshots[0])?)?;
+    assert_eq!(
+        snapshot["operation"].as_str(),
+        Some("queue repair continuation")
+    );
+    assert_eq!(
+        snapshot["queue_json"]["tasks"].as_array().map(Vec::len),
+        Some(2)
+    );
+    assert_eq!(
+        snapshot["done_json"]["tasks"].as_array().map(Vec::len),
+        Some(2)
+    );
+
+    Ok(())
 }

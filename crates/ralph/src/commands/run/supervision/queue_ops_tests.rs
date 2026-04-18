@@ -129,7 +129,7 @@ fn maintain_and_validate_queues_backfills_missing_completed_at() -> Result<()> {
     write_queue(temp.path(), TaskStatus::Done)?;
 
     let resolved = resolved_for_repo(temp.path());
-    let (queue_file, _done_file) = maintain_and_validate_queues(&resolved)?;
+    let (queue_file, _done_file) = maintain_and_validate_queues(&resolved, None)?;
 
     let task = queue_file
         .tasks

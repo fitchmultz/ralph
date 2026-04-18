@@ -24,7 +24,11 @@ pub(crate) fn select_next_task_locked(
     excluded_ids: &HashSet<String>,
     _queue_lock: &DirLock,
 ) -> Result<Option<(String, String)>> {
-    let (queue_file, done_file) = queue::repair_and_validate_queues(resolved, true)?;
+    let (queue_file, done_file) = queue::load_and_validate_queues(resolved, true).map_err(|err| {
+        err.context(
+            "Parallel worker selection is read-only; run `ralph queue repair --dry-run` and then `ralph queue repair` to apply undo-backed normalization before retrying",
+        )
+    })?;
     let done_ref = done_file.as_ref();
 
     let idx =

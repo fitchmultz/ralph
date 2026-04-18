@@ -11,16 +11,18 @@
 //! - Queue loading/saving and validation policy live in sibling modules.
 //!
 //! Usage:
-//! - CLI, machine, and doctor recovery surfaces call `repair_queue`.
+//! - CLI, machine, and doctor recovery surfaces plan and apply repair here.
 //! - Runtime helpers call `get_dependents` for dependency traversal.
 //!
 //! Invariants/Assumptions:
-//! - Callers hold the queue lock before mutating queue files on disk.
+//! - Mutating repair requires a held queue lock and creates an undo snapshot before saving.
 //! - Mutating repair validates the repaired active/done queue set before saving.
 
 use super::{format_id, load_queue_or_default, normalize_prefix, save_queue, validation};
+use crate::config::Resolved;
 use crate::constants::queue::DEFAULT_MAX_DEPENDENCY_DEPTH;
 use crate::contracts::{QueueFile, Task, TaskStatus};
+use crate::lock::DirLock;
 use crate::timeutil;
 use anyhow::Result;
 use serde::Serialize;
@@ -41,154 +43,302 @@ impl RepairReport {
     }
 }
 
-pub fn repair_queue(
+#[derive(Debug, Clone)]
+pub struct QueueRepairPlan {
+    active: QueueFile,
+    done: QueueFile,
+    report: RepairReport,
+    queue_changed: bool,
+    done_changed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RepairScope {
+    Maintenance,
+    Full,
+}
+
+impl QueueRepairPlan {
+    pub fn has_changes(&self) -> bool {
+        self.queue_changed || self.done_changed
+    }
+
+    pub fn report(&self) -> &RepairReport {
+        &self.report
+    }
+
+    pub fn into_parts(self) -> (QueueFile, QueueFile, RepairReport) {
+        (self.active, self.done, self.report)
+    }
+}
+
+pub fn apply_queue_repair_with_undo(
+    resolved: &Resolved,
+    _queue_lock: &DirLock,
+    operation: &str,
+) -> Result<RepairReport> {
+    apply_repair_plan_with_undo(
+        resolved,
+        operation,
+        plan_queue_repair(
+            &resolved.queue_path,
+            &resolved.done_path,
+            &resolved.id_prefix,
+            resolved.id_width,
+        )?,
+    )
+}
+
+pub fn apply_queue_maintenance_repair_with_undo(
+    resolved: &Resolved,
+    _queue_lock: &DirLock,
+    operation: &str,
+) -> Result<RepairReport> {
+    apply_repair_plan_with_undo(
+        resolved,
+        operation,
+        plan_queue_maintenance_repair(
+            &resolved.queue_path,
+            &resolved.done_path,
+            &resolved.id_prefix,
+            resolved.id_width,
+        )?,
+    )
+}
+
+fn apply_repair_plan_with_undo(
+    resolved: &Resolved,
+    operation: &str,
+    plan: QueueRepairPlan,
+) -> Result<RepairReport> {
+    let report = plan.report.clone();
+
+    if !plan.has_changes() {
+        return Ok(report);
+    }
+
+    validate_repair_plan(&plan, &resolved.id_prefix, resolved.id_width)?;
+    crate::undo::create_undo_snapshot(resolved, operation)?;
+    save_repair_plan(&resolved.queue_path, &resolved.done_path, &plan)?;
+    Ok(report)
+}
+
+pub fn plan_queue_repair(
     queue_path: &Path,
     done_path: &Path,
     id_prefix: &str,
     id_width: usize,
-    dry_run: bool,
-) -> Result<RepairReport> {
-    let mut active = load_queue_or_default(queue_path)?;
-    let mut done = load_queue_or_default(done_path)?;
+) -> Result<QueueRepairPlan> {
+    let active = load_queue_or_default(queue_path)?;
+    let done = load_queue_or_default(done_path)?;
+    plan_loaded_queue_repair_with_scope(active, done, id_prefix, id_width, RepairScope::Full)
+}
 
+pub fn plan_queue_maintenance_repair(
+    queue_path: &Path,
+    done_path: &Path,
+    id_prefix: &str,
+    id_width: usize,
+) -> Result<QueueRepairPlan> {
+    let active = load_queue_or_default(queue_path)?;
+    let done = load_queue_or_default(done_path)?;
+    plan_loaded_queue_repair_with_scope(active, done, id_prefix, id_width, RepairScope::Maintenance)
+}
+
+pub fn plan_loaded_queue_repair(
+    active: QueueFile,
+    done: QueueFile,
+    id_prefix: &str,
+    id_width: usize,
+) -> Result<QueueRepairPlan> {
+    plan_loaded_queue_repair_with_scope(active, done, id_prefix, id_width, RepairScope::Full)
+}
+
+fn plan_loaded_queue_repair_with_scope(
+    mut active: QueueFile,
+    mut done: QueueFile,
+    id_prefix: &str,
+    id_width: usize,
+    scope: RepairScope,
+) -> Result<QueueRepairPlan> {
     let mut report = RepairReport::default();
     let expected_prefix = normalize_prefix(id_prefix);
     let now = timeutil::now_utc_rfc3339_or_fallback();
 
-    // 1. Scan for max ID to ensure new IDs don't collide
-    let mut max_id_val: u32 = 0;
-    let mut scan_max = |tasks: &[Task]| {
-        for task in tasks {
-            if let Ok(val) = validation::validate_task_id(0, &task.id, &expected_prefix, id_width) {
-                max_id_val = max_id_val.max(val);
-            }
+    // Determine max existing numeric ID across active and done.
+    let mut max_id_val = 0;
+    for task in active.tasks.iter().chain(done.tasks.iter()) {
+        if let Some(n) = parse_id_number(&task.id, &expected_prefix) {
+            max_id_val = max_id_val.max(n);
         }
-    };
-    scan_max(&active.tasks);
-    scan_max(&done.tasks);
-
+    }
     let mut next_id_val = max_id_val + 1;
     let mut seen_ids = HashSet::new();
 
-    // Helper to repair a list of tasks
-    let mut repair_tasks = |tasks: &mut Vec<Task>| {
+    let mut repair_tasks = |tasks: &mut Vec<Task>| -> bool {
+        let mut queue_changed = false;
         for task in tasks.iter_mut() {
             let mut modified = false;
+            let mut timestamp_modified = false;
+            let mut id_modified = false;
 
-            // Fix missing fields
-            if task.title.trim().is_empty() {
-                task.title = "Untitled".to_string();
-                modified = true;
-            }
-            if task.tags.is_empty() {
-                task.tags.push("untagged".to_string());
-                modified = true;
-            }
-            if task.scope.is_empty() {
-                task.scope.push("unknown".to_string());
-                modified = true;
-            }
-            if task.evidence.is_empty() {
-                task.evidence.push("None provided".to_string());
-                modified = true;
-            }
-            if task.plan.is_empty() {
-                task.plan.push("To be determined".to_string());
-                modified = true;
-            }
-            if task.request.as_ref().is_none_or(|r| r.trim().is_empty()) {
-                task.request = Some("Imported task".to_string());
-                modified = true;
+            if scope == RepairScope::Full {
+                // Fix missing fields
+                if task.title.trim().is_empty() {
+                    task.title = "Untitled".to_string();
+                    modified = true;
+                }
+                if task.tags.is_empty() {
+                    task.tags.push("untagged".to_string());
+                    modified = true;
+                }
+                if task.scope.is_empty() {
+                    task.scope.push("unknown".to_string());
+                    modified = true;
+                }
+                if task.evidence.is_empty() {
+                    task.evidence.push("None provided".to_string());
+                    modified = true;
+                }
+                if task.plan.is_empty() {
+                    task.plan.push("To be determined".to_string());
+                    modified = true;
+                }
+                if task.request.as_ref().is_none_or(|r| r.trim().is_empty()) {
+                    task.request = Some("Imported task".to_string());
+                    modified = true;
+                }
             }
 
             // Fix timestamps
+            let terminal = matches!(task.status, TaskStatus::Done | TaskStatus::Rejected);
             let mut fix_ts = |ts: &mut Option<String>, label: &str| {
-                if let Some(val) = ts {
-                    match timeutil::parse_rfc3339(val) {
+                if let Some(existing) = ts.as_ref() {
+                    match timeutil::parse_rfc3339(existing) {
                         Ok(dt) => {
                             if dt.offset() != UtcOffset::UTC {
                                 let normalized =
                                     timeutil::format_rfc3339(dt).unwrap_or_else(|_| now.clone());
                                 *ts = Some(normalized);
                                 report.fixed_timestamps += 1;
+                                timestamp_modified = true;
                             }
                         }
                         Err(_) => {
-                            *ts = Some(now.clone());
-                            report.fixed_timestamps += 1;
+                            if scope == RepairScope::Full {
+                                *ts = Some(now.clone());
+                                report.fixed_timestamps += 1;
+                                timestamp_modified = true;
+                            }
                         }
                     }
                 } else {
                     // Create/Update required
-                    if label == "created_at" || label == "updated_at" || label == "completed_at" {
+                    let should_backfill = (scope == RepairScope::Full
+                        && (label == "created_at"
+                            || label == "updated_at"
+                            || label == "completed_at"))
+                        || (scope == RepairScope::Maintenance && label == "completed_at");
+                    if should_backfill {
                         *ts = Some(now.clone());
                         report.fixed_timestamps += 1;
+                        timestamp_modified = true;
                     }
                 }
             };
+
             fix_ts(&mut task.created_at, "created_at");
             fix_ts(&mut task.updated_at, "updated_at");
-            if task.status == TaskStatus::Done || task.status == TaskStatus::Rejected {
+            if terminal || task.completed_at.is_some() {
                 fix_ts(&mut task.completed_at, "completed_at");
             }
 
-            if modified {
+            if modified || timestamp_modified {
                 report.fixed_tasks += 1;
             }
 
-            // Fix ID
-            // We use a normalized key for collision detection
-            let id_key = task.id.trim().to_uppercase();
-            let is_valid_format =
-                validation::validate_task_id(0, &task.id, &expected_prefix, id_width).is_ok();
+            if scope == RepairScope::Full {
+                // Fix ID
+                // We use a normalized key for collision detection
+                let id_key = task.id.trim().to_uppercase();
+                let is_valid_format =
+                    validation::validate_task_id(0, &task.id, &expected_prefix, id_width).is_ok();
 
-            if !is_valid_format || seen_ids.contains(&id_key) || id_key.is_empty() {
-                let new_id = format_id(&expected_prefix, next_id_val, id_width);
-                next_id_val += 1;
-                report.remapped_ids.push((task.id.clone(), new_id.clone()));
-                task.id = new_id.clone();
-                seen_ids.insert(new_id);
-            } else {
-                seen_ids.insert(id_key);
+                if !is_valid_format || seen_ids.contains(&id_key) || id_key.is_empty() {
+                    let new_id = format_id(&expected_prefix, next_id_val, id_width);
+                    next_id_val += 1;
+                    report.remapped_ids.push((task.id.clone(), new_id.clone()));
+                    task.id = new_id.clone();
+                    seen_ids.insert(new_id);
+                    id_modified = true;
+                } else {
+                    seen_ids.insert(id_key);
+                }
             }
+
+            queue_changed |= modified || timestamp_modified || id_modified;
         }
+        queue_changed
     };
 
-    repair_tasks(&mut active.tasks);
-    repair_tasks(&mut done.tasks);
+    let mut queue_changed = repair_tasks(&mut active.tasks);
+    let mut done_changed = repair_tasks(&mut done.tasks);
 
     // Second pass: update relationship references for remapped IDs.
-    if !report.remapped_ids.is_empty() {
+    if scope == RepairScope::Full && !report.remapped_ids.is_empty() {
         let remapped_map: HashMap<String, String> = report.remapped_ids.iter().cloned().collect();
 
         let mut fix_relationships = |tasks: &mut Vec<Task>| {
+            let mut queue_changed = false;
             for task in tasks.iter_mut() {
                 if rewrite_task_id_references(task, &remapped_map) {
                     // Preserve the historical operation count semantics for `fixed_tasks`.
                     report.fixed_tasks += 1;
+                    queue_changed = true;
                 }
             }
+            queue_changed
         };
 
-        fix_relationships(&mut active.tasks);
-        fix_relationships(&mut done.tasks);
+        queue_changed |= fix_relationships(&mut active.tasks);
+        done_changed |= fix_relationships(&mut done.tasks);
     }
 
-    if !dry_run {
-        validation::validate_queue_set(
-            &active,
-            Some(&done),
-            id_prefix,
-            id_width,
-            DEFAULT_MAX_DEPENDENCY_DEPTH,
-        )?;
-    }
+    Ok(QueueRepairPlan {
+        active,
+        done,
+        report,
+        queue_changed,
+        done_changed,
+    })
+}
 
-    if !dry_run && !report.is_empty() {
-        save_queue(queue_path, &active)?;
-        save_queue(done_path, &done)?;
+fn validate_repair_plan(plan: &QueueRepairPlan, id_prefix: &str, id_width: usize) -> Result<()> {
+    validation::validate_queue_set(
+        &plan.active,
+        Some(&plan.done),
+        id_prefix,
+        id_width,
+        DEFAULT_MAX_DEPENDENCY_DEPTH,
+    )?;
+    Ok(())
+}
+
+fn save_repair_plan(queue_path: &Path, done_path: &Path, plan: &QueueRepairPlan) -> Result<()> {
+    if plan.queue_changed {
+        save_queue(queue_path, &plan.active)?;
     }
-    Ok(report)
+    if plan.done_changed {
+        save_queue(done_path, &plan.done)?;
+    }
+    Ok(())
+}
+
+fn parse_id_number(id: &str, expected_prefix: &str) -> Option<u32> {
+    let normalized = id.trim().to_uppercase();
+    let prefix = format!("{}-", expected_prefix);
+    let suffix = normalized.strip_prefix(&prefix)?;
+    suffix.parse().ok()
 }
 
 fn rewrite_task_id_references(task: &mut Task, remapped_ids: &HashMap<String, String>) -> bool {
@@ -358,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    fn repair_backfills_completed_at_for_done_tasks() {
+    fn plan_repair_backfills_completed_at_for_done_tasks() {
         use crate::queue::save_queue;
         use tempfile::tempdir;
 
@@ -384,15 +534,16 @@ mod tests {
         )
         .unwrap();
 
-        let report = repair_queue(&queue_path, &done_path, "RQ", 4, false).unwrap();
+        let plan = plan_queue_repair(&queue_path, &done_path, "RQ", 4).unwrap();
+        let report = plan.report();
         assert!(report.fixed_timestamps > 0);
 
-        let repaired = crate::queue::load_queue_or_default(&queue_path).unwrap();
+        let (repaired, _done, _report) = plan.into_parts();
         assert!(repaired.tasks[0].completed_at.is_some());
     }
 
     #[test]
-    fn repair_normalizes_non_utc_timestamps() {
+    fn plan_repair_normalizes_non_utc_timestamps() {
         use crate::queue::save_queue;
         use tempfile::tempdir;
 
@@ -420,10 +571,11 @@ mod tests {
         )
         .unwrap();
 
-        let report = repair_queue(&queue_path, &done_path, "RQ", 4, false).unwrap();
+        let plan = plan_queue_repair(&queue_path, &done_path, "RQ", 4).unwrap();
+        let report = plan.report();
         assert!(report.fixed_timestamps > 0);
 
-        let repaired = crate::queue::load_queue_or_default(&queue_path).unwrap();
+        let (repaired, _done, _report) = plan.into_parts();
         let expected = crate::timeutil::format_rfc3339(
             crate::timeutil::parse_rfc3339("2026-01-18T12:00:00-05:00").unwrap(),
         )

@@ -3,15 +3,15 @@
 //! Responsibilities:
 //! - Validate queue file existence and format
 //! - Check done archive integrity
-//! - Apply automatic queue repairs when requested
+//! - Apply automatic queue repairs through undo-backed queue repair paths when requested
 //!
 //! Not handled here:
 //! - Queue modification outside of repair context
 //! - Lock directory management (see lock.rs)
 //!
 //! Invariants/assumptions:
-//! - Queue validation failures can be repaired via queue::repair module
-//! - Repairs are idempotent and safe to retry
+//! - Queue validation failures can be repaired via queue::repair module.
+//! - Repairs hold the queue lock and create undo checkpoints before writing.
 
 use crate::commands::doctor::types::{CheckResult, DoctorReport};
 use crate::config;
@@ -277,11 +277,6 @@ pub(crate) fn check_done_archive(report: &mut DoctorReport, resolved: &config::R
 pub(crate) fn apply_queue_repair(
     resolved: &config::Resolved,
 ) -> anyhow::Result<queue::repair::RepairReport> {
-    queue::repair::repair_queue(
-        &resolved.queue_path,
-        &resolved.done_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-        false, // not dry run
-    )
+    let queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "doctor queue repair", false)?;
+    queue::apply_queue_repair_with_undo(resolved, &queue_lock, "doctor queue repair")
 }

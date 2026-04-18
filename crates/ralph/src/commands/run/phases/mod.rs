@@ -60,6 +60,7 @@ pub enum PostRunMode {
 /// `crate::commands::run`.
 pub struct PhaseInvocation<'a> {
     pub resolved: &'a config::Resolved,
+    pub queue_lock: Option<&'a crate::lock::DirLock>,
     pub settings: &'a runner::AgentSettings,
     pub bins: runner::RunnerBinaries<'a>,
     pub task_id: &'a str,
