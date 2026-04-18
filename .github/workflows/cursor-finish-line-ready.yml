@@ -4,9 +4,13 @@
 #   full set to settle on the same head SHA, and expose one cheap readiness check that
 #   PR Finish Line can trigger from.
 # Scope: Demo automation sequencing only; this is not canonical repository CI.
-# Usage: Enabled automatically on PR check-run completions in GitHub.
+# Usage: Runs on check_run.completed for the three prerequisite check names only; resolves
+#   the PR via REST when the webhook payload omits pull_requests (common for GitHub App checks).
 # Invariants/Assumptions: Local `make agent-ci` remains the source-of-truth gate; the
 #   three target Cursor Automation checks publish normal GitHub check runs on PR heads.
+# Note: GitHub may skip firing check_run-triggered workflows when the *triggering* suite
+#   was created by GitHub Actions; this flow is intended for App-published checks (or add
+#   a complementary trigger such as workflow_run if prerequisites are Actions-only).
 
 name: Cursor Finish Line Ready
 
@@ -21,7 +25,8 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: cursor-finish-line-ready-${{ github.event.check_run.check_suite.head_sha || github.sha }}
+  group: cursor-finish-line-ready-${{ github.event.check_run.check_suite.head_sha
+    || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -29,6 +34,11 @@ jobs:
     name: Cursor Finish Line Ready
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # check_run cannot be filtered in `on:`; skip unless a prerequisite check completed.
+    if: >-
+      contains(fromJSON('["Cursor Automation: Cross-Surface Coherence","Cursor
+      Automation: Config Surface Sync","Cursor Automation: Idempotency Surface
+      Propagator"]'), github.event.check_run.name)
     steps:
       - name: Wait for target Cursor automation checks on this PR head SHA
         uses: actions/github-script@v7
@@ -53,14 +63,35 @@ jobs:
 
             core.info(`Observed check run ${observed.name} (${observed.status}/${observed.conclusion || 'n/a'}) for ${headSha}.`);
 
-            if (!requiredChecks.includes(observed.name)) {
-              core.notice('Ignoring unrelated completed check run.');
+            if (observed.conclusion && observed.conclusion !== 'success') {
+              core.setFailed(
+                `Prerequisite check did not succeed: ${observed.name} conclusion=${observed.conclusion}`
+              );
               return;
             }
 
-            const prs = (observed.pull_requests || []).filter((pr) => pr.base?.repo?.full_name === `${owner}/${repo}`);
+            let prs = (observed.pull_requests || []).filter(
+              (pr) => pr.base?.repo?.full_name === `${owner}/${repo}`
+            );
             if (prs.length === 0) {
-              core.notice('Target Cursor automation check was not associated with an open PR in this repository.');
+              core.info(
+                'check_run payload had no pull_requests; resolving PRs for head SHA via REST (common for GitHub App checks).'
+              );
+              const { data: associated } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner,
+                repo,
+                commit_sha: headSha,
+              });
+              prs = associated.filter(
+                (pr) =>
+                  pr.base?.repo?.full_name === `${owner}/${repo}` &&
+                  pr.state === 'open'
+              );
+            }
+            if (prs.length === 0) {
+              core.notice(
+                'No open pull request in this repository for this head SHA (payload and listPullRequestsAssociatedWithCommit); nothing to gate.'
+              );
               return;
             }
 
