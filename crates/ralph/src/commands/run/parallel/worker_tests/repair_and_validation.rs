@@ -99,7 +99,7 @@ fn select_next_task_locked_uses_done_file_for_dependency_resolution() -> Result<
 }
 
 #[test]
-fn select_next_task_locked_repairs_non_utc_done_timestamps() -> Result<()> {
+fn select_next_task_locked_rejects_non_utc_done_timestamps_without_persisting() -> Result<()> {
     use crate::config;
     use crate::contracts::{QueueFile, Task, TaskStatus};
     use tempfile::TempDir;
@@ -185,21 +185,24 @@ fn select_next_task_locked_repairs_non_utc_done_timestamps() -> Result<()> {
 
     let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
     let excluded = HashSet::new();
-    let result = select_next_task_locked(&resolved, false, &excluded, &queue_lock)?;
-    assert_eq!(
-        result,
-        Some(("RQ-0002".to_string(), "Ready task".to_string()))
+    let err = select_next_task_locked(&resolved, false, &excluded, &queue_lock)
+        .expect_err("selection should stay read-only and reject repairable timestamps");
+    let err_msg = format!("{err:#}");
+    assert!(
+        err_msg.contains("Parallel worker selection is read-only"),
+        "error should explain read-only selection repair guidance: {err_msg}"
+    );
+    assert!(
+        err_msg.contains("ralph queue repair"),
+        "error should point to undo-backed repair: {err_msg}"
     );
 
-    let repaired_done = queue::load_queue(&done_path)?;
-    let completed = repaired_done.tasks[0]
+    let persisted_done = queue::load_queue(&done_path)?;
+    let completed = persisted_done.tasks[0]
         .completed_at
         .as_deref()
         .expect("completed_at should remain set");
-    let normalized = crate::timeutil::format_rfc3339(crate::timeutil::parse_rfc3339(
-        "2026-02-22T17:34:44-07:00",
-    )?)?;
-    assert_eq!(completed, normalized);
+    assert_eq!(completed, "2026-02-22T17:34:44-07:00");
 
     Ok(())
 }

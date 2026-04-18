@@ -92,6 +92,7 @@ fn run_finalization_loop(
         if !finalized
             && finalize_phase3_if_done(
                 ctx.resolved,
+                ctx.queue_lock,
                 ctx.task_id,
                 ctx.git_revert_mode,
                 ctx.git_publish_mode,

@@ -12,7 +12,7 @@
 //!
 //! Invariants/assumptions:
 //! - Queue files follow the QueueFile schema.
-//! - Terminal tasks have completed_at backfilled if missing.
+//! - Repair writes are applied through undo-backed queue repair helpers.
 //! - Task IDs are unique across queue and done files.
 
 use crate::contracts::{QueueFile, TaskStatus};
@@ -20,11 +20,28 @@ use crate::runutil;
 use crate::{queue, timeutil};
 use anyhow::{Result, anyhow, bail};
 
-/// Explicitly repairs timestamp maintenance, persists it, and validates the queue and done files.
+/// Applies undo-backed queue repair when needed, then validates queue and done files.
 pub(crate) fn maintain_and_validate_queues(
     resolved: &crate::config::Resolved,
+    queue_lock: Option<&crate::lock::DirLock>,
 ) -> Result<(QueueFile, QueueFile)> {
-    let (queue_file, done_file_opt) = queue::repair_and_validate_queues(resolved, true)?;
+    if let Some(queue_lock) = queue_lock {
+        queue::apply_queue_maintenance_repair_with_undo(
+            resolved,
+            queue_lock,
+            "post-run queue maintenance",
+        )?;
+    } else {
+        let queue_lock =
+            queue::acquire_queue_lock(&resolved.repo_root, "post-run queue repair", false)?;
+        queue::apply_queue_maintenance_repair_with_undo(
+            resolved,
+            &queue_lock,
+            "post-run queue maintenance",
+        )?;
+    }
+
+    let (queue_file, done_file_opt) = queue::load_and_validate_queues(resolved, true)?;
     let done_file = done_file_opt.unwrap_or_default();
 
     Ok((queue_file, done_file))

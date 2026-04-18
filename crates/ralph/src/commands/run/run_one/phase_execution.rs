@@ -35,6 +35,7 @@ use super::orchestration::TaskExecutionSetup;
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn execute_iteration_phases(
     resolved: &config::Resolved,
+    queue_lock: Option<&crate::lock::DirLock>,
     agent_overrides: &AgentOverrides,
     task: &Task,
     task_id: &str,
@@ -55,6 +56,7 @@ pub(crate) fn execute_iteration_phases(
 ) -> Result<()> {
     PhaseExecutionContext {
         resolved,
+        queue_lock,
         agent_overrides,
         task,
         task_id,
@@ -80,6 +82,7 @@ pub(crate) fn execute_iteration_phases(
 
 struct PhaseExecutionContext<'a> {
     resolved: &'a config::Resolved,
+    queue_lock: Option<&'a crate::lock::DirLock>,
     agent_overrides: &'a AgentOverrides,
     task: &'a Task,
     task_id: &'a str,
@@ -326,6 +329,7 @@ impl<'a> PhaseExecutionContext<'a> {
     ) -> PhaseInvocation<'b> {
         PhaseInvocation {
             resolved: self.resolved,
+            queue_lock: self.queue_lock,
             settings,
             bins: self.setup.bins,
             task_id: self.task_id,

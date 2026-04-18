@@ -43,6 +43,7 @@ fn post_run_supervise_runs_ci_for_clean_repo_when_queue_mutation_is_pending() ->
 
     let err = post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,
@@ -104,6 +105,7 @@ fn post_run_supervise_runs_ci_after_queue_maintenance_dirties_repo() -> anyhow::
 
     let err = post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,
@@ -152,6 +154,7 @@ fn post_run_supervise_skips_ci_for_clean_already_archived_done_noop() -> anyhow:
 
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,
@@ -199,6 +202,7 @@ fn post_run_supervise_successful_maintenance_repair_publish_off_leaves_dirty_rep
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,

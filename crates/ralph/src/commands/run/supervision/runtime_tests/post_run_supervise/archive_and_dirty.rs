@@ -25,6 +25,7 @@ fn post_run_supervise_commits_and_cleans_when_enabled() -> anyhow::Result<()> {
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::CommitAndPush,
@@ -60,6 +61,7 @@ fn post_run_supervise_skips_commit_when_disabled() -> anyhow::Result<()> {
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,
@@ -95,6 +97,7 @@ fn post_run_supervise_archives_rejected_terminal_tasks_alongside_completed_task(
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Commit,
@@ -144,6 +147,7 @@ fn post_run_supervise_backfills_missing_completed_at() -> anyhow::Result<()> {
     let resolved = resolved_for_repo(temp.path());
     post_run_supervise(
         &resolved,
+        None,
         "RQ-0001",
         GitRevertMode::Disabled,
         GitPublishMode::Off,

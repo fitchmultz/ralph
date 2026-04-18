@@ -192,13 +192,13 @@ pub(crate) fn build_repair_document(
     if args.dry_run {
         let _queue_lock =
             queue::acquire_queue_lock(&resolved.repo_root, "machine queue repair", force)?;
-        let report = queue::repair_queue(
+        let plan = queue::plan_queue_repair(
             &resolved.queue_path,
             &resolved.done_path,
             &resolved.id_prefix,
             resolved.id_width,
-            true,
         )?;
+        let report = plan.report().clone();
         let changed = !report.is_empty();
         let continuation = repair_preview_continuation(changed);
         return Ok(MachineQueueRepairDocument {
@@ -213,14 +213,13 @@ pub(crate) fn build_repair_document(
 
     let _queue_lock =
         queue::acquire_queue_lock(&resolved.repo_root, "machine queue repair", force)?;
-    let preview = queue::repair_queue(
+    let preview = queue::plan_queue_repair(
         &resolved.queue_path,
         &resolved.done_path,
         &resolved.id_prefix,
         resolved.id_width,
-        true,
     )?;
-    if preview.is_empty() {
+    if !preview.has_changes() {
         let continuation = MachineContinuationSummary {
             headline: "No queue repair changes were needed.".to_string(),
             detail: "Ralph confirmed the queue already matches its continuation invariants."
@@ -237,19 +236,13 @@ pub(crate) fn build_repair_document(
             dry_run: false,
             changed: false,
             blocking: continuation.blocking.clone(),
-            report: serde_json::to_value(preview)?,
+            report: serde_json::to_value(preview.report())?,
             continuation,
         });
     }
 
-    crate::undo::create_undo_snapshot(resolved, "queue repair continuation")?;
-    let report = queue::repair_queue(
-        &resolved.queue_path,
-        &resolved.done_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-        false,
-    )?;
+    let report =
+        queue::apply_queue_repair_with_undo(resolved, &_queue_lock, "queue repair continuation")?;
     let continuation = MachineContinuationSummary {
         headline: "Queue continuation has been normalized.".to_string(),
         detail: "Recoverable queue issues were repaired and an undo checkpoint was created before the write.".to_string(),

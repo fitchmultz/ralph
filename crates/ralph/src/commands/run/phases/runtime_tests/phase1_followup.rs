@@ -47,6 +47,7 @@ echo '{{"sessionID":"sess-123"}}'
     };
 
     let invocation = PhaseInvocation {
+        queue_lock: None,
         resolved: &resolved,
         settings: &settings,
         bins,
@@ -161,6 +162,7 @@ echo '{{"sessionID":"sess-123"}}'
     };
 
     let invocation = PhaseInvocation {
+        queue_lock: None,
         resolved: &resolved,
         settings: &settings,
         bins,
@@ -265,6 +267,7 @@ echo '{{"sessionID":"sess-123"}}'
     };
 
     let invocation = PhaseInvocation {
+        queue_lock: None,
         resolved: &resolved,
         settings: &settings,
         bins,
@@ -361,6 +364,7 @@ echo '{{"sessionID":"sess-123"}}'
     };
 
     let invocation = PhaseInvocation {
+        queue_lock: None,
         resolved: &resolved,
         settings: &settings,
         bins,

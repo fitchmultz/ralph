@@ -91,7 +91,7 @@ Every source file MUST start with `//!` docs covering:
 ### Queue Load/Validate Semantics
 - `queue::load_and_validate_queues` is read-only: it may tolerate JSON syntax repair in memory, but it must never rewrite queue/done files.
 - Non-UTC RFC3339 timestamps and missing terminal `completed_at` are validation failures for pure read/load paths; they are not silently normalized on read.
-- Conservative timestamp normalization/backfill lives behind explicit repair flows such as `queue::repair_and_validate_queues` or `ralph queue repair`.
+- Conservative timestamp normalization/backfill lives behind undo-backed apply flows such as `queue::apply_queue_repair_with_undo`, `queue::apply_queue_maintenance_repair_with_undo`, or `ralph queue repair`.
 
 ### Repo Target Resolution
 - Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).

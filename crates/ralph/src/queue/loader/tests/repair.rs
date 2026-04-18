@@ -1,9 +1,9 @@
-//! Queue loader explicit-repair tests.
+//! Queue repair application tests that use loader fixtures.
 
 use super::*;
 
 #[test]
-fn repair_and_validate_queues_normalizes_non_utc_timestamps_and_persists() -> Result<()> {
+fn apply_queue_repair_normalizes_non_utc_timestamps_with_undo() -> Result<()> {
     let temp = TempDir::new()?;
     let repo_root = temp.path();
     let ralph_dir = repo_root.join(".ralph");
@@ -38,7 +38,12 @@ fn repair_and_validate_queues_normalizes_non_utc_timestamps_and_persists() -> Re
 
     let resolved = resolved_with_paths(repo_root, queue_path.clone(), done_path.clone());
 
-    let (queue, done) = repair_and_validate_queues(&resolved, true)?;
+    let queue_lock = crate::queue::acquire_queue_lock(repo_root, "test queue repair", false)?;
+    let report =
+        crate::queue::apply_queue_repair_with_undo(&resolved, &queue_lock, "test queue repair")?;
+    assert!(report.fixed_timestamps > 0);
+
+    let (queue, done) = load_and_validate_queues(&resolved, true)?;
     let done = done.expect("done file should be present");
 
     let expected_active_created = crate::timeutil::format_rfc3339(crate::timeutil::parse_rfc3339(
@@ -67,12 +72,19 @@ fn repair_and_validate_queues_normalizes_non_utc_timestamps_and_persists() -> Re
         persisted_done.tasks[0].completed_at.as_deref(),
         Some(expected_done_completed.as_str())
     );
+    assert!(
+        crate::undo::list_undo_snapshots(repo_root)?
+            .snapshots
+            .iter()
+            .any(|snapshot| snapshot.operation == "test queue repair"),
+        "repair writes must create an undo snapshot before persisting"
+    );
 
     Ok(())
 }
 
 #[test]
-fn repair_and_validate_queues_backfills_terminal_completed_at_and_persists() -> Result<()> {
+fn apply_queue_repair_backfills_terminal_completed_at_with_undo() -> Result<()> {
     let temp = TempDir::new()?;
     let repo_root = temp.path();
     let ralph_dir = repo_root.join(".ralph");
@@ -95,7 +107,12 @@ fn repair_and_validate_queues_backfills_terminal_completed_at_and_persists() -> 
 
     let resolved = resolved_with_paths(repo_root, queue_path.clone(), done_path);
 
-    let (queue, _done) = repair_and_validate_queues(&resolved, true)?;
+    let queue_lock = crate::queue::acquire_queue_lock(repo_root, "test queue repair", false)?;
+    let report =
+        crate::queue::apply_queue_repair_with_undo(&resolved, &queue_lock, "test queue repair")?;
+    assert!(report.fixed_timestamps > 0);
+
+    let (queue, _done) = load_and_validate_queues(&resolved, true)?;
     let completed_at = queue.tasks[0]
         .completed_at
         .as_deref()
@@ -108,6 +125,13 @@ fn repair_and_validate_queues_backfills_terminal_completed_at_and_persists() -> 
         .as_deref()
         .expect("completed_at should be saved");
     crate::timeutil::parse_rfc3339(persisted_completed)?;
+    assert!(
+        crate::undo::list_undo_snapshots(repo_root)?
+            .snapshots
+            .iter()
+            .any(|snapshot| snapshot.operation == "test queue repair"),
+        "repair writes must create an undo snapshot before persisting"
+    );
 
     Ok(())
 }
