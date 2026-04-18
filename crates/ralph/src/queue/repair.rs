@@ -1,15 +1,30 @@
-//! Queue repair and dependency traversal.
+//! Purpose: Repair queue files and traverse dependency relationships.
 //!
-//! This module consolidates logic for repairing queue inconsistencies (missing fields,
-//! duplicate IDs, invalid/missing timestamps) and for traversing task dependency graphs
-//! (e.g., computing all tasks that depend on a given task ID).
+//! Responsibilities:
+//! - Normalize recoverable queue inconsistencies such as missing fields, duplicate
+//!   IDs, invalid IDs, and invalid or missing timestamps.
+//! - Keep remapped task IDs consistent across every relationship field.
+//! - Traverse dependency graphs for dependent-task lookup.
+//!
+//! Scope:
+//! - Queue repair and dependency traversal only.
+//! - Queue loading/saving and validation policy live in sibling modules.
+//!
+//! Usage:
+//! - CLI, machine, and doctor recovery surfaces call `repair_queue`.
+//! - Runtime helpers call `get_dependents` for dependency traversal.
+//!
+//! Invariants/Assumptions:
+//! - Callers hold the queue lock before mutating queue files on disk.
+//! - Mutating repair validates the repaired active/done queue set before saving.
 
 use super::{format_id, load_queue_or_default, normalize_prefix, save_queue, validation};
+use crate::constants::queue::DEFAULT_MAX_DEPENDENCY_DEPTH;
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::timeutil;
 use anyhow::Result;
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use time::UtcOffset;
 
@@ -142,37 +157,31 @@ pub fn repair_queue(
     repair_tasks(&mut active.tasks);
     repair_tasks(&mut done.tasks);
 
-    // Second pass: Update dependencies for remapped IDs
+    // Second pass: update relationship references for remapped IDs.
     if !report.remapped_ids.is_empty() {
-        let remapped_map: std::collections::HashMap<String, String> =
-            report.remapped_ids.iter().cloned().collect();
+        let remapped_map: HashMap<String, String> = report.remapped_ids.iter().cloned().collect();
 
-        let mut fix_dependencies = |tasks: &mut Vec<Task>| {
+        let mut fix_relationships = |tasks: &mut Vec<Task>| {
             for task in tasks.iter_mut() {
-                let mut deps_modified = false;
-                for dep in task.depends_on.iter_mut() {
-                    if let Some(new_id) = remapped_map.get(dep) {
-                        *dep = new_id.clone();
-                        deps_modified = true;
-                    }
-                }
-                if deps_modified {
-                    // Only count as fixed if we haven't already counted it (simpler: just increment,
-                    // as 'fixed_tasks' is a count of tasks touched, strictly speaking we might want to track set of unique modified tasks
-                    // but usually a simple counter is enough for the report.
-                    // However, if we want to be precise: "Fixed missing fields in X tasks" vs "Fixed dependencies".
-                    // The report struct just has `fixed_tasks`.
-                    // If we modified fields in pass 1 AND deps in pass 2, it's the same task being fixed.
-                    // But `repair_tasks` already incremented if fields/ID changed.
-                    // To avoid double counting, we could assume `fixed_tasks` is just "operations performed" or track unique indices.
-                    // Given the current implementation just increments, let's just increment.
+                if rewrite_task_id_references(task, &remapped_map) {
+                    // Preserve the historical operation count semantics for `fixed_tasks`.
                     report.fixed_tasks += 1;
                 }
             }
         };
 
-        fix_dependencies(&mut active.tasks);
-        fix_dependencies(&mut done.tasks);
+        fix_relationships(&mut active.tasks);
+        fix_relationships(&mut done.tasks);
+    }
+
+    if !dry_run {
+        validation::validate_queue_set(
+            &active,
+            Some(&done),
+            id_prefix,
+            id_width,
+            DEFAULT_MAX_DEPENDENCY_DEPTH,
+        )?;
     }
 
     if !dry_run && !report.is_empty() {
@@ -180,6 +189,46 @@ pub fn repair_queue(
         save_queue(done_path, &done)?;
     }
     Ok(report)
+}
+
+fn rewrite_task_id_references(task: &mut Task, remapped_ids: &HashMap<String, String>) -> bool {
+    let mut modified = false;
+    modified |= rewrite_id_list(&mut task.depends_on, remapped_ids);
+    modified |= rewrite_id_list(&mut task.blocks, remapped_ids);
+    modified |= rewrite_id_list(&mut task.relates_to, remapped_ids);
+    modified |= rewrite_optional_id(&mut task.duplicates, remapped_ids);
+    modified |= rewrite_optional_id(&mut task.parent_id, remapped_ids);
+    modified
+}
+
+fn rewrite_id_list(ids: &mut [String], remapped_ids: &HashMap<String, String>) -> bool {
+    let mut modified = false;
+    for id in ids {
+        if let Some(new_id) = remapped_task_id(id, remapped_ids) {
+            *id = new_id;
+            modified = true;
+        }
+    }
+    modified
+}
+
+fn rewrite_optional_id(id: &mut Option<String>, remapped_ids: &HashMap<String, String>) -> bool {
+    let Some(current_id) = id.as_deref() else {
+        return false;
+    };
+    let Some(new_id) = remapped_task_id(current_id, remapped_ids) else {
+        return false;
+    };
+
+    *id = Some(new_id);
+    true
+}
+
+fn remapped_task_id(id: &str, remapped_ids: &HashMap<String, String>) -> Option<String> {
+    remapped_ids
+        .get(id)
+        .or_else(|| remapped_ids.get(id.trim()))
+        .cloned()
 }
 
 /// Get all tasks that depend on the given task ID (recursively).

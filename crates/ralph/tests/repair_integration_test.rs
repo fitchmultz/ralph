@@ -1,4 +1,19 @@
-//! Integration tests for `ralph queue repair`.
+//! Purpose: Exercise persisted `ralph queue repair` behavior.
+//!
+//! Responsibilities:
+//! - Verify CLI repair rewrites queue and done files safely.
+//! - Cover regressions that require full on-disk repair and validation flows.
+//!
+//! Scope:
+//! - Integration coverage for the `ralph queue repair` command.
+//! - Unit-level repair helper behavior belongs in `crates/ralph/src/queue/repair.rs`.
+//!
+//! Usage:
+//! - Run through Cargo integration tests for the `ralph` crate.
+//!
+//! Invariants/Assumptions:
+//! - Test workspaces are created outside the repository to avoid nested repo detection.
+//! - Each scenario initializes its own Ralph workspace before replacing fixtures.
 
 use anyhow::Result;
 use std::path::Path;
@@ -108,9 +123,6 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
         "ralph queue repair failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
-    println!("Stdout: {stdout}");
-    println!("Stderr: {stderr}");
-
     // Queue repair now narrates continuation guidance on stdout.
     assert!(stdout.contains("Queue continuation has been normalized."));
     assert!(stdout.contains("\"fixed_tasks\": 3"));
@@ -185,7 +197,7 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
 }
 
 #[test]
-fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
+fn repair_remaps_all_relationship_fields_for_invalid_ids() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
@@ -195,9 +207,9 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
-    // Create broken queue.json
-    // - INVALID-1: Invalid ID format
-    // - RQ-0002: Depends on INVALID-1
+    // Create broken queue.json:
+    // - INVALID-1: Invalid ID format.
+    // - RQ-0002: References INVALID-1 through every task-ID relationship field.
     let broken_queue = r#"{
   "version": 1,
   "tasks": [
@@ -215,12 +227,14 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
       "completed_at": null,
       "notes": [],
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
       "id": "RQ-0002",
-      "status": "todo",
-      "title": "Dependent task",
+      "status": "draft",
+      "title": "Relationship task",
       "tags": ["test"],
       "scope": ["crates/ralph"],
       "evidence": ["none"],
@@ -231,7 +245,11 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
       "completed_at": null,
       "notes": [],
       "depends_on": ["INVALID-1"],
-      "custom_fields": {}
+      "blocks": ["INVALID-1"],
+      "relates_to": ["INVALID-1"],
+      "duplicates": "INVALID-1",
+      "custom_fields": {},
+      "parent_id": "INVALID-1"
     }
   ]
 }"#;
@@ -247,13 +265,7 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
 
     let queue_str = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
 
-    // INVALID-1 should be remapped to RQ-0001 (since init likely created nothing or we overwrote it)
-    // Actually init creates nothing in queue.json usually, just structure.
-    // The test overwrote queue.json, so next available valid ID should be RQ-0001 or RQ-0003 depending on what RQ-0002 occupies.
-    // RQ-0002 is valid.
-    // So INVALID-1 should become RQ-0001 (or RQ-0003 if it scans and sees RQ-0002).
-
-    // Let's verify that INVALID-1 is GONE and replaced by a valid ID.
+    // Verify that INVALID-1 is gone and replaced by a valid generated ID.
     assert!(
         !queue_str.contains("INVALID-1"),
         "INVALID-1 should be remapped"
@@ -269,22 +281,37 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
         .expect("Task 1 found");
     let new_id = task1["id"].as_str().expect("id string");
 
-    println!("Remapped ID: {}", new_id);
     assert!(new_id.starts_with("RQ-"), "New ID should start with RQ-");
 
-    // Verify dependent task points to new ID
+    // Verify the referencing task points to the remapped ID everywhere.
     let task2 = tasks
         .iter()
-        .find(|t| t["title"] == "Dependent task")
+        .find(|t| t["title"] == "Relationship task")
         .expect("Task 2 found");
-    let depends_on = task2["depends_on"].as_array().expect("depends_on array");
+    assert_single_id(task2, "depends_on", new_id);
+    assert_single_id(task2, "blocks", new_id);
+    assert_single_id(task2, "relates_to", new_id);
+    assert_eq!(task2["duplicates"].as_str(), Some(new_id));
+    assert_eq!(task2["parent_id"].as_str(), Some(new_id));
 
-    assert_eq!(depends_on.len(), 1, "Should have 1 dependency");
-    assert_eq!(
-        depends_on[0].as_str(),
-        Some(new_id),
-        "Dependency should be updated to new ID"
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "validate"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph queue validate failed after repair\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
     Ok(())
+}
+
+fn assert_single_id(task: &serde_json::Value, field: &str, expected_id: &str) {
+    let values = task[field].as_array().unwrap_or_else(|| {
+        panic!("{field} should be an array");
+    });
+
+    assert_eq!(values.len(), 1, "{field} should have 1 ID");
+    assert_eq!(
+        values[0].as_str(),
+        Some(expected_id),
+        "{field} should be updated to the remapped ID"
+    );
 }
