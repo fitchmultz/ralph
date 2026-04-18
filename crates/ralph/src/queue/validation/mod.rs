@@ -61,6 +61,15 @@ pub fn validate_queue(
     queue_files::validate_queue(queue, id_prefix, id_width)
 }
 
+/// Validate an optional done archive file.
+pub(crate) fn validate_done_queue(
+    done: Option<&crate::contracts::QueueFile>,
+    id_prefix: &str,
+    id_width: usize,
+) -> Result<()> {
+    queue_files::validate_done_queue(done, id_prefix, id_width)
+}
+
 /// Validate active and optional done queues together, returning non-blocking warnings.
 pub fn validate_queue_set(
     active: &crate::contracts::QueueFile,

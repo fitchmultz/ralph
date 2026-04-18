@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0018",
-      "status": "todo",
-      "title": "Make doctor enforce done-archive terminal status",
-      "description": "Principles violated: F) Fail fast appropriately, G) Least astonishment, J) Consistency/Integrity. ralph queue validate correctly rejects todo tasks stored in done.jsonc, but ralph doctor reports the same done archive as valid because check_done_archive calls standalone validate_queue instead of done-archive validation. Minimal fix: make doctor use validate_queue_set or validate_done_queue semantics for done archive checks so doctor, machine reports, and queue validation agree.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "doctor",
-        "queue",
-        "validation"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/doctor/queue.rs",
-        "crates/ralph/src/queue/validation/queue_files.rs",
-        "crates/ralph/src/queue/validation/mod.rs",
-        "crates/ralph/tests/doctor_contract_test"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/commands/doctor/queue.rs:219 :: check_done_archive loads done.jsonc and validates it with queue::validate_queue.",
-        "path: crates/ralph/src/queue/validation/queue_files.rs:64 :: validate_done_queue wraps validate_queue and then validate_done_terminal_status.",
-        "path: crates/ralph/src/queue/validation/queue_files.rs:108 :: validate_done_terminal_status rejects non-done/non-rejected statuses in done.jsonc.",
-        "repro: in a temp repo, put a todo task in .ralph/done.jsonc; run ralph queue validate :: expected stall on invalid done archive :: actual queue validate exited 1 and reported Invalid done.jsonc status for task RQ-0001.",
-        "repro: same temp repo, run ralph doctor --format json :: expected done_archive_valid error :: actual check done_archive_valid reported Success with message done archive valid (1 tasks)."
-      ],
-      "plan": [
-        "Change doctor done archive validation to call the same done-specific validation used by queue set validation.",
-        "Ensure doctor blocking state mirrors queue validate for invalid done archives.",
-        "Add a doctor contract test with a todo task in done.jsonc.",
-        "Verify by rerunning the temp-repo repro and confirming both ralph queue validate and ralph doctor report the done archive as invalid."
-      ],
-      "notes": [],
-      "request": "scan: Simplify code while preserving nuanced runner behavior",
-      "created_at": "2026-04-17T23:11:06Z",
-      "updated_at": "2026-04-17T23:11:06Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0016",
       "status": "todo",
       "title": "Unify queue repair behind undo-backed apply paths",

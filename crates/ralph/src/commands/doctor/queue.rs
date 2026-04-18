@@ -217,7 +217,11 @@ pub(crate) fn check_done_archive(report: &mut DoctorReport, resolved: &config::R
     }
 
     match queue::load_queue(&resolved.done_path) {
-        Ok(d) => match queue::validate_queue(&d, &resolved.id_prefix, resolved.id_width) {
+        Ok(d) => match queue::validation::validate_done_queue(
+            Some(&d),
+            &resolved.id_prefix,
+            resolved.id_width,
+        ) {
             Ok(_) => {
                 report.add(CheckResult::success(
                     "queue",

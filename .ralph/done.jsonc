@@ -114,9 +114,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "composer-2",
         "runner_used": "cursor",
-        "roadmap_item": "1",
-        "model_used": "composer-2"
+        "roadmap_item": "1"
       }
     },
     {
@@ -157,10 +157,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "runner_used": "cursor",
         "executive_finding": "10",
-        "model_used": "composer-2"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "composer-2",
+        "runner_used": "cursor"
       }
     },
     {
@@ -206,9 +206,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "composer-2",
         "runner_used": "cursor",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "model_used": "composer-2",
         "roadmap_item": "2"
       }
     },
@@ -252,8 +252,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "gpt-5.4",
         "roadmap_item": "4",
         "runner_used": "codex"
       }
@@ -300,10 +300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "3",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
-        "roadmap_item": "3"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "runner_used": "codex"
       }
     },
     {
@@ -346,8 +346,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "gpt-5.4",
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "roadmap_item": "6",
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
         "runner_used": "codex"
       }
     },
@@ -394,9 +394,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "roadmap_item": "7",
         "model_used": "gpt-5.4",
         "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "7",
         "runner_used": "codex"
       }
     },
@@ -442,9 +442,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_reference": "/tmp/ralph-codebase-audit.md",
-        "roadmap_item": "9",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "roadmap_item": "9"
       }
     },
     {
@@ -532,10 +532,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "roadmap_item": "10",
-        "model_used": "gpt-5.4"
+        "audit_reference": "/tmp/ralph-codebase-audit.md",
+        "roadmap_item": "10"
       }
     },
     {
@@ -631,9 +631,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-maintenance",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
-        "scan_agent": "scan-maintenance"
+        "runner_used": "codex"
       }
     },
     {
@@ -686,8 +686,59 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "scan_agent": "scan-maintenance",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
+      }
+    },
+    {
+      "id": "RQ-0018",
+      "status": "done",
+      "title": "Make doctor enforce done-archive terminal status",
+      "description": "Principles violated: F) Fail fast appropriately, G) Least astonishment, J) Consistency/Integrity. ralph queue validate correctly rejects todo tasks stored in done.jsonc, but ralph doctor reports the same done archive as valid because check_done_archive calls standalone validate_queue instead of done-archive validation. Minimal fix: make doctor use validate_queue_set or validate_done_queue semantics for done archive checks so doctor, machine reports, and queue validation agree.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "doctor",
+        "queue",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/doctor/queue.rs",
+        "crates/ralph/src/queue/validation/queue_files.rs",
+        "crates/ralph/src/queue/validation/mod.rs",
+        "crates/ralph/tests/doctor_contract_test"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/doctor/queue.rs:219 :: check_done_archive loads done.jsonc and validates it with queue::validate_queue.",
+        "path: crates/ralph/src/queue/validation/queue_files.rs:64 :: validate_done_queue wraps validate_queue and then validate_done_terminal_status.",
+        "path: crates/ralph/src/queue/validation/queue_files.rs:108 :: validate_done_terminal_status rejects non-done/non-rejected statuses in done.jsonc.",
+        "repro: in a temp repo, put a todo task in .ralph/done.jsonc; run ralph queue validate :: expected stall on invalid done archive :: actual queue validate exited 1 and reported Invalid done.jsonc status for task RQ-0001.",
+        "repro: same temp repo, run ralph doctor --format json :: expected done_archive_valid error :: actual check done_archive_valid reported Success with message done archive valid (1 tasks)."
+      ],
+      "plan": [
+        "Change doctor done archive validation to call the same done-specific validation used by queue set validation.",
+        "Ensure doctor blocking state mirrors queue validate for invalid done archives.",
+        "Add a doctor contract test with a todo task in done.jsonc.",
+        "Verify by rerunning the temp-repo repro and confirming both ralph queue validate and ralph doctor report the done archive as invalid."
+      ],
+      "notes": [
+        "Doctor now validates done.jsonc through done-archive terminal-status semantics.",
+        "Added JSON doctor contract coverage for a todo task stored in done.jsonc.",
+        "Verified queue validate and doctor both reject the same invalid done archive repro.",
+        "Ran cargo fmt, focused doctor tests, repro check, and make agent-ci successfully."
+      ],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-18T18:03:55.316170000Z",
+      "completed_at": "2026-04-18T18:03:55.316170000Z",
+      "started_at": "2026-04-18T17:54:22.964142000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance",
+        "runner_used": "codex",
         "model_used": "gpt-5.4"
       }
     }
