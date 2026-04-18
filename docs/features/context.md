@@ -150,7 +150,7 @@ Brief project description.
 
 ## Non-Negotiables
 
-- CI gate: `make ci` MUST pass before claiming completion
+- CI gate: `{ci_command}` MUST pass before claiming completion
 - Source docs: every new/changed source file MUST start with module docs
 - Tests: all new/changed behavior must be covered
 
@@ -162,7 +162,7 @@ Brief project description.
 
 ## Build, Test, and CI
 
-- `make ci`: local CI gate
+- `{ci_command}`: local CI gate
 - `make test`: run all tests (for Rust repos this is commonly nextest workspace tests + explicit doc tests)
 - `make build`: build the project
 
@@ -173,7 +173,7 @@ Brief project description.
 
 ## Troubleshooting
 
-- CI failing: run `make ci`
+- CI failing: run `{ci_command}`
 - Test issues: check temp directory permissions
 
 ---

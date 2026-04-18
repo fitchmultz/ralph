@@ -26,7 +26,7 @@ fn test_extract_make_ci_steps_prefers_ci_target_over_macos_ci() -> Result<()> {
 macos-ci: macos-preflight ci macos-build macos-test macos-test-contracts
 macos-test-contracts: macos-test-settings-smoke macos-test-workspace-routing-contract
 
-ci: check-env-safety check-backup-artifacts deps format type-check lint test build generate install
+ci: check-env-safety check-backup-artifacts deps format-check type-check lint test build generate install-verify
 	@echo "done"
 "#;
 
@@ -46,8 +46,8 @@ ci: check-env-safety check-backup-artifacts deps format type-check lint test bui
 #[test]
 fn test_extract_make_ci_steps_expands_ci_fast_dependencies() -> Result<()> {
     let makefile = r#"
-ci-fast: check-env-safety check-backup-artifacts deps format type-check lint test
-ci: ci-fast build generate install
+ci-fast: check-env-safety check-backup-artifacts deps format-check type-check lint test
+ci: ci-fast build generate install-verify
 "#;
 
     let actual = extract_make_ci_steps(makefile)?;
@@ -68,8 +68,8 @@ fn test_extract_make_ci_steps_supports_multiline_header_dependencies() -> Result
     let makefile = r#"
 ci: check-env-safety \
 	check-backup-artifacts \
-	deps format \
-	type-check lint test build generate install
+	deps format-check \
+	type-check lint test build generate install-verify
 	@echo "done"
 "#;
 
@@ -93,13 +93,13 @@ ci:
 	@$(MAKE) --no-print-directory check-env-safety
 	@$(MAKE) --no-print-directory check-backup-artifacts
 	@$(MAKE) --no-print-directory deps
-	@$(MAKE) --no-print-directory format
+	@$(MAKE) --no-print-directory format-check
 	@$(MAKE) --no-print-directory type-check
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory build
 	@$(MAKE) --no-print-directory generate
-	@$(MAKE) --no-print-directory install
+	@$(MAKE) --no-print-directory install-verify
 "#;
 
     let actual = extract_make_ci_steps(makefile)?;

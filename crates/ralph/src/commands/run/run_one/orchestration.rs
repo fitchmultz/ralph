@@ -43,6 +43,8 @@ use super::{
 
 /// Context prepared before task execution.
 pub(crate) struct RunOneContext {
+    /// Owns the queue lock for direct run-one paths that acquire it here.
+    pub _queue_lock: Option<crate::lock::DirLock>,
     pub queue_file: crate::contracts::QueueFile,
     pub done: crate::contracts::QueueFile,
     pub git_revert_mode: crate::contracts::GitRevertMode,

@@ -58,7 +58,7 @@ Before publication:
 
 ```bash
 make agent-ci
-make ci
+make release-gate
 make pre-public-check
 ```
 

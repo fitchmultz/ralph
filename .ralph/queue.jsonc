@@ -1,4 +1,496 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0017",
+      "status": "todo",
+      "title": "Repair remapped task IDs across every relationship field",
+      "description": "Principles violated: C) DRY knowledge, E) Make bugs hard to write, J) Consistency/Integrity. queue::repair_queue remaps invalid or duplicate task IDs and updates depends_on only. The task contract also contains blocks, relates_to, duplicates, and parent_id references, and validation checks those fields. A successful repair can therefore leave the queue invalid. Minimal fix: centralize ID-reference rewriting for every task relationship field and validate the repaired queue set before returning success.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "queue",
+        "repair",
+        "relationships"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/repair.rs",
+        "crates/ralph/src/contracts/task/types.rs",
+        "crates/ralph/src/queue/validation/relationships.rs",
+        "crates/ralph/src/queue/validation/parent.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue/repair.rs:146 :: remapped_ids are converted to a map after ID repair.",
+        "path: crates/ralph/src/queue/repair.rs:150 :: fix_dependencies rewrites only task.depends_on entries.",
+        "path: crates/ralph/src/contracts/task/types.rs:107 :: Task contains depends_on references.",
+        "path: crates/ralph/src/contracts/task/types.rs:112 :: Task contains blocks references.",
+        "path: crates/ralph/src/contracts/task/types.rs:117 :: Task contains relates_to references.",
+        "path: crates/ralph/src/contracts/task/types.rs:122 :: Task contains duplicates reference.",
+        "path: crates/ralph/src/contracts/task/types.rs:132 :: Task contains parent_id reference.",
+        "repro: create a temp Ralph repo with task id BAD and another task referencing BAD through depends_on, blocks, relates_to, duplicates, and parent_id; run ralph queue repair then ralph queue validate :: expected all BAD references become the new RQ id and validation passes :: actual depends_on changed to RQ-0002 while blocks/relates_to/duplicates/parent_id stayed BAD and validation failed on invalid blocks relationship.",
+        "workflow: ralph queue repair; jq '.tasks[] | {id, depends_on, blocks, relates_to, duplicates, parent_id}' .ralph/queue.jsonc; ralph queue validate :: repair_status=0 but validate_status=1."
+      ],
+      "plan": [
+        "Add a helper that rewrites all task ID reference fields using a remap map: depends_on, blocks, relates_to, duplicates, and parent_id.",
+        "Use the helper from queue repair instead of a depends_on-only closure.",
+        "After repair, validate queue and done together before returning success from mutating repair.",
+        "Add regression coverage for each relationship field referencing a remapped invalid ID.",
+        "Verify by rerunning the temp-repo repro and cargo test coverage for queue repair and validation."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0018",
+      "status": "todo",
+      "title": "Make doctor enforce done-archive terminal status",
+      "description": "Principles violated: F) Fail fast appropriately, G) Least astonishment, J) Consistency/Integrity. ralph queue validate correctly rejects todo tasks stored in done.jsonc, but ralph doctor reports the same done archive as valid because check_done_archive calls standalone validate_queue instead of done-archive validation. Minimal fix: make doctor use validate_queue_set or validate_done_queue semantics for done archive checks so doctor, machine reports, and queue validation agree.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "doctor",
+        "queue",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/doctor/queue.rs",
+        "crates/ralph/src/queue/validation/queue_files.rs",
+        "crates/ralph/src/queue/validation/mod.rs",
+        "crates/ralph/tests/doctor_contract_test"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/doctor/queue.rs:219 :: check_done_archive loads done.jsonc and validates it with queue::validate_queue.",
+        "path: crates/ralph/src/queue/validation/queue_files.rs:64 :: validate_done_queue wraps validate_queue and then validate_done_terminal_status.",
+        "path: crates/ralph/src/queue/validation/queue_files.rs:108 :: validate_done_terminal_status rejects non-done/non-rejected statuses in done.jsonc.",
+        "repro: in a temp repo, put a todo task in .ralph/done.jsonc; run ralph queue validate :: expected stall on invalid done archive :: actual queue validate exited 1 and reported Invalid done.jsonc status for task RQ-0001.",
+        "repro: same temp repo, run ralph doctor --format json :: expected done_archive_valid error :: actual check done_archive_valid reported Success with message done archive valid (1 tasks)."
+      ],
+      "plan": [
+        "Change doctor done archive validation to call the same done-specific validation used by queue set validation.",
+        "Ensure doctor blocking state mirrors queue validate for invalid done archives.",
+        "Add a doctor contract test with a todo task in done.jsonc.",
+        "Verify by rerunning the temp-repo repro and confirming both ralph queue validate and ralph doctor report the done archive as invalid."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0016",
+      "status": "todo",
+      "title": "Unify queue repair behind undo-backed apply paths",
+      "description": "Principles violated: C) DRY knowledge, F) Fail fast appropriately, H) Operational hygiene, J) Consistency/Integrity. Runtime paths call repair_and_validate_queues, which can persist queue and done normalization during selection, preflight, or supervision without creating an undo checkpoint. Explicit queue repair creates undo, so the repair contract is split across surfaces. Minimal fix: separate repair planning from repair application, make mutating repair go through one undo-backed apply path, and ensure runtime paths either stay read-only and report canonical repair guidance or intentionally create undo before writing.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "queue",
+        "undo",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/loader/read.rs",
+        "crates/ralph/src/queue/loader/maintenance.rs",
+        "crates/ralph/src/queue/repair.rs",
+        "crates/ralph/src/commands/run/parallel/worker_selection.rs",
+        "crates/ralph/src/commands/run/parallel/orchestration/preflight.rs",
+        "crates/ralph/src/commands/run/supervision/queue_ops.rs",
+        "crates/ralph/src/commands/doctor/queue.rs",
+        "crates/ralph/src/cli/machine/queue_docs.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue/loader/read.rs:149 :: repair_and_validate_queues is documented as explicit repair that persists queue maintenance.",
+        "path: crates/ralph/src/queue/loader/read.rs:156 :: repair_and_validate_queues calls maintain_and_save_loaded_queues.",
+        "path: crates/ralph/src/queue/loader/maintenance.rs:137 :: maintain_and_save_loaded_queues saves active queue changes.",
+        "path: crates/ralph/src/queue/loader/maintenance.rs:141 :: maintain_and_save_loaded_queues saves done archive changes.",
+        "path: crates/ralph/src/commands/run/parallel/worker_selection.rs:27 :: parallel worker selection calls repair_and_validate_queues.",
+        "path: crates/ralph/src/commands/run/parallel/orchestration/preflight.rs:78 :: parallel preflight calls repair_and_validate_queues.",
+        "path: crates/ralph/src/commands/run/supervision/queue_ops.rs:27 :: post-run supervision calls repair_and_validate_queues.",
+        "path: crates/ralph/src/commands/doctor/queue.rs:273 :: doctor auto-fix calls queue::repair::repair_queue directly, with no visible queue lock or undo snapshot.",
+        "path: crates/ralph/src/cli/machine/queue_docs.rs:245 :: explicit queue repair creates an undo snapshot before applying repair.",
+        "workflow: rg -n \"repair_and_validate_queues\\(|maintain_and_save_loaded_queues|create_undo_snapshot\" crates/ralph/src/queue/loader crates/ralph/src/commands/run/parallel crates/ralph/src/commands/run/supervision crates/ralph/src/cli/machine/queue_docs.rs -g '*.rs' :: found mutating runtime repair calls and only explicit machine queue repair creating undo."
+      ],
+      "plan": [
+        "Introduce a pure repair planner/report that computes timestamp, field, and ID repairs without writing.",
+        "Route all mutating queue repair through one apply function that requires a queue lock and creates an undo snapshot before any write.",
+        "Change runtime selection, parallel preflight, supervision, and doctor auto-fix to either use read-only planning with blocking guidance or the new undo-backed apply path.",
+        "Collapse duplicate repair semantics between queue::loader maintenance and queue::repair so one source owns repair rules.",
+        "Verify by adding regression tests for non-UTC timestamp normalization in runtime paths and confirming undo snapshots exist before persisted repair writes."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0014",
+      "status": "todo",
+      "title": "Redact public-readiness secret scan findings",
+      "description": "Principles violated: I) Security baseline, F) Fail fast appropriately, H) Operational hygiene. The public-readiness scanner detects high-confidence secrets but prints the exact matched secret with match.group(0). That can leak credentials into terminal logs, release evidence, copied reports, or CI transcripts. Minimal fix: replace raw match output with a redacted finding format that still identifies file, line, and pattern type, and update tests so injected tokens are detected but never echoed.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "security",
+        "release"
+      ],
+      "scope": [
+        "scripts/lib/public_readiness_scan.py",
+        "crates/ralph/tests/release_integration_contract_test.rs",
+        "scripts/pre-public-check.sh"
+      ],
+      "evidence": [
+        "path: scripts/lib/public_readiness_scan.py:241 :: scan_secrets appends match.group(0) directly to each problem line.",
+        "path: crates/ralph/tests/release_integration_contract_test.rs:2836 :: existing test coverage explicitly expects the scanner output to contain the full injected token.",
+        "workflow: python3 scripts/lib/public_readiness_scan.py secrets <temp repo with a fake GitHub token> :: status=1 and stdout printed README.md:1: github_classic_token followed by the raw token value.",
+        "path: AGENTS.md:288 :: repository guidance says to never print secrets."
+      ],
+      "plan": [
+        "Add a helper that renders secret matches as redacted metadata, for example pattern name plus length or short digest, without including the matched value.",
+        "Update the secret-scan tests to assert the scanner reports the file, line, and pattern while stdout/stderr do not contain the injected token or private-key body.",
+        "Run the focused proof command with a disposable fake token and confirm the scan still exits nonzero without echoing the token.",
+        "Verify by running cargo test -p ralph-agent-loop --test release_integration_contract_test public_readiness and make check-env-safety."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0019",
+      "status": "todo",
+      "title": "Include machine schema in release metadata",
+      "description": "Principles violated: C) DRY knowledge, H) Operational hygiene, J) Consistency/Integrity. Makefile generate writes three committed schemas, but release metadata policy tracks only config and queue schemas. The release verify manifest and publish staging use RELEASE_METADATA_PATHS, so machine schema changes can be regenerated locally but omitted from the verified release commit. Minimal fix: add schemas/machine.schema.json to RELEASE_METADATA_PATHS and test that every schema generated by the Makefile is included in release metadata.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "release",
+        "schema"
+      ],
+      "scope": [
+        "Makefile",
+        "scripts/lib/release_policy.sh",
+        "scripts/lib/release_verify_state.sh",
+        "scripts/lib/release_publish_pipeline.sh",
+        "crates/ralph/tests/release_script_contract_test.rs"
+      ],
+      "evidence": [
+        "path: Makefile:237 :: generate writes schemas/config.schema.json.",
+        "path: Makefile:238 :: generate writes schemas/queue.schema.json.",
+        "path: Makefile:239 :: generate writes schemas/machine.schema.json.",
+        "path: scripts/lib/release_policy.sh:21 :: RELEASE_METADATA_PATHS defines the canonical release metadata set.",
+        "path: scripts/lib/release_policy.sh:28 :: RELEASE_METADATA_PATHS includes schemas/config.schema.json.",
+        "path: scripts/lib/release_policy.sh:29 :: RELEASE_METADATA_PATHS includes schemas/queue.schema.json but omits schemas/machine.schema.json.",
+        "path: scripts/lib/release_verify_state.sh:88 :: release verification hashes only RELEASE_METADATA_PATHS.",
+        "path: scripts/lib/release_publish_pipeline.sh:107 :: release publish stages only RELEASE_METADATA_PATHS.",
+        "workflow: rg -n \"RELEASE_METADATA_PATHS|schemas/(config|queue|machine)\\.schema\\.json|git add\" scripts Makefile docs crates/ralph/tests :: showed machine schema generation and release metadata omission."
+      ],
+      "plan": [
+        "Add schemas/machine.schema.json to RELEASE_METADATA_PATHS.",
+        "Add a contract test that parses Makefile generate schema outputs and asserts each generated schema appears in release metadata.",
+        "Confirm release verify manifests and release publish staging include the machine schema path.",
+        "Verify by running the release script contract test and make version-check."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0020",
+      "status": "todo",
+      "title": "Make built-in profile behavior visible in CLI and docs",
+      "description": "Principles violated: G) Least astonishment, J) Consistency/Integrity. The CLI lists built-in profiles safe and power-user as no overrides even though they change approval and git publish behavior. The profiles feature doc also says profiles are not built in and uses stale config version 1 examples. Minimal fix: update profile summaries to include safety/publish overrides and align docs with the built-in profile contract.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "profiles",
+        "docs",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/config.rs",
+        "crates/ralph/src/contracts/config/profiles.rs",
+        "crates/ralph/src/agent/profiles.rs",
+        "docs/features/profiles.md"
+      ],
+      "evidence": [
+        "workflow: ralph config profiles list :: output was Available profiles: power-user - no overrides; safe - no overrides.",
+        "path: crates/ralph/src/cli/config.rs:136 :: format_profile_summary only summarizes runner, model, phases, and reasoning_effort.",
+        "path: crates/ralph/src/contracts/config/profiles.rs:27 :: power-user sets claude_permission_mode bypass, approval_mode yolo, and git_publish_mode commit_and_push.",
+        "path: crates/ralph/src/contracts/config/profiles.rs:42 :: safe sets claude_permission_mode accept-edits, approval_mode safe, and git_publish_mode off.",
+        "path: docs/features/profiles.md:18 :: docs say profiles are not built in.",
+        "path: docs/features/profiles.md:24 :: docs use config version 1.",
+        "path: crates/ralph/src/agent/profiles.rs:46 :: tests assert built-in safe and power-user profiles are listed."
+      ],
+      "plan": [
+        "Extend format_profile_summary to include approval_mode, claude_permission_mode, and git_publish_mode in concise list output.",
+        "Add focused tests for built-in profile summaries so safety-sensitive overrides cannot disappear from the CLI again.",
+        "Update docs/features/profiles.md to say safe and power-user are built in, user profiles are additive, reserved names cannot be redefined, and examples use version 2.",
+        "Verify by running ralph config profiles list and confirming safe and power-user display their safety/publish behavior."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0024",
+      "status": "todo",
+      "title": "Centralize supported-runner wording in docs and schema",
+      "description": "Principles violated: C) DRY knowledge, G) Least astonishment, J) Consistency/Integrity. The source supports Kimi, Pi, and plugin runner IDs, but multiple config docs and schema descriptions still list only Codex/OpenCode/Gemini/Claude/Cursor. Users relying on editor schema help or config docs can incorrectly conclude newer runners are unsupported. Minimal fix: update the Rust doc comments that generate schema descriptions plus stale docs, and prefer one canonical supported-runner wording.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "docs",
+        "schema",
+        "runner"
+      ],
+      "scope": [
+        "docs/configuration.md",
+        "docs/guides/advanced.md",
+        "schemas/config.schema.json",
+        "crates/ralph/src/contracts/config/mod.rs",
+        "crates/ralph/src/contracts/config/agent.rs",
+        "crates/ralph/src/contracts/runner.rs"
+      ],
+      "evidence": [
+        "path: docs/configuration.md:37 :: config example says choose from codex, opencode, gemini, claude, cursor.",
+        "path: docs/guides/advanced.md:539 :: advanced guide repeats the stale runner list.",
+        "path: schemas/config.schema.json:8 :: schema description says Agent runner defaults are Claude, Codex, OpenCode, Gemini, or Cursor.",
+        "path: schemas/config.schema.json:188 :: nested schema repeats the stale runner description.",
+        "path: crates/ralph/src/contracts/config/mod.rs:74 :: Rust doc comment feeding schema omits Kimi, Pi, and plugin runners.",
+        "path: crates/ralph/src/contracts/config/agent.rs:79 :: AgentConfig doc comment also omits Kimi, Pi, and plugin runners.",
+        "path: crates/ralph/src/contracts/runner.rs:45 :: Runner::Kimi serializes to kimi.",
+        "path: crates/ralph/src/contracts/runner.rs:46 :: Runner::Pi serializes to pi.",
+        "workflow: rg -n \"codex, opencode, gemini, claude, cursor|Agent runner defaults|Runner::Kimi|Runner::Pi\" docs schemas/config.schema.json crates/ralph/src/contracts :: showed stale docs/schema alongside source support for Kimi and Pi."
+      ],
+      "plan": [
+        "Update Rust doc comments on config agent defaults to include codex, opencode, gemini, claude, cursor, kimi, pi, and plugin runner IDs.",
+        "Update docs/configuration.md and docs/guides/advanced.md examples to use the same canonical wording.",
+        "Regenerate schemas/config.schema.json from source rather than hand-editing generated output.",
+        "Add or update a schema/doc alignment test for the supported runner list if practical.",
+        "Verify by running make generate and rg for the stale partial runner list."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0025",
+      "status": "todo",
+      "title": "Update session cache path references to session.jsonc",
+      "description": "Principles violated: G) Least astonishment, H) Operational hygiene, J) Consistency/Integrity. Runtime code and tests use .ralph/cache/session.jsonc, but several operator docs and AGENTS guidance still reference .ralph/cache/session.json. That sends users and agents to delete or inspect the wrong file during resume recovery and parallel-worker cleanup. Minimal fix: replace stale session.json references with session.jsonc and add a lightweight docs/search guard for this path.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "docs",
+        "session",
+        "recovery"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "docs/workflow.md",
+        "docs/features/phases.md",
+        "docs/guides/advanced.md",
+        "crates/ralph/src/session/persistence.rs",
+        "crates/ralph/src/constants.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/constants.rs:239 :: SESSION_FILENAME is session.jsonc.",
+        "path: crates/ralph/src/session/persistence.rs:4 :: module docs say it reads, writes, clears, and locates .ralph/cache/session.jsonc.",
+        "path: docs/workflow.md:189 :: workflow docs say session state is persisted to .ralph/cache/session.json.",
+        "path: docs/features/phases.md:483 :: phases docs say session state is persisted to .ralph/cache/session.json.",
+        "path: docs/guides/advanced.md:973 :: advanced guide tells users to jq .ralph/cache/session.json.",
+        "path: docs/guides/advanced.md:1129 :: advanced guide tells users to rm .ralph/cache/session.json.",
+        "path: AGENTS.md:168 :: parallel worker cleanup guidance still references cache/session.json.",
+        "workflow: rg -n \"session\\.jsonc|session\\.json\" docs crates/ralph/src apps README.md AGENTS.md :: showed code on session.jsonc and stale docs on session.json."
+      ],
+      "plan": [
+        "Replace stale .ralph/cache/session.json references in docs and AGENTS guidance with .ralph/cache/session.jsonc.",
+        "Check whether any compatibility note is needed for legacy session.json files; if not, avoid adding compatibility shims.",
+        "Add a targeted docs contract or search assertion if the existing test structure has a good home.",
+        "Verify by running rg -n \"\\.ralph/cache/session\\.json(?!c)\" docs AGENTS.md with an appropriate regex tool, and run make ci-docs or the relevant docs check."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0022",
+      "status": "todo",
+      "title": "Refuse lossy legacy CI gate shell-string migration",
+      "description": "Principles violated: F) Fail fast appropriately, G) Least astonishment, J) Consistency/Integrity. CI gate execution is argv-only and shell launchers are rejected, but the legacy migration shlex-splits old shell command strings. A legacy command like cargo test && cargo clippy becomes argv that runs cargo with literal && arguments instead of preserving shell semantics. Minimal fix: detect shell metacharacters or multi-command legacy strings during migration and fail with guidance to use a checked-in script or explicit argv.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "config",
+        "migration",
+        "ci"
+      ],
+      "scope": [
+        "crates/ralph/src/migration/config_migrations/ci_gate.rs",
+        "crates/ralph/src/config/validation/ci_gate.rs",
+        "crates/ralph/src/migration/config_migrations/tests.rs",
+        "docs/features/supervision.md"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/migration/config_migrations/ci_gate.rs:17 :: module invariant says enabled legacy shell strings are migrated to argv-only execution via shlex::split.",
+        "path: crates/ralph/src/migration/config_migrations/ci_gate.rs:82 :: build_ci_gate_value calls shlex::split(command).",
+        "path: crates/ralph/src/config/validation/ci_gate.rs:40 :: validation rejects shell launchers such as sh -c but does not reject literal shell metacharacters passed to a non-shell program.",
+        "workflow: rg -n \"build_ci_gate_value|ci_gate_command|shlex|shell launcher\" crates/ralph/src/migration/config_migrations crates/ralph/src/config/validation :: found no test coverage for legacy compound commands using &&, pipes, or redirects."
+      ],
+      "plan": [
+        "Add migration validation for legacy ci_gate_command strings that contain shell control operators such as &&, ||, ;, |, or redirects.",
+        "For unsupported shell strings, return an actionable migration error that points users to a checked-in script and argv form.",
+        "Keep simple legacy commands like make ci migrating to [\"make\", \"ci\"].",
+        "Update supervision docs so compound CI examples use script wrappers instead of shell strings.",
+        "Verify with migration tests for simple commands, disabled gates, and rejected compound shell strings."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0023",
+      "status": "todo",
+      "title": "Capture multi-word runner subcommand help",
+      "description": "Principles violated: C) DRY knowledge, H) Operational hygiene, J) Consistency/Integrity. runner_cli_inventory.sh is intended to preserve nuanced runner CLI behavior, but it parses and invokes only single-token subcommands. Multi-word surfaces such as exec resume are dropped, which weakens the inventory exactly where session-resume behavior is runner-specific. Minimal fix: represent discovered commands as argv arrays plus filesystem-safe labels and capture help for multi-word commands.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "runner",
+        "tooling"
+      ],
+      "scope": [
+        "scripts/runner_cli_inventory.sh",
+        "crates/ralph/tests/runner_cli_inventory_script_test.rs"
+      ],
+      "evidence": [
+        "path: scripts/runner_cli_inventory.sh:319 :: parser captures only one command token from tool command style help lines.",
+        "path: scripts/runner_cli_inventory.sh:324 :: standard-format parser also captures only a single command token.",
+        "path: scripts/runner_cli_inventory.sh:377 :: help capture invokes only \"$bin\" \"$subcmd\" \"--help\".",
+        "path: crates/ralph/tests/runner_cli_inventory_script_test.rs:37 :: test fixture includes exec resume Resume a previous session.",
+        "path: crates/ralph/tests/runner_cli_inventory_script_test.rs:137 :: test asserts help.exec.txt only, not help.exec.resume.txt.",
+        "workflow: disposable fake runner with exec and exec resume help; run scripts/runner_cli_inventory.sh --out <tmp> :: captured help.exec.txt only and logged captured 1 subcommand(s)."
+      ],
+      "plan": [
+        "Change runner inventory discovery to store subcommands as argv arrays and generate safe file labels such as help.exec.resume.txt.",
+        "Invoke multi-word help as \"$bin\" exec resume --help while preserving single-token behavior.",
+        "Update consolidated markdown output to include multi-word subcommands.",
+        "Add a regression test using the existing exec resume fixture and assert help.exec.resume.txt is created.",
+        "Verify by running cargo test -p ralph-agent-loop --test runner_cli_inventory_script_test."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0021",
+      "status": "todo",
+      "title": "Protect webhook failure store from cross-process lost updates",
+      "description": "Principles violated: E) Make bugs hard to write, H) Operational hygiene, J) Consistency/Integrity. The webhook failure store uses an in-process mutex plus whole-file read-modify-write. Atomic replacement avoids torn files but not lost updates between independent Ralph processes. Parallel workers or overlapping daemon/replay operations can drop failure records or replay-count increments. Minimal fix: add cross-process locking around failure-store read-modify-write or move to append-only records with locked compaction.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "concurrency",
+        "diagnostics"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/diagnostics/failure_store.rs",
+        "crates/ralph/src/webhook/tests"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:17 :: module docs state writes are serialized by a process-local lock.",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:48 :: FAILURE_STORE_LOCK is OnceLock<Mutex<()>>, which only protects threads in the current process.",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:86 :: persist path loads the full failures file before appending.",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:108 :: persist path writes the full failures file back.",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:135 :: replay-count update loads the full failures file.",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:141 :: replay-count update writes the full failures file back.",
+        "workflow: rg -n \"FAILURE_STORE_LOCK|process-local|load_failure_records_unlocked|write_failure_records_unlocked|persist_failed_delivery_at_path|update_replay_counts\" crates/ralph/src/webhook/diagnostics/failure_store.rs :: showed whole-file read-modify-write guarded only by a process-local mutex."
+      ],
+      "plan": [
+        "Choose a cross-process persistence strategy: existing directory lock around failures.json or append-only JSONL/per-record files with locked compaction.",
+        "Hold the cross-process lock across load, mutate, retention trim, and atomic write.",
+        "Cover both failure persistence and replay-count updates with multi-process tests.",
+        "Verify by running a test that concurrently persists two failures and confirms both records remain while destinations stay redacted."
+      ],
+      "notes": [],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-17T23:11:06Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    }
+  ]
 }

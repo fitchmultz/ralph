@@ -4,7 +4,7 @@
 
 ## Non-Negotiables
 
-- CI gate: `make ci` MUST pass before claiming completion, committing, or merging.
+- CI gate: `{ci_command}` MUST pass before claiming completion, committing, or merging.
 - Source docs: every new/changed source file MUST start with a module docstring that states:
   - what the file is responsible for
   - what it explicitly does NOT handle
@@ -21,7 +21,7 @@
 
 The Makefile is the contract; keep these targets working:
 
-- `make ci`: local CI gate (install → format → type-check → lint → build → test). Do not remove `install`.
+- `{ci_command}`: local CI gate (install → format → type-check → lint → build → test). Do not remove required install/verification steps from the repo contract.
 - `make install`: install dependencies via `uv sync`.
 - `make test`: run all tests with `uv run pytest`.
 - `make lint`: `uv run ruff check --fix`
@@ -30,7 +30,7 @@ The Makefile is the contract; keep these targets working:
 - `make update`: update all deps to latest stable versions.
 - `make clean`: remove lock files, node_modules, log files, etc.
 
-Useful iteration commands (not a substitute for `make ci`):
+Useful iteration commands (not a substitute for `{ci_command}`):
 
 - `uv run pytest tests/`
 - `uv run python -m {module_name}`
@@ -74,7 +74,7 @@ Config precedence (highest to lowest):
 ## Git Hygiene
 
 - Commit message: `{id_prefix}-####: <short summary>` (task id + summary).
-- Do not commit if `make ci` is failing.
+- Do not commit if `{ci_command}` is failing.
 - Prefer local CI over remote CI.
 
 ## Documentation Maintenance
@@ -85,7 +85,7 @@ Config precedence (highest to lowest):
 
 ## Troubleshooting
 
-- CI failing: run `make ci`; common checks are `uv run ruff check`, `uv run ty check`, `uv run pytest`.
+- CI failing: run `{ci_command}`; common checks are `uv run ruff check`, `uv run ty check`, `uv run pytest`.
 - Dependency issues: try `make clean && make install` to refresh the environment.
 - Type errors: ensure all functions have proper type annotations.
 

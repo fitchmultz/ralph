@@ -4,7 +4,7 @@
 
 ## Non-Negotiables
 
-- CI gate: `make ci` MUST pass before claiming completion, committing, or merging.
+- CI gate: `{ci_command}` MUST pass before claiming completion, committing, or merging.
 - Source docs: every new/changed source file MUST start with a module doc comment that states:
   - what the file is responsible for
   - what it explicitly does NOT handle
@@ -23,7 +23,7 @@
 
 The Makefile is the contract; keep these targets working:
 
-- `make ci`: local CI gate (see the `ci:` target in your `Makefile` for exact ordering). Do not remove `install`.
+- `{ci_command}`: local CI gate (see the configured Makefile/validation command for exact ordering). Do not remove required install/verification steps from the repo contract.
 - `make install`: install binary to `~/.local/bin/` (or a writable fallback).
 - `make test`: runs cargo-nextest for workspace tests (fallback to `cargo test` if nextest is missing), then `cargo test --doc` in isolated temp dirs.
 - `make lint`: `cargo clippy --workspace --all-targets -- -D warnings`
@@ -33,7 +33,7 @@ The Makefile is the contract; keep these targets working:
 - `make update`: upgrades direct Rust dependencies (`cargo upgrade --incompatible`) and refreshes transitive pins (`cargo update`); pair with `make macos-ci` when a bundled Swift/Xcode app is in scope because there may be no separate Swift package manifest to bump.
 - `make clean`: removes build artifacts, logs, and cache entries.
 
-Useful iteration commands (not a substitute for `make ci`):
+Useful iteration commands (not a substitute for `{ci_command}`):
 
 - `cargo test -p {package_name}`
 - `cargo run -p {package_name} -- <command>`
@@ -75,12 +75,12 @@ Config precedence (highest to lowest):
 ## Git Hygiene
 
 - Commit message: `{id_prefix}-####: <short summary>` (task id + summary).
-- Do not commit if `make ci` is failing.
-- This repo is local-CI-first; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`.
+- Do not commit if `{ci_command}` is failing.
+- This repo is local-CI-first; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `{ci_command}`.
 
 ## PR / Review Expectations
 
-- Include a short "what changed" + "how to verify" section (expected: `make ci`).
+- Include a short "what changed" + "how to verify" section (expected: `{ci_command}`).
 - Call out any breaking behavior explicitly and update docs/help accordingly.
 - When working from an issue/PR, prefer `gh` for context (`gh issue view ...`, `gh pr view ...`).
 
@@ -92,7 +92,7 @@ Config precedence (highest to lowest):
 
 ## Troubleshooting
 
-- CI failing: run `make ci`; common checks are `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test --workspace`.
+- CI failing: run `{ci_command}`; common checks are `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test --workspace`.
 - Queue lock: investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale.
 - Runner issues: verify the runner binary is on `PATH` and check runner/model settings in config.
 

@@ -964,7 +964,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\n\nROOT_DIR=\"${SRCROOT}/../..\"\nDEST_DIR=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}\"\n\n\"${ROOT_DIR}/scripts/ralph-cli-bundle.sh\" \\\n  --configuration \"${CONFIGURATION}\" \\\n  --bundle-dir \"${DEST_DIR}\"\n";
+			shellScript = "set -euo pipefail\n\nROOT_DIR=\"${SRCROOT}/../..\"\nDEST_DIR=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}\"\nmkdir -p \"${DEST_DIR}\"\n\nif [ \"${CONFIGURATION}\" = \"Release\" ] && [ -f \"${ROOT_DIR}/target/release/ralph\" ]; then\n  cp -f \"${ROOT_DIR}/target/release/ralph\" \"${DEST_DIR}/ralph\"\n  chmod +x \"${DEST_DIR}/ralph\"\nelse\n  \"${ROOT_DIR}/scripts/ralph-cli-bundle.sh\" \\\n    --configuration \"${CONFIGURATION}\" \\\n    --bundle-dir \"${DEST_DIR}\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

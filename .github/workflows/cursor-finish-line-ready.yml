@@ -1,0 +1,133 @@
+# Purpose: Emit a single GitHub check that turns green only after the demo Cursor
+#   propagation automations have all completed successfully for the current PR head SHA.
+# Responsibilities: Watch target Cursor Automation check completions, wait for the
+#   full set to settle on the same head SHA, and expose one cheap readiness check that
+#   PR Finish Line can trigger from.
+# Scope: Demo automation sequencing only; this is not canonical repository CI.
+# Usage: Enabled automatically on PR check-run completions in GitHub.
+# Invariants/Assumptions: Local `make agent-ci` remains the source-of-truth gate; the
+#   three target Cursor Automation checks publish normal GitHub check runs on PR heads.
+
+name: Cursor Finish Line Ready
+
+on:
+  check_run:
+    types:
+      - completed
+
+permissions:
+  checks: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: cursor-finish-line-ready-${{ github.event.check_run.check_suite.head_sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  ready:
+    name: Cursor Finish Line Ready
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Wait for target Cursor automation checks on this PR head SHA
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const requiredChecks = [
+              'Cursor Automation: Cross-Surface Coherence',
+              'Cursor Automation: Config Surface Sync',
+              'Cursor Automation: Idempotency Surface Propagator',
+            ];
+            const observed = context.payload.check_run;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const headSha = observed?.check_suite?.head_sha;
+            const pollIntervalMs = 30_000;
+            const deadlineMs = Date.now() + 35 * 60 * 1000;
+
+            if (!headSha) {
+              core.setFailed('Missing check_suite.head_sha on check_run payload.');
+              return;
+            }
+
+            core.info(`Observed check run ${observed.name} (${observed.status}/${observed.conclusion || 'n/a'}) for ${headSha}.`);
+
+            if (!requiredChecks.includes(observed.name)) {
+              core.notice('Ignoring unrelated completed check run.');
+              return;
+            }
+
+            const prs = (observed.pull_requests || []).filter((pr) => pr.base?.repo?.full_name === `${owner}/${repo}`);
+            if (prs.length === 0) {
+              core.notice('Target Cursor automation check was not associated with an open PR in this repository.');
+              return;
+            }
+
+            const pickLatestByName = (checkRuns) => {
+              const latest = new Map();
+              for (const run of checkRuns) {
+                if (!requiredChecks.includes(run.name)) {
+                  continue;
+                }
+                const previous = latest.get(run.name);
+                if (!previous) {
+                  latest.set(run.name, run);
+                  continue;
+                }
+                const previousKey = `${previous.started_at || ''}|${previous.completed_at || ''}|${previous.id}`;
+                const currentKey = `${run.started_at || ''}|${run.completed_at || ''}|${run.id}`;
+                if (currentKey > previousKey) {
+                  latest.set(run.name, run);
+                }
+              }
+              return latest;
+            };
+
+            while (true) {
+              const { data } = await github.rest.checks.listForRef({
+                owner,
+                repo,
+                ref: headSha,
+                per_page: 100,
+              });
+
+              const latest = pickLatestByName(data.check_runs || []);
+              const snapshot = requiredChecks.map((name) => {
+                const run = latest.get(name);
+                return {
+                  name,
+                  status: run?.status || 'missing',
+                  conclusion: run?.conclusion || 'missing',
+                };
+              });
+
+              core.info(`Current readiness snapshot for ${headSha}: ${JSON.stringify(snapshot)}`);
+
+              const missing = snapshot.filter((entry) => entry.status === 'missing');
+              const pending = snapshot.filter((entry) => entry.status !== 'missing' && entry.status !== 'completed');
+              const failed = snapshot.filter(
+                (entry) => entry.status === 'completed' && entry.conclusion !== 'success'
+              );
+
+              if (failed.length > 0) {
+                core.setFailed(
+                  `Finish-line prerequisites failed for ${headSha}: ${failed.map((entry) => `${entry.name}=${entry.conclusion}`).join(', ')}`
+                );
+                return;
+              }
+
+              if (missing.length === 0 && pending.length === 0) {
+                core.notice(`All Cursor automation prerequisites completed successfully for ${headSha}.`);
+                return;
+              }
+
+              if (Date.now() >= deadlineMs) {
+                core.setFailed(
+                  `Timed out waiting for Cursor automation prerequisites on ${headSha}. Missing: ${missing.map((entry) => entry.name).join(', ') || 'none'}. Pending: ${pending.map((entry) => `${entry.name}=${entry.status}`).join(', ') || 'none'}.`
+                );
+                return;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+            }

@@ -24,7 +24,7 @@ pub const BUG_TEMPLATE: &str = r#"{
     "Identify root cause",
     "Implement fix",
     "Add regression test",
-    "Verify fix with make ci"
+    "Verify fix with the configured CI gate"
   ],
   "evidence": []
 }"#;
@@ -41,7 +41,7 @@ pub const FEATURE_TEMPLATE: &str = r#"{
     "Implement core functionality",
     "Add tests",
     "Update documentation",
-    "Run make ci"
+    "Run the configured CI gate"
   ],
   "evidence": []
 }"#;
@@ -58,7 +58,7 @@ pub const REFACTOR_TEMPLATE: &str = r#"{
     "Identify improvement opportunities",
     "Refactor with tests passing",
     "Verify no behavior changes",
-    "Run make ci"
+    "Run the configured CI gate"
   ],
   "evidence": []
 }"#;
@@ -75,7 +75,7 @@ pub const TEST_TEMPLATE: &str = r#"{
     "Write test cases",
     "Ensure tests fail before fix",
     "Implement/fix as needed",
-    "Verify coverage with make ci"
+    "Verify coverage with the configured CI gate"
   ],
   "evidence": []
 }"#;
@@ -111,7 +111,7 @@ pub const ADD_TESTS_TEMPLATE: &str = r#"{
     "Write unit tests for {{module}}",
     "Write integration tests if applicable",
     "Verify test coverage with cargo tarpaulin or similar",
-    "Run make ci to ensure all tests pass"
+    "Run the configured CI gate to ensure all tests pass"
   ],
   "evidence": [
     "Current test coverage gaps in {{target}}",
@@ -133,7 +133,7 @@ pub const REFACTOR_PERFORMANCE_TEMPLATE: &str = r#"{
     "Implement targeted optimizations",
     "Benchmark before/after performance",
     "Verify correctness is preserved",
-    "Run make ci to validate changes"
+    "Run the configured CI gate to validate changes"
   ],
   "evidence": [
     "Performance measurements showing bottleneck",
@@ -155,7 +155,7 @@ pub const FIX_ERROR_HANDLING_TEMPLATE: &str = r#"{
     "Implement proper error types with thiserror/anyhow",
     "Add error context and logging where needed",
     "Test error paths and edge cases",
-    "Run make ci to validate all error scenarios"
+    "Run the configured CI gate to validate all error scenarios"
   ],
   "evidence": [
     "Error handling gaps in {{target}}",
@@ -177,7 +177,7 @@ pub const ADD_DOCS_TEMPLATE: &str = r#"{
     "Add function/struct documentation (///)",
     "Include code examples in doc comments",
     "Review for accuracy and completeness",
-    "Run make ci to check doc tests"
+    "Run the configured CI gate to check doc tests"
   ],
   "evidence": [
     "Missing documentation in {{target}}",
@@ -199,7 +199,7 @@ pub const SECURITY_AUDIT_TEMPLATE: &str = r#"{
     "Audit input validation and sanitization",
     "Implement security fixes",
     "Add security-focused tests",
-    "Run make ci and security scans"
+    "Run the configured CI gate and security scans"
   ],
   "evidence": [
     "Security-sensitive code in {{target}}",

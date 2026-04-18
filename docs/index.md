@@ -73,14 +73,10 @@ Routine branch gate:
 make agent-ci
 ```
 
-Full Rust release gate:
+Final ship/release gate:
 
 ```bash
-make ci
+make release-gate
 ```
 
-macOS ship gate:
-
-```bash
-make macos-ci
-```
+Lower-level targets such as `ci-docs`, `ci-fast`, `ci`, and `macos-ci` still exist, but most contributors should treat them as internal tiers behind `make agent-ci` rather than commands to choose among day to day.

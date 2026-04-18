@@ -441,11 +441,15 @@ fn test_agent_ci_routes_between_docs_ci_fast_and_macos_ci() -> Result<()> {
         extract_target_block(&makefile, "agent-ci").context("extract agent-ci block")?;
 
     assert!(
-        agent_ci_block.contains("docs, Rust, and macOS ship gates"),
-        "agent-ci should advertise the three-way routing contract"
+        agent_ci_block.contains("current local diff routing"),
+        "agent-ci should explain that routing is based on the current working tree"
     );
     assert!(
-        agent_ci_block.contains("scripts/agent-ci-surface.sh --target"),
+        agent_ci_block.contains("full Rust release, macOS ship"),
+        "agent-ci should advertise the four-way routing contract"
+    );
+    assert!(
+        agent_ci_block.contains("scripts/agent-ci-surface.sh --emit-eval"),
         "agent-ci must route through the shared dependency-surface classifier"
     );
     assert!(
@@ -453,8 +457,12 @@ fn test_agent_ci_routes_between_docs_ci_fast_and_macos_ci() -> Result<()> {
         "agent-ci must dispatch to the classifier-selected gate target"
     );
     assert!(
-        agent_ci_block.contains("target_reason"),
+        agent_ci_block.contains("RALPH_AGENT_CI_REASON"),
         "agent-ci should surface the classifier's routing reason"
+    );
+    assert!(
+        agent_ci_block.contains("target_name\" = \"noop\""),
+        "agent-ci should no-op when the working tree has no local changes"
     );
     assert!(
         agent_ci_block.contains("using platform-aware release gate fallback"),

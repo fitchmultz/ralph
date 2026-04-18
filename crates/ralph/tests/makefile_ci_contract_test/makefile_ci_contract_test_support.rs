@@ -23,20 +23,20 @@ pub(super) const REQUIRED_CI_STEPS: &[&str] = &[
     "check-env-safety",
     "check-backup-artifacts",
     "deps",
-    "format",
+    "format-check",
     "type-check",
     "lint",
     "test",
     "build",
     "generate",
-    "install",
+    "install-verify",
 ];
 
 pub(super) const REQUIRED_CI_FAST_STEPS: &[&str] = &[
     "check-env-safety",
     "check-backup-artifacts",
     "deps",
-    "format",
+    "format-check",
     "type-check",
     "lint",
     "test",

@@ -258,8 +258,8 @@ Breaking change: `--rp-on/--rp-off` were removed in favor of `--repo-prompt <too
 
 Ralph supports a 3-phase workflow by default (configured via `agent.phases: 3`):
 1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
-2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass the configured CI gate command (default `make ci`) when enabled, then stops without completing the task. When the CI gate fails during Phase 2, Ralph automatically sends a compliance message to the agent and retries up to 2 times without user intervention.
-3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs the configured CI gate command (default `make ci`) when enabled, completes the task, and (when auto git commit/push is enabled) commits and pushes.
+2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass the configured CI gate command (this repo uses `make agent-ci`; generic fallback is `make ci`) when enabled, then stops without completing the task. When the CI gate fails during Phase 2, Ralph automatically sends a compliance message to the agent and retries up to 2 times without user intervention.
+3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs the configured CI gate command (this repo uses `make agent-ci`; generic fallback is `make ci`) when enabled, completes the task, and (when auto git commit/push is enabled) commits and pushes.
 
 Use `ralph run one --phases 3` for full 3-phase execution. You can also set `agent.phases` in config to control the default.
 

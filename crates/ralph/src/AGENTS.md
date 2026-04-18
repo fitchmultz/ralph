@@ -99,10 +99,10 @@ scripts/              # Maintenance + release helper scripts
 
 ```bash
 # Before committing or merging, always run:
-make ci
+make agent-ci
 ```
 
-The CI gate runs: `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
+The required local gate is `make agent-ci`, which routes the current uncommitted diff to the right underlying tier.
 
 ---
 
@@ -112,7 +112,7 @@ The CI gate runs: `check-env-safety → check-backup-artifacts → deps → form
 
 | Command | Purpose |
 |---------|---------|
-| `make ci` | Local CI gate — **must pass before committing** |
+| `make agent-ci` | Required pre-commit gate — routes to the correct validation tier |
 | `make macos-ci` | macOS-only ship gate (Rust CI + Xcode build + Xcode tests) |
 | `make install` | Install `ralph` to `~/.local/bin/ralph` (or writable fallback) |
 | `make test` | Nextest workspace tests + cargo doc tests (auto-fallback if nextest missing) |
@@ -126,7 +126,7 @@ The CI gate runs: `check-env-safety → check-backup-artifacts → deps → form
 ### Development Iteration
 
 ```bash
-# Quick test cycle (not a substitute for `make ci`)
+# Quick test cycle (not a substitute for `make agent-ci`)
 cargo test -p ralph-agent-loop
 cargo run -p ralph-agent-loop -- <command>
 cargo run -p ralph-agent-loop -- queue validate
@@ -275,15 +275,15 @@ The CI runs `check-env-safety` which fails if `.env` is tracked in git.
 ## Git Hygiene
 
 - **Commit messages**: `RQ-####: <short summary>` (task id + summary)
-- **Do not commit** if `make ci` is failing
-- **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`
+- **Do not commit** if `make agent-ci` is failing
+- **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make agent-ci`
 - **Keep secrets out of git/logs**: `.env` is for local use only and MUST remain untracked
 
 ---
 
 ## Pull Request Guidelines
 
-- Include "what changed" + "how to verify" sections (expected: `make ci`)
+- Include "what changed" + "how to verify" sections (expected: `make agent-ci`)
 - Call out breaking behavior explicitly and update docs/help accordingly
 - When working from an issue/PR, prefer `gh` for context:
 
@@ -368,7 +368,7 @@ When making changes, keep docs in sync:
 
 ## Non-Negotiables
 
-- **CI gate**: `make ci` MUST pass before claiming completion, committing, or merging
+- **CI gate**: `make agent-ci` MUST pass before claiming completion, committing, or merging
 - **Source docs**: Every new/changed source file MUST have module docs (see [Coding Standards](#coding-standards))
 - **Test coverage**: All new/changed behavior must be covered (success + failure modes)
 - **Feature parity**: When changing user-visible workflows, maintain parity between the CLI and the macOS app (or document divergence)
@@ -381,7 +381,7 @@ When making changes, keep docs in sync:
 
 | Issue | Solution |
 |-------|----------|
-| CI failing | Run `make ci`; first failing step is printed (common: formatting, Clippy warnings, tests) |
+| CI failing | Run `make agent-ci`; first failing step is printed (common: formatting, Clippy warnings, tests) |
 | `.env tracked` error | Run `git rm --cached .env` and ensure `.env` is in `.gitignore` |
 | `Backup artifacts` error | Remove any `*.bak` files under `crates/ralph/src/` |
 | Queue lock | Investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale |

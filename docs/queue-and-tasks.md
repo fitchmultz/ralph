@@ -78,7 +78,7 @@ Notes:
   "tags": ["cli", "queue"],
   "scope": ["schemas/queue.schema.json", "crates/ralph/src/cli/queue.rs"],
   "plan": ["Add schema validation to queue validate."],
-  "evidence": ["make ci"],
+  "evidence": ["make agent-ci"],
   "depends_on": [],
   "custom_fields": {
     "owner": "platform"

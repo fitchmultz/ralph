@@ -25,6 +25,7 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 | Public launch checklist | `docs/guides/public-readiness.md` |
 | Local verification guide | `docs/guides/local-smoke-test.md` |
 | Public audit automation | `scripts/pre-public-check.sh` |
+| GitHub Actions (single allowed workflow) | `.github/workflows/cursor-finish-line-ready.yml` — not canonical CI; see below |
 | Core source | `crates/ralph/src/` |
 | Tests | `crates/ralph/tests/` |
 | macOS app | `apps/RalphMac/` |
@@ -33,8 +34,8 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 
 ## User Preferences
 
-- **CI-first**: Run `make agent-ci` before claiming completion (dependency-surface routing decides `ci-docs`, `ci-fast`, or `macos-ci`)
-- **Full Rust gate**: Run `make ci` before release tagging/public launch windows
+- **CI-first**: Run `make agent-ci` before claiming completion (current uncommitted local diff routes to `ci-docs`, `ci-fast`, `ci`, or `macos-ci`; clean tree is a no-op)
+- **Release gate**: Run `make release-gate` before release tagging/public launch windows
 - **Public-readiness gate**: Use `make pre-public-check` before making broad visibility changes
 - **Resource controls**: Prefer `RALPH_CI_JOBS` / `RALPH_XCODE_JOBS` caps on shared workstations
 - **Minimal APIs**: Default to private; prefer `pub(crate)` over `pub`
@@ -42,7 +43,14 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 - **Explicit over implicit**: Prefer explicit, minimal usage patterns
 - **Verify before done**: Test coverage required for all new/changed behavior
 - **Roadmap quality**: Use chunky, dependency-aware roadmap items; combine adjacent evidence/cleanup/tuning work instead of splitting follow-ups into tiny tasks
-- **No remote CI**: Local `make ci` is the gate; avoid GitHub Actions
+- **CI source of truth**: Local `make agent-ci` / `make release-gate` is canonical; do not treat GitHub Actions as a substitute gate
+
+### GitHub Actions (explicit repo exception)
+
+Global Cursor agent rules for this workspace class default to **no GitHub Actions**. **Maintainers have granted a narrow exception for the current minimal workflow only** so agents should not delete it or “fix” the repo by removing `.github/workflows/`.
+
+- **Allowed**: `.github/workflows/cursor-finish-line-ready.yml` — triggers on completed `check_run`, uses `actions/github-script@v7` with read-only `checks` / `contents` / `pull-requests` permissions, polls until three named **Cursor Automation** checks succeed on the PR head SHA, and exposes a single **Cursor Finish Line Ready** check for PR Finish Line sequencing. It is **not** build or test CI; the workflow file’s own header states it is demo automation sequencing only.
+- **Not allowed without a new maintainer decision**: additional workflows, matrices, caching layers, release automation, or moving `make agent-ci` / `make release-gate` logic into Actions.
 
 ---
 

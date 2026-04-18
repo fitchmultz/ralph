@@ -4,7 +4,7 @@
 
 ## Non-Negotiables
 
-- CI gate: `make ci` MUST pass before claiming completion, committing, or merging.
+- CI gate: `{ci_command}` MUST pass before claiming completion, committing, or merging.
 - Source docs: every new/changed source file MUST start with a JSDoc comment that states:
   - what the file is responsible for
   - what it explicitly does NOT handle
@@ -21,7 +21,7 @@
 
 The Makefile is the contract; keep these targets working:
 
-- `make ci`: local CI gate (install → format → type-check → lint → build → test). Do not remove `install`.
+- `{ci_command}`: local CI gate (install → format → type-check → lint → build → test). Do not remove required install/verification steps from the repo contract.
 - `make install`: install dependencies via `pnpm install`.
 - `make test`: run all tests with `pnpm test`.
 - `make lint`: `pnpm lint` or `biome check`
@@ -31,7 +31,7 @@ The Makefile is the contract; keep these targets working:
 - `make update`: update all deps to latest stable versions.
 - `make clean`: remove lock files, node_modules, log files, etc.
 
-Useful iteration commands (not a substitute for `make ci`):
+Useful iteration commands (not a substitute for `{ci_command}`):
 
 - `pnpm test`
 - `pnpm dev`
@@ -73,7 +73,7 @@ Config precedence (highest to lowest):
 ## Git Hygiene
 
 - Commit message: `{id_prefix}-####: <short summary>` (task id + summary).
-- Do not commit if `make ci` is failing.
+- Do not commit if `{ci_command}` is failing.
 - Prefer local CI over remote CI.
 
 ## Documentation Maintenance
@@ -84,7 +84,7 @@ Config precedence (highest to lowest):
 
 ## Troubleshooting
 
-- CI failing: run `make ci`; common checks are type checking, linting, and tests.
+- CI failing: run `{ci_command}`; common checks are type checking, linting, and tests.
 - Dependency issues: try `make clean && make install` to refresh the environment.
 - Build errors: check `tsconfig.json` for proper configuration.
 

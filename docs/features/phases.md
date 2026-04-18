@@ -28,7 +28,7 @@ The phase system is Ralph's core execution model, designed to balance automation
 │                              ↓                                          │
 │  Phase 2: Implementation + CI                                           │
 │  ├── Agent implements the plan from Phase 1                             │
-│  ├── CI gate runs (default: make ci)                                    │
+│  ├── CI gate runs (configured command; this repo uses make agent-ci)    │
 │  └── Stops BEFORE completion (manual review opportunity)                │
 │                              ↓                                          │
 │  Phase 3: Review + Completion                                           │
@@ -146,7 +146,10 @@ Phase 2 is the **doing phase**. The AI agent implements the plan from Phase 1 (o
 Phase 2 includes mandatory CI validation (unless disabled):
 
 ```bash
-# Default CI command
+# This repository's configured CI command
+make agent-ci
+
+# Generic fallback when a repo has not overridden it
 make ci
 
 # Configurable via:
@@ -703,7 +706,7 @@ The `--force` flag bypasses stale session checks.
 
 If CI repeatedly fails in Phase 2 or 3:
 
-1. Check CI output: `make ci` (or your configured command)
+1. Check CI output: `make agent-ci` in this repo (or your configured command)
 2. Ralph will auto-retry twice with strict compliance messaging
 3. After 2 failures, choose to:
    - Revert and try again

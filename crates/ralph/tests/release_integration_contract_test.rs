@@ -410,6 +410,11 @@ fn agent_ci_succeeds_outside_git_via_source_snapshot_safety_mode() {
 
     for relative_path in [
         "Makefile",
+        "Cargo.toml",
+        "Cargo.lock",
+        "VERSION",
+        "rust-toolchain.toml",
+        "scripts/ralph-cli-bundle.sh",
         "scripts/pre-public-check.sh",
         "scripts/lib/ralph-shell.sh",
         "scripts/lib/release_policy.sh",
@@ -434,7 +439,7 @@ fn agent_ci_succeeds_outside_git_via_source_snapshot_safety_mode() {
     let wrapper_makefile = repo_root.join("OracleAgentCI.mk");
     write_file(
         &wrapper_makefile,
-        "include Makefile\n\n# Test-only stubs so the contract test exercises routing instead of full toolchains.\ntarget/tmp/stamps/ralph-release-build.stamp:\n\t@mkdir -p target/tmp/stamps\n\t@touch $@\n\t@echo stub-release-stamp\n\ndeps format type-check lint test build generate install macos-preflight macos-build macos-test macos-test-contracts:\n\t@echo stub-$@\n",
+        "include Makefile\n\n# Test-only stubs so the contract test exercises routing instead of full toolchains.\ntarget/tmp/stamps/ralph-release-build.stamp:\n\t@mkdir -p target/tmp/stamps\n\t@touch $@\n\t@echo stub-release-stamp\n\ndeps format-check type-check lint test build generate install-verify install macos-preflight macos-build macos-test macos-test-contracts:\n\t@echo stub-$@\n",
     );
 
     let fake_bin_dir = repo_root.join("test-bin");
@@ -2535,10 +2540,12 @@ fn xcode_build_phase_uses_shared_cli_bundle_entrypoint() {
         "Xcode project should call the shared CLI bundling script"
     );
     assert!(
-        !project.contains("cargo ${BUILD_ARGS}")
-            && !project.contains("target/debug/ralph")
-            && !project.contains("target/release/ralph"),
-        "Xcode project should not embed its own Cargo fallback policy or stale hardcoded CLI output paths"
+        !project.contains("cargo ${BUILD_ARGS}") && !project.contains("target/debug/ralph"),
+        "Xcode project should not embed its own Cargo invocation policy or debug hardcoded CLI paths"
+    );
+    assert!(
+        project.contains("target/release/ralph") && project.contains("ralph-cli-bundle.sh"),
+        "Release should prefer copying an existing target/release/ralph when present, with ralph-cli-bundle.sh as fallback"
     );
 }
 

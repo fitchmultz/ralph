@@ -75,11 +75,22 @@ make docs
 
 **All contributions MUST pass `make agent-ci` before being considered complete.** This is a hard requirement.
 
-`make agent-ci` behavior:
+`make agent-ci` is the only CI command most contributors should need to think about. It is the required pre-commit gate and it chooses the right underlying tier for the current uncommitted diff.
 
-- Docs/community-only changes: runs docs safety gate (`make ci-docs`)
-- Non-app executable changes: runs fast deterministic Rust/CLI gate (`make ci-fast`)
-- App/CLI/build/runtime contract changes: escalates to `make macos-ci`
+`make agent-ci` behavior (see `docs/guides/ci-strategy.md` for the full matrix and lower-level tiers):
+
+- It inspects only the **current uncommitted local diff** (unstaged + staged + untracked files), not earlier commits already on the branch.
+- With no local changes, it exits successfully without running a CI target.
+- Docs/community-only changes: `make ci-docs`
+- Ancillary non-docs changes (not `crates/**` and not macOS ship surface): `make ci-fast`
+- Rust crate changes (`crates/**`), release/build script changes, and `Makefile` edits that touch Rust release/build/install targets: `make ci` (release-shaped Rust gate)
+- App bundle, schemas, macOS/Xcode bundling scripts, toolchain changes, and `Makefile` edits that touch macOS build/test targets: `make macos-ci`
+
+`Makefile` and `scripts/**` are **not** blanket macOS triggers anymore. CI/router-only edits (for example `scripts/agent-ci-surface.sh`, `scripts/lib/release_policy.sh`, or `agent-ci` target wiring in `Makefile`) should stay below the Mac app gate.
+
+**Merge safety:** tier `ci` does not run Xcode or Swift tests. Before merging work that could affect the mac app, run `make macos-ci` or `RALPH_AGENT_CI_MIN_TIER=macos-ci make agent-ci` at least once.
+
+Lower-level gate reference (mostly implementation detail / power-user material):
 
 Docs-only gate (`ci-docs`) pipeline:
 
@@ -90,19 +101,19 @@ check-env-safety → check-backup-artifacts
 Fast gate (`ci-fast`) pipeline:
 
 ```
-check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test
+check-env-safety → check-backup-artifacts → deps → format-check → type-check → lint → test
 ```
 
 Full Rust release gate (`ci`) adds:
 
 ```
-build → generate → install
+build → generate → install-verify
 ```
 
 Canonical full `make ci` pipeline:
 
 ```
-check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install
+check-env-safety → check-backup-artifacts → deps → format-check → type-check → lint → test → build → generate → install-verify
 ```
 
 Run required gate with:
@@ -110,6 +121,8 @@ Run required gate with:
 ```bash
 make agent-ci
 # Optional (shared workstation): RALPH_CI_JOBS=4 make agent-ci
+# Optional (raise floor): RALPH_AGENT_CI_MIN_TIER=macos-ci make agent-ci
+# Optional (faster local Xcode iteration): RALPH_XCODE_KEEP_DERIVED_DATA=1 make macos-ci
 ```
 
 Do not commit or push changes if `make agent-ci` is failing. Fix all issues first.
@@ -333,6 +346,8 @@ None.
 ### Local-CI-First Philosophy
 
 This repository is local-CI-first. We avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make agent-ci`. The local CI gate is the source of truth.
+
+Narrow exception: a small GitHub-hosted readiness workflow may exist when it is explicitly coordinating demo automation sequencing rather than replacing validation. The current example is `Cursor Finish Line Ready`, which waits for selected Cursor Automation checks and emits one success check for the downstream `PR Finish Line` automation. It is orchestration glue only, not canonical CI.
 
 ### Public Release Readiness
 

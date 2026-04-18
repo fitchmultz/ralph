@@ -246,7 +246,7 @@ Plan cached to .ralph/cache/plans/RQ-0001.md
 
 === Phase 2: Implementation ===
 Implementing plan...
-Running CI gate: make ci
+Running CI gate: make agent-ci
 ✓ CI passed
 
 === Phase 3: Review ===
@@ -287,7 +287,7 @@ Ralph uses a structured **3-phase workflow** to ensure quality. Understanding th
 **Phase 2: Implementation**
 - The AI executes the cached plan
 - Changes are applied to the codebase
-- The CI gate (`make ci`) runs automatically
+- The configured CI gate (`make agent-ci` in this repo) runs automatically
 - If CI fails, the AI attempts to fix issues
 
 **Phase 3: Review**
@@ -471,9 +471,9 @@ A minimal effective configuration:
     "phases": 3,                  // Default phase count (1, 2, or 3)
     "iterations": 1,              // Iterations per task
     "reasoning_effort": "medium", // Codex: low/medium/high/xhigh
-    "ci_gate": {                  // Run make ci before completion
+    "ci_gate": {                  // Run make agent-ci before completion in this repo
       "enabled": true,
-      "argv": ["make", "ci"]
+      "argv": ["make", "agent-ci"]
     },
     "git_publish_mode": "off",    // off / commit / commit_and_push
     "git_revert_mode": "ask"      // ask/enabled/disabled
@@ -739,7 +739,7 @@ ralph prd create requirements.md
 4. **Archive regularly**: Keep your queue clean with `ralph queue archive`
 5. **Run doctor**: Check `ralph doctor` if something seems off
 6. **Version control**: Keep your `.ralph/` directory in git
-7. **CI gate**: Always ensure `make ci` passes before considering work done
+7. **CI gate**: Always ensure the configured CI gate passes before considering work done (`make agent-ci` in this repo)
 
 ### Getting Help
 

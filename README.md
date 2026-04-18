@@ -212,21 +212,17 @@ In most consumer repositories, `.ralph/` is project-local runtime state managed 
 ## Development
 
 ```bash
-# Fast deterministic Rust/CLI checks
-make ci-fast
-
-# Path-aware gate (auto-escalates to macOS checks when app paths changed)
+# Required everyday gate
 make agent-ci
 
-# Full Rust release gate
-make ci
-
-# Full ship gate (includes macOS app checks)
-make macos-ci
+# Heaviest final gate before release/publication
+make release-gate
 
 # Public-readiness audit
 make pre-public-check
 ```
+
+`make agent-ci` is the command most contributors and agents should use by default. The lower-level targets (`ci-docs`, `ci-fast`, `ci`, `macos-ci`) still exist, but they are mainly the implementation details behind that router and explicit power-user escape hatches.
 
 ## License
 

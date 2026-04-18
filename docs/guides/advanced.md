@@ -1060,8 +1060,8 @@ ralph run one --force --allow-dirty
 
 **Problem:** CI repeatedly fails
 ```bash
-# Run CI manually to see output
-make ci
+# Run the configured CI gate manually to see output
+make agent-ci
 
 # Check CI command config
 ralph config show | grep ci_gate

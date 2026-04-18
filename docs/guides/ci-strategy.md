@@ -7,6 +7,7 @@ Purpose: canonical operator guide for local validation gates, profiling, and mac
 - Keep default contributor checks fast and deterministic.
 - Keep heavy/interactive checks opt-in and clearly labeled.
 - Keep shared-workstation resource caps explicit and opt-in.
+- Keep GitHub-hosted workflow glue narrowly scoped to sequencing/integration; it must never replace local `make agent-ci` as the validation source of truth.
 
 ## Required for Day-to-Day Development (PR-equivalent)
 
@@ -16,13 +17,40 @@ Run:
 make agent-ci
 ```
 
+For almost all day-to-day work, stop there. Treat `ci-docs`, `ci-fast`, `ci`, and `macos-ci` as the internal tiers behind `make agent-ci`, or as explicit escape hatches when you intentionally want a specific heavier/lighter gate.
+
 Behavior:
 
-- Routes docs/community-only changes to `make ci-docs`.
-- Routes non-app executable changes to `make ci-fast`.
-- Auto-escalates to macOS gate when the changed dependency surface can affect the bundled app contract (CLI/runtime/config/build/app paths).
+- `make agent-ci` classifies only the **current uncommitted local diff**: unstaged changes, staged changes, and untracked files. Earlier commits already on the branch do **not** affect routing.
+- With **no local changes**, `make agent-ci` exits successfully without running a gate.
+- **Tier A — `make ci-docs`**: all changed paths are docs/community-only (see classifier allowlist in `scripts/lib/release_policy.sh`).
+- **Tier B — `make ci-fast`**: any non-docs path that is not a Rust crate path and not a macOS ship-surface path (for example repo-only metadata like `.gitignore`).
+- **Tier C — `make ci`**: any change under `crates/**`, plus release/build script changes and `Makefile` edits that touch Rust release/build/install targets (release-shaped Rust: `ci-fast` + release build + schema generation + install checks).
+- **Tier D — `make macos-ci`**: any path that affects the app bundle, committed schemas, toolchain, macOS/Xcode bundling scripts, or `Makefile` macOS build/test targets (`apps/RalphMac/**`, `apps/AGENTS.md`, `schemas/**`, `scripts/ralph-cli-bundle.sh`, `scripts/macos-*.sh`, `scripts/lib/xcodebuild-lock.sh`, `VERSION`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `.cargo/**`).
+- `scripts/agent-ci-surface.sh`, `scripts/lib/release_policy.sh`, and CI/router-only `Makefile` edits deliberately stay below tier D so local tooling changes do not rebuild the Mac app.
+- Tier C **does not** run Xcode or Swift tests; it can miss Swift-side integration drift until a tier D run. Use `RALPH_AGENT_CI_MIN_TIER=macos-ci` or run `make macos-ci` before merge when that risk matters (see below).
 - On source snapshots without `.git/`, falls back to `make release-gate` so verification stays platform-aware instead of assuming macOS-only tooling.
 - The source-snapshot path still fails closed on local/runtime artifacts such as `target/`, unallowlisted `.ralph/*` content, repo-local env files (`.env`, `.env.*`, `.envrc` except `.env.example`), local notes (`.scratchpad.md`, `.FIX_TRACKING.md`), and `apps/RalphMac/build/`.
+
+Optional environment (see `make help`):
+
+- `RALPH_AGENT_CI_FORCE_MACOS=1` — always run `macos-ci` from `agent-ci`.
+- `RALPH_AGENT_CI_MIN_TIER=ci-fast|ci|macos-ci` — raise the selected gate to at least that tier (for example `macos-ci` before merge).
+- `RALPH_XCODE_KEEP_DERIVED_DATA=1` — skip deleting Xcode derived data under `target/tmp/xcode-deriveddata` for `macos-build` / default `macos-test` (faster local iteration; default remains clean derived data per run).
+
+### `make ci` on macOS and `macos-ci` dependency graph
+
+`make ci` is intentionally Rust-only, even on macOS: it stops at `install-verify` and does not invoke `macos-install-app` or `xcodebuild`. `make install` remains the explicit operator command that installs both the CLI and RalphMac.app on macOS. `make macos-ci` still layers `ci` plus `macos-build`, `macos-test`, and deterministic app contracts.
+
+### Release build stamp and bundling
+
+- The release stamp `target/tmp/stamps/ralph-release-build.stamp` is updated when `Cargo.toml`, `Cargo.lock`, `VERSION`, `rust-toolchain.toml`, `scripts/ralph-cli-bundle.sh`, or tracked Rust sources under `crates/**` are newer than the stamp (no unconditional `FORCE` rebuild).
+- `install` copies from `target/release/ralph` after the stamp recipe runs, avoiding a second `ralph-cli-bundle.sh` invocation in the same gate.
+- Xcode’s “Build and Bundle ralph” phase copies `target/release/ralph` into the app bundle for **Release** when that binary already exists; otherwise it falls back to `ralph-cli-bundle.sh` (for example Debug builds or cold Xcode-only builds).
+
+### Cleaning `target/tmp`
+
+`make clean-temp` removes `target/tmp`, which holds the release stamp and Xcode derived data defaults. The next gate run will behave like a cold build.
 
 Docs/community-only gate is `make ci-docs`:
 
@@ -35,10 +63,14 @@ Fast Rust/CLI gate is `make ci-fast`:
 - `check-env-safety` (runs required-file + secret checks everywhere, and adds tracked runtime/local-only file validation when git metadata is available)
 - `check-backup-artifacts`
 - `deps`
-- `format`
+- `format-check`
 - `type-check`
 - `lint`
 - `test`
+
+## Lower-Level Gates
+
+The targets below exist so `make agent-ci` has something to route to and so power users can run a specific tier on purpose. They are not the normal command most contributors should memorize.
 
 ## Full Rust Release Gate
 
@@ -52,7 +84,7 @@ Includes `ci-fast` plus release-shape checks:
 
 - release build
 - schema generation
-- install verification
+- CLI install verification (`install-verify`)
 
 Use this before release tagging and public-readiness checks.
 
@@ -120,7 +152,12 @@ Defaults:
 
 - `RALPH_CI_JOBS=0` lets cargo/nextest use tool-managed parallelism for fastest local iteration.
 - `RALPH_XCODE_JOBS=0` keeps xcodebuild on tool-managed parallelism by default; set `RALPH_XCODE_JOBS=4` on shared workstations when you need a cap.
+- `RALPH_XCODE_KEEP_DERIVED_DATA=0` deletes Xcode derived data for `macos-build` / default `macos-test` before building (reproducible; slower when iterating).
 - Set either value explicitly (for example `RALPH_CI_JOBS=4`) on shared workstations.
+
+## Demo automation readiness exception
+
+A narrow GitHub-hosted workflow may exist for demo automation sequencing. The current example is `Cursor Finish Line Ready`, which waits for selected Cursor Automation checks to settle on the same PR head SHA and then emits one success check that a downstream Cursor automation can trigger from. Treat it as orchestration glue, not repository CI.
 
 ## Suggested Cadence
 

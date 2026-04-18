@@ -29,14 +29,9 @@ Ralph follows semantic versioning:
 Before tagging:
 
 ```bash
-make ci
+make agent-ci
+make release-gate
 make pre-public-check
-```
-
-If macOS app changes are included:
-
-```bash
-make macos-ci
 ```
 
 Release/versioning invariants:

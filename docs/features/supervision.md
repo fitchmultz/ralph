@@ -11,7 +11,7 @@ Ralph's supervision system provides human-in-the-loop oversight for CI gate enfo
 The supervision system orchestrates the post-execution workflow after an AI runner completes a task. It serves as the quality gate between task implementation and task completion, handling:
 
 **Core Responsibilities:**
-- **CI Gate Enforcement**: Running the configured CI command (`make ci` by default) to validate changes
+- **CI Gate Enforcement**: Running the configured CI command (`make ci` fallback; this repo config uses `make agent-ci`) to validate changes
 - **Git State Management**: Committing, pushing, and reverting changes based on outcomes
 - **Queue Updates**: Marking tasks as done, archiving completed work, and managing task lifecycle
 - **Session Resumption**: Coordinating continue/resume cycles for CI failure recovery
@@ -37,7 +37,7 @@ The CI gate is Ralph's primary quality enforcement mechanism. It runs after task
   "agent": {
     "ci_gate": {
       "enabled": true,
-      "argv": ["make", "ci"]
+      "argv": ["make", "agent-ci"]
     }
   }
 }
@@ -46,7 +46,7 @@ The CI gate is Ralph's primary quality enforcement mechanism. It runs after task
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `ci_gate.enabled` | `true` | Enable/disable the CI gate entirely |
-| `ci_gate.argv` | `["make", "ci"]` | Direct argv command to run for validation |
+| `ci_gate.argv` | `["make", "ci"]` | Direct argv command to run for validation (this repo overrides it to `["make", "agent-ci"]`) |
 
 ### Command Execution
 
@@ -57,8 +57,11 @@ The CI gate command:
 
 **Example Commands:**
 ```bash
-# Default (most projects)
+# Generic fallback (most projects unless repo config overrides it)
 "make ci"
+
+# This repository
+"make agent-ci"
 
 # Rust projects
 "cargo test && cargo clippy"
@@ -322,7 +325,7 @@ The Phase 2 → Phase 3 handoff includes a completion checklist that ensures imp
 
 The Phase 2 handoff checklist (`.ralph/prompts/phase2_handoff_checklist.md`) typically includes:
 
-- **CI Gate**: `make ci` passes with no warnings
+- **CI Gate**: the configured CI gate passes with no warnings (`make agent-ci` in this repo)
 - **No deferrals**: Phase 2 closes follow-ups it discovers; only true blockers may remain, with explicit remediation steps
 - **Documentation**: Module docs updated for changed files
 - **Tests**: New behavior covered (success + failure modes)

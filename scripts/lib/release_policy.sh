@@ -407,12 +407,63 @@ public_is_docs_only_path() {
     return 1
 }
 
-public_requires_macos_ci_for_path() {
+# Tier D (`make macos-ci`): app bundle, toolchain, committed schemas, and macOS-specific build surfaces.
+public_requires_macos_ship_gate_for_path() {
     local path="$1"
     case "$path" in
-        apps/RalphMac/*|apps/AGENTS.md|crates/*|schemas/*|scripts/*|VERSION|Cargo.toml|Cargo.lock|Makefile|rust-toolchain.toml|.cargo/*)
+        apps/RalphMac/*|apps/AGENTS.md|schemas/*|VERSION|Cargo.toml|Cargo.lock|rust-toolchain.toml|.cargo/*)
             return 0
             ;;
     esac
+    return 1
+}
+
+# Tier D script subset: bundling, macOS app contracts, and Xcode locking.
+public_requires_macos_ship_gate_for_script_path() {
+    local path="$1"
+    case "$path" in
+        scripts/ralph-cli-bundle.sh|scripts/macos-*|scripts/lib/xcodebuild-lock.sh)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# Tier C (`make ci`): Rust crate sources and crate-local metadata (release-shaped CLI gate).
+public_requires_rust_release_gate_for_path() {
+    local path="$1"
+    case "$path" in
+        crates/*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# Tier C script subset: release/build metadata plumbing that does not require Xcode app validation.
+public_requires_rust_release_gate_for_script_path() {
+    local path="$1"
+    case "$path" in
+        scripts/build-release-artifacts.sh|scripts/release.sh|scripts/versioning.sh|scripts/profile-ship-gate.sh)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# Backward-compatible union used by older call sites: true if either ship gate or Rust crates changed.
+public_requires_macos_ci_for_path() {
+    if public_requires_macos_ship_gate_for_path "$1"; then
+        return 0
+    fi
+    if public_requires_macos_ship_gate_for_script_path "$1"; then
+        return 0
+    fi
+    if public_requires_rust_release_gate_for_path "$1"; then
+        return 0
+    fi
+    if public_requires_rust_release_gate_for_script_path "$1"; then
+        return 0
+    fi
     return 1
 }
