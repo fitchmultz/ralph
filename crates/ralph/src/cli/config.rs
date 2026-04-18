@@ -149,11 +149,42 @@ fn format_profile_summary(patch: &contracts::AgentConfig) -> String {
     if let Some(effort) = &patch.reasoning_effort {
         parts.push(format!("effort={}", format_reasoning_effort(*effort)));
     }
+    if let Some(mode) = &patch.claude_permission_mode {
+        parts.push(format!(
+            "claude_permission_mode={}",
+            format_claude_permission_mode(*mode)
+        ));
+    }
+    if let Some(mode) = patch.effective_approval_mode() {
+        parts.push(format!(
+            "approval_mode={}",
+            format_runner_approval_mode(mode)
+        ));
+    }
+    if let Some(mode) = patch.effective_git_publish_mode() {
+        parts.push(format!("git_publish_mode={}", mode.as_str()));
+    }
 
     if parts.is_empty() {
         "no overrides".to_string()
     } else {
         parts.join(", ")
+    }
+}
+
+fn format_claude_permission_mode(mode: contracts::ClaudePermissionMode) -> &'static str {
+    match mode {
+        contracts::ClaudePermissionMode::AcceptEdits => "accept_edits",
+        contracts::ClaudePermissionMode::BypassPermissions => "bypass_permissions",
+    }
+}
+
+fn format_runner_approval_mode(mode: contracts::RunnerApprovalMode) -> &'static str {
+    match mode {
+        contracts::RunnerApprovalMode::Default => "default",
+        contracts::RunnerApprovalMode::AutoEdits => "auto_edits",
+        contracts::RunnerApprovalMode::Yolo => "yolo",
+        contracts::RunnerApprovalMode::Safe => "safe",
     }
 }
 
@@ -210,4 +241,37 @@ pub enum ConfigProfilesCommand {
     List,
     /// Show one configured profile (effective patch).
     Show { name: String },
+}
+
+#[cfg(test)]
+mod profile_summary_tests {
+    use super::*;
+    use crate::agent;
+
+    #[test]
+    fn builtin_safe_profile_summary_includes_safety_and_publish() {
+        let patch = agent::resolve_profile_patch("safe", None).expect("builtin safe");
+        let summary = format_profile_summary(&patch);
+        assert!(summary.contains("approval_mode=safe"), "{summary}");
+        assert!(
+            summary.contains("claude_permission_mode=accept_edits"),
+            "{summary}"
+        );
+        assert!(summary.contains("git_publish_mode=off"), "{summary}");
+    }
+
+    #[test]
+    fn builtin_power_user_profile_summary_includes_safety_and_publish() {
+        let patch = agent::resolve_profile_patch("power-user", None).expect("builtin power-user");
+        let summary = format_profile_summary(&patch);
+        assert!(summary.contains("approval_mode=yolo"), "{summary}");
+        assert!(
+            summary.contains("claude_permission_mode=bypass_permissions"),
+            "{summary}"
+        );
+        assert!(
+            summary.contains("git_publish_mode=commit_and_push"),
+            "{summary}"
+        );
+    }
 }

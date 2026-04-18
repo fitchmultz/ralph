@@ -2,7 +2,7 @@
 
 ![Custom Profiles](../assets/images/2026-03-10-12-11-39-profiles.png)
 
-Purpose: Document Ralph's custom configuration profiles feature for quick workflow switching between user-defined AI runner presets.
+Purpose: Document Ralph's configuration profiles feature for quick workflow switching between named `agent` presets.
 
 ---
 
@@ -11,17 +11,26 @@ Purpose: Document Ralph's custom configuration profiles feature for quick workfl
 Configuration profiles let you name a reusable `agent` patch and apply it with `--profile <NAME>`.
 
 Profiles are:
-- Defined by you in `.ralph/config.jsonc` or `~/.config/ralph/config.jsonc`
+- Defined under the `profiles` key in `.ralph/config.jsonc` or `~/.config/ralph/config.jsonc` (your profiles are additive patches on top of base `agent` settings)
 - Applied before CLI overrides are resolved
 - Useful for standardizing repeatable workflows without typing many flags each time
 
-Profiles are not built in. If you want names like `quick` or `thorough`, define them explicitly in your config.
+Ralph ships two **built-in** reserved profiles, `safe` and `power-user`, that always apply their own safety and git-publish defaults. You cannot redefine those names in config; add separate custom profile names instead (for example `quick` or `thorough`).
+
+## Built-in profiles
+
+| Name | Purpose (summary) |
+|------|-------------------|
+| `safe` | Stricter runner approvals, conservative Claude permissions, git publish off |
+| `power-user` | Permissive runner approvals, Claude bypass permissions, commit and push after success |
+
+Use `ralph config profiles list` to see the effective one-line summary for each name, including built-ins.
 
 ## Example Profiles
 
 ```jsonc
 {
-  "version": 1,
+  "version": 2,
   "agent": {
     "runner": "codex",
     "model": "gpt-5.4",
@@ -94,7 +103,7 @@ That means a profile can stay small:
 
 ## Recreating Old Names
 
-If your team still wants `quick` or `thorough`, define them directly:
+If your team still wants `quick` or `thorough`, define them directly (these are custom names, not reserved):
 
 ```jsonc
 {
@@ -115,10 +124,10 @@ If your team still wants `quick` or `thorough`, define them directly:
 }
 ```
 
-This is now just a normal custom-profile pattern, not special built-in behavior.
+This is a normal custom-profile pattern layered on top of base `agent` settings.
 
 ## Troubleshooting
 
-- `Unknown profile`: the selected name is not defined in your config. Run `ralph config profiles list` to confirm what exists.
-- `No profiles configured`: add a `profiles` object to `.ralph/config.jsonc` or `~/.config/ralph/config.jsonc`.
+- `Unknown profile`: the selected name is not defined in your config and is not a built-in name. Run `ralph config profiles list` to confirm what exists.
+- `No profiles configured`: you have no `profiles` object in config; built-in `safe` and `power-user` are still listed by `ralph config profiles list`.
 - Need one-off changes: keep the profile small and override the rest with CLI flags.

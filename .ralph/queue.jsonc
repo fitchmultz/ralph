@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0020",
-      "status": "todo",
-      "title": "Make built-in profile behavior visible in CLI and docs",
-      "description": "Principles violated: G) Least astonishment, J) Consistency/Integrity. The CLI lists built-in profiles safe and power-user as no overrides even though they change approval and git publish behavior. The profiles feature doc also says profiles are not built in and uses stale config version 1 examples. Minimal fix: update profile summaries to include safety/publish overrides and align docs with the built-in profile contract.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "profiles",
-        "docs",
-        "cli"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/config.rs",
-        "crates/ralph/src/contracts/config/profiles.rs",
-        "crates/ralph/src/agent/profiles.rs",
-        "docs/features/profiles.md"
-      ],
-      "evidence": [
-        "workflow: ralph config profiles list :: output was Available profiles: power-user - no overrides; safe - no overrides.",
-        "path: crates/ralph/src/cli/config.rs:136 :: format_profile_summary only summarizes runner, model, phases, and reasoning_effort.",
-        "path: crates/ralph/src/contracts/config/profiles.rs:27 :: power-user sets claude_permission_mode bypass, approval_mode yolo, and git_publish_mode commit_and_push.",
-        "path: crates/ralph/src/contracts/config/profiles.rs:42 :: safe sets claude_permission_mode accept-edits, approval_mode safe, and git_publish_mode off.",
-        "path: docs/features/profiles.md:18 :: docs say profiles are not built in.",
-        "path: docs/features/profiles.md:24 :: docs use config version 1.",
-        "path: crates/ralph/src/agent/profiles.rs:46 :: tests assert built-in safe and power-user profiles are listed."
-      ],
-      "plan": [
-        "Extend format_profile_summary to include approval_mode, claude_permission_mode, and git_publish_mode in concise list output.",
-        "Add focused tests for built-in profile summaries so safety-sensitive overrides cannot disappear from the CLI again.",
-        "Update docs/features/profiles.md to say safe and power-user are built in, user profiles are additive, reserved names cannot be redefined, and examples use version 2.",
-        "Verify by running ralph config profiles list and confirming safe and power-user display their safety/publish behavior."
-      ],
-      "notes": [],
-      "request": "scan: Simplify code while preserving nuanced runner behavior",
-      "created_at": "2026-04-17T23:11:06Z",
-      "updated_at": "2026-04-17T23:11:06Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0024",
       "status": "todo",
       "title": "Centralize supported-runner wording in docs and schema",
