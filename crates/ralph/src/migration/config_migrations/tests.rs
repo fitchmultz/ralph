@@ -15,6 +15,7 @@
 //!   former inline config migration test block.
 //! - Only import paths should change as needed for the new module layout.
 
+use super::ci_gate::rewrite_ci_gate_in_file;
 use super::detect::config_file_has_key;
 use super::keys::{remove_key_in_file, rename_key_in_file, rename_key_in_text};
 use super::legacy::{config_file_needs_legacy_contract_upgrade, upgrade_legacy_contract_in_file};
@@ -443,4 +444,62 @@ fn legacy_contract_upgrade_preserves_existing_git_publish_mode() {
         agent.get("git_publish_mode").and_then(|v| v.as_str()),
         Some("commit")
     );
+}
+
+#[test]
+fn ci_gate_rewrite_migrates_simple_legacy_command_in_file() {
+    let dir = TempDir::new().unwrap();
+    let config_path = dir.path().join("config.jsonc");
+    fs::write(
+        &config_path,
+        r#"{
+  "version": 2,
+  "agent": {
+    "runner": "claude",
+    "ci_gate_command": "make ci",
+    "ci_gate_enabled": true
+  }
+}"#,
+    )
+    .unwrap();
+
+    rewrite_ci_gate_in_file(&config_path).unwrap();
+
+    let value = jsonc_parser::parse_to_serde_value::<serde_json::Value>(
+        &fs::read_to_string(&config_path).unwrap(),
+        &Default::default(),
+    )
+    .unwrap();
+    let agent = value.get("agent").unwrap();
+    assert!(agent.get("ci_gate_command").is_none());
+    assert!(agent.get("ci_gate_enabled").is_none());
+    let gate = agent.get("ci_gate").unwrap();
+    assert_eq!(gate.get("enabled").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(
+        gate.get("argv").cloned(),
+        Some(serde_json::json!(["make", "ci"]))
+    );
+}
+
+#[test]
+fn ci_gate_rewrite_leaves_file_unchanged_on_compound_legacy_command() {
+    let dir = TempDir::new().unwrap();
+    let config_path = dir.path().join("config.jsonc");
+    let original = r#"{
+  "version": 2,
+  "agent": {
+    "ci_gate_command": "cargo test && cargo clippy",
+    "ci_gate_enabled": true
+  }
+}"#;
+    fs::write(&config_path, original).unwrap();
+
+    let err = rewrite_ci_gate_in_file(&config_path).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("cannot migrate legacy agent.ci_gate_command"),
+        "{err}"
+    );
+
+    assert_eq!(fs::read_to_string(&config_path).unwrap(), original);
 }

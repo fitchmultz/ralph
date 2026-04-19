@@ -14,7 +14,9 @@
 //!
 //! Invariants/Assumptions:
 //! - Disabled legacy CI gate maps to `{ "enabled": false }`.
-//! - Enabled legacy shell strings are migrated to argv-only execution via `shlex::split`.
+//! - Enabled legacy shell strings are migrated to argv-only execution via `shlex::split`
+//!   only when the string has no shell control operators outside quotes (no lossy
+//!   migration of `&&`, pipes, redirects, and so on).
 //! - Missing/empty legacy commands default to `make ci`.
 
 use anyhow::{Context, Result};
@@ -34,7 +36,7 @@ pub fn apply_ci_gate_rewrite(ctx: &MigrationContext) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn rewrite_ci_gate_in_file(path: &Path) -> Result<()> {
+pub(crate) fn rewrite_ci_gate_in_file(path: &Path) -> Result<()> {
     if !path.exists() {
         return Ok(());
     }
@@ -68,7 +70,7 @@ pub(super) fn rewrite_ci_gate_in_file(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn build_ci_gate_value(legacy_command: Option<&Value>, enabled: bool) -> Result<Value> {
+pub(crate) fn build_ci_gate_value(legacy_command: Option<&Value>, enabled: bool) -> Result<Value> {
     if !enabled {
         return Ok(serde_json::json!({ "enabled": false }));
     }
@@ -78,6 +80,15 @@ pub(super) fn build_ci_gate_value(legacy_command: Option<&Value>, enabled: bool)
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or("make ci");
+
+    if let Some(reason) = legacy_ci_gate_command_rejects_lossless_migration(command) {
+        anyhow::bail!(
+            "cannot migrate legacy agent.ci_gate_command: {reason} \
+             Replace it with a checked-in script (for example ./scripts/ci.sh) and set \
+             agent.ci_gate.argv to an explicit argv array such as [\"./scripts/ci.sh\"]. \
+             Original command: {command}"
+        );
+    }
 
     let argv = shlex::split(command).ok_or_else(|| {
         anyhow::anyhow!(
@@ -93,4 +104,118 @@ pub(super) fn build_ci_gate_value(legacy_command: Option<&Value>, enabled: bool)
         "enabled": true,
         "argv": argv,
     }))
+}
+
+/// Returns a short rejection reason when the legacy string cannot be migrated to argv
+/// without a shell (compound commands, pipes, redirects, and so on).
+fn legacy_ci_gate_command_rejects_lossless_migration(command: &str) -> Option<&'static str> {
+    let bytes = command.as_bytes();
+    let mut i = 0usize;
+    let mut in_single = false;
+    let mut in_double = false;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+
+        if in_single {
+            if b == b'\'' {
+                in_single = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_double {
+            if b == b'\\' && i + 1 < bytes.len() {
+                i += 2;
+                continue;
+            }
+            if b == b'"' {
+                in_double = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        match b {
+            b'\'' => {
+                in_single = true;
+                i += 1;
+            }
+            b'"' => {
+                in_double = true;
+                i += 1;
+            }
+            b'&' => {
+                if bytes.get(i..i + 2) == Some(b"&&") {
+                    return Some("command contains `&&` outside quotes.");
+                }
+                return Some("command contains `&` outside quotes (background or shell syntax).");
+            }
+            b'|' => {
+                if bytes.get(i..i + 2) == Some(b"||") {
+                    return Some("command contains `||` outside quotes.");
+                }
+                return Some("command contains `|` (shell pipe) outside quotes.");
+            }
+            b';' => return Some("command contains `;` (shell command separator) outside quotes."),
+            b'<' => return Some("command contains `<` (shell redirect) outside quotes."),
+            b'>' => return Some("command contains `>` (shell redirect) outside quotes."),
+            b'(' | b')' => {
+                return Some("command contains `(` or `)` outside quotes (subshell/grouping).");
+            }
+            b'`' => {
+                return Some("command contains backticks (command substitution) outside quotes.");
+            }
+            b'$' if bytes.get(i + 1).copied() == Some(b'(') => {
+                return Some("command contains `$(` (command substitution) outside quotes.");
+            }
+            _ => i += 1,
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_ci_gate_value;
+    use serde_json::json;
+
+    #[test]
+    fn build_ci_gate_migrates_simple_legacy_command() {
+        let out = build_ci_gate_value(Some(&json!("make ci")), true).unwrap();
+        assert_eq!(out["enabled"], true);
+        assert_eq!(out["argv"], json!(["make", "ci"]));
+    }
+
+    #[test]
+    fn build_ci_gate_disabled_ignores_command() {
+        let out = build_ci_gate_value(Some(&json!("cargo test && cargo clippy")), false).unwrap();
+        assert_eq!(out["enabled"], false);
+        assert!(out.get("argv").is_none());
+    }
+
+    #[test]
+    fn build_ci_gate_rejects_double_ampersand() {
+        let err =
+            build_ci_gate_value(Some(&json!("cargo test && cargo clippy")), true).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("cannot migrate legacy agent.ci_gate_command"),
+            "{err}"
+        );
+        assert!(err.to_string().contains("&&"), "{err}");
+    }
+
+    #[test]
+    fn build_ci_gate_accepts_ampersand_inside_single_quotes() {
+        let out = build_ci_gate_value(Some(&json!("echo 'a&&b'")), true).unwrap();
+        assert_eq!(out["argv"], json!(["echo", "a&&b"]));
+    }
+
+    #[test]
+    fn build_ci_gate_rejects_pipe() {
+        let err = build_ci_gate_value(Some(&json!("cargo fmt | cargo clippy")), true).unwrap_err();
+        assert!(err.to_string().contains("|"), "{err}");
+    }
 }
