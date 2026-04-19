@@ -1,8 +1,9 @@
 # Purpose: Publish a PR-head GitHub check that turns green only after the demo Cursor
 #   propagation automations have all completed successfully for the current PR head SHA.
 # Responsibilities: Watch target Cursor Automation check completions, wait for the
-#   full set to settle on the same head SHA, and mirror readiness onto a dedicated
-#   `Cursor Finish Line Ready` check run attached to that PR head SHA.
+#   full set to settle on the same head SHA, mirror readiness onto a dedicated
+#   `Cursor Finish Line Ready` check run attached to that PR head SHA, and add/remove
+#   a deterministic PR label that downstream Cursor automations can target.
 # Scope: Demo automation sequencing only; this is not canonical repository CI.
 # Usage: Runs on check_run.completed for the three prerequisite check names only; resolves
 #   the PR via REST when the webhook payload omits pull_requests (common for GitHub App
@@ -23,6 +24,7 @@ on:
 permissions:
   checks: write
   contents: read
+  issues: write
   pull-requests: read
 
 concurrency:
@@ -51,6 +53,7 @@ jobs:
               'Cursor Automation: Idempotency Surface Propagator',
             ];
             const finishLineCheckName = 'Cursor Finish Line Ready';
+            const finishLineLabelName = 'cursor-finish-line-ready';
             const observed = context.payload.check_run;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
@@ -59,6 +62,7 @@ jobs:
             const deadlineMs = Date.now() + 35 * 60 * 1000;
             const detailsUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             let finishLineCheckRunId = null;
+            let finishLineLabelState = null;
 
             if (!headSha) {
               core.setFailed('Missing check_suite.head_sha on check_run payload.');
@@ -91,6 +95,8 @@ jobs:
               );
               return;
             }
+
+            prs = Array.from(new Map(prs.map((pr) => [pr.number, pr])).values());
 
             const prLabel = prs.map((pr) => `#${pr.number}`).join(', ');
 
@@ -188,6 +194,75 @@ jobs:
               return data;
             };
 
+            const ensureFinishLineLabelDefinition = async () => {
+              try {
+                await github.rest.issues.getLabel({
+                  owner,
+                  repo,
+                  name: finishLineLabelName,
+                });
+              } catch (error) {
+                if (error.status !== 404) {
+                  throw error;
+                }
+
+                core.info(`Creating repository label ${finishLineLabelName}.`);
+                try {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: finishLineLabelName,
+                    color: '0e8a16',
+                    description:
+                      'Cursor automation prerequisites are ready for the current PR head SHA.',
+                  });
+                } catch (createError) {
+                  if (createError.status !== 422) {
+                    throw createError;
+                  }
+                }
+              }
+            };
+
+            const syncFinishLineLabels = async ({ ready, reason }) => {
+              if (finishLineLabelState === ready) {
+                return;
+              }
+
+              if (ready) {
+                await ensureFinishLineLabelDefinition();
+                for (const pr of prs) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    labels: [finishLineLabelName],
+                  });
+                }
+                core.notice(`Applied ${finishLineLabelName} to ${prLabel} (${reason}).`);
+              } else {
+                for (const pr of prs) {
+                  try {
+                    await github.rest.issues.removeLabel({
+                      owner,
+                      repo,
+                      issue_number: pr.number,
+                      name: finishLineLabelName,
+                    });
+                  } catch (error) {
+                    if (error.status !== 404) {
+                      throw error;
+                    }
+                  }
+                }
+                core.info(
+                  `Ensured ${finishLineLabelName} is absent from ${prLabel} (${reason}).`
+                );
+              }
+
+              finishLineLabelState = ready;
+            };
+
             while (true) {
               const { data } = await github.rest.checks.listForRef({
                 owner,
@@ -216,6 +291,10 @@ jobs:
 
               if (failed.length > 0) {
                 const message = `Finish-line prerequisites failed for ${headSha}: ${failed.map((entry) => `${entry.name}=${entry.conclusion}`).join(', ')}`;
+                await syncFinishLineLabels({
+                  ready: false,
+                  reason: 'a prerequisite check failed',
+                });
                 await upsertFinishLineCheckRun({
                   status: 'completed',
                   conclusion: 'failure',
@@ -223,6 +302,7 @@ jobs:
                   summary: [
                     `PRs: ${prLabel}`,
                     `Commit: ${headSha}`,
+                    `Label: ${finishLineLabelName} (removed)`,
                     '',
                     message,
                     '',
@@ -234,6 +314,10 @@ jobs:
               }
 
               if (missing.length === 0 && pending.length === 0) {
+                await syncFinishLineLabels({
+                  ready: true,
+                  reason: 'all prerequisite checks succeeded',
+                });
                 await upsertFinishLineCheckRun({
                   status: 'completed',
                   conclusion: 'success',
@@ -241,6 +325,7 @@ jobs:
                   summary: [
                     `PRs: ${prLabel}`,
                     `Commit: ${headSha}`,
+                    `Label: ${finishLineLabelName} (applied)`,
                     '',
                     'All required Cursor automation checks completed successfully.',
                     '',
@@ -253,6 +338,10 @@ jobs:
 
               if (Date.now() >= deadlineMs) {
                 const message = `Timed out waiting for Cursor automation prerequisites on ${headSha}. Missing: ${missing.map((entry) => entry.name).join(', ') || 'none'}. Pending: ${pending.map((entry) => `${entry.name}=${entry.status}`).join(', ') || 'none'}.`;
+                await syncFinishLineLabels({
+                  ready: false,
+                  reason: 'the readiness poll timed out',
+                });
                 await upsertFinishLineCheckRun({
                   status: 'completed',
                   conclusion: 'failure',
@@ -260,6 +349,7 @@ jobs:
                   summary: [
                     `PRs: ${prLabel}`,
                     `Commit: ${headSha}`,
+                    `Label: ${finishLineLabelName} (removed)`,
                     '',
                     message,
                     '',
@@ -270,12 +360,17 @@ jobs:
                 return;
               }
 
+              await syncFinishLineLabels({
+                ready: false,
+                reason: 'prerequisite checks are still pending',
+              });
               await upsertFinishLineCheckRun({
                 status: 'in_progress',
                 title: 'Waiting for Cursor automation prerequisites',
                 summary: [
                   `PRs: ${prLabel}`,
                   `Commit: ${headSha}`,
+                  `Label: ${finishLineLabelName} (not applied yet)`,
                   '',
                   'Waiting for all required Cursor automation checks to complete successfully.',
                   '',

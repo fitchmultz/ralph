@@ -157,7 +157,7 @@ Defaults:
 
 ## Demo automation readiness exception
 
-A narrow GitHub-hosted workflow may exist for demo automation sequencing. The current example is `Cursor Finish Line Ready`, which waits for selected Cursor Automation checks to settle on the same PR head SHA and then emits one success check that a downstream Cursor automation can trigger from. Treat it as orchestration glue, not repository CI.
+A narrow GitHub-hosted workflow may exist for demo automation sequencing. The current example is `Cursor Finish Line Ready`, which waits for selected Cursor Automation checks to settle on the same PR head SHA, keeps a visible readiness check updated, and applies the `cursor-finish-line-ready` PR label that the downstream `PR Finish Line` automation triggers from. Treat it as orchestration glue, not repository CI.
 
 ## Suggested Cadence
 

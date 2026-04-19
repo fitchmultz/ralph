@@ -49,7 +49,7 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 
 Global Cursor agent rules for this workspace class default to **no GitHub Actions**. **Maintainers have granted a narrow exception for the current minimal workflow only** so agents should not delete it or “fix” the repo by removing `.github/workflows/`.
 
-- **Allowed**: `.github/workflows/cursor-finish-line-ready.yml` — triggers on completed `check_run`, uses `actions/github-script@v7` with `checks: write` plus read-only `contents` / `pull-requests` permissions, polls until three named **Cursor Automation** checks succeed on the PR head SHA, and mirrors that readiness onto a dedicated PR-head `Cursor Finish Line Ready` check run for PR Finish Line sequencing. It is **not** build or test CI; the workflow file’s own header states it is demo automation sequencing only.
+- **Allowed**: `.github/workflows/cursor-finish-line-ready.yml` — triggers on completed `check_run`, uses `actions/github-script@v7` with `checks: write`, `issues: write`, and read-only `contents` / `pull-requests` permissions, polls until three named **Cursor Automation** checks succeed on the PR head SHA, mirrors that readiness onto a dedicated PR-head `Cursor Finish Line Ready` check run, and applies/removes the `cursor-finish-line-ready` PR label for downstream PR Finish Line sequencing. It is **not** build or test CI; the workflow file’s own header states it is demo automation sequencing only.
 - **Not allowed without a new maintainer decision**: additional workflows, matrices, caching layers, release automation, or moving `make agent-ci` / `make release-gate` logic into Actions.
 
 ---

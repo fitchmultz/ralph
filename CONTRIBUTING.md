@@ -347,7 +347,7 @@ None.
 
 This repository is local-CI-first. We avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make agent-ci`. The local CI gate is the source of truth.
 
-Narrow exception: a small GitHub-hosted readiness workflow may exist when it is explicitly coordinating demo automation sequencing rather than replacing validation. The current example is `Cursor Finish Line Ready`, which waits for selected Cursor Automation checks and emits one success check for the downstream `PR Finish Line` automation. It is orchestration glue only, not canonical CI.
+Narrow exception: a small GitHub-hosted readiness workflow may exist when it is explicitly coordinating demo automation sequencing rather than replacing validation. The current example is `Cursor Finish Line Ready`, which waits for selected Cursor Automation checks, keeps one readiness check updated for visibility, and applies the `cursor-finish-line-ready` PR label for the downstream `PR Finish Line` automation. It is orchestration glue only, not canonical CI.
 
 ### Public Release Readiness
 
