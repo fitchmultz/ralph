@@ -190,6 +190,7 @@ Every source file MUST start with `//!` docs covering:
 
 ### Operator Blocking State Contract
 - `contracts/blocking.rs` is the canonical operator-facing stalled/waiting model shared across CLI, machine NDJSON, queue runnability summaries, and RalphMac Run Control.
+- `BlockingState.observed_at` is optional RFC3339 UTC for when the snapshot was produced; queue runnability aligns it with `QueueRunnabilityReport.now`.
 - Use `BlockingState` for coarse "why is Ralph not making progress right now?" narration; keep per-task blocker detail in queue runnability reasons.
 - `blocked_state_changed` / `blocked_state_cleared` machine events, `MachineRunSummaryDocument.blocking`, `MachineDoctorReportDocument.blocking`, and `runnability.summary.blocking` must stay semantically aligned.
 - `DoctorReport.blocking` is the doctor-side source of truth for human CLI, `ralph doctor --format json`, and `ralph machine doctor report` diagnosis.

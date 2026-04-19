@@ -27,6 +27,7 @@ pub(super) fn queue_validation_failed_state(detail: String) -> BlockingState {
         detail,
         Some("ralph queue repair --dry-run".to_string()),
     )
+    .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
 }
 
 pub(super) fn repair_preview_continuation(changed: bool) -> MachineContinuationSummary {
@@ -34,15 +35,18 @@ pub(super) fn repair_preview_continuation(changed: bool) -> MachineContinuationS
         return MachineContinuationSummary {
             headline: "Repair preview is ready.".to_string(),
             detail: "Ralph found recoverable queue issues and can preserve the current queue by normalizing them.".to_string(),
-            blocking: Some(BlockingState::operator_recovery(
-                BlockingStatus::Stalled,
-                "queue_repair",
-                "repair_available",
-                None,
-                "Ralph found recoverable queue issues.",
-                "Preview completed successfully; apply the repair to continue from a normalized queue state.",
-                Some("ralph queue repair".to_string()),
-            )),
+            blocking: Some(
+                BlockingState::operator_recovery(
+                    BlockingStatus::Stalled,
+                    "queue_repair",
+                    "repair_available",
+                    None,
+                    "Ralph found recoverable queue issues.",
+                    "Preview completed successfully; apply the repair to continue from a normalized queue state.",
+                    Some("ralph queue repair".to_string()),
+                )
+                .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+            ),
             next_steps: vec![
                 step(
                     "Apply repair",

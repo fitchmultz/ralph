@@ -15,6 +15,8 @@
 //! Invariants/Assumptions:
 //! - `BlockingReason` is coarse system-level classification, not a per-task blocker dump.
 //! - `message` is the short operator-facing summary; `detail` carries supporting context.
+//! - `observed_at` is optional RFC3339 UTC (`Z`) marking when this blocking snapshot was produced;
+//!   queue runnability uses the same instant as `QueueRunnabilityReport.now`.
 //! - Fields remain machine-safe and versioned through the surrounding contract documents.
 
 use schemars::JsonSchema;
@@ -86,6 +88,9 @@ pub struct BlockingState {
     pub task_id: Option<String>,
     pub message: String,
     pub detail: String,
+    /// When this blocking condition was observed (RFC3339 UTC), for staleness and automation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_at: Option<String>,
 }
 
 impl BlockingState {
@@ -102,7 +107,14 @@ impl BlockingState {
             task_id,
             message: message.into(),
             detail: detail.into(),
+            observed_at: None,
         }
+    }
+
+    /// Attach the instant this blocking state was observed (RFC3339 UTC).
+    pub fn with_observed_at(mut self, observed_at: impl Into<String>) -> Self {
+        self.observed_at = Some(observed_at.into());
+        self
     }
 
     pub fn idle(include_draft: bool) -> Self {
@@ -274,5 +286,31 @@ impl BlockingState {
             message,
             detail,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observed_at_serializes_and_round_trips() {
+        let state = BlockingState::idle(false).with_observed_at("2026-04-19T15:30:00.123456789Z");
+        let json = serde_json::to_value(&state).expect("serialize");
+        assert_eq!(json["observed_at"], "2026-04-19T15:30:00.123456789Z");
+        let back: BlockingState = serde_json::from_value(json).expect("deserialize");
+        assert_eq!(back, state);
+    }
+
+    #[test]
+    fn observed_at_defaults_to_none_when_absent_in_json() {
+        let json = serde_json::json!({
+            "status": "waiting",
+            "reason": { "kind": "idle", "include_draft": false },
+            "message": "m",
+            "detail": "d"
+        });
+        let state: BlockingState = serde_json::from_value(json).expect("deserialize");
+        assert!(state.observed_at.is_none());
     }
 }

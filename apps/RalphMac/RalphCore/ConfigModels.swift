@@ -241,7 +241,8 @@ public struct MachineResumeDecision: Codable, Sendable, Equatable {
                 reason: .runnerRecovery(scope: scope, reason: reason, taskID: taskID),
                 taskID: taskID,
                 message: message,
-                detail: detail
+                detail: detail,
+                observedAt: nil
             )
         default:
             return nil

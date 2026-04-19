@@ -49,7 +49,8 @@ pub fn queue_runnability_report_at(
         .collect::<Vec<_>>();
 
     let mut summary = summarize_rows(active.tasks.len(), &tasks, options);
-    summary.blocking = derive_queue_blocking_state(&tasks, &summary, options.include_draft);
+    summary.blocking =
+        derive_queue_blocking_state(&tasks, &summary, options.include_draft, now_rfc3339);
     let selection = build_selection(active, &tasks, options);
 
     Ok(QueueRunnabilityReport {
@@ -119,13 +120,16 @@ fn derive_queue_blocking_state(
     rows: &[super::model::TaskRunnabilityRow],
     summary: &QueueRunnabilitySummary,
     include_draft: bool,
+    observed_at: &str,
 ) -> Option<BlockingState> {
+    let stamp = |state: BlockingState| state.with_observed_at(observed_at.to_string());
+
     if summary.runnable_candidates > 0 {
         return None;
     }
 
     if summary.candidates_total == 0 {
-        return Some(BlockingState::idle(include_draft));
+        return Some(stamp(BlockingState::idle(include_draft)));
     }
 
     let next_schedule = rows
@@ -145,20 +149,20 @@ fn derive_queue_blocking_state(
         summary.blocked_by_dependencies > 0,
         summary.blocked_by_schedule > 0,
     ) {
-        (true, false) => Some(BlockingState::dependency_blocked(
+        (true, false) => Some(stamp(BlockingState::dependency_blocked(
             summary.blocked_by_dependencies,
-        )),
-        (false, true) => Some(BlockingState::schedule_blocked(
+        ))),
+        (false, true) => Some(stamp(BlockingState::schedule_blocked(
             summary.blocked_by_schedule,
             next_schedule.as_ref().map(|(at, _)| at.clone()),
             next_schedule.as_ref().map(|(_, seconds)| *seconds),
-        )),
-        (true, true) => Some(BlockingState::mixed_queue(
+        ))),
+        (true, true) => Some(stamp(BlockingState::mixed_queue(
             summary.blocked_by_dependencies,
             summary.blocked_by_schedule,
             summary.blocked_by_status_or_flags,
-        )),
-        (false, false) => Some(BlockingState::idle(include_draft)),
+        ))),
+        (false, false) => Some(stamp(BlockingState::idle(include_draft))),
     }
 }
 

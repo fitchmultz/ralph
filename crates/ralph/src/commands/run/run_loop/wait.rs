@@ -124,9 +124,10 @@ pub(super) fn wait_for_work(
     loop {
         if timeout_seconds != 0 && start.elapsed().as_secs() >= timeout_seconds {
             return Ok(WaitExit::TimedOut {
-                state: last_state
-                    .clone()
-                    .unwrap_or_else(|| BlockingState::idle(include_draft)),
+                state: last_state.clone().unwrap_or_else(|| {
+                    BlockingState::idle(include_draft)
+                        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
+                }),
             });
         }
 
@@ -208,9 +209,11 @@ pub(super) fn wait_for_work(
                 match mode {
                     WaitMode::BlockedOnly => {
                         return Ok(WaitExit::QueueStillIdle {
-                            state: last_state
-                                .clone()
-                                .unwrap_or_else(|| BlockingState::idle(include_draft)),
+                            state: last_state.clone().unwrap_or_else(|| {
+                                BlockingState::idle(include_draft).with_observed_at(
+                                    crate::timeutil::now_utc_rfc3339_or_fallback(),
+                                )
+                            }),
                         });
                     }
                     WaitMode::EmptyAllowed => continue,

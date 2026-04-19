@@ -28,6 +28,7 @@ fn runner_blocking_state(
     detail: impl Into<String>,
 ) -> BlockingState {
     BlockingState::runner_recovery(scope, reason, None, message, detail)
+        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
 }
 
 pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolved) {

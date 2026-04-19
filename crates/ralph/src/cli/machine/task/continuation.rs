@@ -113,18 +113,21 @@ pub(super) fn decompose_continuation(
     MachineContinuationSummary {
         headline: "Decomposition preview is blocked from being written.".to_string(),
         detail: "Ralph preserved the proposed tree, but a queue invariant must be resolved before write mode can continue.".to_string(),
-        blocking: Some(BlockingState::operator_recovery(
-            BlockingStatus::Blocked,
-            "task_decompose",
-            "write_blocked",
-            preview
-                .attach_target
-                .as_ref()
-                .map(|target| target.task.id.clone()),
-            "Ralph is blocked from continuing this decomposition write.",
-            preview.write_blockers.join(" "),
-            Some("ralph task decompose --child-policy append --write ...".to_string()),
-        )),
+        blocking: Some(
+            BlockingState::operator_recovery(
+                BlockingStatus::Blocked,
+                "task_decompose",
+                "write_blocked",
+                preview
+                    .attach_target
+                    .as_ref()
+                    .map(|target| target.task.id.clone()),
+                "Ralph is blocked from continuing this decomposition write.",
+                preview.write_blockers.join(" "),
+                Some("ralph task decompose --child-policy append --write ...".to_string()),
+            )
+            .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+        ),
         next_steps: vec![
             step(
                 "Append under the existing parent",

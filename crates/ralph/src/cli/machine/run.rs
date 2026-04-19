@@ -261,7 +261,10 @@ fn emit_run_summary(
             task_id: None,
             exit_code: 0,
             outcome: "no_candidates".to_string(),
-            blocking: Some(crate::contracts::BlockingState::idle(false)),
+            blocking: Some(
+                crate::contracts::BlockingState::idle(false)
+                    .with_observed_at(timeutil::now_utc_rfc3339_or_fallback()),
+            ),
         }),
         Ok(RunOutcome::Blocked { state, .. }) => print_json_line(&MachineRunSummaryDocument {
             version: MACHINE_RUN_SUMMARY_VERSION,

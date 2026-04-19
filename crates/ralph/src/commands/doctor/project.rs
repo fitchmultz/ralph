@@ -34,6 +34,7 @@ fn doctor_ci_blocked(
         message,
         detail,
     )
+    .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
 }
 
 pub(crate) fn check_project(

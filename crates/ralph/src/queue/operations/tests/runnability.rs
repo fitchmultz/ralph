@@ -103,6 +103,24 @@ fn test_runnability_report_dependency_only_blocking_state() {
         report.summary.blocking.as_ref().map(|state| &state.reason),
         Some(BlockingReason::DependencyBlocked { blocked_tasks: 1 })
     ));
+    assert_eq!(
+        report
+            .summary
+            .blocking
+            .as_ref()
+            .and_then(|s| s.observed_at.as_deref()),
+        Some(now),
+        "blocking.observed_at should match the runnability report clock"
+    );
+    assert_eq!(
+        report
+            .summary
+            .blocking
+            .as_ref()
+            .and_then(|s| s.observed_at.as_deref()),
+        Some(report.now.as_str()),
+        "blocking.observed_at should match report.now"
+    );
 }
 
 #[test]

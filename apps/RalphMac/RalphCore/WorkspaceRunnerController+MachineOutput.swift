@@ -171,6 +171,7 @@ extension WorkspaceRunnerController {
         let taskID: String?
         let message: String
         let detail: String
+        let observedAt: String?
 
         enum CodingKeys: String, CodingKey {
             case status
@@ -178,10 +179,21 @@ extension WorkspaceRunnerController {
             case taskID = "task_id"
             case message
             case detail
+            case observedAt = "observed_at"
         }
 
         var isRunnerRecovery: Bool {
             reason.kind == "runner_recovery"
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            status = try container.decode(Workspace.BlockingStatus.self, forKey: .status)
+            reason = try container.decode(MachineBlockingReason.self, forKey: .reason)
+            taskID = try container.decodeIfPresent(String.self, forKey: .taskID)
+            message = try container.decode(String.self, forKey: .message)
+            detail = try container.decode(String.self, forKey: .detail)
+            observedAt = try container.decodeIfPresent(String.self, forKey: .observedAt)
         }
 
         func asWorkspaceBlockingState() -> Workspace.BlockingState {
@@ -190,7 +202,8 @@ extension WorkspaceRunnerController {
                 reason: reason.asWorkspaceBlockingReason(),
                 taskID: taskID,
                 message: message,
-                detail: detail
+                detail: detail,
+                observedAt: observedAt
             )
         }
     }

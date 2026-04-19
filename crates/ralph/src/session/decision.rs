@@ -85,16 +85,19 @@ impl ResumeDecision {
             _ => return None,
         };
 
-        Some(BlockingState::runner_recovery(
-            match self.scope {
-                ResumeScope::RunSession => "run_session",
-                ResumeScope::ContinueSession => "continue_session",
-            },
-            reason,
-            self.task_id.clone(),
-            self.message.clone(),
-            self.detail.clone(),
-        ))
+        Some(
+            BlockingState::runner_recovery(
+                match self.scope {
+                    ResumeScope::RunSession => "run_session",
+                    ResumeScope::ContinueSession => "continue_session",
+                },
+                reason,
+                self.task_id.clone(),
+                self.message.clone(),
+                self.detail.clone(),
+            )
+            .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+        )
     }
 }
 

@@ -2124,6 +2124,13 @@
           "message": {
             "type": "string"
           },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
           },
@@ -2456,6 +2463,13 @@
           },
           "message": {
             "type": "string"
+          },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
@@ -2801,6 +2815,13 @@
           },
           "message": {
             "type": "string"
+          },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
@@ -3857,6 +3878,13 @@
           "message": {
             "type": "string"
           },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
           },
@@ -4198,6 +4226,13 @@
           "message": {
             "type": "string"
           },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
           },
@@ -4538,6 +4573,13 @@
           },
           "message": {
             "type": "string"
+          },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
@@ -4978,6 +5020,13 @@
           },
           "message": {
             "type": "string"
+          },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reason": {
             "$ref": "#/$defs/BlockingReason"
@@ -5946,6 +5995,13 @@
           },
           "message": {
             "type": "string"
+          },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reason": {
             "$ref": "#/$defs/BlockingReason"

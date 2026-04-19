@@ -145,7 +145,8 @@ fn run_loop_state_machine(
             opts.run_event_handler.clone(),
         ) {
             Ok(RunOutcome::NoCandidates) => {
-                let idle_state = crate::contracts::BlockingState::idle(include_draft);
+                let idle_state = crate::contracts::BlockingState::idle(include_draft)
+                    .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback());
                 active_blocking = Some(idle_state.clone());
                 emit_blocked_state_changed(&idle_state, opts.run_event_handler.as_ref());
 

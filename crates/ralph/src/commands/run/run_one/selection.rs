@@ -74,10 +74,10 @@ pub(crate) fn select_task_for_run(
 
                 let summary =
                     build_blocked_summary(queue_file, done_ref, &candidates, include_draft);
-                let state = summary
-                    .blocking
-                    .clone()
-                    .unwrap_or_else(|| BlockingState::idle(include_draft));
+                let state = summary.blocking.clone().unwrap_or_else(|| {
+                    BlockingState::idle(include_draft)
+                        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
+                });
                 return Ok(SelectTaskResult::Blocked {
                     summary: Box::new(summary),
                     state: Box::new(state),
@@ -125,7 +125,10 @@ fn build_blocked_summary(
                 blocked_by_dependencies: candidates.len(),
                 blocked_by_schedule: 0,
                 blocked_by_status_or_flags: 0,
-                blocking: Some(BlockingState::dependency_blocked(candidates.len())),
+                blocking: Some(
+                    BlockingState::dependency_blocked(candidates.len())
+                        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+                ),
             }
         }
     }

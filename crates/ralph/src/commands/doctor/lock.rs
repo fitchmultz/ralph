@@ -107,11 +107,14 @@ pub(crate) fn active_queue_lock_blocking_state(repo_root: &Path) -> Option<Block
         return None;
     }
 
-    Some(BlockingState::lock_blocked(
-        Some(lock_dir.display().to_string()),
-        Some(owner.label),
-        Some(owner.pid),
-    ))
+    Some(
+        BlockingState::lock_blocked(
+            Some(lock_dir.display().to_string()),
+            Some(owner.label),
+            Some(owner.pid),
+        )
+        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+    )
 }
 
 /// Check the health of lock directories in .ralph/lock/

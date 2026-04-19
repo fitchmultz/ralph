@@ -155,19 +155,23 @@ public extension Workspace {
         public let taskID: String?
         public let message: String
         public let detail: String
+        /// RFC3339 UTC instant when this blocking snapshot was produced (CLI/machine contract).
+        public let observedAt: String?
 
         public init(
             status: BlockingStatus,
             reason: BlockingReason,
             taskID: String?,
             message: String,
-            detail: String
+            detail: String,
+            observedAt: String? = nil
         ) {
             self.status = status
             self.reason = reason
             self.taskID = taskID
             self.message = message
             self.detail = detail
+            self.observedAt = observedAt
         }
     }
 

@@ -160,7 +160,8 @@ fn build_parallel_status_guidance(
                     "Parallel execution is blocked on worker integration outcomes that need operator action.",
                     detail.clone(),
                     Some("ralph run parallel retry --task <TASK_ID>".to_string()),
-                );
+                )
+                .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback());
                 (
                     Some(blocking.clone()),
                     MachineContinuationSummary {
@@ -199,7 +200,8 @@ fn build_parallel_status_guidance(
                     "Parallel execution is stalled on retryable worker failures.",
                     detail.clone(),
                     Some("ralph run parallel retry --task <TASK_ID>".to_string()),
-                );
+                )
+                .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback());
                 (
                     Some(blocking.clone()),
                     MachineContinuationSummary {

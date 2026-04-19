@@ -116,7 +116,8 @@ pub(crate) fn inspect_queue_lock(repo_root: &Path) -> Option<QueueLockInspection
                             owner.label,
                             owner.pid
                         ),
-                    ),
+                    )
+                    .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
                 })
             } else {
                 let mut blocking_state =
@@ -125,6 +126,8 @@ pub(crate) fn inspect_queue_lock(repo_root: &Path) -> Option<QueueLockInspection
                     blocking_state.detail.push(' ');
                     blocking_state.detail.push_str(note.trim());
                 }
+                blocking_state = blocking_state
+                    .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback());
                 Some(QueueLockInspection {
                     condition: QueueLockCondition::Live,
                     blocking_state,
@@ -146,7 +149,8 @@ pub(crate) fn inspect_queue_lock(repo_root: &Path) -> Option<QueueLockInspection
                     "The queue lock at {} exists, but its owner metadata is missing. Confirm no other Ralph process is running, then clear the lock before resuming execution.",
                     lock_dir.display()
                 ),
-            ),
+            )
+            .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
         }),
         Err(_) => Some(QueueLockInspection {
             condition: QueueLockCondition::OwnerUnreadable,
@@ -163,7 +167,8 @@ pub(crate) fn inspect_queue_lock(repo_root: &Path) -> Option<QueueLockInspection
                     "The queue lock at {} exists, but Ralph could not read its owner metadata. Confirm no other Ralph process is running, then clear the lock before resuming execution.",
                     lock_dir.display()
                 ),
-            ),
+            )
+            .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
         }),
     }
 }

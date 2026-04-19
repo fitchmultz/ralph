@@ -48,6 +48,7 @@ impl CiFailure {
             self.exit_code,
             self.error_pattern.map(str::to_string),
         )
+        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
     }
 }
 

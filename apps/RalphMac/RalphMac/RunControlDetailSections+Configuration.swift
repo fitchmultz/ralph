@@ -159,6 +159,11 @@ struct RunControlExecutionControlsSection: View {
             tint: blockingColor(for: state.status)
         ) {
             RunControlStatusText(title: state.message, detail: state.detail)
+            if let observed = state.observedAt, !observed.isEmpty {
+                Text("Blocking snapshot: \(observed)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 

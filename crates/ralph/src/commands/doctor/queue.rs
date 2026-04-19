@@ -24,6 +24,7 @@ fn queue_recovery_state(
     detail: impl Into<String>,
 ) -> BlockingState {
     BlockingState::runner_recovery("queue", reason, None, message, detail)
+        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback())
 }
 
 pub(crate) fn check_queue(report: &mut DoctorReport, resolved: &config::Resolved, auto_fix: bool) {

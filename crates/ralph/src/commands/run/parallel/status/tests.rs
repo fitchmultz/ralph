@@ -67,6 +67,13 @@ fn parallel_status_describes_retained_blocked_workspace() -> Result<()> {
     );
     assert!(
         document
+            .blocking
+            .as_ref()
+            .is_some_and(|state| state.observed_at.is_some()),
+        "parallel status blocking should record observed_at for operator timelines"
+    );
+    assert!(
+        document
             .continuation
             .detail
             .contains("Retained for recovery:")
