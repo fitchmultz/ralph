@@ -29,8 +29,9 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: cursor-finish-line-ready-${{ github.event.check_run.check_suite.head_branch
-    || github.event.check_run.check_suite.head_sha || github.sha }}
+  group: cursor-finish-line-ready-${{
+    github.event.check_run.check_suite.head_branch ||
+    github.event.check_run.check_suite.head_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
