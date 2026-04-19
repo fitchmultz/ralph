@@ -1069,6 +1069,54 @@
         "scan_agent": "scan-maintenance",
         "runner_used": "codex"
       }
+    },
+    {
+      "id": "RQ-0022",
+      "status": "done",
+      "title": "Refuse lossy legacy CI gate shell-string migration",
+      "description": "Principles violated: F) Fail fast appropriately, G) Least astonishment, J) Consistency/Integrity. CI gate execution is argv-only and shell launchers are rejected, but the legacy migration shlex-splits old shell command strings. A legacy command like cargo test && cargo clippy becomes argv that runs cargo with literal && arguments instead of preserving shell semantics. Minimal fix: detect shell metacharacters or multi-command legacy strings during migration and fail with guidance to use a checked-in script or explicit argv.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "config",
+        "migration",
+        "ci"
+      ],
+      "scope": [
+        "crates/ralph/src/migration/config_migrations/ci_gate.rs",
+        "crates/ralph/src/config/validation/ci_gate.rs",
+        "crates/ralph/src/migration/config_migrations/tests.rs",
+        "docs/features/supervision.md"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/migration/config_migrations/ci_gate.rs:17 :: module invariant says enabled legacy shell strings are migrated to argv-only execution via shlex::split.",
+        "path: crates/ralph/src/migration/config_migrations/ci_gate.rs:82 :: build_ci_gate_value calls shlex::split(command).",
+        "path: crates/ralph/src/config/validation/ci_gate.rs:40 :: validation rejects shell launchers such as sh -c but does not reject literal shell metacharacters passed to a non-shell program.",
+        "workflow: rg -n \"build_ci_gate_value|ci_gate_command|shlex|shell launcher\" crates/ralph/src/migration/config_migrations crates/ralph/src/config/validation :: found no test coverage for legacy compound commands using &&, pipes, or redirects."
+      ],
+      "plan": [
+        "Add migration validation for legacy ci_gate_command strings that contain shell control operators such as &&, ||, ;, |, or redirects.",
+        "For unsupported shell strings, return an actionable migration error that points users to a checked-in script and argv form.",
+        "Keep simple legacy commands like make ci migrating to [\"make\", \"ci\"].",
+        "Update supervision docs so compound CI examples use script wrappers instead of shell strings.",
+        "Verify with migration tests for simple commands, disabled gates, and rejected compound shell strings."
+      ],
+      "notes": [
+        "Legacy ci_gate_command migration now scans for shell control operators outside quotes (&&, ||, ;, |, redirects, subshell parens, command substitution) and fails with guidance to use a script plus explicit argv.",
+        "Added unit tests on build_ci_gate_value and file-level tests ensuring rewrite_ci_gate_in_file leaves config unchanged on failure.",
+        "Supervision docs now show argv examples and state compound shell strings are not auto-migrated."
+      ],
+      "request": "scan: Simplify code while preserving nuanced runner behavior",
+      "created_at": "2026-04-17T23:11:06Z",
+      "updated_at": "2026-04-19T12:00:00Z",
+      "completed_at": "2026-04-19T12:00:00Z",
+      "started_at": "2026-04-19T11:30:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

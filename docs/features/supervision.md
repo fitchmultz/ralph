@@ -55,23 +55,16 @@ The CI gate command:
 2. Must exit with code 0 to pass
 3. Failure triggers the revert mode policy and/or auto-retry logic
 
-**Example Commands:**
-```bash
-# Generic fallback (most projects unless repo config overrides it)
-"make ci"
+**Example commands (argv, not a shell string):**
 
-# This repository
-"make agent-ci"
+| Use case | `ci_gate.argv` |
+|----------|----------------|
+| Generic fallback (most projects unless repo config overrides it) | `["make", "ci"]` |
+| This repository | `["make", "agent-ci"]` |
+| Rust checks in one step | `["./scripts/ci-rust.sh"]` (script runs `cargo test`, `cargo clippy`, and so on) |
+| Node.js checks in one step | `["./scripts/ci-node.sh"]` |
 
-# Rust projects
-"cargo test && cargo clippy"
-
-# Node.js projects  
-"npm test && npm run lint"
-
-# Custom scripts
-"./scripts/validate.sh"
-```
+Ralph runs the CI gate as a **single process with explicit argv** (no shell). Legacy `ci_gate_command` strings that used shell operators such as `&&`, `||`, `;`, `|`, or redirects are **not auto-migrated**; put the sequence in a checked-in script and point `argv` at that script instead.
 
 ### Auto-Retry Behavior
 
