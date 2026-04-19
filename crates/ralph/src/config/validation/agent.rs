@@ -16,6 +16,7 @@ use super::ci_gate::validate_ci_gate_config;
 use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PHASES};
 use crate::contracts::{AgentConfig, PhaseOverrides, Runner, validate_webhook_settings};
 use anyhow::{Result, bail};
+use std::path::PathBuf;
 
 pub fn validate_agent_binary_paths(agent: &AgentConfig, label: &str) -> Result<()> {
     macro_rules! check_bin {
@@ -42,7 +43,29 @@ pub fn validate_agent_binary_paths(agent: &AgentConfig, label: &str) -> Result<(
     Ok(())
 }
 
+/// Reject empty or whitespace-only paths in `instruction_files` before filesystem checks.
+///
+/// Without this, an empty entry can resolve to the repo root and surface a confusing
+/// "is a directory" read error.
+pub(crate) fn validate_instruction_files_entries(
+    paths: Option<&Vec<PathBuf>>,
+    label: &str,
+) -> Result<()> {
+    let Some(paths) = paths else {
+        return Ok(());
+    };
+    for raw in paths {
+        if raw.as_os_str().is_empty() || raw.to_string_lossy().trim().is_empty() {
+            bail!(
+                "Invalid {label}.instruction_files: each entry must be a non-empty path. Remove blank list items or fix the path string in .ralph/config.jsonc."
+            );
+        }
+    }
+    Ok(())
+}
+
 pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
+    validate_instruction_files_entries(agent.instruction_files.as_ref(), label)?;
     if let Some(phases) = agent.phases
         && !(MIN_PHASES..=MAX_PHASES).contains(&phases)
     {

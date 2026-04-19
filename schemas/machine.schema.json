@@ -321,7 +321,7 @@
           },
           "instruction_files": {
             "default": null,
-            "description": "Additional instruction files to inject at the top of every prompt sent to runner CLIs.\n\nPaths may be absolute, `~/`-prefixed, or repo-root relative. Missing files are treated as\nconfiguration errors. To include repo-local AGENTS.md, add `\"AGENTS.md\"` to this list.",
+            "description": "Additional instruction files to inject at the top of every prompt sent to runner CLIs.\n\nPaths may be absolute, `~/`-prefixed, or repo-root relative. Each list entry must be a\nnon-empty path; blank or whitespace-only strings are rejected during config validation.\nMissing files are treated as configuration errors. To include repo-local AGENTS.md, add\n`\"AGENTS.md\"` to this list.",
             "items": {
               "type": "string"
             },

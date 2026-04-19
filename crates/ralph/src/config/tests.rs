@@ -19,7 +19,7 @@ use super::resolution::{
 };
 use super::validation::{
     ERR_EMPTY_QUEUE_DONE_FILE, ERR_EMPTY_QUEUE_FILE, ERR_EMPTY_QUEUE_ID_PREFIX,
-    ERR_INVALID_QUEUE_ID_WIDTH, ERR_PROJECT_EXECUTION_TRUST, validate_config,
+    ERR_INVALID_QUEUE_ID_WIDTH, ERR_PROJECT_EXECUTION_TRUST, validate_agent_patch, validate_config,
     validate_project_execution_trust,
 };
 use anyhow::Result;
@@ -323,6 +323,45 @@ fn validate_agent_patch_accepts_valid_binary_paths() {
 }
 
 // Tests for instruction_files validation (validate_instruction_file_paths)
+
+#[test]
+fn validate_config_rejects_empty_instruction_files_entry() {
+    let mut cfg = Config::default();
+    cfg.agent.instruction_files = Some(vec![PathBuf::new()]);
+    let err = validate_config(&cfg).expect_err("should fail");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("instruction_files") && msg.contains("non-empty"),
+        "unexpected error: {msg}"
+    );
+}
+
+#[test]
+fn validate_config_rejects_whitespace_only_instruction_files_entry() {
+    let mut cfg = Config::default();
+    cfg.agent.instruction_files = Some(vec![PathBuf::from(" \t ")]);
+    let err = validate_config(&cfg).expect_err("should fail");
+    assert!(
+        err.to_string().contains("instruction_files"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn validate_agent_patch_rejects_empty_instruction_files_entry() {
+    use crate::contracts::AgentConfig;
+
+    let agent = AgentConfig {
+        instruction_files: Some(vec![PathBuf::new()]),
+        ..Default::default()
+    };
+    let err = validate_agent_patch(&agent, "profiles.custom").expect_err("should fail");
+    assert!(
+        err.to_string()
+            .contains("profiles.custom.instruction_files"),
+        "unexpected error: {err}"
+    );
+}
 
 #[test]
 fn validate_instruction_file_paths_rejects_missing_file() {

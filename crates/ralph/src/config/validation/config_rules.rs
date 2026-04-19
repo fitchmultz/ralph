@@ -13,7 +13,7 @@
 //! - Profile agent patches reuse the same agent validator used elsewhere.
 
 use super::{
-    agent::validate_agent_patch,
+    agent::{validate_agent_patch, validate_instruction_files_entries},
     ci_gate::validate_ci_gate_config,
     queue::{validate_queue_aging_thresholds, validate_queue_overrides},
     validate_agent_binary_paths,
@@ -94,6 +94,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         );
     }
 
+    validate_instruction_files_entries(cfg.agent.instruction_files.as_ref(), "agent")?;
     validate_agent_binary_paths(&cfg.agent, "agent")?;
     validate_ci_gate_config(cfg.agent.ci_gate.as_ref(), "agent")?;
     validate_webhook_settings(&cfg.agent.webhook)?;

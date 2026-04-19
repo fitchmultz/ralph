@@ -279,6 +279,8 @@ Override executable names/paths for each runner:
 |-------|------|---------|-------------|
 | `instruction_files` | `string[]` | `null` | Additional instruction files to inject into prompts |
 
+Each list entry must be a non-empty path; blank strings are rejected during config validation.
+
 Paths can be:
 - Absolute: `/path/to/instructions.md`
 - Home-relative: `~/.codex/AGENTS.md`
