@@ -45,7 +45,7 @@ mod retry;
 mod tests;
 mod webhook;
 
-pub use agent::{AgentConfig, CiGateConfig};
+pub use agent::{AgentConfig, CiGateConfig, InstructionFilePath};
 pub use enums::{GitPublishMode, GitRevertMode, ProjectType, ScanPromptVersion};
 pub use loop_::LoopConfig;
 pub use notification::NotificationConfig;

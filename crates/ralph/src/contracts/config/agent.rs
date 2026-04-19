@@ -18,6 +18,7 @@ use crate::contracts::runner::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::path::PathBuf;
 
 /// Structured CI gate execution settings.
@@ -74,6 +75,55 @@ fn format_argv(argv: &[String]) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Repo-relative, absolute, or `~/`-prefixed instruction file path from config.
+///
+/// Serde treats this as a [`PathBuf`] on the wire. JSON Schema adds `minLength: 1` so empty
+/// strings are rejected by schema consumers; runtime validation still rejects whitespace-only
+/// paths (see `validate_instruction_files_entries`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct InstructionFilePath(pub PathBuf);
+
+impl From<PathBuf> for InstructionFilePath {
+    fn from(value: PathBuf) -> Self {
+        Self(value)
+    }
+}
+
+impl From<InstructionFilePath> for PathBuf {
+    fn from(value: InstructionFilePath) -> Self {
+        value.0
+    }
+}
+
+impl std::ops::Deref for InstructionFilePath {
+    type Target = std::path::Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_path()
+    }
+}
+
+impl AsRef<std::path::Path> for InstructionFilePath {
+    fn as_ref(&self) -> &std::path::Path {
+        self.0.as_path()
+    }
+}
+
+impl JsonSchema for InstructionFilePath {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "InstructionFilePath".into()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let mut schema = <PathBuf as JsonSchema>::json_schema(generator);
+        schema
+            .ensure_object()
+            .insert("minLength".to_string(), json!(1));
+        schema
+    }
 }
 
 /// Agent runner defaults. Built-in runner IDs: codex, opencode, gemini, claude, cursor, kimi, pi. Plugin runner IDs are also supported as non-empty strings.
@@ -142,7 +192,7 @@ pub struct AgentConfig {
     /// non-empty path; blank or whitespace-only strings are rejected during config validation.
     /// Missing files are treated as configuration errors. To include repo-local AGENTS.md, add
     /// `"AGENTS.md"` to this list.
-    pub instruction_files: Option<Vec<PathBuf>>,
+    pub instruction_files: Option<Vec<InstructionFilePath>>,
 
     /// Require RepoPrompt usage during planning (inject context_builder instructions).
     pub repoprompt_plan_required: Option<bool>,

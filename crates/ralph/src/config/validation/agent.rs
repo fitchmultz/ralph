@@ -14,9 +14,10 @@
 
 use super::ci_gate::validate_ci_gate_config;
 use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PHASES};
-use crate::contracts::{AgentConfig, PhaseOverrides, Runner, validate_webhook_settings};
+use crate::contracts::{
+    AgentConfig, InstructionFilePath, PhaseOverrides, Runner, validate_webhook_settings,
+};
 use anyhow::{Result, bail};
-use std::path::PathBuf;
 
 pub fn validate_agent_binary_paths(agent: &AgentConfig, label: &str) -> Result<()> {
     macro_rules! check_bin {
@@ -48,7 +49,7 @@ pub fn validate_agent_binary_paths(agent: &AgentConfig, label: &str) -> Result<(
 /// Without this, an empty entry can resolve to the repo root and surface a confusing
 /// "is a directory" read error.
 pub(crate) fn validate_instruction_files_entries(
-    paths: Option<&Vec<PathBuf>>,
+    paths: Option<&Vec<InstructionFilePath>>,
     label: &str,
 ) -> Result<()> {
     let Some(paths) = paths else {

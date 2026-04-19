@@ -10,7 +10,7 @@
 //! Not handled here:
 //! - Integration tests (see `tests/` directory).
 
-use super::super::contracts::{Config, GitPublishMode, GitRevertMode};
+use super::super::contracts::{Config, GitPublishMode, GitRevertMode, InstructionFilePath};
 use super::super::prompts_internal::validate_instruction_file_paths;
 use super::RepoTrust;
 use super::layer::{ConfigLayer, apply_layer, load_layer, save_layer};
@@ -327,7 +327,7 @@ fn validate_agent_patch_accepts_valid_binary_paths() {
 #[test]
 fn validate_config_rejects_empty_instruction_files_entry() {
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![PathBuf::new()]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(PathBuf::new())]);
     let err = validate_config(&cfg).expect_err("should fail");
     let msg = err.to_string();
     assert!(
@@ -339,7 +339,7 @@ fn validate_config_rejects_empty_instruction_files_entry() {
 #[test]
 fn validate_config_rejects_whitespace_only_instruction_files_entry() {
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![PathBuf::from(" \t ")]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(PathBuf::from(" \t "))]);
     let err = validate_config(&cfg).expect_err("should fail");
     assert!(
         err.to_string().contains("instruction_files"),
@@ -352,7 +352,7 @@ fn validate_agent_patch_rejects_empty_instruction_files_entry() {
     use crate::contracts::AgentConfig;
 
     let agent = AgentConfig {
-        instruction_files: Some(vec![PathBuf::new()]),
+        instruction_files: Some(vec![InstructionFilePath::from(PathBuf::new())]),
         ..Default::default()
     };
     let err = validate_agent_patch(&agent, "profiles.custom").expect_err("should fail");
@@ -367,7 +367,9 @@ fn validate_agent_patch_rejects_empty_instruction_files_entry() {
 fn validate_instruction_file_paths_rejects_missing_file() {
     let temp = tempfile::TempDir::new().unwrap();
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![PathBuf::from("nonexistent.md")]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(PathBuf::from(
+        "nonexistent.md",
+    ))]);
 
     let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
     let msg = err.to_string();
@@ -390,7 +392,7 @@ fn validate_instruction_file_paths_accepts_valid_file() {
     std::fs::write(&file_path, "Valid instruction content").unwrap();
 
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![file_path]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(file_path)]);
 
     validate_instruction_file_paths(temp.path(), &cfg).expect("should pass");
 }
@@ -402,7 +404,7 @@ fn validate_instruction_file_paths_rejects_empty_file() {
     std::fs::write(&file_path, "").unwrap();
 
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![file_path]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(file_path)]);
 
     let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
     assert!(
@@ -419,7 +421,7 @@ fn validate_instruction_file_paths_rejects_non_utf8_file() {
     std::fs::write(&file_path, vec![0x80, 0x81, 0x82]).unwrap();
 
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![file_path]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(file_path)]);
 
     let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
     assert!(
@@ -437,7 +439,9 @@ fn validate_instruction_file_paths_resolves_relative_paths() {
 
     let mut cfg = Config::default();
     // Use relative path
-    cfg.agent.instruction_files = Some(vec![PathBuf::from("instructions.md")]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(PathBuf::from(
+        "instructions.md",
+    ))]);
 
     validate_instruction_file_paths(temp.path(), &cfg).expect("should pass");
 }
@@ -450,7 +454,7 @@ fn validate_instruction_file_paths_resolves_absolute_paths() {
 
     let mut cfg = Config::default();
     // Use absolute path
-    cfg.agent.instruction_files = Some(vec![file_path.clone()]);
+    cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(file_path.clone())]);
 
     validate_instruction_file_paths(temp.path(), &cfg).expect("should pass");
 }
@@ -473,7 +477,10 @@ fn validate_instruction_file_paths_validates_all_files_and_fails_on_first_error(
     std::fs::write(&valid_path, "Valid content").unwrap();
 
     let mut cfg = Config::default();
-    cfg.agent.instruction_files = Some(vec![PathBuf::from("missing.md"), valid_path]);
+    cfg.agent.instruction_files = Some(vec![
+        InstructionFilePath::from(PathBuf::from("missing.md")),
+        InstructionFilePath::from(valid_path),
+    ]);
 
     let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
     assert!(

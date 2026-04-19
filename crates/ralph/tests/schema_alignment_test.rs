@@ -72,6 +72,32 @@ fn schema_alignment_config_agent_phases_matches_runtime_validation() {
 }
 
 #[test]
+fn schema_alignment_config_instruction_file_entries_require_non_empty_strings() {
+    let schema = load_config_schema();
+    let items = &schema["$defs"]["AgentConfig"]["properties"]["instruction_files"]["items"];
+    let ref_target = items["$ref"]
+        .as_str()
+        .expect("instruction_files.items.$ref missing");
+
+    assert_eq!(
+        ref_target, "#/$defs/InstructionFilePath",
+        "instruction_files entries should use the InstructionFilePath def"
+    );
+
+    let def = &schema["$defs"]["InstructionFilePath"];
+    assert_eq!(
+        def["type"].as_str(),
+        Some("string"),
+        "InstructionFilePath schema type should be string"
+    );
+    assert_eq!(
+        def["minLength"].as_u64(),
+        Some(1),
+        "InstructionFilePath schema should reject empty strings (minLength: 1)"
+    );
+}
+
+#[test]
 fn schema_alignment_config_runner_descriptions_include_all_supported_ids() {
     let schema = load_config_schema();
 

@@ -288,7 +288,7 @@
           ],
           "default": null,
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/InstructionFilePath"
           }
         },
         "iterations": {
@@ -542,6 +542,10 @@
         "enabled",
         "disabled"
       ]
+    },
+    "InstructionFilePath": {
+      "type": "string",
+      "minLength": 1
     },
     "LoopConfig": {
       "description": "Run loop waiting configuration for daemon/continuous mode.",

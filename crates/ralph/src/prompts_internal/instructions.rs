@@ -142,7 +142,7 @@ fn read_instruction_file(path: &Path, max_bytes: usize) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{instruction_file_warnings, resolve_instruction_path, wrap_with_instruction_files};
-    use crate::contracts::Config;
+    use crate::contracts::{Config, InstructionFilePath};
     use serial_test::serial;
     use std::env;
     use std::path::Path;
@@ -168,7 +168,9 @@ mod tests {
         std::fs::write(dir.path().join("AGENTS.md"), "Repo instructions").expect("write");
         let mut cfg = Config::default();
         // Explicitly configure AGENTS.md for injection
-        cfg.agent.instruction_files = Some(vec![Path::new("AGENTS.md").to_path_buf()]);
+        cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(
+            Path::new("AGENTS.md").to_path_buf(),
+        )]);
 
         let out = wrap_with_instruction_files(dir.path(), "hello", &cfg).expect("wrap");
         assert!(out.contains("AGENTS / GLOBAL INSTRUCTIONS"));
@@ -194,7 +196,9 @@ mod tests {
     fn wrap_with_instruction_files_errors_on_missing_configured_file() {
         let dir = TempDir::new().expect("tempdir");
         let mut cfg = Config::default();
-        cfg.agent.instruction_files = Some(vec![Path::new("missing.md").to_path_buf()]);
+        cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(
+            Path::new("missing.md").to_path_buf(),
+        )]);
 
         let err = wrap_with_instruction_files(dir.path(), "hello", &cfg).unwrap_err();
         assert!(err.to_string().contains("missing.md"));
@@ -204,7 +208,9 @@ mod tests {
     fn instruction_file_warnings_reports_missing_configured_file() {
         let dir = TempDir::new().expect("tempdir");
         let mut cfg = Config::default();
-        cfg.agent.instruction_files = Some(vec![Path::new("missing.md").to_path_buf()]);
+        cfg.agent.instruction_files = Some(vec![InstructionFilePath::from(
+            Path::new("missing.md").to_path_buf(),
+        )]);
 
         let warnings = instruction_file_warnings(dir.path(), &cfg);
         assert_eq!(warnings.len(), 1);

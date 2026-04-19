@@ -27,9 +27,9 @@ mod task;
 // Re-exports from config module (core config types)
 // All config types are now re-exported from config::mod.rs for backward compatibility
 pub use config::{
-    AgentConfig, CiGateConfig, Config, GitPublishMode, GitRevertMode, LoopConfig,
-    NotificationConfig, ParallelConfig, PhaseOverrideConfig, PhaseOverrides, PluginConfig,
-    PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig, RunnerRetryConfig,
+    AgentConfig, CiGateConfig, Config, GitPublishMode, GitRevertMode, InstructionFilePath,
+    LoopConfig, NotificationConfig, ParallelConfig, PhaseOverrideConfig, PhaseOverrides,
+    PluginConfig, PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig, RunnerRetryConfig,
     ScanPromptVersion, WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy,
 };
 pub(crate) use config::{
