@@ -13,6 +13,32 @@
 //! - Command assertions focus on stable argv semantics instead of arg ordering beyond required flags.
 
 use super::*;
+use std::{ffi::OsString, io::Write as _, sync::Mutex};
+
+static PATH_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+struct EnvVarRestore {
+    key: &'static str,
+    original: Option<OsString>,
+}
+
+impl EnvVarRestore {
+    fn capture(key: &'static str) -> Self {
+        Self {
+            key,
+            original: std::env::var_os(key),
+        }
+    }
+}
+
+impl Drop for EnvVarRestore {
+    fn drop(&mut self) {
+        match &self.original {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
 
 // =============================================================================
 // Command Building Tests - Codex
@@ -322,6 +348,141 @@ fn pi_build_run_command_basic() {
     assert!(args.contains(&"--mode".to_string()));
     assert!(args.contains(&"json".to_string()));
     assert!(args.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn pi_build_run_command_uses_process_title_wrapper() {
+    let plugin = BuiltInRunnerPlugin::Pi;
+    let mut fake_pi = tempfile::Builder::new()
+        .prefix("fake_pi_")
+        .tempfile()
+        .expect("create fake pi");
+    writeln!(fake_pi, "#!/usr/bin/env node").expect("write shebang");
+    let fake_pi_path = fake_pi.path().to_string_lossy().to_string();
+    let mut ctx = create_run_context("test prompt", None);
+    ctx.bin = &fake_pi_path;
+
+    let (cmd, _payload, _guards) = plugin.build_run_command(ctx).unwrap();
+
+    assert_eq!(cmd.get_program().to_string_lossy(), "node");
+    let args: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    let wrapper_path = args.first().expect("node wrapper path");
+    assert!(
+        wrapper_path.contains("ralph_pi_wrapper_"),
+        "Pi should be launched through Ralph's process-title wrapper"
+    );
+
+    let pi_bin = cmd
+        .get_envs()
+        .find_map(|(key, value)| {
+            if key == "RALPH_PI_BIN" {
+                value.map(|value| value.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+        .expect("RALPH_PI_BIN env missing");
+    assert_eq!(pi_bin, fake_pi_path);
+
+    let pi_entrypoint = cmd
+        .get_envs()
+        .find_map(|(key, value)| {
+            if key == "RALPH_PI_ENTRYPOINT" {
+                value.map(|value| value.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+        .expect("RALPH_PI_ENTRYPOINT env missing");
+    assert_eq!(
+        pi_entrypoint,
+        fake_pi.path().canonicalize().unwrap().to_string_lossy()
+    );
+
+    let wrapper_source = std::fs::read_to_string(wrapper_path).expect("read wrapper source");
+    assert!(wrapper_source.contains("Object.defineProperty(process, \"title\""));
+    assert!(
+        wrapper_source.contains("await import(pathToFileURL(realpathSync(piEntrypoint)).href)")
+    );
+}
+
+#[test]
+fn pi_build_run_command_wraps_path_resolved_node_binary() {
+    let _lock = PATH_ENV_LOCK.lock().expect("lock PATH mutation");
+    let _restore = EnvVarRestore::capture("PATH");
+    let plugin = BuiltInRunnerPlugin::Pi;
+    let temp_dir = tempfile::tempdir().expect("create temp dir");
+    let bin_dir = temp_dir.path().join("bin");
+    std::fs::create_dir(&bin_dir).expect("create bin dir");
+    let fake_pi_path = bin_dir.join("pi");
+    std::fs::write(&fake_pi_path, "#!/usr/bin/env node\n").expect("write fake pi");
+
+    let current_path = std::env::var_os("PATH").unwrap_or_default();
+    let path = std::env::join_paths(
+        std::iter::once(bin_dir.clone()).chain(std::env::split_paths(&current_path)),
+    )
+    .expect("join PATH");
+    unsafe { std::env::set_var("PATH", path) };
+
+    let mut ctx = create_run_context("test prompt", None);
+    ctx.bin = "pi";
+
+    let (cmd, _payload, _guards) = plugin.build_run_command(ctx).unwrap();
+
+    assert_eq!(cmd.get_program().to_string_lossy(), "node");
+    let pi_bin = cmd
+        .get_envs()
+        .find_map(|(key, value)| {
+            if key == "RALPH_PI_BIN" {
+                value.map(|value| value.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+        .expect("RALPH_PI_BIN env missing");
+    assert_eq!(pi_bin, "pi");
+
+    let pi_entrypoint = cmd
+        .get_envs()
+        .find_map(|(key, value)| {
+            if key == "RALPH_PI_ENTRYPOINT" {
+                value.map(|value| value.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+        .expect("RALPH_PI_ENTRYPOINT env missing");
+    assert_eq!(
+        pi_entrypoint,
+        fake_pi_path.canonicalize().unwrap().to_string_lossy()
+    );
+}
+
+#[test]
+fn pi_build_run_command_preserves_direct_custom_binary_when_not_node_script() {
+    let plugin = BuiltInRunnerPlugin::Pi;
+    let mut fake_pi = tempfile::Builder::new()
+        .prefix("fake_pi_native_")
+        .tempfile()
+        .expect("create fake native pi");
+    writeln!(fake_pi, "#!/bin/sh").expect("write shebang");
+    let fake_pi_path = fake_pi.path().to_string_lossy().to_string();
+    let mut ctx = create_run_context("test prompt", None);
+    ctx.bin = &fake_pi_path;
+
+    let (cmd, _payload, _guards) = plugin.build_run_command(ctx).unwrap();
+
+    assert_eq!(cmd.get_program().to_string_lossy(), fake_pi_path);
+    let args: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    assert!(!args.iter().any(|arg| arg.contains("ralph_pi_wrapper_")));
+    assert!(args.contains(&"--mode".to_string()));
+    assert!(args.contains(&"json".to_string()));
 }
 
 #[test]

@@ -5,7 +5,7 @@
  - Own the live Ralph subprocess lifecycle for one workspace.
  - Load resolved runner configuration for the workspace.
  - Consume machine run-event streams and derive UI state from structured envelopes.
- - Schedule loop continuation explicitly after a run completes without sleep-based polling.
+ - Launch one-shot runs and CLI-owned task loops from app controls.
 
  Does not handle:
  - Queue watching or queue decoding.
@@ -15,7 +15,7 @@
  Invariants/assumptions callers must respect:
  - Only one active CLI run may exist per workspace.
  - All public methods are main-actor entry points.
- - Loop continuation is scheduled only after the previous run fully finalizes.
+ - CLI loop mode is owned by the subprocess until it exits or receives a stop signal.
  - Behavioral implementation lives in adjacent `WorkspaceRunnerController+...` files.
  */
 
@@ -29,18 +29,17 @@ final class WorkspaceRunnerController {
     weak var workspace: Workspace?
     var activeRun: RalphCLIRun?
     var cancelRequested = false
-    var loopContinuationTask: Task<Void, Never>?
+    var loopStopSignalTask: Task<Void, Never>?
     var runCancellationTask: Task<Void, Never>?
     var runTask: Task<Void, Never>?
     var runTaskRevision: UInt64 = 0
-    var loopForceDirtyRepo = false
 
     init(workspace: Workspace) {
         self.workspace = workspace
     }
 
     deinit {
-        loopContinuationTask?.cancel()
+        loopStopSignalTask?.cancel()
         runCancellationTask?.cancel()
         runTask?.cancel()
     }
@@ -160,8 +159,8 @@ final class WorkspaceRunnerController {
 
     func prepareForRepositoryRetarget() {
         guard let workspace else { return }
-        loopContinuationTask?.cancel()
-        loopContinuationTask = nil
+        loopStopSignalTask?.cancel()
+        loopStopSignalTask = nil
         workspace.runState.isLoopMode = false
         cancelRequested = false
 
@@ -182,8 +181,6 @@ final class WorkspaceRunnerController {
         }
         guard !hasPendingRunWork(for: workspace) else { return }
 
-        loopContinuationTask?.cancel()
-        loopContinuationTask = nil
         cancelRequested = false
 
         scheduleRunTask(preservingConsole: preservingConsole) { _, _ in
@@ -200,6 +197,8 @@ final class WorkspaceRunnerController {
 
         workspace.runState.isLoopMode = false
         workspace.runState.stopAfterCurrent = true
+        loopStopSignalTask?.cancel()
+        loopStopSignalTask = nil
 
         if activeRun == nil {
             cancelPendingRunTask()
@@ -248,21 +247,32 @@ final class WorkspaceRunnerController {
 
     func startLoop(forceDirtyRepo: Bool? = nil) {
         guard let workspace, !workspace.isShutDown else { return }
+        guard !hasPendingRunWork(for: workspace) else { return }
+        guard workspace.client != nil else {
+            workspace.runState.errorMessage = "CLI client not available."
+            return
+        }
+
         workspace.runState.isLoopMode = true
         workspace.runState.stopAfterCurrent = false
-        loopForceDirtyRepo = forceDirtyRepo ?? workspace.runState.runControlForceDirtyRepo
-        runNextTask(forceDirtyRepo: loopForceDirtyRepo)
+        let shouldForceDirtyRepo = forceDirtyRepo ?? workspace.runState.runControlForceDirtyRepo
+
+        var arguments = ["--no-color", "machine", "run", "loop", "--resume", "--max-tasks", "0"]
+        if shouldForceDirtyRepo {
+            arguments.append("--force")
+        }
+        run(arguments: arguments)
     }
 
     func stopLoop() {
         guard let workspace else { return }
-        workspace.runState.isLoopMode = false
         workspace.runState.stopAfterCurrent = true
-        loopContinuationTask?.cancel()
-        loopContinuationTask = nil
 
         if activeRun == nil {
+            workspace.runState.isLoopMode = false
             cancelPendingRunTask()
+        } else {
+            scheduleLoopStopSignalRequest()
         }
     }
 

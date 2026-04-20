@@ -40,7 +40,16 @@ struct WindowView: View {
                 if let workspace = manager.workspaces.first(where: { $0.id == workspaceID }) {
                     WorkspaceView(workspace: workspace)
                         .tabItem {
-                            Label(workspace.projectDisplayName, systemImage: "folder")
+                            // Keep the tab compact so the centered label does not sit on the split divider.
+                            Label {
+                                Text(workspace.projectDisplayName)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            } icon: {
+                                Image(systemName: "folder")
+                            }
+                            .labelStyle(.titleAndIcon)
+                            .frame(maxWidth: 200)
                         }
                         .tag(index)
                 }

@@ -172,6 +172,21 @@ enum SettingsProjectConfigLoader {
     }
 }
 
+enum SettingsProjectConfigWriter {
+    private static let writingOptions: JSONSerialization.WritingOptions = [
+        .sortedKeys,
+        .prettyPrinted,
+        .withoutEscapingSlashes
+    ]
+
+    static func serialize(_ config: [String: Any]) throws -> Data {
+        try JSONSerialization.data(
+            withJSONObject: config,
+            options: writingOptions
+        )
+    }
+}
+
 @MainActor
 @Observable
 final class SettingsViewModel {
@@ -319,10 +334,7 @@ final class SettingsViewModel {
             }
             existingDict["agent"] = existingAgent
 
-            let jsonData = try JSONSerialization.data(
-                withJSONObject: existingDict,
-                options: [.sortedKeys, .prettyPrinted]
-            )
+            let jsonData = try SettingsProjectConfigWriter.serialize(existingDict)
             try jsonData.write(to: configURL, options: .atomic)
 
             hasUnsavedChanges = false

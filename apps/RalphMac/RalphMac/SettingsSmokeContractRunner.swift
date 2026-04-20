@@ -247,6 +247,8 @@ final class SettingsSmokeContractRunner {
         )
         steps.append(SettingsSmokeContractStepReport(name: "url-scheme", snapshot: urlSnapshot))
 
+        try await verifyProjectConfigSavePreservesLiteralSlashes(workspaceURL: configuration.workspaceBURL)
+
         return SettingsSmokeContractReport(
             passed: true,
             runtimeMode: "settings-smoke-contract",
@@ -365,6 +367,46 @@ final class SettingsSmokeContractRunner {
         }
 
         return failures
+    }
+
+    private func verifyProjectConfigSavePreservesLiteralSlashes(workspaceURL: URL) async throws {
+        guard let workspace = WorkspaceManager.shared.effectiveWorkspace,
+              workspace.matchesWorkingDirectory(workspaceURL) else {
+            throw SettingsSmokeContractFailure(
+                message: "Cannot verify Settings save serialization because workspace B is not active"
+            )
+        }
+
+        let viewModel = SettingsViewModel(workspace: workspace)
+        await viewModel.loadConfig()
+        if let errorMessage = viewModel.errorMessage {
+            throw SettingsSmokeContractFailure(
+                message: "Failed to load workspace B Settings config before save probe: \(errorMessage)"
+            )
+        }
+
+        viewModel.model = "zai/glm-5.1"
+        await viewModel.saveConfig()
+        if let errorMessage = viewModel.errorMessage {
+            throw SettingsSmokeContractFailure(
+                message: "Failed to save workspace B Settings config during slash serialization probe: \(errorMessage)"
+            )
+        }
+
+        let configURL = workspace.projectConfigFileURL
+            ?? workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+        let savedConfig = try String(contentsOf: configURL, encoding: .utf8)
+        if savedConfig.contains(#"\/"#) {
+            throw SettingsSmokeContractFailure(
+                message: "Settings save escaped forward slashes in \(configURL.path)"
+            )
+        }
+        guard savedConfig.contains(#""model" : "zai/glm-5.1""#)
+                || savedConfig.contains(#""model": "zai/glm-5.1""#) else {
+            throw SettingsSmokeContractFailure(
+                message: "Settings save did not persist slash-bearing model in \(configURL.path)"
+            )
+        }
     }
 
     private func waitForCondition(

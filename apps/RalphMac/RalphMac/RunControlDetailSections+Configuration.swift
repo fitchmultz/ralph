@@ -99,12 +99,11 @@ struct RunControlExecutionControlsSection: View {
                         .accessibilityHint("Starts execution of the selected task or next task in the queue")
 
                         Button(action: { workspace.startLoop(forceDirtyRepo: workspace.runState.runControlForceDirtyRepo) }) {
-                            Label("Start Loop", systemImage: "repeat.circle")
+                            Label("Start CLI Loop", systemImage: "repeat.circle")
                         }
                         .buttonStyle(GlassButtonStyle())
-                        .disabled(workspace.nextTask() == nil)
-                        .accessibilityLabel("Start task loop")
-                        .accessibilityHint("Continuously run tasks until stopped")
+                        .accessibilityLabel("Start CLI loop")
+                        .accessibilityHint("Runs the CLI loop with max tasks set to zero, then streams progress until the loop completes or is stopped")
                     }
 
                     Spacer()
@@ -114,7 +113,7 @@ struct RunControlExecutionControlsSection: View {
                     HStack {
                         Image(systemName: "repeat.circle.fill")
                             .foregroundStyle(.blue)
-                        Text("Loop Mode Active")
+                        Text("CLI Loop Active")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 

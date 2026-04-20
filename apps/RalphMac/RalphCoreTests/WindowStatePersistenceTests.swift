@@ -108,6 +108,40 @@ final class WindowStatePersistenceTests: WindowStateTestCase {
         XCTAssertEqual(snapshot.name, temp.lastPathComponent)
     }
 
+    func test_workspaceSnapshotDecode_acceptsLegacySnapshotsWithoutBookmarks() throws {
+        let data = """
+            {
+              "name": "Legacy",
+              "workingDirectoryURL": "file:///tmp/ralph-legacy/",
+              "recentWorkingDirectories": []
+            }
+            """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(RalphWorkspaceDefaultsSnapshot.self, from: data)
+
+        XCTAssertEqual(snapshot.name, "Legacy")
+        XCTAssertEqual(snapshot.workingDirectoryURL.path, "/tmp/ralph-legacy")
+        XCTAssertNil(snapshot.workingDirectoryBookmarkData)
+        XCTAssertNil(snapshot.recentWorkingDirectoryBookmarks)
+    }
+
+    func test_persistState_preservesWorkspaceDirectoryBookmarkData() throws {
+        let temp = try makeWorkspaceDirectory(prefix: "persist-bookmark-data")
+        defer { RalphCoreTestSupport.assertRemoved(temp) }
+
+        let workspace = manager.createWorkspace(workingDirectory: temp)
+        let bookmarkData = Data("bookmark".utf8)
+        workspace.identityState.workingDirectoryBookmarkData = bookmarkData
+        workspace.identityState.recentWorkingDirectoryBookmarks = [temp.path: bookmarkData]
+        workspace.persistState()
+
+        let snapshotData = try XCTUnwrap(defaults.data(forKey: workspaceSnapshotKey(for: workspace.id)))
+        let snapshot = try JSONDecoder().decode(RalphWorkspaceDefaultsSnapshot.self, from: snapshotData)
+
+        XCTAssertEqual(snapshot.workingDirectoryBookmarkData, bookmarkData)
+        XCTAssertEqual(snapshot.recentWorkingDirectoryBookmarks?[temp.path], bookmarkData)
+    }
+
     func test_unitTestDefaults_areIsolatedFromStandardDefaults() {
         let key = "com.mitchfultz.ralph.unit-test-isolation"
         defer {

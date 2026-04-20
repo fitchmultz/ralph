@@ -2,7 +2,7 @@
  WorkspaceRunCancelAndLoopTests
 
  Responsibilities:
- - Validate active-run cancellation and loop scheduling without artificial delay between runs.
+ - Validate active-run cancellation and CLI-owned loop command/control behavior.
 
  Does not handle:
  - Resume/blocking semantics, parallel status, run-next argument matrix, watcher health.
@@ -75,7 +75,7 @@ final class WorkspaceRunCancelAndLoopTests: WorkspacePerformanceTestCase {
         XCTAssertEqual(workspace.stopAfterCurrent, true)
     }
 
-    func test_startLoop_schedulesNextRunWithoutSleepDelay() async throws {
+    func test_startLoop_usesMachineRunLoopCommand() async throws {
         var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
             prefix: "ralph-workspace-loop",
@@ -83,24 +83,7 @@ final class WorkspaceRunCancelAndLoopTests: WorkspacePerformanceTestCase {
             seedQueueTasks: []
         )
         defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
-        let stateURL = fixture.rootURL.appendingPathComponent("loop-state.txt", isDirectory: false)
-
-        let loopTaskOne = RalphMockCLITestSupport.task(
-            id: "RQ-LOOP-1",
-            status: .todo,
-            title: "First loop task",
-            priority: .medium,
-            createdAt: "2026-03-10T00:00:00Z",
-            updatedAt: "2026-03-10T00:00:00Z"
-        )
-        let loopTaskTwo = RalphMockCLITestSupport.task(
-            id: "RQ-LOOP-2",
-            status: .todo,
-            title: "Second loop task",
-            priority: .medium,
-            createdAt: "2026-03-10T00:00:00Z",
-            updatedAt: "2026-03-10T00:00:00Z"
-        )
+        let commandLogURL = fixture.rootURL.appendingPathComponent("command-log.txt", isDirectory: false)
 
         let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
             RalphMockCLITestSupport.configResolveDocument(
@@ -110,54 +93,23 @@ final class WorkspaceRunCancelAndLoopTests: WorkspacePerformanceTestCase {
             in: fixture.rootURL,
             name: "config-resolve.json"
         )
-        let loopQueueOneURL = try RalphMockCLITestSupport.writeJSONDocument(
-            RalphMockCLITestSupport.queueReadDocument(
-                workspaceURL: fixture.workspaceURL,
-                activeTasks: [loopTaskOne],
-                nextRunnableTaskID: "RQ-LOOP-1"
-            ),
-            in: fixture.rootURL,
-            name: "queue-read-first.json"
-        )
-        let loopQueueTwoURL = try RalphMockCLITestSupport.writeJSONDocument(
-            RalphMockCLITestSupport.queueReadDocument(
-                workspaceURL: fixture.workspaceURL,
-                activeTasks: [loopTaskTwo],
-                nextRunnableTaskID: "RQ-LOOP-2"
-            ),
-            in: fixture.rootURL,
-            name: "queue-read-second.json"
-        )
 
         let script = """
             #!/bin/sh
-            state_file="\(stateURL.path)"
+            printf '%s\\n' "$*" >> "\(commandLogURL.path)"
 
             case "$*" in
               *"--no-color machine config resolve"*)
               cat "\(configResolveURL.path)"
               exit 0
               ;;
-              *"--no-color machine queue read"*)
-              if [ ! -f "$state_file" ]; then
-                cat "\(loopQueueOneURL.path)"
-              else
-                cat "\(loopQueueTwoURL.path)"
-              fi
-              exit 0
-              ;;
-              *"--no-color machine run one --resume --id RQ-LOOP-1"*)
+              *"--no-color machine run loop --resume --max-tasks 0"*)
               echo '{"version":1,"kind":"run_started","task_id":"RQ-LOOP-1","phase":null,"message":null,"payload":null}'
               echo '{"version":1,"kind":"runner_output","task_id":"RQ-LOOP-1","phase":null,"message":null,"payload":{"text":"running first\\n"}}'
-              echo '{"version":1,"task_id":"RQ-LOOP-1","exit_code":0,"outcome":"success"}'
-              echo "done" > "$state_file"
-              exit 0
-              ;;
-              *"--no-color machine run one --resume --id RQ-LOOP-2"*)
-              echo '{"version":1,"kind":"run_started","task_id":"RQ-LOOP-2","phase":null,"message":null,"payload":null}'
+              echo '{"version":1,"kind":"task_selected","task_id":"RQ-LOOP-2","phase":null,"message":"Second loop task","payload":null}'
               echo '{"version":1,"kind":"runner_output","task_id":"RQ-LOOP-2","phase":null,"message":null,"payload":{"text":"running second\\n"}}'
-              echo '{"version":1,"task_id":"RQ-LOOP-2","exit_code":64,"outcome":"failure"}'
-              exit 64
+              echo '{"version":1,"task_id":null,"exit_code":0,"outcome":"completed"}'
+              exit 0
               ;;
             esac
 
@@ -176,24 +128,145 @@ final class WorkspaceRunCancelAndLoopTests: WorkspacePerformanceTestCase {
         )
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
-        let startedAt = Date()
         workspace.startLoop()
 
-        let loopAdvanced = await WorkspacePerformanceTestSupport.waitFor(timeout: 0.75) {
-            workspace.output.contains("running second")
-        }
-        XCTAssertTrue(loopAdvanced)
-
-        XCTAssertLessThan(Date().timeIntervalSince(startedAt), 0.9)
-
         let loopFinished = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
-            !workspace.isRunning
+            !workspace.isRunning && workspace.lastExitStatus?.code == 0
         }
         XCTAssertTrue(loopFinished)
 
+        let commandLog = try String(contentsOf: commandLogURL, encoding: .utf8)
+        XCTAssertTrue(commandLog.contains("--no-color machine run loop --resume --max-tasks 0"))
+        XCTAssertFalse(commandLog.contains("machine run one"))
         XCTAssertTrue(workspace.output.contains("running first"))
         XCTAssertTrue(workspace.output.contains("running second"))
-        XCTAssertEqual(workspace.lastExitStatus?.code, 64)
+        XCTAssertEqual(workspace.lastExitStatus?.code, 0)
         XCTAssertFalse(workspace.isLoopMode)
+    }
+
+    func test_startLoop_clearsLoopModeWhenProcessLaunchFails() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "ralph-workspace-loop-launch-failure",
+            scriptName: "mock-ralph-loop-launch-failure",
+            seedQueueTasks: []
+        )
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let script = """
+            #!/bin/sh
+            echo "unexpected launch"
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        try FileManager.default.removeItem(at: fixture.workspaceURL)
+
+        workspace.startLoop()
+
+        let failureSurfaced = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
+            workspace.runState.errorMessage != nil
+        }
+        XCTAssertTrue(failureSurfaced)
+        XCTAssertFalse(workspace.isRunning)
+        XCTAssertFalse(workspace.isLoopMode)
+        XCTAssertFalse(workspace.stopAfterCurrent)
+    }
+
+    func test_stopLoop_requestsQueueStopSignalForActiveMachineLoop() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "ralph-workspace-loop-stop",
+            scriptName: "mock-ralph-loop-stop",
+            seedQueueTasks: []
+        )
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+        let commandLogURL = fixture.rootURL.appendingPathComponent("command-log.txt", isDirectory: false)
+        let stopSignalURL = fixture.rootURL.appendingPathComponent("stop-signal.txt", isDirectory: false)
+
+        let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.configResolveDocument(
+                workspaceURL: fixture.workspaceURL,
+                agent: AgentConfig(model: "model-test", iterations: 2)
+            ),
+            in: fixture.rootURL,
+            name: "config-resolve.json"
+        )
+
+        let script = """
+            #!/bin/sh
+            printf '%s\\n' "$*" >> "\(commandLogURL.path)"
+
+            case "$*" in
+              *"--no-color machine config resolve"*)
+              cat "\(configResolveURL.path)"
+              exit 0
+              ;;
+              *"--no-color machine run loop --resume --max-tasks 0"*)
+              echo '{"version":1,"kind":"run_started","task_id":"RQ-LOOP-STOP","phase":null,"message":null,"payload":null}'
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-LOOP-STOP","phase":null,"message":null,"payload":{"text":"loop running\\n"}}'
+              while [ ! -f "\(stopSignalURL.path)" ]; do
+                sleep 0.05
+              done
+              echo '{"version":1,"kind":"runner_output","task_id":"RQ-LOOP-STOP","phase":null,"message":null,"payload":{"text":"loop stopping\\n"}}'
+              echo '{"version":1,"task_id":null,"exit_code":0,"outcome":"completed"}'
+              exit 0
+              ;;
+              *"queue stop"*)
+              echo "stop command received" > "\(stopSignalURL.path)"
+              exit 0
+              ;;
+            esac
+
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+
+        workspace.startLoop()
+
+        let loopStarted = await WorkspacePerformanceTestSupport.waitFor(timeout: 1.0) {
+            workspace.output.contains("loop running")
+        }
+        XCTAssertTrue(loopStarted)
+
+        workspace.stopLoop()
+
+        let stopRequested = await WorkspacePerformanceTestSupport.waitFor(timeout: 1.0) {
+            FileManager.default.fileExists(atPath: stopSignalURL.path)
+        }
+        XCTAssertTrue(stopRequested)
+
+        let loopFinished = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
+            !workspace.isRunning && workspace.lastExitStatus?.code == 0
+        }
+        XCTAssertTrue(loopFinished)
+
+        let commandLog = try String(contentsOf: commandLogURL, encoding: .utf8)
+        XCTAssertTrue(commandLog.contains("--no-color machine run loop --resume --max-tasks 0"))
+        XCTAssertTrue(commandLog.contains("queue stop"))
+        XCTAssertTrue(workspace.output.contains("loop running"))
+        XCTAssertTrue(workspace.output.contains("loop stopping"))
+        XCTAssertEqual(workspace.lastExitStatus?.code, 0)
+        XCTAssertFalse(workspace.isLoopMode)
+        XCTAssertFalse(workspace.stopAfterCurrent)
     }
 }

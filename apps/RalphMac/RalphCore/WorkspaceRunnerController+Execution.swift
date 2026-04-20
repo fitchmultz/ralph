@@ -3,7 +3,8 @@
 
  Responsibilities:
  - Schedule workspace run tasks and own subprocess finalization.
- - Resolve next-task selection and loop continuation for app-launched runs.
+ - Resolve next-task selection for app-launched one-shot runs.
+ - Request CLI loop stop signals without cancelling the active run immediately.
  - Keep cancellation and repository-retarget cleanup centralized outside the facade file.
 
  Does not handle:
@@ -142,8 +143,12 @@ extension WorkspaceRunnerController {
             workspace.diagnosticsState.lastRecoveryError = recoveryError
             workspace.diagnosticsState.showErrorRecovery = true
             workspace.runState.isRunning = false
+            workspace.runState.isLoopMode = false
+            workspace.runState.stopAfterCurrent = false
             activeRun = nil
             runCancellationTask = nil
+            loopStopSignalTask?.cancel()
+            loopStopSignalTask = nil
             cancelRequested = false
             workspace.resetExecutionState()
         }
@@ -173,6 +178,45 @@ extension WorkspaceRunnerController {
         }
     }
 
+    func scheduleLoopStopSignalRequest() {
+        guard let workspace, let client = workspace.client else { return }
+        let workingDirectoryURL = workspace.identityState.workingDirectoryURL
+        loopStopSignalTask?.cancel()
+        loopStopSignalTask = Task { @MainActor [weak self, weak workspace] in
+            guard let self, let workspace, !Task.isCancelled else { return }
+            do {
+                let run = try client.start(
+                    arguments: ["queue", "stop"],
+                    currentDirectoryURL: workingDirectoryURL
+                )
+                self.appendConsoleText("[ralph] Stop after current requested.\n", workspace: workspace)
+                for await event in run.events {
+                    guard !Task.isCancelled else {
+                        await run.cancel()
+                        return
+                    }
+                    self.appendConsoleText(event.text, workspace: workspace)
+                }
+                let status = await run.waitUntilExit()
+                if status.code != 0 {
+                    self.appendConsoleText(
+                        "[warning] Failed to request loop stop; queue stop exited \(status.code).\n",
+                        workspace: workspace
+                    )
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                self.appendConsoleText(
+                    "[warning] Failed to request loop stop: \(error.localizedDescription)\n",
+                    workspace: workspace
+                )
+            }
+            guard self.loopStopSignalTask != nil else { return }
+            self.loopStopSignalTask = nil
+        }
+    }
+
     func finalizeRun(
         status: RalphCLIExitStatus,
         run: RalphCLIRun,
@@ -195,33 +239,19 @@ extension WorkspaceRunnerController {
             workspace.addToHistory(record)
         }
 
-        let shouldContinueLoop = workspace.runState.isLoopMode
-            && !workspace.runState.stopAfterCurrent
-            && !cancelRequested
-            && status.code == 0
-
-        if status.code != 0 {
+        if workspace.runState.isLoopMode || status.code != 0 {
             workspace.runState.isLoopMode = false
         }
 
         activeRun = nil
         runCancellationTask = nil
+        loopStopSignalTask?.cancel()
+        loopStopSignalTask = nil
+        if !cancelRequested {
+            workspace.runState.stopAfterCurrent = false
+        }
         cancelRequested = false
         workspace.resetExecutionState()
-
-        if shouldContinueLoop {
-            scheduleLoopContinuation()
-        }
-    }
-
-    func scheduleLoopContinuation() {
-        loopContinuationTask?.cancel()
-        loopContinuationTask = Task { @MainActor [weak self] in
-            guard let self, let workspace = self.workspace else { return }
-            loopContinuationTask = nil
-            guard workspace.runState.isLoopMode, !workspace.runState.stopAfterCurrent else { return }
-            runNextTask(forceDirtyRepo: loopForceDirtyRepo, preservingConsole: true)
-        }
     }
 
     func resolveNextRunnableTaskID(repositoryContext: Workspace.RepositoryContext) async -> String? {

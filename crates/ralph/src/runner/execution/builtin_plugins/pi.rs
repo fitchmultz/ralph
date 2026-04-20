@@ -2,6 +2,7 @@
 //!
 //! Responsibilities:
 //! - Build Pi CLI commands for run and resume operations.
+//! - Wrap Pi's Node entrypoint so its process-title mutation cannot expose inherited secrets.
 //! - Parse Pi JSON response format.
 //! - Resolve Pi session paths for resume operations.
 //!
@@ -9,11 +10,13 @@
 //! - Process execution (handled by parent module).
 //! - CLI option resolution (handled by cli_spec module).
 
-use std::path::Path;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use serde_json::Value as JsonValue;
 
 use crate::contracts::Runner;
+use crate::fsutil;
 use crate::runner::{
     ResolvedRunnerCliOptions, RunnerError, runner_execution_error,
     runner_execution_error_with_source,
@@ -78,7 +81,11 @@ impl PiPlugin {
         prompt: &str,
         session_path: Option<&Path>,
     ) -> Result<PluginCommandParts, RunnerError> {
-        let builder = RunnerCommandBuilder::new(bin, work_dir);
+        let (builder, mut temp_resources) = if let Some(entrypoint) = pi_node_entrypoint(bin) {
+            pi_wrapper_builder(work_dir, bin, &entrypoint)?
+        } else {
+            (RunnerCommandBuilder::new(bin, work_dir), Vec::new())
+        };
         let builder = apply_analytics_env(builder, &Runner::Pi, model);
         let builder = apply_pi_options(builder, runner_cli);
 
@@ -90,14 +97,122 @@ impl PiPlugin {
             builder
         };
 
-        Ok(builder
+        let (cmd, payload, mut builder_resources) = builder
             .model(model)
             .arg("--mode")
             .arg("json")
             .arg(prompt)
-            .build())
+            .build();
+        temp_resources.append(&mut builder_resources);
+        Ok((cmd, payload, temp_resources))
     }
 }
+
+fn pi_wrapper_builder(
+    work_dir: &Path,
+    bin: &str,
+    entrypoint: &Path,
+) -> Result<
+    (
+        RunnerCommandBuilder,
+        Vec<Box<dyn std::any::Any + Send + Sync>>,
+    ),
+    RunnerError,
+> {
+    let temp_dir = fsutil::create_ralph_temp_dir("pi-wrapper").map_err(|err| {
+        runner_execution_error_with_source(&Runner::Pi, bin, "create pi wrapper temp dir", err)
+    })?;
+    let mut wrapper = tempfile::Builder::new()
+        .prefix("ralph_pi_wrapper_")
+        .suffix(".mjs")
+        .tempfile_in(temp_dir.path())
+        .map_err(|err| {
+            runner_execution_error_with_source(&Runner::Pi, bin, "create pi wrapper", err)
+        })?;
+
+    wrapper
+        .write_all(PI_WRAPPER_SOURCE.as_bytes())
+        .map_err(|err| {
+            runner_execution_error_with_source(&Runner::Pi, bin, "write pi wrapper", err)
+        })?;
+    wrapper.flush().map_err(|err| {
+        runner_execution_error_with_source(&Runner::Pi, bin, "flush pi wrapper", err)
+    })?;
+
+    let wrapper_path = wrapper.path().to_string_lossy().to_string();
+    let entrypoint_path = entrypoint.to_string_lossy().to_string();
+    let builder = RunnerCommandBuilder::new("node", work_dir)
+        .arg(&wrapper_path)
+        .env("RALPH_PI_BIN", bin)
+        .env("RALPH_PI_ENTRYPOINT", &entrypoint_path);
+    Ok((builder, vec![Box::new(wrapper), Box::new(temp_dir)]))
+}
+
+fn pi_node_entrypoint(bin: &str) -> Option<PathBuf> {
+    resolve_executable_path(bin).filter(|path| is_node_script(path))
+}
+
+fn resolve_executable_path(bin: &str) -> Option<PathBuf> {
+    let direct = Path::new(bin);
+    if direct.is_absolute() || direct.components().count() > 1 {
+        return direct.canonicalize().ok();
+    }
+
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(bin))
+        .find(|candidate| candidate.is_file())
+        .and_then(|candidate| candidate.canonicalize().ok())
+}
+
+fn is_node_script(path: &Path) -> bool {
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| matches!(extension, "js" | "mjs" | "cjs"))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+
+    let mut file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return false,
+    };
+    let mut buffer = [0_u8; 128];
+    let bytes = match file.read(&mut buffer) {
+        Ok(bytes) => bytes,
+        Err(_) => return false,
+    };
+    let prefix = String::from_utf8_lossy(&buffer[..bytes]);
+    prefix.starts_with("#!") && prefix.contains("node")
+}
+
+const PI_WRAPPER_SOURCE: &str = r#"
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+
+const piBin = process.env.RALPH_PI_BIN;
+if (!piBin) {
+  throw new Error("RALPH_PI_BIN is required");
+}
+const piEntrypoint = process.env.RALPH_PI_ENTRYPOINT;
+if (!piEntrypoint) {
+  throw new Error("RALPH_PI_ENTRYPOINT is required");
+}
+
+Object.defineProperty(process, "title", {
+  configurable: false,
+  enumerable: true,
+  get() {
+    return "pi";
+  },
+  set(_) {}
+});
+
+process.argv = [process.argv[0], piBin, ...process.argv.slice(2)];
+await import(pathToFileURL(realpathSync(piEntrypoint)).href);
+"#;
 
 /// Resolve the path to a Pi session file for resume operations.
 pub(crate) fn resolve_pi_session_path(
