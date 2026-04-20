@@ -80,7 +80,7 @@ public extension Workspace {
             guard isCurrentRepositoryContext(repositoryContext) else { return }
             taskState.tasksErrorMessage = "CLI client not available."
             taskState.nextRunnableTaskID = nil
-            runState.setBlockingState(nil)
+            runState.clearQueueBlockingState()
             return
         }
 
@@ -89,7 +89,7 @@ public extension Workspace {
             stopFileWatching()
             taskState.tasks = []
             taskState.nextRunnableTaskID = nil
-            runState.setBlockingState(nil)
+            runState.clearQueueBlockingState()
             taskState.tasksErrorMessage = """
             No Ralph queue found in this directory. Run `ralph init --non-interactive` in \(identityState.workingDirectoryURL.path).
             """
@@ -130,13 +130,14 @@ public extension Workspace {
                 taskState.tasks = snapshot.active.tasks
                 taskState.nextRunnableTaskID = snapshot.nextRunnableTaskID
                 if !runState.isRunning {
-                    runState.setBlockingState(
-                        snapshot.runnability.decode(
-                            WorkspaceRunnerController.MachineBlockingState.self,
-                            at: ["summary", "blocking"]
-                        )?.asWorkspaceBlockingState()
-                    )
+                    runState.clearLiveBlockingState()
                 }
+                runState.setQueueBlockingState(
+                    snapshot.runnability.decode(
+                        WorkspaceRunnerController.MachineBlockingState.self,
+                        at: ["summary", "blocking"]
+                    )?.asWorkspaceBlockingState()
+                )
                 self.sanitizeRunControlSelection()
                 taskState.tasksErrorMessage = nil
             },
@@ -146,7 +147,7 @@ public extension Workspace {
             handleFailure: { [taskState, runState = self.runState] recoveryError in
                 taskState.tasksErrorMessage = recoveryError.message
                 taskState.nextRunnableTaskID = nil
-                runState.setBlockingState(nil)
+                runState.refreshOperatorStateForDisplay()
             }
         )
     }

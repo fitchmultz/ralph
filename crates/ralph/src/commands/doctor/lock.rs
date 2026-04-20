@@ -1,23 +1,25 @@
 //! Lock directory health checks for the doctor command.
 //!
 //! Responsibilities:
-//! - Detect orphaned lock directories
-//! - Check owner file validity and PID liveness
-//! - Remove stale locks when auto-fix is enabled
+//! - Inspect the canonical queue lock path using the shared run-time lock semantics.
+//! - Surface live, stale, and metadata-broken queue locks through doctor results.
+//! - Optionally remove only confirmed-stale queue locks when auto-fix is enabled.
 //!
 //! Not handled here:
 //! - Active lock acquisition (see lock module)
 //! - Queue content validation (see queue.rs)
 //!
 //! Invariants/assumptions:
-//! - Lock directories without valid owners are safe to remove
-//! - PID liveness checks may be indeterminate on some platforms
+//! - Only confirmed dead-PID stale locks are auto-fixable here.
+//! - Live, indeterminate, owner-missing, and unreadable-owner locks require operator review.
+//! - Stale-lock auto-fix reuses `queue::acquire_queue_lock(..., force=true)` so removal stays
+//!   aligned with runtime stale classification and remains safe to retry (no direct `remove_dir_all` bypass).
 
 use crate::commands::doctor::types::{CheckResult, DoctorReport};
+use crate::commands::run::{QueueLockCondition, inspect_queue_lock};
 use crate::config;
-use crate::contracts::BlockingState;
-use crate::lock::{is_task_owner_file, pid_liveness, queue_lock_dir, read_lock_owner};
-use std::fs;
+use crate::lock::queue_lock_dir;
+use anyhow::Context;
 use std::path::Path;
 
 pub(crate) fn check_lock_health(
@@ -25,257 +27,57 @@ pub(crate) fn check_lock_health(
     resolved: &config::Resolved,
     auto_fix: bool,
 ) {
-    let active_queue_lock = active_queue_lock_blocking_state(&resolved.repo_root);
-    if let Some(blocking) = active_queue_lock.clone() {
-        report.add(
-            CheckResult::error(
-                "lock",
-                "queue_lock_held",
-                &blocking.message,
-                false,
-                Some(
-                    "Wait for the owning Ralph process to finish, or clear a verified stale lock.",
-                ),
-            )
-            .with_blocking(blocking),
-        );
-    }
+    let Some(inspection) = inspect_queue_lock(&resolved.repo_root) else {
+        report.add(CheckResult::success(
+            "lock",
+            "queue_lock_health",
+            "queue lock is clear",
+        ));
+        return;
+    };
 
-    match check_lock_directory_health(&resolved.repo_root) {
-        Ok((orphaned_count, total_count)) => {
-            if orphaned_count > 0 {
-                let fix_available = true;
-                let mut result = CheckResult::warning(
-                    "lock",
-                    "orphaned_locks",
-                    &format!(
-                        "found {} orphaned lock director{} (out of {} total)",
-                        orphaned_count,
-                        if orphaned_count == 1 { "y" } else { "ies" },
-                        total_count
-                    ),
-                    fix_available,
-                    Some("Use --auto-fix to remove orphaned lock directories"),
-                );
+    let fix_available = matches!(inspection.condition, QueueLockCondition::Stale);
+    let suggested_fix = match inspection.condition {
+        QueueLockCondition::Live => Some(
+            "Wait for the owning Ralph process to finish, or inspect the current lock owner before retrying.",
+        ),
+        QueueLockCondition::Stale => Some(
+            "Use --auto-fix to remove the confirmed stale queue lock, or clear it manually once you verify the recorded PID is dead.",
+        ),
+        QueueLockCondition::OwnerMissing | QueueLockCondition::OwnerUnreadable => Some(
+            "Verify no other Ralph process is active, then clear the broken queue lock record explicitly.",
+        ),
+    };
 
-                if auto_fix && fix_available {
-                    match remove_orphaned_locks(&resolved.repo_root) {
-                        Ok(removed_count) => {
-                            log::info!("Removed {} orphaned lock directories", removed_count);
-                            result = result.with_fix_applied(true);
-                        }
-                        Err(remove_err) => {
-                            log::error!("Failed to remove orphaned locks: {}", remove_err);
-                            result = result.with_fix_applied(false);
-                        }
-                    }
-                }
-
-                report.add(result);
-            } else if total_count > 0 {
-                if active_queue_lock.is_none() {
-                    report.add(CheckResult::success(
-                        "lock",
-                        "lock_health",
-                        &format!(
-                            "all {} lock director{} healthy",
-                            total_count,
-                            if total_count == 1 { "y" } else { "ies" }
-                        ),
-                    ));
-                }
-            } else {
-                log::info!("no lock directories found");
-            }
-        }
-        Err(e) => {
-            report.add(CheckResult::warning(
-                "lock",
-                "lock_health",
-                &format!("lock health check failed: {}", e),
-                false,
-                None,
-            ));
-        }
-    }
-}
-
-pub(crate) fn active_queue_lock_blocking_state(repo_root: &Path) -> Option<BlockingState> {
-    let lock_dir = queue_lock_dir(repo_root);
-    let owner = read_lock_owner(&lock_dir).ok().flatten()?;
-    if !pid_liveness(owner.pid).is_running_or_indeterminate() {
-        return None;
-    }
-
-    Some(
-        BlockingState::lock_blocked(
-            Some(lock_dir.display().to_string()),
-            Some(owner.label),
-            Some(owner.pid),
-        )
-        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+    let mut result = CheckResult::error(
+        "lock",
+        "queue_lock_health",
+        &inspection.blocking_state.message,
+        fix_available,
+        suggested_fix,
     )
+    .with_blocking(inspection.blocking_state.clone());
+
+    if auto_fix && fix_available {
+        match remove_stale_queue_lock(&resolved.repo_root) {
+            Ok(removed) => {
+                log::info!("Removed stale queue lock: {}", removed);
+                result = result.with_fix_applied(true);
+            }
+            Err(remove_err) => {
+                log::error!("Failed to remove stale queue lock: {}", remove_err);
+                result = result.with_fix_applied(false);
+            }
+        }
+    }
+
+    report.add(result);
 }
 
-/// Check the health of lock directories in .ralph/lock/
-///
-/// Returns a tuple of (orphaned_count, total_count) where:
-/// - orphaned_count: Number of lock directories that appear to be orphaned
-/// - total_count: Total number of lock directories found
-pub(crate) fn check_lock_directory_health(repo_root: &Path) -> anyhow::Result<(usize, usize)> {
+fn remove_stale_queue_lock(repo_root: &Path) -> anyhow::Result<String> {
     let lock_dir = queue_lock_dir(repo_root);
-
-    if !lock_dir.exists() {
-        return Ok((0, 0));
-    }
-
-    let mut total_count = 0;
-    let mut orphaned_count = 0;
-
-    for entry in fs::read_dir(&lock_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        // Only consider directories
-        if !path.is_dir() {
-            continue;
-        }
-
-        total_count += 1;
-
-        // Check if this lock directory has a valid owner file
-        let owner_path = path.join("owner");
-        let has_valid_owner = if owner_path.exists() {
-            // Check if the owner file has a valid, running PID
-            match fs::read_to_string(&owner_path) {
-                Ok(content) => {
-                    // Parse PID from owner file
-                    content
-                        .lines()
-                        .find(|line| line.starts_with("pid:"))
-                        .and_then(|line| line.split(':').nth(1))
-                        .and_then(|pid_str| {
-                            pid_str
-                                .trim()
-                                .parse::<u32>()
-                                .inspect_err(|e| {
-                                    log::debug!(
-                                        "Invalid PID '{}' in owner file: {}",
-                                        pid_str.trim(),
-                                        e
-                                    )
-                                })
-                                .ok()
-                        })
-                        .map(|pid| pid_liveness(pid).is_running_or_indeterminate())
-                        .unwrap_or(true) // Assume running if we can't determine status
-                }
-                Err(_) => false,
-            }
-        } else {
-            // Check for task owner files (shared locks)
-            // Use the shared helper from lock module to detect task sidecar files
-            fs::read_dir(&path)?.any(|e| {
-                e.inspect_err(|err| log::trace!("Skipping directory entry: {}", err))
-                    .ok()
-                    .map(|entry| {
-                        entry
-                            .file_name()
-                            .to_str()
-                            .map(is_task_owner_file)
-                            .unwrap_or(false)
-                    })
-                    .unwrap_or(false)
-            })
-        };
-
-        if !has_valid_owner {
-            orphaned_count += 1;
-            log::debug!(
-                "Orphaned lock directory detected: {} (no valid owner)",
-                path.display()
-            );
-        }
-    }
-
-    Ok((orphaned_count, total_count))
-}
-
-/// Remove orphaned lock directories.
-///
-/// Returns the number of directories removed.
-pub(crate) fn remove_orphaned_locks(repo_root: &Path) -> anyhow::Result<usize> {
-    let lock_dir = queue_lock_dir(repo_root);
-
-    if !lock_dir.exists() {
-        return Ok(0);
-    }
-
-    let mut removed_count = 0;
-
-    for entry in fs::read_dir(&lock_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        // Only consider directories
-        if !path.is_dir() {
-            continue;
-        }
-
-        // Check if this lock directory has a valid owner file
-        let owner_path = path.join("owner");
-        let has_valid_owner = if owner_path.exists() {
-            match fs::read_to_string(&owner_path) {
-                Ok(content) => content
-                    .lines()
-                    .find(|line| line.starts_with("pid:"))
-                    .and_then(|line| line.split(':').nth(1))
-                    .and_then(|pid_str| {
-                        pid_str
-                            .trim()
-                            .parse::<u32>()
-                            .inspect_err(|e| {
-                                log::debug!(
-                                    "Invalid PID '{}' in owner file (cleanup): {}",
-                                    pid_str.trim(),
-                                    e
-                                )
-                            })
-                            .ok()
-                    })
-                    .map(|pid| pid_liveness(pid).is_running_or_indeterminate())
-                    .unwrap_or(true),
-                Err(_) => false,
-            }
-        } else {
-            fs::read_dir(&path)?.any(|e| {
-                e.inspect_err(|err| log::trace!("Skipping directory entry (cleanup): {}", err))
-                    .ok()
-                    .map(|entry| {
-                        entry
-                            .file_name()
-                            .to_str()
-                            .map(is_task_owner_file)
-                            .unwrap_or(false)
-                    })
-                    .unwrap_or(false)
-            })
-        };
-
-        if !has_valid_owner {
-            log::info!("Removing orphaned lock directory: {}", path.display());
-            fs::remove_dir_all(&path)?;
-            removed_count += 1;
-        }
-    }
-
-    // Try to clean up the lock directory itself if it's now empty
-    if lock_dir.exists() {
-        let is_empty = fs::read_dir(&lock_dir)?.next().is_none();
-        if is_empty {
-            fs::remove_dir(&lock_dir)?;
-        }
-    }
-
-    Ok(removed_count)
+    let _guard =
+        crate::queue::acquire_queue_lock(repo_root, "doctor stale queue lock auto-fix", true)
+            .with_context(|| format!("clear stale queue lock at {}", lock_dir.display()))?;
+    Ok(lock_dir.display().to_string())
 }

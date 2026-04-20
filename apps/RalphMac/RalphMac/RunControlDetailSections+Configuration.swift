@@ -48,19 +48,41 @@ struct RunControlRunnerConfigurationSection: View {
 @MainActor
 struct RunControlExecutionControlsSection: View {
     @ObservedObject var workspace: Workspace
+    @State private var showingDiagnosticsSheet = false
+    @State private var diagnosticsSheetTitle = ""
+    @State private var diagnosticsSheetText = ""
+    @State private var diagnosticsSheetLoadingTitle = "Loading..."
+    @State private var isRunningDiagnostics = false
+    @State private var queueLockSnapshot: QueueLockDiagnosticSnapshot?
+
+    private var queueLockInspectionToken: String? {
+        guard let blockingState = workspace.runState.runControlOperatorState?.blockingState,
+              case .lockBlocked = blockingState.reason else {
+            return nil
+        }
+        return [
+            workspace.runState.runControlOperatorState?.title,
+            workspace.runState.runControlOperatorState?.detail,
+            workspace.runState.runControlOperatorState?.observedAt,
+        ]
+        .compactMap { $0 }
+        .joined(separator: "|")
+    }
 
     var body: some View {
         RunControlGlassSection("Controls") {
             VStack(spacing: 12) {
-                if let blockingState = workspace.runState.runControlDisplayBlockingState {
-                    blockingStateView(blockingState)
+                if let operatorState = workspace.runState.runControlOperatorState {
+                    operatorStateView(operatorState)
                 }
 
-                if let resumeState = workspace.runState.resumeState {
+                if let resumeState = workspace.runState.runControlOperatorState?.secondaryResumeState {
                     resumeStateView(resumeState)
                 }
 
-                if workspace.runState.shouldShowRunControlParallelStatus {
+                if workspace.runState.shouldShowRunControlParallelStatus,
+                   workspace.runState.runControlOperatorState?.source != .parallel,
+                   workspace.runState.parallelStatus?.blocking != workspace.runState.runControlOperatorState?.blockingState {
                     parallelStatusView
                 }
 
@@ -139,6 +161,17 @@ struct RunControlExecutionControlsSection: View {
                 }
             }
         }
+        .sheet(isPresented: $showingDiagnosticsSheet) {
+            RunControlDiagnosticsTextSheet(
+                title: diagnosticsSheetTitle,
+                text: diagnosticsSheetText,
+                isLoading: isRunningDiagnostics,
+                loadingTitle: diagnosticsSheetLoadingTitle
+            )
+        }
+        .task(id: queueLockInspectionToken) {
+            await refreshQueueLockSnapshotIfNeeded()
+        }
     }
 
     @ViewBuilder
@@ -152,12 +185,49 @@ struct RunControlExecutionControlsSection: View {
     }
 
     @ViewBuilder
-    private func blockingStateView(_ state: Workspace.BlockingState) -> some View {
+    private func operatorStateView(_ state: Workspace.RunControlOperatorState) -> some View {
         RunControlTintedStatusCard(
-            icon: blockingIcon(for: state.status),
-            tint: blockingColor(for: state.status)
+            icon: operatorStateIcon(for: state),
+            tint: operatorStateColor(for: state)
         ) {
-            RunControlStatusText(title: state.message, detail: state.detail)
+            RunControlStatusText(title: state.title, detail: state.detail)
+
+            if state.source == .parallel, let parallelStatus = workspace.runState.parallelStatus {
+                if let targetBranch = parallelStatus.snapshot.targetBranch, !targetBranch.isEmpty {
+                    RunControlConfigRow(icon: "arrow.triangle.branch", label: "Target Branch", value: targetBranch)
+                }
+
+                if parallelStatus.snapshot.lifecycleCounts.total > 0 {
+                    RunControlConfigRow(
+                        icon: "square.stack.3d.up",
+                        label: "Workers",
+                        value: parallelCountSummary(for: parallelStatus.snapshot.lifecycleCounts)
+                    )
+                }
+            }
+
+            if !state.nextSteps.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Next")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ForEach(Array(state.nextSteps.enumerated()), id: \.offset) { _, step in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(step.title)
+                                .font(.caption.weight(.medium))
+                            Text(step.detail)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            if let blockingState = state.blockingState,
+               case .lockBlocked = blockingState.reason {
+                lockRecoveryActionsView
+            }
+
             if let observed = state.observedAt, !observed.isEmpty {
                 Text("Blocking snapshot: \(observed)")
                     .font(.caption2)
@@ -255,6 +325,63 @@ struct RunControlExecutionControlsSection: View {
         return .green
     }
 
+    @ViewBuilder
+    private var lockRecoveryActionsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Lock Recovery")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Button("Inspect Lock") {
+                    runDiagnosticsSheet(
+                        title: "Queue Lock Inspection",
+                        loadingTitle: "Inspecting queue lock..."
+                    ) {
+                        let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+                        queueLockSnapshot = snapshot
+                        return await WorkspaceDiagnosticsService.queueLockInspectionOutput(for: workspace)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Preview Unlock") {
+                    runDiagnosticsSheet(
+                        title: "Queue Unlock Preview",
+                        loadingTitle: "Previewing queue unlock..."
+                    ) {
+                        let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+                        queueLockSnapshot = snapshot
+                        return snapshot.unlockPreview
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Clear Stale Lock") {
+                    runDiagnosticsSheet(
+                        title: "Clear Stale Queue Lock",
+                        loadingTitle: "Clearing stale queue lock..."
+                    ) {
+                        let result = await WorkspaceDiagnosticsService.clearStaleQueueLock(for: workspace)
+                        queueLockSnapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+                        return result
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(queueLockSnapshot?.canClearStaleLock != true || isRunningDiagnostics)
+            }
+
+            if let queueLockSnapshot {
+                Text("Lock status: \(queueLockSnapshot.condition.displayName)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func parallelCountSummary(for counts: ParallelLifecycleCounts) -> String {
         [
             counts.running > 0 ? "R \(counts.running)" : nil,
@@ -275,6 +402,43 @@ struct RunControlExecutionControlsSection: View {
             return "pause.circle.fill"
         case .stalled:
             return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func operatorStateIcon(for state: Workspace.RunControlOperatorState) -> String {
+        if let blockingState = state.blockingState {
+            return blockingIcon(for: blockingState.status)
+        }
+        if let resumeState = state.secondaryResumeState {
+            return resumeIcon(for: resumeState.status)
+        }
+        switch state.source {
+        case .resumePreview:
+            return resumeIcon(for: workspace.runState.resumeState?.status ?? .fallingBackToFreshInvocation)
+        case .parallel:
+            return "square.stack.3d.up.fill"
+        case .liveRun:
+            return "bolt.horizontal.circle.fill"
+        case .resumeRecovery:
+            return "exclamationmark.octagon.fill"
+        case .queueSnapshot:
+            return "hourglass"
+        }
+    }
+
+    private func operatorStateColor(for state: Workspace.RunControlOperatorState) -> Color {
+        if let blockingState = state.blockingState {
+            return blockingColor(for: blockingState.status)
+        }
+        switch workspace.runState.resumeState?.status {
+        case .resumingSameSession:
+            return .blue
+        case .fallingBackToFreshInvocation:
+            return .orange
+        case .refusingToResume:
+            return .red
+        case .none:
+            return .secondary
         }
     }
 
@@ -309,5 +473,66 @@ struct RunControlExecutionControlsSection: View {
         case .refusingToResume:
             return .red
         }
+    }
+
+    private func runDiagnosticsSheet(
+        title: String,
+        loadingTitle: String,
+        action: @escaping @MainActor () async -> String
+    ) {
+        diagnosticsSheetTitle = title
+        diagnosticsSheetLoadingTitle = loadingTitle
+        diagnosticsSheetText = ""
+        showingDiagnosticsSheet = true
+        isRunningDiagnostics = true
+
+        Task { @MainActor in
+            diagnosticsSheetText = await action()
+            isRunningDiagnostics = false
+        }
+    }
+
+    private func refreshQueueLockSnapshotIfNeeded() async {
+        guard queueLockInspectionToken != nil else {
+            queueLockSnapshot = nil
+            return
+        }
+        queueLockSnapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+    }
+}
+
+@MainActor
+private struct RunControlDiagnosticsTextSheet: View {
+    let title: String
+    let text: String
+    let isLoading: Bool
+    let loadingTitle: String
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                if isLoading {
+                    ProgressView(loadingTitle)
+                        .padding()
+                } else {
+                    ScrollView {
+                        Text(text)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                    }
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .navigationTitle(title)
+        }
+        .frame(minWidth: 600, minHeight: 400)
     }
 }

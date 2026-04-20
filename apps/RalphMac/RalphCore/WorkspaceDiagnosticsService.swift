@@ -20,6 +20,37 @@
 
 import Foundation
 
+public struct QueueLockDiagnosticSnapshot: Equatable, Sendable {
+    public enum Condition: String, Equatable, Sendable {
+        case clear
+        case live
+        case stale
+        case ownerMissing
+        case ownerUnreadable
+        case unknown
+
+        public var displayName: String {
+            switch self {
+            case .clear: return "Clear"
+            case .live: return "Live Holder"
+            case .stale: return "Stale Lock"
+            case .ownerMissing: return "Owner Metadata Missing"
+            case .ownerUnreadable: return "Owner Metadata Unreadable"
+            case .unknown: return "Unknown"
+            }
+        }
+    }
+
+    public let condition: Condition
+    let blocking: WorkspaceRunnerController.MachineBlockingState?
+    let doctorOutput: String
+    public let unlockPreview: String
+
+    public var canClearStaleLock: Bool {
+        condition == .stale
+    }
+}
+
 @MainActor
 public enum WorkspaceDiagnosticsService {
     public static func queueValidationOutput(for workspace: Workspace) async -> String {
@@ -75,6 +106,74 @@ public enum WorkspaceDiagnosticsService {
             return try await RalphLogger.shared.exportLogs(hours: hours)
         } catch {
             return "Failed to export logs: \(error.localizedDescription)"
+        }
+    }
+
+    public static func queueLockDiagnosticSnapshot(
+        for workspace: Workspace
+    ) async -> QueueLockDiagnosticSnapshot {
+        do {
+            let doctorDocument = try await machineDoctorReport(for: workspace)
+            let unlockPreview = try await queueUnlockPreview(for: workspace)
+            return QueueLockDiagnosticSnapshot(
+                condition: deriveQueueLockCondition(
+                    blocking: doctorDocument.blocking,
+                    unlockPreview: unlockPreview
+                ),
+                blocking: doctorDocument.blocking,
+                doctorOutput: formatDoctorReport(doctorDocument),
+                unlockPreview: unlockPreview
+            )
+        } catch {
+            return QueueLockDiagnosticSnapshot(
+                condition: .unknown,
+                blocking: nil,
+                doctorOutput: "Failed to inspect queue lock: \(error.localizedDescription)",
+                unlockPreview: "Failed to preview queue unlock: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    public static func queueLockInspectionOutput(for workspace: Workspace) async -> String {
+        let snapshot = await queueLockDiagnosticSnapshot(for: workspace)
+        return formatQueueLockSnapshot(snapshot)
+    }
+
+    public static func queueUnlockPreviewOutput(for workspace: Workspace) async -> String {
+        let snapshot = await queueLockDiagnosticSnapshot(for: workspace)
+        return snapshot.unlockPreview
+    }
+
+    public static func clearStaleQueueLock(for workspace: Workspace) async -> String {
+        let snapshot = await queueLockDiagnosticSnapshot(for: workspace)
+        guard snapshot.canClearStaleLock else {
+            return """
+            Queue lock will not be cleared.
+
+            Current condition: \(snapshot.condition.displayName)
+
+            \(snapshot.unlockPreview)
+            """
+        }
+
+        do {
+            let output = try await runCollectedCommand(
+                workspace: workspace,
+                arguments: ["queue", "unlock", "--yes"],
+                timeoutConfiguration: .default
+            )
+            if output.status.code != 0 {
+                let message = output.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                return message.isEmpty
+                    ? "Failed to clear the stale queue lock (exit \(output.status.code))."
+                    : message
+            }
+            await workspace.refreshRunControlStatusData()
+            return output.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "Stale queue lock cleared."
+                : output.stdout
+        } catch {
+            return "Failed to clear stale queue lock: \(error.localizedDescription)"
         }
     }
 
@@ -143,6 +242,128 @@ public enum WorkspaceDiagnosticsService {
         }
 
         return sections.joined(separator: "\n")
+    }
+
+    private static func formatDoctorReport(_ document: MachineDoctorReportDocument) -> String {
+        var sections: [String] = []
+        if let blocking = document.blocking {
+            sections.append("Operator state: \(blocking.status.rawValue)")
+            sections.append(blocking.message)
+            if !blocking.detail.isEmpty {
+                sections.append(blocking.detail)
+            }
+            sections.append("")
+        }
+        sections.append(document.report.prettyPrintedString ?? "No doctor report payload was returned.")
+        return sections.joined(separator: "\n")
+    }
+
+    private static func formatQueueLockSnapshot(_ snapshot: QueueLockDiagnosticSnapshot) -> String {
+        var sections: [String] = [
+            "Queue Lock Inspection",
+            "",
+            "Condition: \(snapshot.condition.displayName)"
+        ]
+        if let blocking = snapshot.blocking {
+            sections.append("Operator state: \(blocking.status.rawValue)")
+            sections.append(blocking.message)
+            if !blocking.detail.isEmpty {
+                sections.append(blocking.detail)
+            }
+        }
+        sections.append("")
+        sections.append("Doctor Report")
+        sections.append(snapshot.doctorOutput)
+        sections.append("")
+        sections.append("Unlock Preview")
+        sections.append(snapshot.unlockPreview)
+        return sections.joined(separator: "\n")
+    }
+
+    private static func deriveQueueLockCondition(
+        blocking: WorkspaceRunnerController.MachineBlockingState?,
+        unlockPreview: String
+    ) -> QueueLockDiagnosticSnapshot.Condition {
+        let normalizedPreview = unlockPreview.lowercased()
+        if normalizedPreview.contains("queue is not locked") {
+            return .clear
+        }
+        if normalizedPreview.contains("process status: not running") {
+            return .stale
+        }
+        if normalizedPreview.contains("process status: running")
+            || normalizedPreview.contains("process status: indeterminate")
+        {
+            return .live
+        }
+        guard let blocking else {
+            return .unknown
+        }
+        let message = blocking.message.lowercased()
+        let detail = blocking.detail.lowercased()
+        if message.contains("stale queue lock") {
+            return .stale
+        }
+        if message.contains("metadata cleanup") || detail.contains("owner metadata is missing") {
+            return .ownerMissing
+        }
+        if message.contains("unreadable queue lock metadata") || detail.contains("could not read its owner metadata") {
+            return .ownerUnreadable
+        }
+        if message.contains("queue lock") {
+            return .live
+        }
+        return .unknown
+    }
+
+    private static func machineDoctorReport(
+        for workspace: Workspace
+    ) async throws -> MachineDoctorReportDocument {
+        guard let client = workspace.client else {
+            throw Workspace.WorkspaceError.cliClientUnavailable
+        }
+        return try await workspace.decodeMachineRepositoryJSON(
+            MachineDoctorReportDocument.self,
+            client: client,
+            machineArguments: ["doctor", "report"],
+            currentDirectoryURL: workspace.identityState.workingDirectoryURL,
+            retryConfiguration: .minimal,
+            onRetry: nil
+        )
+    }
+
+    private static func queueUnlockPreview(for workspace: Workspace) async throws -> String {
+        let output = try await runCollectedCommand(
+            workspace: workspace,
+            arguments: ["queue", "unlock", "--dry-run"],
+            timeoutConfiguration: .default
+        )
+        if !output.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return output.stdout
+        }
+        if !output.stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return output.stderr
+        }
+        return "No queue unlock preview output was returned."
+    }
+
+    private static func runCollectedCommand(
+        workspace: Workspace,
+        arguments: [String],
+        timeoutConfiguration: TimeoutConfiguration
+    ) async throws -> RalphCLIClient.CollectedOutput {
+        guard let client = workspace.client else {
+            throw Workspace.WorkspaceError.cliClientUnavailable
+        }
+
+        let helper = RetryHelper(configuration: .minimal)
+        return try await helper.execute {
+            try await client.runAndCollect(
+                arguments: arguments,
+                currentDirectoryURL: workspace.identityState.workingDirectoryURL,
+                timeoutConfiguration: timeoutConfiguration
+            )
+        }
     }
 }
 

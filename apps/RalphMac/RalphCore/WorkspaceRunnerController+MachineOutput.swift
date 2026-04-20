@@ -27,16 +27,16 @@ extension WorkspaceRunnerController {
             switch event.kind {
             case .runStarted:
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
-                workspace.runState.setBlockingState(nil)
+                workspace.runState.clearLiveBlockingState()
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
                     applyConfigResolveDocument(document, workspace: workspace)
                 }
             case .taskSelected:
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
-                workspace.runState.setBlockingState(nil)
+                workspace.runState.clearLiveBlockingState()
             case .phaseEntered:
                 workspace.runState.currentPhase = Workspace.ExecutionPhase(machineValue: event.phase)
-                workspace.runState.setBlockingState(nil)
+                workspace.runState.clearLiveBlockingState()
             case .phaseCompleted:
                 if workspace.runState.currentPhase == Workspace.ExecutionPhase(machineValue: event.phase) {
                     workspace.runState.currentPhase = nil
@@ -54,7 +54,7 @@ extension WorkspaceRunnerController {
                 }
             case .blockedStateChanged:
                 if let state = decodeBlockingState(from: event.payload) {
-                    workspace.runState.setBlockingState(state.asWorkspaceBlockingState())
+                    workspace.runState.setLiveBlockingState(state.asWorkspaceBlockingState())
                     if !state.isRunnerRecovery {
                         appendBlockingState(state, workspace: workspace)
                     }
@@ -62,7 +62,7 @@ extension WorkspaceRunnerController {
                     appendConsoleText("\(message)\n", workspace: workspace)
                 }
             case .blockedStateCleared:
-                workspace.runState.setBlockingState(nil)
+                workspace.runState.clearLiveBlockingState()
             case .queueSnapshot:
                 if let paths = event.payload?.decode(MachineQueuePaths.self, at: ["paths"]) {
                     workspace.updateResolvedPaths(paths)
@@ -83,7 +83,9 @@ extension WorkspaceRunnerController {
                 workspace.runState.currentTaskID = taskID
             }
             if let blocking = summary.blocking {
-                workspace.runState.setBlockingState(blocking.asWorkspaceBlockingState())
+                workspace.runState.setLiveBlockingState(blocking.asWorkspaceBlockingState())
+            } else {
+                workspace.runState.clearLiveBlockingState()
             }
         case .rawText(let text):
             appendConsoleText(text, workspace: workspace)

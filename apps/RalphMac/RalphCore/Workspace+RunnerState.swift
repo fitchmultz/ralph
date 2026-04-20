@@ -36,13 +36,18 @@ public final class WorkspaceRunState: ObservableObject {
     @Published public var currentRunnerConfig: Workspace.RunnerConfig?
     @Published public var runnerConfigLoading = false
     @Published public var runnerConfigErrorMessage: String?
-    @Published public var parallelStatus: Workspace.ParallelStatus?
     @Published public var parallelStatusLoading = false
     @Published public var parallelStatusErrorMessage: String?
     @Published public var runControlSelectedTaskID: String?
     @Published public var runControlForceDirtyRepo = false
-    @Published public var resumeState: Workspace.ResumeState?
-    @Published public var blockingState: Workspace.BlockingState?
+    @Published public var resumeState: Workspace.ResumeState? {
+        didSet { refreshOperatorState() }
+    }
+    @Published public private(set) var blockingState: Workspace.BlockingState?
+    @Published public var parallelStatus: Workspace.ParallelStatus? {
+        didSet { refreshOperatorState() }
+    }
+    @Published public private(set) var runControlOperatorState: Workspace.RunControlOperatorState?
     @Published public var attributedOutput: [Workspace.ANSISegment] = []
     @Published public var outputBuffer: ConsoleOutputBuffer
     @Published public var maxANSISegments = 1_000 {
@@ -54,6 +59,8 @@ public final class WorkspaceRunState: ObservableObject {
     }
 
     let streamProcessor = WorkspaceStreamProcessor()
+    private var liveBlockingState: Workspace.BlockingState?
+    private var queueBlockingState: Workspace.BlockingState?
 
     var hasMeaningfulParallelStatus: Bool {
         parallelStatus?.isMeaningful == true
@@ -64,23 +71,6 @@ public final class WorkspaceRunState: ObservableObject {
             || parallelStatusErrorMessage != nil
             || currentRunnerConfig?.safety?.parallelConfigured == true
             || hasMeaningfulParallelStatus
-    }
-
-    public var runControlDisplayBlockingState: Workspace.BlockingState? {
-        guard let blockingState else {
-            return nil
-        }
-        if parallelStatus?.blocking == blockingState {
-            return nil
-        }
-        guard case let .runnerRecovery(scope, reason, taskID) = blockingState.reason,
-              let resumeState,
-              resumeState.scope == scope,
-              resumeState.reason == reason,
-              resumeState.taskID == taskID else {
-            return blockingState
-        }
-        return nil
     }
 
     public init(outputBuffer: ConsoleOutputBuffer) {
@@ -105,11 +95,34 @@ public final class WorkspaceRunState: ObservableObject {
         executionStartTime = Date()
         currentPhase = nil
         resumeState = nil
-        blockingState = nil
+        clearQueueBlockingState()
+        clearLiveBlockingState()
     }
 
-    func setBlockingState(_ state: Workspace.BlockingState?) {
-        blockingState = state
+    func setLiveBlockingState(_ state: Workspace.BlockingState?) {
+        liveBlockingState = state
+        refreshOperatorState()
+    }
+
+    func clearLiveBlockingState() {
+        setLiveBlockingState(nil)
+    }
+
+    func setQueueBlockingState(_ state: Workspace.BlockingState?) {
+        queueBlockingState = state
+        refreshOperatorState()
+    }
+
+    func clearQueueBlockingState() {
+        setQueueBlockingState(nil)
+    }
+
+    func clearRunControlOperatorState() {
+        liveBlockingState = nil
+        queueBlockingState = nil
+        resumeState = nil
+        blockingState = nil
+        runControlOperatorState = nil
     }
 
     func clearParallelStatus() {
@@ -117,9 +130,246 @@ public final class WorkspaceRunState: ObservableObject {
         parallelStatusLoading = false
         parallelStatusErrorMessage = nil
     }
+
+    func refreshOperatorStateForDisplay() {
+        refreshOperatorState()
+    }
+
+    private func refreshOperatorState() {
+        let operatorState = Workspace.RunControlOperatorState.build(
+            liveBlockingState: liveBlockingState,
+            parallelStatus: parallelStatus,
+            resumeState: resumeState,
+            queueBlockingState: queueBlockingState
+        )
+        runControlOperatorState = operatorState
+        blockingState = operatorState?.blockingState
+    }
 }
 
 public extension Workspace {
+    struct RunControlOperatorStep: Equatable, Sendable {
+        public let title: String
+        public let detail: String
+
+        public init(title: String, detail: String) {
+            self.title = title
+            self.detail = detail
+        }
+    }
+
+    struct RunControlOperatorState: Equatable, Sendable {
+        public enum Source: String, Equatable, Sendable {
+            case liveRun
+            case parallel
+            case resumeRecovery
+            case resumePreview
+            case queueSnapshot
+        }
+
+        public let source: Source
+        public let title: String
+        public let detail: String
+        public let blockingState: BlockingState?
+        public let secondaryResumeState: ResumeState?
+        public let nextSteps: [RunControlOperatorStep]
+        public let observedAt: String?
+
+        static func build(
+            liveBlockingState: BlockingState?,
+            parallelStatus: ParallelStatus?,
+            resumeState: ResumeState?,
+            queueBlockingState: BlockingState?
+        ) -> Self? {
+            let resumeBlockingState = resumeState?.asDerivedBlockingState()
+            let secondaryResumeState: ResumeState? = {
+                guard let resumeState else { return nil }
+                guard let resumeBlockingState else { return resumeState }
+                guard case let .runnerRecovery(scope, reason, taskID) = resumeBlockingState.reason else {
+                    return resumeState
+                }
+                if liveBlockingState?.matchesRunnerRecovery(scope: scope, reason: reason, taskID: taskID) == true {
+                    return nil
+                }
+                if parallelStatus?.blocking?.matchesRunnerRecovery(scope: scope, reason: reason, taskID: taskID) == true {
+                    return nil
+                }
+                return resumeState
+            }()
+
+            if let liveBlockingState {
+                return Self(
+                    source: .liveRun,
+                    title: liveBlockingState.message,
+                    detail: liveBlockingState.detail,
+                    blockingState: liveBlockingState,
+                    secondaryResumeState: secondaryResumeState,
+                    nextSteps: operatorSteps(for: liveBlockingState, resumeState: secondaryResumeState),
+                    observedAt: liveBlockingState.observedAt
+                )
+            }
+
+            if let parallelBlockingState = parallelStatus?.blocking {
+                return Self(
+                    source: .parallel,
+                    title: parallelBlockingState.message,
+                    detail: parallelBlockingState.detail,
+                    blockingState: parallelBlockingState,
+                    secondaryResumeState: secondaryResumeState,
+                    nextSteps: operatorSteps(for: parallelBlockingState, resumeState: secondaryResumeState),
+                    observedAt: parallelBlockingState.observedAt
+                )
+            }
+
+            if let resumeBlockingState, let resumeState {
+                return Self(
+                    source: .resumeRecovery,
+                    title: resumeBlockingState.message,
+                    detail: resumeBlockingState.detail,
+                    blockingState: resumeBlockingState,
+                    secondaryResumeState: nil,
+                    nextSteps: operatorSteps(for: resumeBlockingState, resumeState: resumeState),
+                    observedAt: resumeBlockingState.observedAt
+                )
+            }
+
+            if let queueBlockingState {
+                return Self(
+                    source: .queueSnapshot,
+                    title: queueBlockingState.message,
+                    detail: queueBlockingState.detail,
+                    blockingState: queueBlockingState,
+                    secondaryResumeState: secondaryResumeState,
+                    nextSteps: operatorSteps(for: queueBlockingState, resumeState: secondaryResumeState),
+                    observedAt: queueBlockingState.observedAt
+                )
+            }
+
+            if let resumeState {
+                return Self(
+                    source: .resumePreview,
+                    title: resumeState.message,
+                    detail: resumeState.detail,
+                    blockingState: nil,
+                    secondaryResumeState: nil,
+                    nextSteps: operatorSteps(for: resumeState),
+                    observedAt: nil
+                )
+            }
+
+            return nil
+        }
+
+        private static func operatorSteps(
+            for blockingState: BlockingState,
+            resumeState: ResumeState?
+        ) -> [RunControlOperatorStep] {
+            var steps: [RunControlOperatorStep]
+            switch blockingState.reason {
+            case .idle:
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Queue is waiting",
+                        detail: "No runnable task is ready right now. Add work or wait for the queue state to change."
+                    )
+                ]
+            case .dependencyBlocked(let blockedTasks):
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Resolve blockers",
+                        detail: "\(blockedTasks) candidate task(s) are waiting on unfinished dependencies."
+                    )
+                ]
+            case .scheduleBlocked(_, let nextRunnableAt, let secondsUntilNextRunnable):
+                let detail: String
+                if let nextRunnableAt, let secondsUntilNextRunnable {
+                    detail = "The next scheduled task becomes runnable at \(nextRunnableAt) (\(secondsUntilNextRunnable)s remaining)."
+                } else {
+                    detail = "Wait for scheduled work to become runnable or reschedule the blocked task."
+                }
+                steps = [RunControlOperatorStep(title: "Scheduled work pending", detail: detail)]
+            case .lockBlocked:
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Inspect the queue lock",
+                        detail: "Check the lock owner and preview unlock status before clearing anything."
+                    ),
+                    RunControlOperatorStep(
+                        title: "Only clear verified stale locks",
+                        detail: "Live, indeterminate, or broken metadata locks should stay explicit until an operator confirms recovery."
+                    )
+                ]
+            case .ciBlocked(let pattern, let exitCode):
+                let summary = [pattern, exitCode.map { "exit \($0)" }]
+                    .compactMap { $0 }
+                    .joined(separator: " · ")
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Repair CI gate",
+                        detail: summary.isEmpty
+                            ? "Resolve the failing CI requirement before continuing."
+                            : "Resolve the CI requirement before continuing (\(summary))."
+                    )
+                ]
+            case .runnerRecovery:
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Review the saved session",
+                        detail: "Ralph needs an explicit recovery decision before continuing this run."
+                    )
+                ]
+            case .operatorRecovery(_, _, let suggestedCommand):
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Follow the recovery path",
+                        detail: suggestedCommand.map { "Suggested command: \($0)" }
+                            ?? "Use the CLI recovery command suggested by Ralph before retrying."
+                    )
+                ]
+            case .mixedQueue(let dependencyBlocked, let scheduleBlocked, let statusFiltered):
+                steps = [
+                    RunControlOperatorStep(
+                        title: "Queue has mixed blockers",
+                        detail: "Dependencies: \(dependencyBlocked) · Schedule: \(scheduleBlocked) · Filtered: \(statusFiltered)."
+                    )
+                ]
+            }
+
+            if let resumeState,
+               resumeState.status != .refusingToResume,
+               steps.count < 2 {
+                steps.append(contentsOf: operatorSteps(for: resumeState))
+            }
+            return Array(steps.prefix(2))
+        }
+
+        private static func operatorSteps(for resumeState: ResumeState) -> [RunControlOperatorStep] {
+            switch resumeState.status {
+            case .resumingSameSession:
+                return [
+                    RunControlOperatorStep(
+                        title: "Resume is ready",
+                        detail: "The next run will continue the saved session instead of starting a fresh invocation."
+                    )
+                ]
+            case .fallingBackToFreshInvocation:
+                return [
+                    RunControlOperatorStep(
+                        title: "Fresh invocation selected",
+                        detail: "Ralph will continue by starting a new invocation for the next run."
+                    )
+                ]
+            case .refusingToResume:
+                return [
+                    RunControlOperatorStep(
+                        title: "Operator confirmation required",
+                        detail: "Resolve the recovery issue before retrying the run."
+                    )
+                ]
+            }
+        }
+    }
+
     struct ParallelStatus: Sendable, Equatable {
         public let headline: String
         public let detail: String
@@ -325,6 +575,31 @@ public extension Workspace {
     }
 }
 
+private extension Workspace.ResumeState {
+    func asDerivedBlockingState() -> Workspace.BlockingState? {
+        guard status == .refusingToResume else {
+            return nil
+        }
+        return Workspace.BlockingState(
+            status: .stalled,
+            reason: .runnerRecovery(scope: scope, reason: reason, taskID: taskID),
+            taskID: taskID,
+            message: message,
+            detail: detail,
+            observedAt: nil
+        )
+    }
+}
+
+private extension Workspace.BlockingState {
+    func matchesRunnerRecovery(scope: String, reason: String, taskID: String?) -> Bool {
+        guard case let .runnerRecovery(currentScope, currentReason, currentTaskID) = self.reason else {
+            return false
+        }
+        return currentScope == scope && currentReason == reason && currentTaskID == taskID
+    }
+}
+
 public extension Workspace {
     func loadRunnerConfiguration(retryConfiguration: RetryConfiguration = .minimal) async {
         await runnerController.loadRunnerConfiguration(retryConfiguration: retryConfiguration)
@@ -368,7 +643,6 @@ extension Workspace {
         runState.currentPhase = nil
         runState.executionStartTime = nil
         runState.currentTaskID = nil
-        runState.blockingState = nil
         resetStreamProcessingState()
     }
 

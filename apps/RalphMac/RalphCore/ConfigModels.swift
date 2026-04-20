@@ -447,6 +447,12 @@ struct MachineParallelStatusDocument: Decodable, Sendable, Equatable {
     }
 }
 
+struct MachineDoctorReportDocument: Decodable, Sendable, Equatable {
+    let version: Int
+    let blocking: WorkspaceRunnerController.MachineBlockingState?
+    let report: RalphJSONValue
+}
+
 // MARK: - Runner Options (for UI pickers)
 
 public enum ConfigRunner: String, CaseIterable, Identifiable, Sendable {

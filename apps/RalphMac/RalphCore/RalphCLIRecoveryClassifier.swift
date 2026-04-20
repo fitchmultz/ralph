@@ -172,6 +172,20 @@ enum RalphCLIRecoveryClassifier {
             )
         }
 
+        if normalized.contains("queue lock already held at:")
+            || (normalized.contains("queue lock") && normalized.contains("stale queue lock"))
+            || (normalized.contains("queue lock") && normalized.contains("owner metadata"))
+            || (normalized.contains("queue lock") && normalized.contains("unreadable"))
+        {
+            return makeRecovery(
+                category: .queueLock,
+                message: "Queue lock requires attention",
+                underlyingError: description,
+                operation: operation,
+                workspaceURL: workspaceURL
+            )
+        }
+
         if normalized.contains("load project config")
             || normalized.contains("load global config")
             || normalized.contains("unsupported config version")
@@ -253,6 +267,9 @@ enum RalphCLIRecoveryClassifier {
         operation: String,
         workspaceURL: URL?
     ) -> RecoveryError {
+        let queueLockText = [document.message, document.detail]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: "\n")
         let category: ErrorCategory
         switch document.code {
         case .cliUnavailable:
@@ -267,6 +284,10 @@ enum RalphCLIRecoveryClassifier {
             category = .networkError
         case .queueCorrupted, .taskMutationConflict:
             category = .queueCorrupted
+        case .resourceBusy where queueLockText.contains("queue lock"):
+            category = .queueLock
+        case .unknown where queueLockText.contains("queue lock"):
+            category = .queueLock
         case .resourceBusy:
             category = .resourceBusy
         case .versionMismatch:
@@ -337,6 +358,12 @@ enum RalphCLIRecoveryClassifier {
                 "Run `ralph queue validate` to inspect the current continuation state",
                 "Preview `ralph queue repair --dry-run` before applying repair",
                 "Preview `ralph undo --dry-run` if a recent queue write introduced the issue",
+            ]
+        case .queueLock:
+            return [
+                "Inspect the queue lock owner before retrying",
+                "Preview `ralph queue unlock --dry-run` to see whether the lock is stale",
+                "Only clear the lock after Ralph confirms the recorded PID is dead",
             ]
         case .resourceBusy:
             return [

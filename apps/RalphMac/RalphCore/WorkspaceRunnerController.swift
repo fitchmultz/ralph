@@ -46,7 +46,6 @@ final class WorkspaceRunnerController {
 
     func applyResumeProjection(_ decision: MachineResumeDecision?, workspace: Workspace) {
         workspace.runState.resumeState = decision?.asWorkspaceResumeState()
-        workspace.runState.setBlockingState(decision?.asWorkspaceBlockingState())
     }
 
     func applyConfigResolveDocument(_ document: MachineConfigResolveDocument, workspace: Workspace) {
@@ -56,8 +55,6 @@ final class WorkspaceRunnerController {
 
     func clearRunnerConfigState(_ runState: WorkspaceRunState) {
         runState.currentRunnerConfig = nil
-        runState.resumeState = nil
-        runState.setBlockingState(nil)
     }
 
     func loadParallelStatus(retryConfiguration: RetryConfiguration = .minimal) async {
@@ -70,7 +67,6 @@ final class WorkspaceRunnerController {
                 runState.parallelStatusErrorMessage = nil
             },
             handleMissingClient: { [runState = workspace.runState] in
-                runState.clearParallelStatus()
                 runState.parallelStatusErrorMessage = "CLI client not available."
             },
             load: { client, workingDirectoryURL, retryConfiguration, onRetry in
@@ -90,7 +86,6 @@ final class WorkspaceRunnerController {
                 runState.parallelStatusErrorMessage = nil
             },
             handleFailure: { [runState = workspace.runState] recoveryError in
-                runState.clearParallelStatus()
                 runState.parallelStatusErrorMessage = "Failed to load shared parallel status."
                 RalphLogger.shared.error(
                     "Failed to load shared parallel status: \(recoveryError.fullErrorDetails)",
@@ -148,7 +143,7 @@ final class WorkspaceRunnerController {
             },
             handleFailure: { [self, runState = workspace.runState] recoveryError in
                 clearRunnerConfigState(runState)
-                runState.runnerConfigErrorMessage = "Failed to load resolved runner configuration."
+                runState.runnerConfigErrorMessage = recoveryError.message
                 RalphLogger.shared.error(
                     "Failed to load runner configuration: \(recoveryError.fullErrorDetails)",
                     category: .workspace

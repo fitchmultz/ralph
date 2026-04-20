@@ -34,7 +34,7 @@ mod supervision;
 
 // Re-export types that are used by other modules via crate::commands::run::* paths.
 // These are used by phase modules.
-pub(crate) use queue_lock::queue_lock_blocking_state;
+pub(crate) use queue_lock::{QueueLockCondition, inspect_queue_lock, queue_lock_blocking_state};
 pub(crate) use supervision::{CiFailure, post_run_supervise};
 
 // Re-export PhaseType for use by runner module.

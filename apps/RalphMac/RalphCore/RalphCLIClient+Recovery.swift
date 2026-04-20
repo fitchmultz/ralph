@@ -29,6 +29,7 @@ public enum ErrorCategory: String, CaseIterable, Sendable {
     case parseError
     case networkError
     case queueCorrupted
+    case queueLock
     case resourceBusy
     case versionMismatch
     case unknown
@@ -41,6 +42,7 @@ public enum ErrorCategory: String, CaseIterable, Sendable {
         case .parseError: return "Data Parse Error"
         case .networkError: return "Network Error"
         case .queueCorrupted: return "Queue Corrupted"
+        case .queueLock: return "Queue Lock Contention"
         case .resourceBusy: return "Resource Busy"
         case .versionMismatch: return "Version Mismatch"
         case .unknown: return "Unknown Error"
@@ -55,6 +57,7 @@ public enum ErrorCategory: String, CaseIterable, Sendable {
         case .parseError: return "doc.text.magnifyingglass"
         case .networkError: return "wifi.exclamationmark"
         case .queueCorrupted: return "exclamationmark.triangle.fill"
+        case .queueLock: return "lock.trianglebadge.exclamationmark.fill"
         case .resourceBusy: return "clock.badge.exclamationmark.fill"
         case .versionMismatch: return "number.circle.fill"
         case .unknown: return "questionmark.circle.fill"
@@ -74,6 +77,9 @@ public enum RecoveryAction: String, CaseIterable, Sendable {
     case validateQueue
     case repairQueue
     case restoreLastCheckpoint
+    case inspectQueueLock
+    case previewQueueUnlock
+    case clearStaleQueueLock
 }
 
 extension ErrorCategory {
@@ -89,6 +95,8 @@ extension ErrorCategory {
             return [.retry, .validateQueue, .repairQueue, .diagnose, .openLogs, .copyErrorDetails, .dismiss]
         case .queueCorrupted:
             return [.validateQueue, .repairQueue, .restoreLastCheckpoint, .diagnose, .openLogs, .copyErrorDetails, .dismiss]
+        case .queueLock:
+            return [.retry, .inspectQueueLock, .previewQueueUnlock, .clearStaleQueueLock, .openLogs, .copyErrorDetails, .dismiss]
         case .resourceBusy:
             return [.retry, .diagnose, .openLogs, .copyErrorDetails, .dismiss]
         case .networkError, .versionMismatch, .unknown:
@@ -110,6 +118,8 @@ extension ErrorCategory {
             return "A network operation failed. Check your connection and try again."
         case .queueCorrupted:
             return "Ralph is stalled on queue consistency. Validate first, preview repair next, and restore the last continuation checkpoint if a recent write introduced the problem."
+        case .queueLock:
+            return "Another Ralph process may own the queue lock, or a stale/broken queue lock record needs inspection. Preview unlock state before clearing anything."
         case .resourceBusy:
             return "A required resource is temporarily unavailable. This usually resolves on retry."
         case .versionMismatch:

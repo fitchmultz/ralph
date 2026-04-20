@@ -57,6 +57,12 @@ private extension ErrorCategory {
 
             Try again in a moment.
             """
+        case .queueLock:
+            return """
+            Ralph found queue-lock contention or a broken queue-lock record.
+
+            Inspect the current lock owner and preview unlock state before clearing anything. The app only enables stale-lock clearing when the lock is confirmed dead-PID stale.
+            """
         default:
             return guidanceMessage
         }
@@ -70,6 +76,7 @@ private extension ErrorCategory {
         case .parseError: return .yellow
         case .networkError: return .blue
         case .queueCorrupted: return .red
+        case .queueLock: return .orange
         case .resourceBusy: return .orange
         case .versionMismatch: return .purple
         case .unknown: return .gray
@@ -92,6 +99,7 @@ struct ErrorRecoveryView: View {
     @State private var showingLogsSheet = false
     @State private var logsContent = ""
     @State private var isLoadingLogs = false
+    @State private var queueLockSnapshot: QueueLockDiagnosticSnapshot?
 
     var body: some View {
         VStack(spacing: 20) {
@@ -145,6 +153,9 @@ struct ErrorRecoveryView: View {
                 loadingTitle: "Loading logs..."
             )
             .frame(minWidth: 600, minHeight: 400)
+        }
+        .task(id: error.category) {
+            await refreshQueueLockSnapshotIfNeeded()
         }
     }
 
@@ -224,6 +235,30 @@ struct ErrorRecoveryView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+
+        case .inspectQueueLock:
+            Button(action: inspectQueueLock) {
+                Label("Inspect Queue Lock", systemImage: "lock.doc")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isRunningAction)
+
+        case .previewQueueUnlock:
+            Button(action: previewQueueUnlock) {
+                Label("Preview Queue Unlock", systemImage: "eye")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isRunningAction)
+
+        case .clearStaleQueueLock:
+            Button(action: clearStaleQueueLock) {
+                Label("Clear Stale Queue Lock", systemImage: "lock.open.trianglebadge.exclamationmark")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isRunningAction || queueLockSnapshot?.canClearStaleLock != true)
         }
     }
 
@@ -239,6 +274,9 @@ struct ErrorRecoveryView: View {
         ) {
             guard let workspace else {
                 return "No workspace is available for diagnostics."
+            }
+            if error.category == .queueLock {
+                return await WorkspaceDiagnosticsService.queueLockInspectionOutput(for: workspace)
             }
             return await WorkspaceDiagnosticsService.queueValidationOutput(for: workspace)
         }
@@ -316,6 +354,56 @@ struct ErrorRecoveryView: View {
     private func openReinstallationHelp() {
         guard let url = URL(string: "https://github.com/fitchmultz/ralph#installation") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private func inspectQueueLock() {
+        runActionSheet(
+            title: "Queue Lock Inspection",
+            loadingTitle: "Inspecting queue lock..."
+        ) {
+            guard let workspace else {
+                return "No workspace is available for queue-lock inspection."
+            }
+            let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+            queueLockSnapshot = snapshot
+            return await WorkspaceDiagnosticsService.queueLockInspectionOutput(for: workspace)
+        }
+    }
+
+    private func previewQueueUnlock() {
+        runActionSheet(
+            title: "Queue Unlock Preview",
+            loadingTitle: "Previewing queue unlock..."
+        ) {
+            guard let workspace else {
+                return "No workspace is available for queue-unlock preview."
+            }
+            let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+            queueLockSnapshot = snapshot
+            return snapshot.unlockPreview
+        }
+    }
+
+    private func clearStaleQueueLock() {
+        runActionSheet(
+            title: "Clear Stale Queue Lock",
+            loadingTitle: "Clearing stale queue lock..."
+        ) {
+            guard let workspace else {
+                return "No workspace is available for stale queue-lock recovery."
+            }
+            let result = await WorkspaceDiagnosticsService.clearStaleQueueLock(for: workspace)
+            queueLockSnapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+            return result
+        }
+    }
+
+    private func refreshQueueLockSnapshotIfNeeded() async {
+        guard error.category == .queueLock, let workspace else {
+            queueLockSnapshot = nil
+            return
+        }
+        queueLockSnapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
     }
 }
 

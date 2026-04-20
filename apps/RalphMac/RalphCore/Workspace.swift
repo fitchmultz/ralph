@@ -276,6 +276,7 @@ public final class Workspace: ObservableObject, Identifiable {
     func beginRepositoryRetarget(to url: URL) -> RepositoryContext {
         let standardizedURL = Self.normalizedWorkingDirectoryURL(url)
         runState.clearParallelStatus()
+        runState.clearRunControlOperatorState()
         identityState.repositoryGeneration &+= 1
         identityState.retargetRevision &+= 1
         identityState.workingDirectoryURL = standardizedURL

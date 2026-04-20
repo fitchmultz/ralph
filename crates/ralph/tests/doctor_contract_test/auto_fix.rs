@@ -1,7 +1,7 @@
 //! Doctor auto-fix behavior tests.
 //!
 //! Responsibilities:
-//! - Verify doctor reports and repairs orphaned locks when requested.
+//! - Verify doctor reports and repairs confirmed stale queue locks when requested.
 //! - Verify queue repair behavior for invalid repo state.
 //!
 //! Not handled here:
@@ -10,17 +10,28 @@
 //! Invariants/assumptions:
 //! - Tests start from seeded doctor fixtures, then inject broken state explicitly.
 //! - Auto-fix assertions validate both output and resulting filesystem state.
+//! - Queue-lock auto-fix stays conservative and only removes confirmed stale owner records.
 
 use super::*;
 
+fn definitely_dead_pid() -> u32 {
+    999_999
+}
+
 #[test]
-fn doctor_auto_fix_removes_orphaned_locks() -> Result<()> {
+fn doctor_auto_fix_removes_confirmed_stale_queue_lock() -> Result<()> {
     let dir = setup_doctor_repo()?;
 
-    let lock_dir = dir.path().join(".ralph/lock/orphaned-test-lock");
+    let lock_dir = dir.path().join(".ralph/lock");
     std::fs::create_dir_all(&lock_dir)?;
     let owner_file = lock_dir.join("owner");
-    std::fs::write(&owner_file, "pid:999999\nstarted:1234567890\n")?;
+    std::fs::write(
+        &owner_file,
+        format!(
+            "pid: {}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run loop\n",
+            definitely_dead_pid()
+        ),
+    )?;
 
     assert!(
         lock_dir.exists(),
@@ -36,27 +47,33 @@ fn doctor_auto_fix_removes_orphaned_locks() -> Result<()> {
     let combined = format!("{}\n{}", stdout, stderr);
 
     assert!(
-        combined.contains("orphaned") || combined.contains("lock"),
-        "should mention orphaned locks. Output: {}",
+        combined.contains("stale queue lock") || combined.contains("queue lock"),
+        "should mention stale queue lock. Output: {}",
         combined
     );
 
     assert!(
         !lock_dir.exists(),
-        "orphaned lock directory should be removed after auto-fix"
+        "stale queue lock directory should be removed after auto-fix"
     );
 
     Ok(())
 }
 
 #[test]
-fn doctor_auto_fix_without_flag_reports_but_does_not_remove() -> Result<()> {
+fn doctor_without_auto_fix_reports_but_does_not_remove_stale_queue_lock() -> Result<()> {
     let dir = setup_doctor_repo()?;
 
-    let lock_dir = dir.path().join(".ralph/lock/orphaned-test-lock-no-fix");
+    let lock_dir = dir.path().join(".ralph/lock");
     std::fs::create_dir_all(&lock_dir)?;
     let owner_file = lock_dir.join("owner");
-    std::fs::write(&owner_file, "pid:999998\nstarted:1234567890\n")?;
+    std::fs::write(
+        &owner_file,
+        format!(
+            "pid: {}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run loop\n",
+            definitely_dead_pid()
+        ),
+    )?;
 
     let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
@@ -65,8 +82,8 @@ fn doctor_auto_fix_without_flag_reports_but_does_not_remove() -> Result<()> {
     let combined = format!("{}\n{}", stdout, stderr);
 
     assert!(
-        combined.contains("orphaned") || combined.contains("WARN"),
-        "should warn about orphaned locks. Output: {}",
+        combined.contains("stale queue lock") || combined.contains("queue lock"),
+        "should warn about stale queue lock. Output: {}",
         combined
     );
 
@@ -84,10 +101,16 @@ fn doctor_auto_fix_without_flag_reports_but_does_not_remove() -> Result<()> {
 fn doctor_json_output_with_auto_fix() -> Result<()> {
     let dir = setup_doctor_repo()?;
 
-    let lock_dir = dir.path().join(".ralph/lock/orphaned-test-lock-json");
+    let lock_dir = dir.path().join(".ralph/lock");
     std::fs::create_dir_all(&lock_dir)?;
     let owner_file = lock_dir.join("owner");
-    std::fs::write(&owner_file, "pid:999997\nstarted:1234567890\n")?;
+    std::fs::write(
+        &owner_file,
+        format!(
+            "pid: {}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run loop\n",
+            definitely_dead_pid()
+        ),
+    )?;
 
     let output = ralph_cmd_in_dir(dir.path())
         .args(["doctor", "--format", "json", "--auto-fix"])
@@ -105,12 +128,12 @@ fn doctor_json_output_with_auto_fix() -> Result<()> {
     let checks = json["checks"].as_array().unwrap();
     let lock_check = checks
         .iter()
-        .find(|c| c["category"] == "lock" && c["check"] == "orphaned_locks");
+        .find(|c| c["category"] == "lock" && c["check"] == "queue_lock_health");
 
     if let Some(check) = lock_check {
         assert_eq!(
             check["fix_applied"], true,
-            "fix_applied should be true for orphaned locks"
+            "fix_applied should be true for stale queue locks"
         );
     }
 

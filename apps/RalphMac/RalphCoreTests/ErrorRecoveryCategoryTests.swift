@@ -23,6 +23,7 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertEqual(ErrorCategory.parseError.displayName, "Data Parse Error")
         XCTAssertEqual(ErrorCategory.networkError.displayName, "Network Error")
         XCTAssertEqual(ErrorCategory.queueCorrupted.displayName, "Queue Corrupted")
+        XCTAssertEqual(ErrorCategory.queueLock.displayName, "Queue Lock Contention")
         XCTAssertEqual(ErrorCategory.resourceBusy.displayName, "Resource Busy")
         XCTAssertEqual(ErrorCategory.versionMismatch.displayName, "Version Mismatch")
         XCTAssertEqual(ErrorCategory.unknown.displayName, "Unknown Error")
@@ -59,6 +60,11 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertEqual(queueActions.first, .validateQueue)
         XCTAssertTrue(queueActions.contains(.repairQueue))
         XCTAssertTrue(queueActions.contains(.restoreLastCheckpoint))
+
+        let queueLockActions = ErrorCategory.queueLock.suggestedActions
+        XCTAssertTrue(queueLockActions.contains(.inspectQueueLock))
+        XCTAssertTrue(queueLockActions.contains(.previewQueueUnlock))
+        XCTAssertTrue(queueLockActions.contains(.clearStaleQueueLock))
     }
 
     func testErrorCategoryGuidanceMessages() {
@@ -302,6 +308,41 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         let recoveryError = RecoveryError.classify(error: error, operation: "updateTask")
         XCTAssertEqual(recoveryError.category, .resourceBusy)
         XCTAssertTrue(recoveryError.suggestions.contains { $0.contains("retry") })
+    }
+
+    func testClassifyQueueLockHolderError() {
+        let error = RetryableError.processError(
+            exitCode: 1,
+            stderr: """
+            Queue lock already held at: /tmp/example/.ralph/lock
+
+            Lock Holder:
+              PID: 1234
+              Label: run loop
+            """
+        )
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadTasks")
+        XCTAssertEqual(recoveryError.category, .queueLock)
+        XCTAssertTrue(recoveryError.suggestions.contains { $0.localizedCaseInsensitiveContains("lock") })
+    }
+
+    func testQueueLockDiagnosticSnapshot_allowsClearingOnlyConfirmedStaleLocks() {
+        let stale = QueueLockDiagnosticSnapshot(
+            condition: .stale,
+            blocking: nil,
+            doctorOutput: "doctor",
+            unlockPreview: "preview"
+        )
+        let live = QueueLockDiagnosticSnapshot(
+            condition: .live,
+            blocking: nil,
+            doctorOutput: "doctor",
+            unlockPreview: "preview"
+        )
+
+        XCTAssertTrue(stale.canClearStaleLock)
+        XCTAssertFalse(live.canClearStaleLock)
     }
 
     func testClassifyQueueCorruptedError() {

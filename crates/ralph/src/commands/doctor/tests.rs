@@ -14,9 +14,33 @@
 
 use crate::commands::doctor::{
     derive_check_blocking_state,
+    lock::check_lock_health,
     types::{CheckResult, CheckSeverity, DoctorReport},
 };
 use crate::contracts::{BlockingReason, BlockingState};
+use std::path::PathBuf;
+
+fn find_definitely_dead_pid() -> u32 {
+    for pid in [0xFFFFFFFE, 999_999, 500_000, 250_000, 100_000] {
+        if crate::lock::pid_is_running(pid) == Some(false) {
+            return pid;
+        }
+    }
+    panic!("Could not find a definitely-dead PID on this system");
+}
+
+fn resolved_with_repo_root(repo_root: PathBuf) -> crate::config::Resolved {
+    crate::config::Resolved {
+        config: crate::contracts::Config::default(),
+        queue_path: repo_root.join(".ralph/queue.jsonc"),
+        done_path: repo_root.join(".ralph/done.jsonc"),
+        repo_root,
+        id_prefix: "RQ".to_string(),
+        id_width: 4,
+        global_config_path: None,
+        project_config_path: None,
+    }
+}
 
 #[test]
 fn check_result_success_factory() {
@@ -185,4 +209,71 @@ fn dependency_blocked_reason_shape_matches_contract() {
         blocking.reason,
         BlockingReason::DependencyBlocked { blocked_tasks: 4 }
     ));
+}
+
+#[test]
+fn check_lock_health_reads_canonical_queue_lock_layout() -> anyhow::Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    let resolved = resolved_with_repo_root(repo_root.clone());
+    let lock_dir = repo_root.join(".ralph/lock");
+    std::fs::create_dir_all(&lock_dir)?;
+    let stale_pid = find_definitely_dead_pid();
+    std::fs::write(
+        lock_dir.join("owner"),
+        format!(
+            "pid: {stale_pid}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run loop\n"
+        ),
+    )?;
+
+    let mut report = DoctorReport::new();
+    check_lock_health(&mut report, &resolved, false);
+    let blocking = report.checks[0].blocking.clone().expect("blocking state");
+
+    assert!(matches!(
+        blocking.reason,
+        BlockingReason::LockBlocked { .. }
+    ));
+    assert!(
+        blocking.message.contains("stale queue lock"),
+        "expected stale queue-lock diagnosis, got: {}",
+        blocking.message
+    );
+    assert!(
+        lock_dir.exists(),
+        "inspection-only doctor check should not remove the lock"
+    );
+    Ok(())
+}
+
+#[test]
+fn check_lock_health_auto_fix_removes_confirmed_stale_queue_lock() -> anyhow::Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    let resolved = resolved_with_repo_root(repo_root.clone());
+    let lock_dir = repo_root.join(".ralph/lock");
+    std::fs::create_dir_all(&lock_dir)?;
+    let stale_pid = find_definitely_dead_pid();
+    std::fs::write(
+        lock_dir.join("owner"),
+        format!(
+            "pid: {stale_pid}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run loop\n"
+        ),
+    )?;
+
+    let mut report = DoctorReport::new();
+    check_lock_health(&mut report, &resolved, true);
+
+    assert!(
+        !lock_dir.exists(),
+        "expected stale queue lock to be removed"
+    );
+    assert_eq!(report.summary.errors, 1);
+    assert_eq!(report.summary.fixes_applied, 1);
+    assert!(
+        report.checks[0].message.contains("stale queue lock"),
+        "expected stale lock report, got: {}",
+        report.checks[0].message
+    );
+    Ok(())
 }
