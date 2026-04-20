@@ -63,6 +63,38 @@ enum WorkspaceRunnerConfigurationTestSupport {
         )
     }
 
+    static func writeWorkspaceOverviewDocument(
+        in directory: URL,
+        name: String,
+        workspaceURL: URL,
+        activeTasks: [RalphTask],
+        doneTasks: [RalphTask] = [],
+        nextRunnableTaskID: String? = nil,
+        model: String,
+        phases: Int? = nil,
+        iterations: Int? = nil,
+        gitPublishMode: String? = nil,
+        safety: MachineConfigSafetySummary = RalphMockCLITestSupport.defaultSafetySummary
+    ) throws -> URL {
+        try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.workspaceOverviewDocument(
+                workspaceURL: workspaceURL,
+                activeTasks: activeTasks,
+                doneTasks: doneTasks,
+                nextRunnableTaskID: nextRunnableTaskID,
+                safety: safety,
+                agent: AgentConfig(
+                    model: model,
+                    phases: phases,
+                    iterations: iterations,
+                    gitPublishMode: gitPublishMode
+                )
+            ),
+            in: directory,
+            name: name
+        )
+    }
+
     static func writeGraphDocument(
         in directory: URL,
         name: String,

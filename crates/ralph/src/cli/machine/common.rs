@@ -18,11 +18,17 @@
 
 use std::path::Path;
 
+use anyhow::Result;
+
 use crate::config;
 use crate::contracts::{
-    GitPublishMode, GitRevertMode, MACHINE_CONFIG_RESOLVE_VERSION, MachineConfigResolveDocument,
-    MachineConfigSafetySummary, MachineQueuePaths, MachineResumeDecision, QueueFile,
+    GitPublishMode, GitRevertMode, MACHINE_CONFIG_RESOLVE_VERSION,
+    MACHINE_WORKSPACE_OVERVIEW_VERSION, MachineConfigResolveDocument, MachineConfigSafetySummary,
+    MachineQueuePaths, MachineQueueReadDocument, MachineResumeDecision,
+    MachineWorkspaceOverviewDocument, QueueFile,
 };
+use crate::queue;
+use crate::queue::operations::{RunnableSelectionOptions, queue_runnability_report};
 use crate::session::{ResumeBehavior, ResumeDecisionMode, ResumeReason, ResumeScope, ResumeStatus};
 
 pub(super) fn build_config_resolve_document(
@@ -56,6 +62,40 @@ pub(super) fn build_config_resolve_document(
         config: resolved.config.clone(),
         resume_preview,
     }
+}
+
+pub(super) fn build_queue_read_document(
+    resolved: &config::Resolved,
+) -> Result<MachineQueueReadDocument> {
+    let active = queue::load_queue(&resolved.queue_path)?;
+    let done = queue::load_queue_or_default(&resolved.done_path)?;
+    let done_ref = done_queue_ref(&done, &resolved.done_path);
+    let options = RunnableSelectionOptions::new(false, true);
+    let runnability = queue_runnability_report(&active, done_ref, options)?;
+    let next_runnable_task_id =
+        queue::operations::next_runnable_task(&active, done_ref).map(|task| task.id.clone());
+
+    Ok(MachineQueueReadDocument {
+        version: crate::contracts::MACHINE_QUEUE_READ_VERSION,
+        paths: queue_paths(resolved),
+        active,
+        done,
+        next_runnable_task_id,
+        runnability: serde_json::to_value(runnability)?,
+    })
+}
+
+pub(super) fn build_workspace_overview_document(
+    resolved: &config::Resolved,
+    repo_trusted: bool,
+    dirty_repo: bool,
+    resume_preview: Option<MachineResumeDecision>,
+) -> Result<MachineWorkspaceOverviewDocument> {
+    Ok(MachineWorkspaceOverviewDocument {
+        version: MACHINE_WORKSPACE_OVERVIEW_VERSION,
+        queue: build_queue_read_document(resolved)?,
+        config: build_config_resolve_document(resolved, repo_trusted, dirty_repo, resume_preview),
+    })
 }
 
 pub(super) fn build_resume_preview(

@@ -20,6 +20,74 @@ import XCTest
 
 @MainActor
 final class WorkspaceRunnerRetargetingTests: WorkspacePerformanceTestCase {
+    func test_workspaceBootstrap_loadsTasksAndRunnerConfigurationWithoutGraphAnalyticsOrCLISpec() async throws {
+        var workspace: Workspace!
+        let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-workspace-bootstrap-minimal")
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootDir, workspace) }
+        let workspaceDir = rootDir.appendingPathComponent("workspace", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspaceDir, withIntermediateDirectories: true)
+
+        let task = RalphMockCLITestSupport.task(
+            id: "RQ-BOOT",
+            status: .todo,
+            title: "Bootstrap Task",
+            priority: .high,
+            createdAt: "2026-03-05T00:00:00Z",
+            updatedAt: "2026-03-05T00:00:00Z"
+        )
+        try RalphMockCLITestSupport.writeQueueFile(in: workspaceDir, tasks: [task])
+
+        let overviewURL = try WorkspaceRunnerConfigurationTestSupport.writeWorkspaceOverviewDocument(
+            in: rootDir,
+            name: "overview-bootstrap.json",
+            workspaceURL: workspaceDir,
+            activeTasks: [task],
+            nextRunnableTaskID: "RQ-BOOT",
+            model: "bootstrap-model",
+            phases: 2,
+            iterations: 3
+        )
+
+        let script = """
+            #!/bin/sh
+            case "$*" in
+            *"--no-color machine workspace overview"*)
+              cat "\(overviewURL.path)"
+              exit 0
+              ;;
+
+            *"--no-color machine queue read"*|*"--no-color machine config resolve"*)
+              echo "unexpected legacy bootstrap command: $*" 1>&2
+              exit 64
+              ;;
+
+            *"--no-color machine queue graph"*|*"--no-color machine cli-spec"*|*"stats"*|*"report"*)
+              echo "unexpected bootstrap command: $*" 1>&2
+              exit 64
+              ;;
+            esac
+
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: rootDir,
+            name: "mock-ralph-bootstrap-minimal",
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = Workspace(workingDirectoryURL: workspaceDir, client: client)
+
+        let bootstrapped = await WorkspacePerformanceTestSupport.waitFor(timeout: 3.0) {
+            workspace.taskState.tasks.map(\.id) == ["RQ-BOOT"]
+                && workspace.runState.currentRunnerConfig?.model == "bootstrap-model"
+        }
+        XCTAssertTrue(bootstrapped)
+        XCTAssertNil(workspace.insightsState.graphData)
+        XCTAssertNil(workspace.commandState.cliSpec)
+        XCTAssertNil(workspace.insightsState.analytics.lastRefreshedAt)
+    }
+
     func test_setWorkingDirectory_refreshesRunnerConfiguration() async throws {
         var workspace: Workspace!
         let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-workspace-config-switch")
@@ -262,11 +330,11 @@ final class WorkspaceRunnerRetargetingTests: WorkspacePerformanceTestCase {
 
         let reloaded = await WorkspacePerformanceTestSupport.waitFor(timeout: 3.0) {
             workspace.taskState.tasks.map(\.id) == ["RQ-B"]
-                && workspace.insightsState.graphData?.tasks.map(\.id) == ["RQ-B"]
-                && workspace.commandState.cliSpec?.root.subcommands.first?.subcommands.first?.name == "task-b"
                 && workspace.runState.currentRunnerConfig?.model == "model-b"
         }
         XCTAssertTrue(reloaded)
+        XCTAssertNil(workspace.insightsState.graphData)
+        XCTAssertNil(workspace.commandState.cliSpec)
     }
 
     func test_repositoryGeneration_discardsLateResultsFromPreviousWorkspace() async throws {

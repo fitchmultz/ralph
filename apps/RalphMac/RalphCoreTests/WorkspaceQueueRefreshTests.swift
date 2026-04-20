@@ -19,7 +19,7 @@ import XCTest
 
 @MainActor
 final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
-    func test_workspaceInitialRefresh_populatesQueueGraphAndAnalytics() async throws {
+    func test_workspaceInitialRefresh_populatesQueueWithoutEagerGraphOrAnalytics() async throws {
         var seedingWorkspace: Workspace!
         var workspace: Workspace!
         let workspaceURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-refresh-initial-")
@@ -47,16 +47,15 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         let loaded = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
                 workspace.taskState.tasks.count == 2
-                    && workspace.insightsState.graphData?.summary.totalTasks == 2
-                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 2
-                    && workspace.insightsState.analytics.lastRefreshedAt != nil
+                    && workspace.insightsState.graphData == nil
+                    && workspace.insightsState.analytics.lastRefreshedAt == nil
             }
         }
 
         XCTAssertTrue(loaded)
         XCTAssertEqual(workspace.taskState.tasks.count, 2)
-        XCTAssertEqual(workspace.insightsState.graphData?.summary.totalTasks, 2)
-        XCTAssertEqual(workspace.insightsState.analytics.queueStatsValue?.summary.active, 2)
+        XCTAssertNil(workspace.insightsState.graphData)
+        XCTAssertNil(workspace.insightsState.analytics.lastRefreshedAt)
     }
 
     func test_workspaceWatcherExternalMutation_refreshesQueueGraphAndAnalytics() async throws {
@@ -78,8 +77,9 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         let loadedEmptyState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
                 workspace.taskState.tasks.isEmpty
-                    && workspace.insightsState.graphData?.summary.totalTasks == 0
-                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 0
+                    && workspace.insightsState.graphData == nil
+                    && workspace.insightsState.analytics.lastRefreshedAt == nil
+                    && workspace.diagnosticsState.watcherHealth.isWatching
             }
         }
 
@@ -124,8 +124,9 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         let loadedEmptyState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
                 workspace.taskState.tasks.isEmpty
-                    && workspace.insightsState.graphData?.summary.totalTasks == 0
-                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 0
+                    && workspace.insightsState.graphData == nil
+                    && workspace.insightsState.analytics.lastRefreshedAt == nil
+                    && workspace.diagnosticsState.watcherHealth.isWatching
             }
         }
 
@@ -182,7 +183,7 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         )
     }
 
-    func test_workspaceRetarget_refreshesQueueGraphAndAnalyticsForNewDirectory() async throws {
+    func test_workspaceRetarget_refreshesQueueWithoutEagerGraphOrAnalyticsForNewDirectory() async throws {
         var populatedWorkspace: Workspace!
         var workspace: Workspace!
         let emptyWorkspaceURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-retarget-empty-")
@@ -215,7 +216,8 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         let loadedInitialState = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
             await MainActor.run {
                 workspace.taskState.tasks.isEmpty
-                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 0
+                    && workspace.insightsState.graphData == nil
+                    && workspace.insightsState.analytics.lastRefreshedAt == nil
             }
         }
         XCTAssertTrue(loadedInitialState)
@@ -226,8 +228,8 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
             await MainActor.run {
                 workspace.workingDirectoryURL == Workspace.normalizedWorkingDirectoryURL(populatedWorkspaceURL)
                     && workspace.taskState.tasks.count == 1
-                    && workspace.insightsState.graphData?.summary.totalTasks == 1
-                    && workspace.insightsState.analytics.queueStatsValue?.summary.active == 1
+                    && workspace.insightsState.graphData == nil
+                    && workspace.insightsState.analytics.lastRefreshedAt == nil
             }
         }
 

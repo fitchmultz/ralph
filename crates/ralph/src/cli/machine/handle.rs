@@ -20,8 +20,11 @@ use serde_json::json;
 
 use crate::cli::machine::args::{
     MachineArgs, MachineCommand, MachineConfigCommand, MachineDoctorCommand, MachineSystemCommand,
+    MachineWorkspaceCommand,
 };
-use crate::cli::machine::common::build_config_resolve_document;
+use crate::cli::machine::common::{
+    build_config_resolve_document, build_workspace_overview_document,
+};
 use crate::cli::machine::io::print_json;
 use crate::cli::machine::{queue, run, task};
 use crate::commands::{cli_spec, doctor};
@@ -34,6 +37,7 @@ use crate::contracts::{
     MachineQueueRepairDocument, MachineQueueUndoDocument, MachineQueueValidateDocument,
     MachineRunEventEnvelope, MachineRunSummaryDocument, MachineSystemInfoDocument,
     MachineTaskCreateDocument, MachineTaskCreateRequest, MachineTaskMutationDocument,
+    MachineWorkspaceOverviewDocument,
 };
 
 pub fn handle_machine(args: MachineArgs, force: bool) -> Result<()> {
@@ -63,6 +67,24 @@ pub fn handle_machine(args: MachineArgs, force: bool) -> Result<()> {
                 ))
             }
         },
+        MachineCommand::Workspace(args) => match args.command {
+            MachineWorkspaceCommand::Overview => {
+                let resolved = config::resolve_from_cwd()?;
+                let repo_trust = config::load_repo_trust(&resolved.repo_root)?;
+                let dirty_repo = crate::git::status_porcelain(&resolved.repo_root)
+                    .map(|status| !status.trim().is_empty())
+                    .unwrap_or(false);
+                let resume_preview = crate::cli::machine::common::build_resume_preview(
+                    &resolved, None, true, true, false,
+                )?;
+                print_json(&build_workspace_overview_document(
+                    &resolved,
+                    repo_trust.is_trusted(),
+                    dirty_repo,
+                    resume_preview,
+                )?)
+            }
+        },
         MachineCommand::Task(args) => task::handle_task(args, force),
         MachineCommand::Run(args) => run::handle_run(*args),
         MachineCommand::Doctor(args) => match args.command {
@@ -87,6 +109,7 @@ pub fn handle_machine(args: MachineArgs, force: bool) -> Result<()> {
             "queue_repair": schema_for!(MachineQueueRepairDocument),
             "queue_undo": schema_for!(MachineQueueUndoDocument),
             "config_resolve": schema_for!(MachineConfigResolveDocument),
+            "workspace_overview": schema_for!(MachineWorkspaceOverviewDocument),
             "task_create_request": schema_for!(MachineTaskCreateRequest),
             "task_create": schema_for!(MachineTaskCreateDocument),
             "task_mutation": schema_for!(MachineTaskMutationDocument),

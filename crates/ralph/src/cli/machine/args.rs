@@ -30,6 +30,7 @@ pub enum MachineCommand {
     System(MachineSystemArgs),
     Queue(MachineQueueArgs),
     Config(MachineConfigArgs),
+    Workspace(MachineWorkspaceArgs),
     Task(MachineTaskArgs),
     Run(Box<MachineRunArgs>),
     Doctor(MachineDoctorArgs),
@@ -95,6 +96,17 @@ pub struct MachineConfigArgs {
 #[derive(Subcommand)]
 pub enum MachineConfigCommand {
     Resolve,
+}
+
+#[derive(Args)]
+pub struct MachineWorkspaceArgs {
+    #[command(subcommand)]
+    pub command: MachineWorkspaceCommand,
+}
+
+#[derive(Subcommand)]
+pub enum MachineWorkspaceCommand {
+    Overview,
 }
 
 #[derive(Args)]

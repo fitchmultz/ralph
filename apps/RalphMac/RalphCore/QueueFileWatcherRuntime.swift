@@ -296,10 +296,6 @@ actor QueueFileWatcherRuntime {
                 .standardizedFileURL
                 .resolvingSymlinksInPath()
 
-            if let directKind = watchedFileKind(for: eventURL), isRelevantChange(flag) {
-                changedKinds.insert(directKind)
-            }
-
             if isWithinWatchedDirectory(eventURL) {
                 requiresSignatureScan = true
             }
@@ -312,10 +308,6 @@ actor QueueFileWatcherRuntime {
         }
 
         return changedKinds
-    }
-
-    private func watchedFileKind(for url: URL) -> WatchedFileKind? {
-        targets.watchedFiles.first { $0.value == url }?.key
     }
 
     private func isWithinWatchedDirectory(_ url: URL) -> Bool {

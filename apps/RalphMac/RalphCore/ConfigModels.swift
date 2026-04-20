@@ -266,6 +266,12 @@ public struct MachineConfigResolveDocument: Codable, Sendable, Equatable {
     }
 }
 
+public struct MachineWorkspaceOverviewDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let queue: MachineQueueReadDocument
+    public let config: MachineConfigResolveDocument
+}
+
 public struct MachineConfigSafetySummary: Codable, Sendable, Equatable {
     public let repoTrusted: Bool
     public let dirtyRepo: Bool

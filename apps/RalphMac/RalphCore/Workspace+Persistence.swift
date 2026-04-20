@@ -381,8 +381,6 @@ public extension Workspace {
         updateRecentWorkingDirectories(with: standardizedURL, bookmarkData: resolvedBookmarkData)
 
         persistState()
-        queueRuntime.restartWatching()
-        scheduleHealthCheck()
         refreshOperationalHealth()
 
         scheduleRepositoryActivity {
@@ -533,7 +531,7 @@ extension Workspace {
 
     func reloadRepositoryContext(_ repositoryContext: RepositoryContext) async {
         guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else { return }
-        await refreshRepositoryState(retryConfiguration: .minimal)
+        await refreshWorkspaceOverviewState(retryConfiguration: .minimal)
     }
 
     func removePersistedState() {

@@ -33,6 +33,11 @@ struct AdvancedRunnerContentColumn: View {
 
             commandList()
         }
+        .task { @MainActor in
+            guard workspace.commandState.cliSpec == nil else { return }
+            guard !workspace.commandState.cliSpecIsLoading else { return }
+            await workspace.loadCLISpec()
+        }
         .onChange(of: workspace.commandState.advancedSelectedCommandID) { _, _ in
             workspace.resetAdvancedInputs()
         }

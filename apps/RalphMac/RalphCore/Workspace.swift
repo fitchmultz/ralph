@@ -94,15 +94,11 @@ public final class Workspace: ObservableObject, Identifiable {
         bindOperationalDependencies()
         loadState()
         persistState()
-        startFileWatching()
         refreshOperationalHealth()
 
         if client != nil {
             scheduleRepositoryActivity {
-                await $0.refreshRepositoryState(
-                    retryConfiguration: .minimal,
-                    includeCLISpec: false
-                )
+                await $0.refreshWorkspaceOverviewState(retryConfiguration: .minimal)
             }
         }
     }
@@ -111,7 +107,7 @@ public final class Workspace: ObservableObject, Identifiable {
         guard !isShutDown else { return }
         self.client = client
         scheduleRepositoryActivity {
-            await $0.refreshRepositoryState(retryConfiguration: .minimal)
+            await $0.refreshWorkspaceOverviewState(retryConfiguration: .minimal)
             $0.refreshOperationalHealth()
         }
     }
@@ -168,12 +164,23 @@ public final class Workspace: ObservableObject, Identifiable {
 
     public func refreshRunControlData() async {
         await awaitPendingRepositoryActivityIfNeeded()
+        await refreshWorkspaceOverviewState(retryConfiguration: .minimal)
+    }
+
+    func refreshWorkspaceOverviewState(
+        retryConfiguration: RetryConfiguration
+    ) async {
         guard !isShutDown, !Task.isCancelled else { return }
-        await loadTasks(retryConfiguration: .minimal)
+        let overviewResult = await loadWorkspaceOverview(retryConfiguration: retryConfiguration)
+        if overviewResult == .fallbackToLegacy {
+            await loadTasks(retryConfiguration: retryConfiguration)
+            guard !isShutDown, !Task.isCancelled else { return }
+            await loadRunnerConfiguration(retryConfiguration: retryConfiguration)
+        } else if overviewResult == .failed {
+            return
+        }
         guard !isShutDown, !Task.isCancelled else { return }
-        await loadRunnerConfiguration(retryConfiguration: .minimal)
-        guard !isShutDown, !Task.isCancelled else { return }
-        await refreshParallelStatusIfNeeded(retryConfiguration: .minimal)
+        await refreshParallelStatusIfNeeded(retryConfiguration: retryConfiguration)
     }
 
     public func refreshRunControlStatusData() async {
@@ -192,7 +199,8 @@ public final class Workspace: ObservableObject, Identifiable {
         await loadTasks(retryConfiguration: retryConfiguration)
 
         guard !isShutDown, !Task.isCancelled else { return }
-        guard hasRalphQueueFile else {
+        let queueSnapshotLoaded = taskState.tasksErrorMessage == nil
+        guard queueSnapshotLoaded else {
             if includeCLISpec {
                 await loadCLISpec(retryConfiguration: retryConfiguration)
                 guard !isShutDown, !Task.isCancelled else { return }

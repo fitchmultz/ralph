@@ -17,6 +17,12 @@
 public import Foundation
 public import Combine
 
+public enum WorkspaceOverviewLoadResult: Sendable, Equatable {
+    case loaded
+    case fallbackToLegacy
+    case failed
+}
+
 @MainActor
 public final class WorkspaceTaskState: ObservableObject {
     @Published public var tasks: [RalphTask] = []
@@ -74,6 +80,81 @@ public extension Workspace {
 }
 
 public extension Workspace {
+    func loadWorkspaceOverview(
+        retryConfiguration: RetryConfiguration = .minimal
+    ) async -> WorkspaceOverviewLoadResult {
+        let repositoryContext = currentRepositoryContext()
+        guard let client else {
+            guard isCurrentRepositoryContext(repositoryContext) else { return .failed }
+            taskState.tasksErrorMessage = "CLI client not available."
+            taskState.nextRunnableTaskID = nil
+            runState.clearQueueBlockingState()
+            runnerController.clearRunnerConfigState(runState)
+            runState.runnerConfigErrorMessage = "CLI client not available."
+            return .failed
+        }
+
+        taskState.tasksLoading = true
+        runState.runnerConfigLoading = true
+        taskState.tasksErrorMessage = nil
+        runState.runnerConfigErrorMessage = nil
+        diagnosticsState.showErrorRecovery = false
+        diagnosticsState.lastRecoveryError = nil
+
+        defer {
+            if !isShutDown, isCurrentRepositoryContext(repositoryContext) {
+                taskState.tasksLoading = false
+                runState.runnerConfigLoading = false
+            }
+        }
+
+        do {
+            let document = try await decodeMachineRepositoryJSON(
+                MachineWorkspaceOverviewDocument.self,
+                client: client,
+                machineArguments: ["workspace", "overview"],
+                currentDirectoryURL: identityState.workingDirectoryURL,
+                retryConfiguration: retryConfiguration
+            )
+            try Self.validateMachineWorkspaceOverviewVersion(document)
+
+            guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else {
+                return .failed
+            }
+
+            applyQueueReadDocument(document.queue)
+            runnerController.applyConfigResolveDocument(document.config, workspace: self)
+            startFileWatching()
+            return .loaded
+        } catch is CancellationError {
+            return .failed
+        } catch {
+            guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else {
+                return .failed
+            }
+
+            if Self.shouldFallbackToLegacyWorkspaceOverview(for: error) {
+                return .fallbackToLegacy
+            }
+
+            let recoveryError = RecoveryError.classify(
+                error: error,
+                operation: "loadWorkspaceOverview",
+                workspaceURL: identityState.workingDirectoryURL
+            )
+            diagnosticsState.lastRecoveryError = recoveryError
+            diagnosticsState.showErrorRecovery = true
+            taskState.tasksErrorMessage = recoveryError.message
+            taskState.nextRunnableTaskID = nil
+            runState.clearQueueBlockingState()
+            runnerController.clearRunnerConfigState(runState)
+            runState.runnerConfigErrorMessage = recoveryError.message
+            runState.refreshOperatorStateForDisplay()
+            stopFileWatching()
+            return .failed
+        }
+    }
+
     func loadTasks(retryConfiguration: RetryConfiguration = .default) async {
         let repositoryContext = currentRepositoryContext()
         guard client != nil else {
@@ -98,7 +179,6 @@ public extension Workspace {
             return
         }
 
-        startFileWatching()
         await performRepositoryLoad(
             operation: "loadTasks",
             retryConfiguration: retryConfiguration,
@@ -125,21 +205,9 @@ public extension Workspace {
                     onRetry: onRetry
                 )
             },
-            apply: { [self, taskState, runState = self.runState] snapshot in
-                self.updateResolvedPaths(snapshot.paths)
-                taskState.tasks = snapshot.active.tasks
-                taskState.nextRunnableTaskID = snapshot.nextRunnableTaskID
-                if !runState.isRunning {
-                    runState.clearLiveBlockingState()
-                }
-                runState.setQueueBlockingState(
-                    snapshot.runnability.decode(
-                        WorkspaceRunnerController.MachineBlockingState.self,
-                        at: ["summary", "blocking"]
-                    )?.asWorkspaceBlockingState()
-                )
-                self.sanitizeRunControlSelection()
-                taskState.tasksErrorMessage = nil
+            apply: { [self] snapshot in
+                self.applyQueueReadDocument(snapshot)
+                self.startFileWatching()
             },
             handleRetryMessage: { [taskState] in
                 taskState.tasksErrorMessage = $0
@@ -158,6 +226,61 @@ public extension Workspace {
 }
 
 extension Workspace {
+    nonisolated static let supportedMachineWorkspaceOverviewVersion = 1
+
+    nonisolated static func validateMachineWorkspaceOverviewVersion(
+        _ document: MachineWorkspaceOverviewDocument
+    ) throws {
+        guard document.version == supportedMachineWorkspaceOverviewVersion else {
+            throw RecoveryError(
+                category: .versionMismatch,
+                message: """
+                Unsupported machine workspace overview version \(document.version). RalphMac requires version \(supportedMachineWorkspaceOverviewVersion).
+                """,
+                operation: "loadWorkspaceOverview",
+                suggestions: [
+                    "Rebuild RalphMac and the bundled CLI from the same revision.",
+                ]
+            )
+        }
+    }
+
+    nonisolated static func shouldFallbackToLegacyWorkspaceOverview(
+        for error: any Error
+    ) -> Bool {
+        guard case .processError(let exitCode, let stderr) = error as? RetryableError else {
+            return false
+        }
+        if MachineErrorDocument.decode(from: stderr) != nil {
+            return false
+        }
+        let normalized = stderr.lowercased()
+        let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.contains("unrecognized subcommand")
+            || normalized.contains("unexpected argument")
+            || normalized.contains("unknown command")
+            || normalized.contains("unexpected args:")
+            || normalized.contains("usage:")
+            || (trimmed.isEmpty && (exitCode == 2 || exitCode == 64))
+    }
+
+    func applyQueueReadDocument(_ snapshot: MachineQueueReadDocument) {
+        updateResolvedPaths(snapshot.paths)
+        taskState.tasks = snapshot.active.tasks
+        taskState.nextRunnableTaskID = snapshot.nextRunnableTaskID
+        if !runState.isRunning {
+            runState.clearLiveBlockingState()
+        }
+        runState.setQueueBlockingState(
+            snapshot.runnability.decode(
+                WorkspaceRunnerController.MachineBlockingState.self,
+                at: ["summary", "blocking"]
+            )?.asWorkspaceBlockingState()
+        )
+        sanitizeRunControlSelection()
+        taskState.tasksErrorMessage = nil
+    }
+
     func startFileWatching() {
         queueRuntime.startWatchingIfNeeded()
     }

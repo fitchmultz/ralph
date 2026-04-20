@@ -26,38 +26,20 @@ use serde_json::{Value as JsonValue, json};
 
 use super::queue_docs::{build_repair_document, build_undo_document, build_validate_document};
 use crate::cli::machine::args::{MachineQueueArgs, MachineQueueCommand};
-use crate::cli::machine::common::{done_queue_ref, queue_paths};
+use crate::cli::machine::common::{build_queue_read_document, done_queue_ref};
 use crate::cli::machine::io::print_json;
 use crate::contracts::{
-    MACHINE_DASHBOARD_READ_VERSION, MACHINE_GRAPH_READ_VERSION, MACHINE_QUEUE_READ_VERSION,
-    MachineDashboardReadDocument, MachineGraphReadDocument, MachineQueueReadDocument,
+    MACHINE_DASHBOARD_READ_VERSION, MACHINE_GRAPH_READ_VERSION, MachineDashboardReadDocument,
+    MachineGraphReadDocument,
 };
-use crate::queue;
 use crate::queue::graph::{
     build_graph, find_critical_paths, get_blocked_tasks, get_runnable_tasks,
 };
-use crate::queue::operations::{RunnableSelectionOptions, queue_runnability_report};
 
 pub(crate) fn handle_queue(args: MachineQueueArgs, force: bool) -> Result<()> {
     let resolved = crate::config::resolve_from_cwd()?;
     match args.command {
-        MachineQueueCommand::Read => {
-            let active = queue::load_queue(&resolved.queue_path)?;
-            let done = queue::load_queue_or_default(&resolved.done_path)?;
-            let done_ref = done_queue_ref(&done, &resolved.done_path);
-            let options = RunnableSelectionOptions::new(false, true);
-            let runnability = queue_runnability_report(&active, done_ref, options)?;
-            let next_runnable_task_id = queue::operations::next_runnable_task(&active, done_ref)
-                .map(|task| task.id.clone());
-            print_json(&MachineQueueReadDocument {
-                version: MACHINE_QUEUE_READ_VERSION,
-                paths: queue_paths(&resolved),
-                active,
-                done,
-                next_runnable_task_id,
-                runnability: serde_json::to_value(runnability)?,
-            })
-        }
+        MachineQueueCommand::Read => print_json(&build_queue_read_document(&resolved)?),
         MachineQueueCommand::Graph => {
             let (active, done) = crate::cli::load_and_validate_queues_read_only(&resolved, true)?;
             let done_ref = done

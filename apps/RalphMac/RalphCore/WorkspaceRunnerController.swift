@@ -51,6 +51,24 @@ final class WorkspaceRunnerController {
     func applyConfigResolveDocument(_ document: MachineConfigResolveDocument, workspace: Workspace) {
         workspace.updateResolvedPaths(document.paths)
         applyResumeProjection(document.resumePreview, workspace: workspace)
+        let safety = document.safety
+        workspace.runState.currentRunnerConfig = Workspace.RunnerConfig(
+            model: document.config.agent?.model,
+            phases: document.config.agent?.phases,
+            maxIterations: document.config.agent?.iterations,
+            safety: Workspace.RunnerSafetySummary(
+                repoTrusted: safety.repoTrusted,
+                dirtyRepo: safety.dirtyRepo,
+                gitPublishMode: safety.gitPublishMode,
+                approvalMode: safety.approvalMode,
+                ciGateEnabled: safety.ciGateEnabled,
+                gitRevertMode: safety.gitRevertMode,
+                parallelConfigured: safety.parallelConfigured,
+                executionInteractivity: safety.executionInteractivity,
+                interactiveApprovalSupported: safety.interactiveApprovalSupported
+            )
+        )
+        workspace.runState.runnerConfigErrorMessage = nil
     }
 
     func clearRunnerConfigState(_ runState: WorkspaceRunState) {
@@ -120,26 +138,8 @@ final class WorkspaceRunnerController {
                 try Self.validateMachineConfigResolveVersion(document.version)
                 return document
             },
-            apply: { [self, workspace, runState = workspace.runState] decoded in
+            apply: { [self, workspace] decoded in
                 applyConfigResolveDocument(decoded, workspace: workspace)
-                let safety = decoded.safety
-                runState.currentRunnerConfig = Workspace.RunnerConfig(
-                    model: decoded.config.agent?.model,
-                    phases: decoded.config.agent?.phases,
-                    maxIterations: decoded.config.agent?.iterations,
-                    safety: Workspace.RunnerSafetySummary(
-                        repoTrusted: safety.repoTrusted,
-                        dirtyRepo: safety.dirtyRepo,
-                        gitPublishMode: safety.gitPublishMode,
-                        approvalMode: safety.approvalMode,
-                        ciGateEnabled: safety.ciGateEnabled,
-                        gitRevertMode: safety.gitRevertMode,
-                        parallelConfigured: safety.parallelConfigured,
-                        executionInteractivity: safety.executionInteractivity,
-                        interactiveApprovalSupported: safety.interactiveApprovalSupported
-                    )
-                )
-                runState.runnerConfigErrorMessage = nil
             },
             handleFailure: { [self, runState = workspace.runState] recoveryError in
                 clearRunnerConfigState(runState)

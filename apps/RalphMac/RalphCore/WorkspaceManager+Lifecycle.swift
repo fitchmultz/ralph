@@ -51,7 +51,6 @@ public extension WorkspaceManager {
             lastActiveWorkspaceID = workspace.id
         }
 
-        scheduleWorkspaceBootstrap(for: workspace)
         return workspace
     }
 
@@ -175,8 +174,31 @@ public extension WorkspaceManager {
         if let existing = workspaces.first(where: { $0.id == id }) {
             return workspaceIsRestorable(existing.identityState.workingDirectoryURL) ? existing : nil
         }
-        guard let directory = workspaceWorkingDirectory(id) else { return nil }
-        return createWorkspace(id: id, workingDirectory: directory)
+        let snapshotKeyPrefix = RalphAppDefaults.productionDomainIdentifier + ".workspace."
+        let snapshot: RalphWorkspaceDefaultsSnapshot
+        do {
+            guard let loaded = try WorkspaceStateStore().load(id: id, keyPrefix: snapshotKeyPrefix) else {
+                return nil
+            }
+            snapshot = loaded
+        } catch {
+            recordPersistenceIssue(
+                PersistenceIssue(
+                    domain: .workspaceState,
+                    operation: .load,
+                    context: "\(snapshotKeyPrefix)\(id.uuidString).snapshot",
+                    error: error
+                )
+            )
+            return nil
+        }
+
+        let workspace = createWorkspace(id: id, workingDirectory: snapshot.workingDirectoryURL)
+        guard workspaceIsRestorable(workspace.identityState.workingDirectoryURL) else {
+            closeWorkspace(workspace)
+            return nil
+        }
+        return workspace
     }
 
     func workspaceDirectoryExists(_ url: URL) -> Bool {

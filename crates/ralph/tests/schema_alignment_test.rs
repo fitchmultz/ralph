@@ -153,6 +153,7 @@ fn schema_alignment_machine_bundle_contains_expected_documents() {
         "queue_repair",
         "queue_undo",
         "config_resolve",
+        "workspace_overview",
         "task_create_request",
         "task_create",
         "task_mutation",

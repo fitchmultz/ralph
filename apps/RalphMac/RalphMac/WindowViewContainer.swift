@@ -28,9 +28,6 @@ struct WindowViewContainer: View {
     private let manager = WorkspaceManager.shared
     @State private var windowState: WindowState?
     @State private var hostWindowReference = HostWindowReference()
-    @State private var resolvedHostWindowNumber: Int?
-    @State private var initialBootstrapTask: Task<Void, Never>?
-    @State private var didRunInitialBootstrap = false
     @State private var didResolveSceneWindowState = false
     @SceneStorage("windowStateID") private var persistedWindowStateID: String = ""
     @Environment(\.openWindow) private var openWindow
@@ -51,7 +48,6 @@ struct WindowViewContainer: View {
                             uiTestingEnabled: Self.isUITestingLaunch,
                             onWindowResolved: { resolvedWindow in
                                 hostWindowReference.window = resolvedWindow
-                                resolvedHostWindowNumber = resolvedWindow.windowNumber
                                 if let state = windowState {
                                     WorkspaceWindowRegistry.shared.update(
                                         window: resolvedWindow,
@@ -75,12 +71,7 @@ struct WindowViewContainer: View {
             UITestingWindowCoordinator.shared.configureIfNeeded()
             UITestingWindowCoordinator.shared.openAdditionalWindowIfNeeded(openWindow: openWindow)
         }
-        .task(id: resolvedHostWindowNumber) { @MainActor in
-            guard resolvedHostWindowNumber != nil else { return }
-            scheduleInitialBootstrap()
-        }
         .onDisappear {
-            initialBootstrapTask?.cancel()
             if let window = hostWindowReference.window {
                 WorkspaceWindowRegistry.shared.unregister(window: window)
             }
@@ -135,32 +126,11 @@ struct WindowViewContainer: View {
         return WindowState(workspaceIDs: [workspace.id])
     }
 
-    private func performInitialWorkspaceHealthCheck(for state: WindowState) {
-        guard let firstWorkspaceID = state.workspaceIDs.first,
-              let workspace = manager.workspaces.first(where: { $0.id == firstWorkspaceID }) else {
-            return
-        }
-
-        workspace.scheduleHealthCheck()
-    }
-
     private func activeWorkspaceID(for state: WindowState) -> UUID? {
         guard !state.workspaceIDs.isEmpty else { return nil }
         guard state.selectedTabIndex < state.workspaceIDs.count else {
             return state.workspaceIDs.first
         }
         return state.workspaceIDs[state.selectedTabIndex]
-    }
-
-    private func scheduleInitialBootstrap() {
-        guard !didRunInitialBootstrap, let state = windowState else { return }
-
-        didRunInitialBootstrap = true
-        initialBootstrapTask?.cancel()
-        initialBootstrapTask = Task { @MainActor in
-            await Task.yield()
-            guard !Task.isCancelled else { return }
-            performInitialWorkspaceHealthCheck(for: state)
-        }
     }
 }

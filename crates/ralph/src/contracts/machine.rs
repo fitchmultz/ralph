@@ -30,6 +30,7 @@ pub const MACHINE_QUEUE_VALIDATE_VERSION: u32 = 1;
 pub const MACHINE_QUEUE_REPAIR_VERSION: u32 = 1;
 pub const MACHINE_QUEUE_UNDO_VERSION: u32 = 1;
 pub const MACHINE_CONFIG_RESOLVE_VERSION: u32 = 3;
+pub const MACHINE_WORKSPACE_OVERVIEW_VERSION: u32 = 1;
 pub const MACHINE_TASK_CREATE_VERSION: u32 = 1;
 pub const MACHINE_TASK_MUTATION_VERSION: u32 = 2;
 pub const MACHINE_GRAPH_READ_VERSION: u32 = 1;
@@ -186,6 +187,14 @@ pub struct MachineConfigResolveDocument {
     pub config: Config,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resume_preview: Option<MachineResumeDecision>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineWorkspaceOverviewDocument {
+    pub version: u32,
+    pub queue: MachineQueueReadDocument,
+    pub config: MachineConfigResolveDocument,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

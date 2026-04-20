@@ -45,10 +45,7 @@ final class WorkspaceQueueRuntime {
 
     func startWatchingIfNeeded() {
         guard let workspace, !workspace.isShutDown else { return }
-        guard watcher == nil, workspace.hasRalphQueueFile else {
-            if !workspace.hasRalphQueueFile {
-                workspace.updateWatcherHealth(.idle(for: workspace.identityState.workingDirectoryURL))
-            }
+        guard watcher == nil else {
             return
         }
 
@@ -125,17 +122,7 @@ final class WorkspaceQueueRuntime {
 
     func syncWatchTargetsIfNeeded() {
         guard let workspace, !workspace.isShutDown else { return }
-
-        guard workspace.hasRalphQueueFile else {
-            stopWatching()
-            workspace.updateWatcherHealth(.idle(for: workspace.identityState.workingDirectoryURL))
-            return
-        }
-
-        guard let watcher else {
-            startWatchingIfNeeded()
-            return
-        }
+        guard let watcher else { return }
 
         let targets = workspace.queueWatcherTargets
         watchTargetSyncTask?.cancel()
@@ -190,10 +177,7 @@ final class WorkspaceQueueRuntime {
         if batch.affectsQueueSnapshot {
             lastTasksSnapshot = workspace.taskState.tasks
 
-            await workspace.refreshRepositoryState(
-                retryConfiguration: .minimal,
-                includeCLISpec: false
-            )
+            await workspace.loadTasks(retryConfiguration: .minimal)
 
             guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
             workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
@@ -201,6 +185,13 @@ final class WorkspaceQueueRuntime {
                 previousTasks: lastTasksSnapshot,
                 currentTasks: workspace.taskState.tasks
             )
+
+            guard workspace.taskState.tasksErrorMessage == nil else { return }
+
+            await workspace.loadGraphData(retryConfiguration: .minimal)
+            guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+
+            await workspace.loadAnalytics(timeRange: workspace.insightsState.analytics.timeRange)
         }
 
         guard batch.affectsRunnerConfiguration else { return }

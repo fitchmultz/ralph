@@ -97,6 +97,28 @@ final class WorkspaceBackgroundTaskOwnershipTests: RalphCoreTestCase {
     }
 
     @MainActor
+    func test_createWorkspace_doesNotScheduleAutomaticCLISpecBootstrap() throws {
+        let manager = WorkspaceManager.shared
+        let originalClient = manager.client
+        resetManagerState(manager)
+        defer {
+            manager.client = originalClient
+            resetManagerState(manager)
+        }
+
+        let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-background-bootstrap-auto")
+        defer { RalphCoreTestSupport.assertRemoved(rootDir) }
+        let workspaceURL = rootDir.appendingPathComponent("workspace", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+
+        manager.client = nil
+        let workspace = manager.createWorkspace(workingDirectory: workspaceURL)
+
+        XCTAssertNil(manager.workspaceBootstrapTasks[workspace.id])
+        XCTAssertNil(manager.workspaceBootstrapRevisions[workspace.id])
+    }
+
+    @MainActor
     func test_scheduleHealthCheck_shutdownCancelsInFlightProbe() async throws {
         var workspace: Workspace!
         let rootDir = try WorkspacePerformanceTestSupport.makeTempDir(prefix: "ralph-background-health-shutdown")

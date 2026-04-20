@@ -159,6 +159,34 @@ enum RalphMockCLITestSupport {
         )
     }
 
+    static func workspaceOverviewDocument(
+        workspaceURL: URL,
+        activeTasks: [RalphTask],
+        doneTasks: [RalphTask] = [],
+        nextRunnableTaskID: String? = nil,
+        runnability: RalphJSONValue = emptyRunnability,
+        safety: MachineConfigSafetySummary = defaultSafetySummary,
+        agent: AgentConfig = AgentConfig(),
+        resumePreview: MachineResumeDecision? = nil
+    ) -> MachineWorkspaceOverviewDocument {
+        MachineWorkspaceOverviewDocument(
+            version: 1,
+            queue: queueReadDocument(
+                workspaceURL: workspaceURL,
+                activeTasks: activeTasks,
+                doneTasks: doneTasks,
+                nextRunnableTaskID: nextRunnableTaskID,
+                runnability: runnability
+            ),
+            config: configResolveDocument(
+                workspaceURL: workspaceURL,
+                safety: safety,
+                agent: agent,
+                resumePreview: resumePreview
+            )
+        )
+    }
+
     static func queueReadDocument(
         workspaceURL: URL,
         activeTasks: [RalphTask],
