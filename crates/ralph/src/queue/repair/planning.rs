@@ -1,127 +1,39 @@
-//! Purpose: Repair queue files and traverse dependency relationships.
+//! Purpose: Plan queue repairs from on-disk and in-memory queue state.
 //!
 //! Responsibilities:
-//! - Normalize recoverable queue inconsistencies such as missing fields, duplicate
-//!   IDs, invalid IDs, and invalid or missing timestamps.
-//! - Keep remapped task IDs consistent across every relationship field.
-//! - Traverse dependency graphs for dependent-task lookup.
+//! - Load the active and done queues for repair planning.
+//! - Decide which tasks need missing-field, timestamp, or ID repairs based on
+//!   the requested `RepairScope`.
+//! - Track remapped IDs and rewrite cross-task references in a second pass.
+//! - Surface the resulting `QueueRepairPlan` and `RepairReport` for callers.
 //!
 //! Scope:
-//! - Queue repair and dependency traversal only.
-//! - Queue loading/saving and validation policy live in sibling modules.
+//! - Pure planning only; never validates the planned queue set or writes to disk.
+//! - Apply, validation, and persistence flows live in `apply.rs`.
 //!
 //! Usage:
-//! - CLI, machine, and doctor recovery surfaces plan and apply repair here.
-//! - Runtime helpers call `get_dependents` for dependency traversal.
+//! - `plan_queue_repair` and `plan_queue_maintenance_repair` load from disk and
+//!   delegate to `plan_loaded_queue_repair_with_scope`.
+//! - `plan_loaded_queue_repair` is the in-memory entry point used by callers
+//!   that already have queue state loaded.
 //!
 //! Invariants/Assumptions:
-//! - Mutating repair requires a held queue lock and creates an undo snapshot before saving.
-//! - Mutating repair validates the repaired active/done queue set before saving.
+//! - Maintenance scope only normalizes timestamps; full scope additionally fills
+//!   missing fields and remaps invalid/duplicate IDs.
+//! - Non-UTC RFC3339 timestamps are normalized in both scopes.
+//! - The planner increments `report.fixed_tasks` once per task that was modified
+//!   in the first pass, and again per task whose relationships were rewritten in
+//!   the second pass; this preserves historical operation-count semantics.
 
-use super::{format_id, load_queue_or_default, normalize_prefix, save_queue, validation};
-use crate::config::Resolved;
-use crate::constants::queue::DEFAULT_MAX_DEPENDENCY_DEPTH;
+use super::relationships::rewrite_task_id_references;
+use super::types::{QueueRepairPlan, RepairReport, RepairScope};
 use crate::contracts::{QueueFile, Task, TaskStatus};
-use crate::lock::DirLock;
+use crate::queue::{format_id, load_queue_or_default, normalize_prefix, validation};
 use crate::timeutil;
 use anyhow::Result;
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use time::UtcOffset;
-
-#[derive(Debug, Default, Clone, Serialize)]
-pub struct RepairReport {
-    pub fixed_tasks: usize,
-    pub remapped_ids: Vec<(String, String)>,
-    pub fixed_timestamps: usize,
-}
-
-impl RepairReport {
-    pub fn is_empty(&self) -> bool {
-        self.fixed_tasks == 0 && self.remapped_ids.is_empty() && self.fixed_timestamps == 0
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct QueueRepairPlan {
-    active: QueueFile,
-    done: QueueFile,
-    report: RepairReport,
-    queue_changed: bool,
-    done_changed: bool,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RepairScope {
-    Maintenance,
-    Full,
-}
-
-impl QueueRepairPlan {
-    pub fn has_changes(&self) -> bool {
-        self.queue_changed || self.done_changed
-    }
-
-    pub fn report(&self) -> &RepairReport {
-        &self.report
-    }
-
-    pub fn into_parts(self) -> (QueueFile, QueueFile, RepairReport) {
-        (self.active, self.done, self.report)
-    }
-}
-
-pub fn apply_queue_repair_with_undo(
-    resolved: &Resolved,
-    _queue_lock: &DirLock,
-    operation: &str,
-) -> Result<RepairReport> {
-    apply_repair_plan_with_undo(
-        resolved,
-        operation,
-        plan_queue_repair(
-            &resolved.queue_path,
-            &resolved.done_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        )?,
-    )
-}
-
-pub fn apply_queue_maintenance_repair_with_undo(
-    resolved: &Resolved,
-    _queue_lock: &DirLock,
-    operation: &str,
-) -> Result<RepairReport> {
-    apply_repair_plan_with_undo(
-        resolved,
-        operation,
-        plan_queue_maintenance_repair(
-            &resolved.queue_path,
-            &resolved.done_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        )?,
-    )
-}
-
-fn apply_repair_plan_with_undo(
-    resolved: &Resolved,
-    operation: &str,
-    plan: QueueRepairPlan,
-) -> Result<RepairReport> {
-    let report = plan.report.clone();
-
-    if !plan.has_changes() {
-        return Ok(report);
-    }
-
-    validate_repair_plan(&plan, &resolved.id_prefix, resolved.id_width)?;
-    crate::undo::create_undo_snapshot(resolved, operation)?;
-    save_repair_plan(&resolved.queue_path, &resolved.done_path, &plan)?;
-    Ok(report)
-}
 
 pub fn plan_queue_repair(
     queue_path: &Path,
@@ -154,7 +66,7 @@ pub fn plan_loaded_queue_repair(
     plan_loaded_queue_repair_with_scope(active, done, id_prefix, id_width, RepairScope::Full)
 }
 
-fn plan_loaded_queue_repair_with_scope(
+pub(super) fn plan_loaded_queue_repair_with_scope(
     mut active: QueueFile,
     mut done: QueueFile,
     id_prefix: &str,
@@ -313,27 +225,6 @@ fn plan_loaded_queue_repair_with_scope(
     })
 }
 
-fn validate_repair_plan(plan: &QueueRepairPlan, id_prefix: &str, id_width: usize) -> Result<()> {
-    validation::validate_queue_set(
-        &plan.active,
-        Some(&plan.done),
-        id_prefix,
-        id_width,
-        DEFAULT_MAX_DEPENDENCY_DEPTH,
-    )?;
-    Ok(())
-}
-
-fn save_repair_plan(queue_path: &Path, done_path: &Path, plan: &QueueRepairPlan) -> Result<()> {
-    if plan.queue_changed {
-        save_queue(queue_path, &plan.active)?;
-    }
-    if plan.done_changed {
-        save_queue(done_path, &plan.done)?;
-    }
-    Ok(())
-}
-
 fn parse_id_number(id: &str, expected_prefix: &str) -> Option<u32> {
     let normalized = id.trim().to_uppercase();
     let prefix = format!("{}-", expected_prefix);
@@ -341,102 +232,15 @@ fn parse_id_number(id: &str, expected_prefix: &str) -> Option<u32> {
     suffix.parse().ok()
 }
 
-fn rewrite_task_id_references(task: &mut Task, remapped_ids: &HashMap<String, String>) -> bool {
-    let mut modified = false;
-    modified |= rewrite_id_list(&mut task.depends_on, remapped_ids);
-    modified |= rewrite_id_list(&mut task.blocks, remapped_ids);
-    modified |= rewrite_id_list(&mut task.relates_to, remapped_ids);
-    modified |= rewrite_optional_id(&mut task.duplicates, remapped_ids);
-    modified |= rewrite_optional_id(&mut task.parent_id, remapped_ids);
-    modified
-}
-
-fn rewrite_id_list(ids: &mut [String], remapped_ids: &HashMap<String, String>) -> bool {
-    let mut modified = false;
-    for id in ids {
-        if let Some(new_id) = remapped_task_id(id, remapped_ids) {
-            *id = new_id;
-            modified = true;
-        }
-    }
-    modified
-}
-
-fn rewrite_optional_id(id: &mut Option<String>, remapped_ids: &HashMap<String, String>) -> bool {
-    let Some(current_id) = id.as_deref() else {
-        return false;
-    };
-    let Some(new_id) = remapped_task_id(current_id, remapped_ids) else {
-        return false;
-    };
-
-    *id = Some(new_id);
-    true
-}
-
-fn remapped_task_id(id: &str, remapped_ids: &HashMap<String, String>) -> Option<String> {
-    remapped_ids
-        .get(id)
-        .or_else(|| remapped_ids.get(id.trim()))
-        .cloned()
-}
-
-/// Get all tasks that depend on the given task ID (recursively).
-/// Returns a list of task IDs that depend on the root task.
-pub fn get_dependents(root_id: &str, active: &QueueFile, done: Option<&QueueFile>) -> Vec<String> {
-    let mut dependents = Vec::new();
-    let mut visited = std::collections::HashSet::new();
-    let root_id = root_id.trim();
-
-    fn collect_dependents(
-        task_id: &str,
-        active: &QueueFile,
-        done: Option<&QueueFile>,
-        dependents: &mut Vec<String>,
-        visited: &mut std::collections::HashSet<String>,
-    ) {
-        if visited.contains(task_id) {
-            return;
-        }
-        visited.insert(task_id.to_string());
-
-        // Check all tasks in active queue
-        for task in &active.tasks {
-            let current_id = task.id.trim();
-            if task.depends_on.iter().any(|d| d.trim() == task_id) {
-                if !dependents.contains(&current_id.to_string()) {
-                    dependents.push(current_id.to_string());
-                }
-                collect_dependents(current_id, active, done, dependents, visited);
-            }
-        }
-
-        // Check all tasks in done archive
-        if let Some(done_file) = done {
-            for task in &done_file.tasks {
-                let current_id = task.id.trim();
-                if task.depends_on.iter().any(|d| d.trim() == task_id) {
-                    if !dependents.contains(&current_id.to_string()) {
-                        dependents.push(current_id.to_string());
-                    }
-                    collect_dependents(current_id, active, done, dependents, visited);
-                }
-            }
-        }
-    }
-
-    collect_dependents(root_id, active, done, &mut dependents, &mut visited);
-    dependents.retain(|id| id != root_id);
-    dependents
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::contracts::{Task, TaskStatus};
+    use crate::queue::save_queue;
     use std::collections::HashMap;
+    use tempfile::tempdir;
 
-    fn task(id: &str, depends_on: Vec<&str>) -> Task {
+    fn task(id: &str) -> Task {
         Task {
             id: id.to_string(),
             status: TaskStatus::Todo,
@@ -457,7 +261,7 @@ mod tests {
             scheduled_start: None,
             estimated_minutes: None,
             actual_minutes: None,
-            depends_on: depends_on.into_iter().map(|s| s.to_string()).collect(),
+            depends_on: vec![],
             blocks: vec![],
             relates_to: vec![],
             duplicates: None,
@@ -467,56 +271,12 @@ mod tests {
     }
 
     #[test]
-    fn get_dependents_traverses_active_and_done_recursively() {
-        let active = QueueFile {
-            version: 1,
-            tasks: vec![
-                task("RQ-0001", vec![]),
-                task("RQ-0002", vec!["RQ-0001"]),
-                task("RQ-0003", vec!["RQ-0002"]),
-            ],
-        };
-        let done = QueueFile {
-            version: 1,
-            tasks: vec![task("RQ-0004", vec!["RQ-0003"])],
-        };
-
-        let got = get_dependents("RQ-0001", &active, Some(&done));
-        let set: std::collections::HashSet<String> = got.into_iter().collect();
-
-        assert!(set.contains("RQ-0002"));
-        assert!(set.contains("RQ-0003"));
-        assert!(set.contains("RQ-0004"));
-        assert_eq!(set.len(), 3);
-    }
-
-    #[test]
-    fn get_dependents_handles_cycles_without_infinite_recursion() {
-        let active = QueueFile {
-            version: 1,
-            tasks: vec![
-                task("RQ-0001", vec!["RQ-0002"]),
-                task("RQ-0002", vec!["RQ-0001"]),
-            ],
-        };
-
-        let got = get_dependents("RQ-0001", &active, None);
-        let set: std::collections::HashSet<String> = got.into_iter().collect();
-
-        assert!(set.contains("RQ-0002"));
-        assert_eq!(set.len(), 1);
-    }
-
-    #[test]
     fn plan_repair_backfills_completed_at_for_done_tasks() {
-        use crate::queue::save_queue;
-        use tempfile::tempdir;
-
         let dir = tempdir().unwrap();
         let queue_path = dir.path().join("queue.json");
         let done_path = dir.path().join("done.json");
 
-        let mut t = task("RQ-0001", vec![]);
+        let mut t = task("RQ-0001");
         t.status = TaskStatus::Done;
         t.completed_at = None;
 
@@ -544,14 +304,11 @@ mod tests {
 
     #[test]
     fn plan_repair_normalizes_non_utc_timestamps() {
-        use crate::queue::save_queue;
-        use tempfile::tempdir;
-
         let dir = tempdir().unwrap();
         let queue_path = dir.path().join("queue.json");
         let done_path = dir.path().join("done.json");
 
-        let mut t = task("RQ-0001", vec![]);
+        let mut t = task("RQ-0001");
         t.status = TaskStatus::Done;
         t.created_at = Some("2026-01-18T12:00:00-05:00".to_string());
         t.updated_at = Some("2026-01-18T12:00:00-05:00".to_string());
