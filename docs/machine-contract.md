@@ -23,6 +23,7 @@ This surface exists for the macOS app and any other automation that needs stable
 - `ralph machine queue repair`
 - `ralph machine queue undo`
 - `ralph machine config resolve`
+- `ralph machine workspace overview`
 - `ralph machine task create`
 - `ralph machine task mutate`
 - `ralph machine task decompose`
@@ -60,6 +61,10 @@ Includes:
 - resume the same session
 - fall back to a fresh invocation
 - refuse to resume
+
+### `machine workspace overview` (`version: 1`)
+
+Returns a single document that embeds the same payloads as `machine queue read` and `machine config resolve` under `queue` and `config` respectively, so clients can refresh both in one subprocess round-trip.
 
 ### `machine run` events (`version: 3`)
 
@@ -224,6 +229,7 @@ The macOS app should consume only machine surfaces for:
 
 - queue snapshots
 - config resolution
+- combined queue + config overview (`machine workspace overview`)
 - task create/mutate/decompose flows
 - graph and dashboard reads
 - diagnostics consumed by the app
