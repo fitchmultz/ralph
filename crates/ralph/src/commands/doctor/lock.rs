@@ -12,12 +12,14 @@
 //! Invariants/assumptions:
 //! - Only confirmed dead-PID stale locks are auto-fixable here.
 //! - Live, indeterminate, owner-missing, and unreadable-owner locks require operator review.
+//! - Stale-lock auto-fix reuses `queue::acquire_queue_lock(..., force=true)` so removal stays
+//!   aligned with runtime stale classification and remains safe to retry (no direct `remove_dir_all` bypass).
 
 use crate::commands::doctor::types::{CheckResult, DoctorReport};
 use crate::commands::run::{QueueLockCondition, inspect_queue_lock};
 use crate::config;
 use crate::lock::queue_lock_dir;
-use std::fs;
+use anyhow::Context;
 use std::path::Path;
 
 pub(crate) fn check_lock_health(
@@ -74,6 +76,8 @@ pub(crate) fn check_lock_health(
 
 fn remove_stale_queue_lock(repo_root: &Path) -> anyhow::Result<String> {
     let lock_dir = queue_lock_dir(repo_root);
-    fs::remove_dir_all(&lock_dir)?;
+    let _guard =
+        crate::queue::acquire_queue_lock(repo_root, "doctor stale queue lock auto-fix", true)
+            .with_context(|| format!("clear stale queue lock at {}", lock_dir.display()))?;
     Ok(lock_dir.display().to_string())
 }
