@@ -24,6 +24,7 @@ public struct NotificationConfig: Codable, Sendable, Equatable {
     public var notifyOnComplete: Bool?
     public var notifyOnFail: Bool?
     public var notifyOnLoopComplete: Bool?
+    public var notifyOnWatchNewTasks: Bool?
     public var soundEnabled: Bool?
     public var suppressWhenActive: Bool?
 
@@ -32,6 +33,7 @@ public struct NotificationConfig: Codable, Sendable, Equatable {
         case notifyOnComplete = "notify_on_complete"
         case notifyOnFail = "notify_on_fail"
         case notifyOnLoopComplete = "notify_on_loop_complete"
+        case notifyOnWatchNewTasks = "notify_on_watch_new_tasks"
         case soundEnabled = "sound_enabled"
         case suppressWhenActive = "suppress_when_active"
     }
@@ -41,6 +43,7 @@ public struct NotificationConfig: Codable, Sendable, Equatable {
         notifyOnComplete: Bool? = nil,
         notifyOnFail: Bool? = nil,
         notifyOnLoopComplete: Bool? = nil,
+        notifyOnWatchNewTasks: Bool? = nil,
         soundEnabled: Bool? = nil,
         suppressWhenActive: Bool? = nil
     ) {
@@ -48,6 +51,7 @@ public struct NotificationConfig: Codable, Sendable, Equatable {
         self.notifyOnComplete = notifyOnComplete
         self.notifyOnFail = notifyOnFail
         self.notifyOnLoopComplete = notifyOnLoopComplete
+        self.notifyOnWatchNewTasks = notifyOnWatchNewTasks
         self.soundEnabled = soundEnabled
         self.suppressWhenActive = suppressWhenActive
     }

@@ -900,6 +900,7 @@ Tune retry behavior for transient failures:
       "notify_on_complete": true,
       "notify_on_fail": true,
       "notify_on_loop_complete": false,
+      "notify_on_watch_new_tasks": true,
       "suppress_when_active": true,
       "sound_enabled": false,
       "timeout_ms": 5000

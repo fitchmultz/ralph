@@ -35,6 +35,7 @@ Notifications are configured via the `agent.notification` section in your config
 | `notify_on_complete` | boolean | `true` | Enable notifications when tasks complete successfully |
 | `notify_on_fail` | boolean | `true` | Enable notifications when tasks fail |
 | `notify_on_loop_complete` | boolean | `true` | Enable notifications when loop mode finishes |
+| `notify_on_watch_new_tasks` | boolean | `true` | Enable notifications when watch mode adds new tasks from comments |
 | `suppress_when_active` | boolean | `true` | Suppress notifications when the macOS app is active |
 | `sound_enabled` | boolean | `false` | Play sound with notifications |
 | `sound_path` | string | `null` | Custom sound file path (platform-specific; `.wav` only on Windows) |
@@ -61,6 +62,7 @@ Settings are resolved in this order (highest to lowest):
       "notify_on_complete": true,
       "notify_on_fail": true,
       "notify_on_loop_complete": true,
+      "notify_on_watch_new_tasks": true,
       "suppress_when_active": true,
       "sound_enabled": false,
       "timeout_ms": 8000
@@ -80,6 +82,7 @@ Settings are resolved in this order (highest to lowest):
       "notify_on_complete": true,
       "notify_on_fail": true,
       "notify_on_loop_complete": true,
+      "notify_on_watch_new_tasks": true,
       "suppress_when_active": true,
       "sound_enabled": true,
       "sound_path": "/Users/me/sounds/complete.aiff",
@@ -416,6 +419,10 @@ Understanding the exact timing of notifications helps you configure them appropr
 **When it fires:**
 - When `ralph watch` detects new tasks from code comments
 - Only if `--notify` flag is passed to `ralph watch`
+- Only when `agent.notification.notify_on_watch_new_tasks` is `true` (default)
+
+**When it does NOT fire:**
+- If `notify_on_watch_new_tasks` is `false`
 
 **Format:**
 - "1 new task detected from code comments" (single)

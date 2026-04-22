@@ -202,6 +202,7 @@ final class SettingsViewModel {
     var notifyOnComplete: Bool = true
     var notifyOnFail: Bool = true
     var notifyOnLoopComplete: Bool = true
+    var notifyOnWatchNewTasks: Bool = true
     var soundEnabled: Bool = false
     var suppressWhenActive: Bool = true
 
@@ -306,6 +307,7 @@ final class SettingsViewModel {
                 "notify_on_complete": notifyOnComplete,
                 "notify_on_fail": notifyOnFail,
                 "notify_on_loop_complete": notifyOnLoopComplete,
+                "notify_on_watch_new_tasks": notifyOnWatchNewTasks,
                 "sound_enabled": soundEnabled,
                 "suppress_when_active": suppressWhenActive
             ]
@@ -377,6 +379,7 @@ final class SettingsViewModel {
         notifyOnComplete = true
         notifyOnFail = true
         notifyOnLoopComplete = true
+        notifyOnWatchNewTasks = true
         soundEnabled = false
         suppressWhenActive = true
 
@@ -399,6 +402,7 @@ final class SettingsViewModel {
         notifyOnComplete = notification?.notifyOnComplete ?? true
         notifyOnFail = notification?.notifyOnFail ?? true
         notifyOnLoopComplete = notification?.notifyOnLoopComplete ?? true
+        notifyOnWatchNewTasks = notification?.notifyOnWatchNewTasks ?? true
         soundEnabled = notification?.soundEnabled ?? false
         suppressWhenActive = notification?.suppressWhenActive ?? true
     }

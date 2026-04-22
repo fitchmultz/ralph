@@ -452,6 +452,7 @@ Supported fields:
 - `notify_on_complete`: enable notifications on task completion (default: `true`).
 - `notify_on_fail`: enable notifications on task failure (default: `true`).
 - `notify_on_loop_complete`: enable notifications when loop mode finishes (default: `true`).
+- `notify_on_watch_new_tasks`: enable notifications when watch mode adds new tasks from comments (default: `true`).
 - `suppress_when_active`: suppress notifications when the macOS app is active (default: `true`).
 - `sound_enabled`: play sound with notification (default: `false`).
 - `sound_path`: custom sound file path (optional, platform-specific).
@@ -675,6 +676,7 @@ Example:
       "notify_on_complete": true,
       "notify_on_fail": true,
       "notify_on_loop_complete": true,
+      "notify_on_watch_new_tasks": true,
       "suppress_when_active": true,
       "sound_enabled": true,
       "timeout_ms": 10000

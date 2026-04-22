@@ -491,6 +491,7 @@ Desktop notification configuration for task events.
 | `notify_on_complete` | `boolean` | `true` | Notify on task completion |
 | `notify_on_fail` | `boolean` | `true` | Notify on task failure |
 | `notify_on_loop_complete` | `boolean` | `true` | Notify when loop mode completes |
+| `notify_on_watch_new_tasks` | `boolean` | `true` | Notify when watch mode adds new tasks from comments |
 | `suppress_when_active` | `boolean` | `true` | Suppress when the macOS app is active |
 | `sound_enabled` | `boolean` | `false` | Play sound with notifications |
 | `sound_path` | `string` | `null` | Custom sound file path (`.wav` only on Windows) |

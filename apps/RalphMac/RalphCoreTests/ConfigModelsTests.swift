@@ -69,4 +69,20 @@ final class ConfigModelsTests: RalphCoreTestCase {
         XCTAssertEqual(webhook.retryCount, 5)
         XCTAssertEqual(webhook.retryBackoffMs, 2000)
     }
+
+    func test_decode_ralphConfig_notification_includesWatchNewTasksField() throws {
+        let json = #"""
+        {
+          "agent": {
+            "notification": {
+              "notify_on_watch_new_tasks": false
+            }
+          }
+        }
+        """#
+
+        let config = try JSONDecoder().decode(RalphConfig.self, from: Data(json.utf8))
+        let notification = try XCTUnwrap(config.agent?.notification)
+        XCTAssertEqual(notification.notifyOnWatchNewTasks, false)
+    }
 }

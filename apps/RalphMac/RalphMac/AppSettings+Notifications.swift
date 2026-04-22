@@ -32,6 +32,10 @@ struct NotificationsSettingsTab: View {
                 Toggle("Notify when loop completes", isOn: $viewModel.notifyOnLoopComplete)
                     .disabled(!viewModel.notificationsEnabled)
                     .onChange(of: viewModel.notifyOnLoopComplete) { _, _ in viewModel.scheduleSave() }
+
+                Toggle("Notify when watch mode adds tasks from comments", isOn: $viewModel.notifyOnWatchNewTasks)
+                    .disabled(!viewModel.notificationsEnabled)
+                    .onChange(of: viewModel.notifyOnWatchNewTasks) { _, _ in viewModel.scheduleSave() }
             }
 
             Section("Sound & Behavior") {
