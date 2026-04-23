@@ -32,4 +32,5 @@ mod notifications;
 mod phase_settings_matrix;
 mod phase_settings_wiring;
 mod queue_lock;
+mod run_loop_fail_fast;
 mod stop_signal;

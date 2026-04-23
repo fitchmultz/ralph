@@ -305,6 +305,7 @@ fn run_loop_state_machine(
                 }
 
                 lifecycle.record_failure(&err)?;
+                return Err(err);
             }
         }
     }
