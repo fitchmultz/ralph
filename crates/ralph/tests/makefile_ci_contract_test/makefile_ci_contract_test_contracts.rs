@@ -16,7 +16,7 @@
 use anyhow::{Context, Result};
 
 use super::makefile_ci_contract_test_support::{
-    REQUIRED_CI_DOCS_STEPS, REQUIRED_CI_FAST_STEPS, REQUIRED_CI_STEPS, REQUIRED_MACOS_CI_DEPS,
+    REQUIRED_CI_DOCS_STEPS, REQUIRED_CI_FAST_STEPS, REQUIRED_CI_STEPS,
     REQUIRED_MACOS_TEST_CONTRACT_DEPS, extract_make_ci_steps, extract_target_block,
     extract_target_dependencies, read_repo_makefile, repo_root, required_ci_pipeline_text,
 };
@@ -105,17 +105,35 @@ fn test_makefile_ci_contains_each_required_step_once() -> Result<()> {
 #[test]
 fn test_macos_ci_matches_required_dependency_sequence() -> Result<()> {
     let makefile = read_repo_makefile()?;
-    let actual =
+    let actual_deps =
         extract_target_dependencies(&makefile, "macos-ci").context("extract macos-ci deps")?;
-    let expected: Vec<String> = REQUIRED_MACOS_CI_DEPS
-        .iter()
-        .map(|step| step.to_string())
-        .collect();
+    let expected_deps = vec!["macos-preflight".to_string()];
 
     assert_eq!(
-        actual, expected,
-        "`macos-ci` must exactly match required dependency sequence.\nExpected: {:?}\nActual:   {:?}",
-        expected, actual
+        actual_deps, expected_deps,
+        "`macos-ci` should keep macos-preflight as its only direct dependency.\nExpected: {:?}\nActual:   {:?}",
+        expected_deps, actual_deps
+    );
+
+    let macos_ci_block =
+        extract_target_block(&makefile, "macos-ci").context("extract macos-ci block")?;
+    let ci_call = "$(MAKE) --no-print-directory ci;";
+    let macos_call = "$(MAKE) --no-print-directory macos-build macos-test macos-test-contracts \\";
+    let ci_index = macos_ci_block
+        .find(ci_call)
+        .context("locate ci submake inside macos-ci")?;
+    let macos_index = macos_ci_block
+        .find(macos_call)
+        .context("locate shared macOS submake inside macos-ci")?;
+
+    assert!(
+        ci_index < macos_index,
+        "`macos-ci` should run the Rust ci submake before the shared macOS build/test/contracts submake"
+    );
+    assert!(
+        macos_ci_block.contains("RALPH_XCODE_REUSE_SHIP_DERIVED_DATA=1")
+            && macos_ci_block.contains("RALPH_XCODE_KEEP_DERIVED_DATA=1"),
+        "`macos-ci` shared macOS submake must pass the DerivedData reuse flags"
     );
 
     Ok(())

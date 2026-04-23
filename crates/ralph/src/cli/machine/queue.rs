@@ -30,8 +30,8 @@ use crate::cli::machine::common::{build_queue_read_document, done_queue_ref};
 use crate::cli::machine::io::print_json;
 use crate::contracts::{
     MACHINE_DASHBOARD_READ_VERSION, MACHINE_GRAPH_READ_VERSION,
-    MACHINE_QUEUE_UNLOCK_INSPECT_VERSION, MachineDashboardReadDocument,
-    MachineGraphReadDocument, MachineQueueUnlockCondition, MachineQueueUnlockInspectDocument,
+    MACHINE_QUEUE_UNLOCK_INSPECT_VERSION, MachineDashboardReadDocument, MachineGraphReadDocument,
+    MachineQueueUnlockCondition, MachineQueueUnlockInspectDocument,
 };
 use crate::queue::graph::{
     build_graph, find_critical_paths, get_blocked_tasks, get_runnable_tasks,
@@ -123,7 +123,7 @@ pub(crate) fn handle_queue(args: MachineQueueArgs, force: bool) -> Result<()> {
                 version: MACHINE_QUEUE_UNLOCK_INSPECT_VERSION,
                 condition,
                 blocking,
-                unlock_allowed: unlock_allowed,
+                unlock_allowed,
                 continuation: crate::contracts::MachineContinuationSummary {
                     headline,
                     detail,
@@ -131,7 +131,8 @@ pub(crate) fn handle_queue(args: MachineQueueArgs, force: bool) -> Result<()> {
                     next_steps: vec![crate::contracts::MachineContinuationAction {
                         title: "Inspect queue lock".to_string(),
                         command: "ralph machine queue unlock-inspect".to_string(),
-                        detail: "Refresh the structured queue-lock state for this repository.".to_string(),
+                        detail: "Refresh the structured queue-lock state for this repository."
+                            .to_string(),
                     }],
                 },
             })

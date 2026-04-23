@@ -36,6 +36,8 @@ RALPH_RELEASE_STAMP_INPUTS := Cargo.toml Cargo.lock VERSION rust-toolchain.toml 
 RALPH_CRATE_SOURCE_FILES := $(shell find crates -type f \( -name '*.rs' -o -name 'Cargo.toml' -o -name 'build.rs' \) 2>/dev/null | LC_ALL=C sort)
 # Set to 1 to keep Xcode derived data between runs (faster local iteration; less pristine than default).
 RALPH_XCODE_KEEP_DERIVED_DATA ?= 0
+# Internal ship-gate toggle: reuse one derived-data tree across macos-build/test/contracts.
+RALPH_XCODE_REUSE_SHIP_DERIVED_DATA ?= 0
 # Prefer the rustup-managed pinned toolchain from rust-toolchain.toml when present.
 RALPH_RUST_TOOLCHAIN_FILE := rust-toolchain.toml
 RALPH_PINNED_RUST_TOOLCHAIN := $(shell sed -n 's/^[[:space:]]*channel = "\(.*\)"/\1/p' $(RALPH_RUST_TOOLCHAIN_FILE) 2>/dev/null | head -1)
@@ -52,6 +54,9 @@ NEXTEST_JOBS_FLAG := $(if $(filter-out 0,$(RALPH_CI_JOBS)),--jobs $(RALPH_CI_JOB
 CARGO_TEST_THREADS_FLAG := $(if $(filter-out 0,$(RALPH_CI_JOBS)),--test-threads $(RALPH_CI_JOBS),)
 XCODE_JOBS_FLAG := $(if $(filter-out 0,$(RALPH_XCODE_JOBS)),-jobs $(RALPH_XCODE_JOBS),)
 RALPH_CLI_BUILD_JOBS_ARG := $(if $(filter-out 0,$(RALPH_CI_JOBS)),--jobs $(RALPH_CI_JOBS),)
+XCODE_MACOS_BUILD_DERIVED_DATA_PATH := $(if $(filter 1,$(RALPH_XCODE_REUSE_SHIP_DERIVED_DATA)),$(XCODE_DERIVED_DATA_ROOT)/ship,$(XCODE_DERIVED_DATA_ROOT)/build)
+XCODE_MACOS_TEST_DERIVED_DATA_PATH := $(if $(filter 1,$(RALPH_XCODE_REUSE_SHIP_DERIVED_DATA)),$(XCODE_DERIVED_DATA_ROOT)/ship,$(XCODE_DERIVED_DATA_ROOT)/test)
+XCODE_MACOS_RELEASE_APP_BUNDLE := $(XCODE_MACOS_BUILD_DERIVED_DATA_PATH)/Build/Products/Release/RalphMac.app
 
 .DELETE_ON_ERROR:
 .ONESHELL:
@@ -443,7 +448,7 @@ macos-build: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	trap cleanup EXIT INT TERM; \
 	ralph_acquire_xcode_build_lock "$$lock_dir" "macos-build"; \
 	acquired=1; \
-	derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/build"; \
+	derived_data_path="$(XCODE_MACOS_BUILD_DERIVED_DATA_PATH)"; \
 	echo "→ macOS build (Xcode build)..."; \
 	if [ "$${RALPH_XCODE_KEEP_DERIVED_DATA:-0}" != "1" ]; then rm -rf "$$derived_data_path" 2>/dev/null || true; fi; \
 	xcodebuild \
@@ -458,7 +463,7 @@ macos-build: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 		build
 
 macos-install-app: macos-build
-	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/build"; \
+	@derived_data_path="$(XCODE_MACOS_BUILD_DERIVED_DATA_PATH)"; \
 	app_bundle="$$derived_data_path/Build/Products/Release/RalphMac.app"; \
 	install_dir="$(MACOS_APP_INSTALL_DIR)"; \
 	if [ ! -w "$$install_dir" ]; then \
@@ -489,7 +494,7 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 		acquired=0; \
 		cleanup() { if [ "$$acquired" = "1" ]; then ralph_release_xcode_build_lock "$$lock_dir"; fi; }; \
 		trap cleanup EXIT INT TERM; \
-		derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
+		derived_data_path="$(XCODE_MACOS_TEST_DERIVED_DATA_PATH)"; \
 		ralph_acquire_xcode_build_lock "$$lock_dir" "macos-test"; \
 		acquired=1; \
 		echo "→ macOS tests (Xcode, skipping UI tests - use RALPH_UI_TESTS=1 to include)..."; \
@@ -645,12 +650,12 @@ macos-test-contracts: macos-test-settings-smoke macos-test-workspace-routing-con
 # Run targeted noninteractive Settings contract coverage for supported entry paths.
 macos-test-settings-smoke: macos-build
 	@echo "→ macOS Settings smoke contract coverage (keyboard, app menu, URL route; noninteractive)..."
-	@./scripts/macos-settings-smoke.sh --app-bundle "$(XCODE_DERIVED_DATA_ROOT)/build/Build/Products/Release/RalphMac.app"
+	@./scripts/macos-settings-smoke.sh --app-bundle "$(XCODE_MACOS_RELEASE_APP_BUNDLE)"
 
 # Run targeted noninteractive workspace bootstrap/routing contract coverage.
 macos-test-workspace-routing-contract: macos-build
 	@echo "→ macOS workspace routing contract coverage (bootstrap, URL open, pending scene routes; noninteractive)..."
-	@./scripts/macos-workspace-routing-contract.sh --app-bundle "$(XCODE_DERIVED_DATA_ROOT)/build/Build/Products/Release/RalphMac.app"
+	@./scripts/macos-workspace-routing-contract.sh --app-bundle "$(XCODE_MACOS_RELEASE_APP_BUNDLE)"
 
 macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
@@ -703,10 +708,21 @@ macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 		exit 1; \
 	fi
 
-macos-ci: macos-preflight ci macos-build macos-test macos-test-contracts
-	@echo "→ macOS ship gate (Rust CI + macOS app build+test + deterministic contract smoke)..."
-	@echo "  ℹ Interactive XCTest UI automation remains excluded from macos-ci (use make macos-test-ui or make macos-test-window-shortcuts when idle)."
-	@echo "  ✓ macOS CI completed"
+macos-ci: macos-preflight
+	@shared_derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ship"; \
+	keep_derived_data="$${RALPH_XCODE_KEEP_DERIVED_DATA:-0}"; \
+	cleanup() { \
+		if [ "$$keep_derived_data" != "1" ]; then rm -rf "$$shared_derived_data_path" 2>/dev/null || true; fi; \
+	}; \
+	trap cleanup EXIT INT TERM; \
+	if [ "$$keep_derived_data" != "1" ]; then rm -rf "$$shared_derived_data_path" 2>/dev/null || true; fi; \
+	$(MAKE) --no-print-directory ci; \
+	$(MAKE) --no-print-directory macos-build macos-test macos-test-contracts \
+		RALPH_XCODE_REUSE_SHIP_DERIVED_DATA=1 \
+		RALPH_XCODE_KEEP_DERIVED_DATA=1; \
+	echo "→ macOS ship gate (Rust CI + macOS app build+test + deterministic contract smoke)..."; \
+	echo "  ℹ Interactive XCTest UI automation remains excluded from macos-ci (use make macos-test-ui or make macos-test-window-shortcuts when idle)."; \
+	echo "  ✓ macOS CI completed"
 
 # Coverage output directory
 COVERAGE_DIR ?= target/coverage

@@ -4,7 +4,7 @@
 //! - Verify `scripts/ralph-cli-bundle.sh` remains the canonical CLI build entrypoint.
 //!
 //! Responsibilities:
-//! - Confirm the bundling script rebuilds even when a target binary already exists.
+//! - Confirm the bundling script rebuilds stale binaries and reuses fresh ones.
 //! - Exercise the pinned-toolchain path using fake `rustup`/`cargo` fixtures.
 //! - Guard against regressions that silently reuse stale binaries.
 //!
@@ -121,6 +121,13 @@ fn bundle_script_rebuilds_even_when_binary_already_exists() {
         test_support::create_executable_script(parent, "ralph", "#!/bin/sh\nexit 0\n")
             .expect("create stale binary fixture");
     }
+    let touch_status = Command::new("touch")
+        .arg("-t")
+        .arg("200001010101")
+        .arg(&binary_path)
+        .status()
+        .expect("mark binary as older than repo inputs");
+    assert!(touch_status.success(), "touch should succeed");
 
     let (status, stdout, stderr) = test_support::with_prepend_path(&bin_dir, || {
         run_bundle_script(&[
@@ -153,5 +160,66 @@ fn bundle_script_rebuilds_even_when_binary_already_exists() {
     assert!(
         cargo_invocations.contains(&target_triple),
         "expected fake cargo to receive the requested target triple\nlog:\n{cargo_invocations}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn bundle_script_reuses_fresh_binary_without_rebuilding() {
+    let _lock = test_support::env_lock().lock().expect("env lock");
+    let temp = TempDir::new().expect("create temp dir");
+    let bin_dir = temp.path().join("bin");
+    std::fs::create_dir_all(&bin_dir).expect("create fake toolchain dir");
+    let cargo_log = temp.path().join("cargo.log");
+    write_fake_toolchain(&bin_dir, &cargo_log);
+
+    let target_triple = format!(
+        "cli-bundle-script-fresh-{}",
+        temp.path()
+            .file_name()
+            .expect("temp dir file name")
+            .to_string_lossy()
+    );
+    let binary_path = target_binary_path(&target_triple);
+    if let Some(parent) = binary_path.parent() {
+        std::fs::create_dir_all(parent).expect("create test target dir");
+        test_support::create_executable_script(parent, "ralph", "#!/bin/sh\nexit 0\n")
+            .expect("create fresh binary fixture");
+    }
+    let touch_status = Command::new("touch")
+        .arg("-t")
+        .arg("209901010101")
+        .arg(&binary_path)
+        .status()
+        .expect("mark binary as newer than repo inputs");
+    assert!(touch_status.success(), "touch should succeed");
+
+    let (status, stdout, stderr) = test_support::with_prepend_path(&bin_dir, || {
+        run_bundle_script(&[
+            "--configuration",
+            "Debug",
+            "--target",
+            &target_triple,
+            "--print-path",
+        ])
+    });
+
+    let _ = std::fs::remove_dir_all(repo_root().join("target").join(&target_triple));
+
+    assert!(
+        status.success(),
+        "expected bundle script to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let printed_path = stdout
+        .lines()
+        .last()
+        .expect("bundle script should print the resolved path");
+    assert_eq!(printed_path.trim(), binary_path.display().to_string());
+
+    let cargo_invocations = std::fs::read_to_string(&cargo_log).unwrap_or_default();
+    assert!(
+        cargo_invocations.trim().is_empty(),
+        "expected fresh binary reuse to skip cargo\nstdout:\n{stdout}\nstderr:\n{stderr}\nlog:\n{cargo_invocations}"
     );
 }

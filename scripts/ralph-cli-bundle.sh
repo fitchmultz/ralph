@@ -28,6 +28,33 @@ TARGET_TRIPLE=""
 JOBS=""
 PRINT_PATH=0
 
+input_paths() {
+    printf '%s\n' \
+        "$REPO_ROOT/Cargo.toml" \
+        "$REPO_ROOT/Cargo.lock" \
+        "$REPO_ROOT/VERSION" \
+        "$REPO_ROOT/rust-toolchain.toml" \
+        "$REPO_ROOT/scripts/ralph-cli-bundle.sh"
+    if [ -d "$REPO_ROOT/.cargo" ]; then
+        find "$REPO_ROOT/.cargo" -type f -print | LC_ALL=C sort
+    fi
+    if [ -d "$REPO_ROOT/crates" ]; then
+        find "$REPO_ROOT/crates" -type f \( -name '*.rs' -o -name 'Cargo.toml' -o -name 'build.rs' \) -print | LC_ALL=C sort
+    fi
+}
+
+binary_is_fresh() {
+    [ -x "$binary_path" ] || return 1
+    while IFS= read -r input_path; do
+        [ -n "$input_path" ] || continue
+        [ -e "$input_path" ] || continue
+        if [ "$input_path" -nt "$binary_path" ]; then
+            return 1
+        fi
+    done < <(input_paths)
+    return 0
+}
+
 usage() {
     cat <<'EOF'
 Usage:
@@ -116,11 +143,15 @@ if [ -n "$JOBS" ] && [ "$JOBS" != "0" ]; then
     build_args+=(--jobs "$JOBS")
 fi
 
-ralph_log_info "Building Ralph CLI for $CONFIGURATION" >&2
-(
-    cd "$REPO_ROOT"
-    "${CARGO:-cargo}" build "${build_args[@]}"
-)
+if binary_is_fresh; then
+    ralph_log_info "Reusing fresh Ralph CLI for $CONFIGURATION" >&2
+else
+    ralph_log_info "Building Ralph CLI for $CONFIGURATION" >&2
+    (
+        cd "$REPO_ROOT"
+        "${CARGO:-cargo}" build "${build_args[@]}"
+    )
+fi
 
 if [ ! -x "$binary_path" ]; then
     ralph_log_error "Built CLI binary is missing: $binary_path"

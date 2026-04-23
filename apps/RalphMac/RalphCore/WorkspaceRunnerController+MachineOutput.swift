@@ -335,15 +335,41 @@ extension WorkspaceRunnerController {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return [] }
             let data = Data(trimmed.utf8)
-            let decoder = JSONDecoder()
 
             if let event = try? RalphMachineContract.decode(MachineRunEventEnvelope.self, from: data, operation: "run event") {
-                return [.event(event)]
+                if isStructurallyDecodable(event) {
+                    return [.event(event)]
+                }
             }
             if let summary = try? RalphMachineContract.decode(MachineRunSummaryDocument.self, from: data, operation: "run summary") {
                 return [.summary(summary)]
             }
             return [.rawText(line + "\n")]
+        }
+
+        private func isStructurallyDecodable(_ event: MachineRunEventEnvelope) -> Bool {
+            switch event.kind {
+            case .runStarted:
+                guard event.payload?.value(at: ["config"]) != nil else { return true }
+                return event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) != nil
+            case .queueSnapshot:
+                guard event.payload?.value(at: ["paths"]) != nil else { return true }
+                return event.payload?.decode(MachineQueuePaths.self, at: ["paths"]) != nil
+            case .configResolved:
+                guard event.payload?.value(at: ["config"]) != nil else { return true }
+                return event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) != nil
+            case .resumeDecision:
+                guard event.payload != nil else { return true }
+                return event.payload?.decode(MachineResumeDecision.self) != nil
+            case .runnerOutput:
+                guard event.payload?.value(at: ["text"]) != nil else { return true }
+                return event.payload?.value(at: ["text"])?.stringValue != nil
+            case .blockedStateChanged:
+                guard event.payload != nil else { return true }
+                return event.payload?.decode(MachineBlockingState.self) != nil
+            case .taskSelected, .phaseEntered, .phaseCompleted, .blockedStateCleared, .warning, .runFinished:
+                return true
+            }
         }
     }
 }

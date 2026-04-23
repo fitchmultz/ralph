@@ -90,16 +90,28 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         "Makefile should define a deterministic macOS contract aggregate target"
     );
     assert!(
-        makefile.contains("derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/build\""),
-        "macos-build should use an isolated build DerivedData path"
+        makefile.contains(
+            "XCODE_MACOS_BUILD_DERIVED_DATA_PATH := $(if $(filter 1,$(RALPH_XCODE_REUSE_SHIP_DERIVED_DATA)),$(XCODE_DERIVED_DATA_ROOT)/ship,$(XCODE_DERIVED_DATA_ROOT)/build)"
+        ),
+        "Makefile should define the macOS build DerivedData path selector"
     );
     assert!(
-        makefile.contains("derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/test\""),
-        "macos-test should use an isolated test DerivedData path"
+        makefile.contains(
+            "XCODE_MACOS_TEST_DERIVED_DATA_PATH := $(if $(filter 1,$(RALPH_XCODE_REUSE_SHIP_DERIVED_DATA)),$(XCODE_DERIVED_DATA_ROOT)/ship,$(XCODE_DERIVED_DATA_ROOT)/test)"
+        ),
+        "Makefile should define the macOS test DerivedData path selector"
     );
     assert!(
         makefile.contains("rm -rf \"$$derived_data_path\""),
         "macOS targets should clear DerivedData before running xcodebuild"
+    );
+    assert!(
+        makefile.contains("shared_derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/ship\""),
+        "macos-ci should reuse a shared ship-gate DerivedData path"
+    );
+    assert!(
+        makefile.contains("RALPH_XCODE_REUSE_SHIP_DERIVED_DATA=1"),
+        "macos-ci should pass the shared DerivedData toggle to its subtargets"
     );
     assert!(
         makefile.contains("XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock"),
@@ -148,8 +160,20 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         );
     }
 
+    let macos_build_block =
+        extract_target_block(&makefile, "macos-build").context("extract macos-build block")?;
+    assert!(
+        macos_build_block.contains("derived_data_path=\"$(XCODE_MACOS_BUILD_DERIVED_DATA_PATH)\""),
+        "macos-build should resolve its DerivedData path through the shared selector"
+    );
+
     let macos_test_block =
         extract_target_block(&makefile, "macos-test").context("extract macos-test block")?;
+    assert!(
+        macos_test_block.contains("derived_data_path=\"$(XCODE_MACOS_TEST_DERIVED_DATA_PATH)\""),
+        "macos-test should resolve its DerivedData path through the shared selector"
+    );
+
     let ui_delegate_index = macos_test_block
         .find("if [ \"$$include_ui_tests\" = \"1\" ]")
         .context("locate macos-test UI delegation branch")?;
