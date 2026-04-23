@@ -61,6 +61,19 @@ public extension RalphCLIClient.CollectedOutput {
         MachineErrorDocument.decode(from: stderr)
     }
 
+    func failureMessage(fallback fallbackMessage: @autoclosure () -> String) -> String {
+        if let machineError {
+            return machineError.userFacingDescription
+        }
+
+        let trimmedStderr = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedStderr.isEmpty {
+            return trimmedStderr
+        }
+
+        return fallbackMessage()
+    }
+
     var isRetryableFailure: Bool {
         guard status.code != 0 else { return false }
 

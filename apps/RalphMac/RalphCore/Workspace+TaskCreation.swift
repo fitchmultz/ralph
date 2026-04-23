@@ -60,9 +60,9 @@ public extension Workspace {
         )
 
         guard collected.status.code == 0 else {
-            throw WorkspaceError.cliError(
-                collected.stderr.isEmpty ? "Failed to create task (exit \(collected.status.code))" : collected.stderr
-            )
+            throw WorkspaceError.cliError(collected.failureMessage(
+                fallback: "Failed to create task (exit \(collected.status.code))"
+            ))
         }
 
         await loadTasks(retryConfiguration: .minimal)

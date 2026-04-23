@@ -88,7 +88,7 @@ public enum RetryableError: Error, Sendable, Equatable, LocalizedError {
             return "Resource temporarily unavailable"
         case .processError(let exitCode, let stderr):
             if let machineError = MachineErrorDocument.decode(from: stderr) {
-                return machineError.detail ?? machineError.message
+                return machineError.userFacingDescription
             }
             let trimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty {

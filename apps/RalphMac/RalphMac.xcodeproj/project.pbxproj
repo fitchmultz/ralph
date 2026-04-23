@@ -237,6 +237,7 @@
 		WCROUTEBLD1234567890ABCD /* WindowCommandRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = WCROUTEFREF1234567890ABC /* WindowCommandRouting.swift */; };
 		WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */; };
 		WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */; };
+		WERBUILD001234567890123 /* WorkspaceErrorRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = WERFILEREF0012345678901 /* WorkspaceErrorRecoveryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -510,6 +511,7 @@
 		WCROUTEFREF1234567890ABC /* WindowCommandRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCommandRouting.swift; sourceTree = "<group>"; };
 		WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskCreationTests.swift; sourceTree = "<group>"; };
 		WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskDecomposeTests.swift; sourceTree = "<group>"; };
+		WERFILEREF0012345678901 /* WorkspaceErrorRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceErrorRecoveryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -656,6 +658,7 @@
 				C2F10000000000000000000F /* QueueFileWatcherTests.swift */,
 				C2F100000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift */,
 				WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */,
+				WERFILEREF0012345678901 /* WorkspaceErrorRecoveryTests.swift */,
 				58E8D3607BFD28F72C5E9344 /* CLIHealthCheckerTests.swift */,
 				58E8D3607BFD28F72C5E9346 /* ConflictDetectionTests.swift */,
 				87DB6C6CD191F58338B4C774 /* ErrorRecoveryCategoryTests.swift */,
@@ -1086,6 +1089,7 @@
 				C2F20000000000000000000F /* QueueFileWatcherTests.swift in Sources */,
 				C2F200000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift in Sources */,
 				WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */,
+				WERBUILD001234567890123 /* WorkspaceErrorRecoveryTests.swift in Sources */,
 				94A6A25C9EFCB2C4BA2EAEB5 /* CLIHealthCheckerTests.swift in Sources */,
 				94A6A25C9EFCB2C4BA2EAEB6 /* RalphCoreTestSupport.swift in Sources */,
 				94A6A25C9EFCB2C4BA2EAEB7 /* ConflictDetectionTests.swift in Sources */,

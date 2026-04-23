@@ -136,9 +136,7 @@ private extension Workspace {
 
         guard collected.status.code == 0 else {
             throw WorkspaceError.cliError(
-                collected.stderr.isEmpty
-                    ? "Failed to \(operation) (exit \(collected.status.code))"
-                    : collected.stderr
+                collected.failureMessage(fallback: "Failed to \(operation) (exit \(collected.status.code))")
             )
         }
 

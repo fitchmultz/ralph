@@ -201,6 +201,26 @@ public struct MachineErrorDocument: Codable, Sendable, Equatable {
         guard let data = trimmed.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(MachineErrorDocument.self, from: data)
     }
+
+    public var userFacingDescription: String {
+        var lines = [
+            "Code: \(code.rawValue)",
+            "Message: \(message)",
+        ]
+
+        if let detail = sanitizedDetail {
+            lines.append("Detail: \(detail)")
+        }
+
+        lines.append("Retryable: \(retryable ? "yes" : "no")")
+        return lines.joined(separator: "\n")
+    }
+
+    private var sanitizedDetail: String? {
+        guard let detail else { return nil }
+        let trimmed = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
 }
 
 public struct MachineResumeDecision: Codable, Sendable, Equatable {

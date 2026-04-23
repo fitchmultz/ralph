@@ -77,11 +77,9 @@ extension Workspace {
         )
 
         guard collected.status.code == 0 else {
-            throw WorkspaceError.cliError(
-                collected.stderr.isEmpty
-                    ? "Failed to run machine task decompose (exit \(collected.status.code))"
-                    : collected.stderr
-            )
+            throw WorkspaceError.cliError(collected.failureMessage(
+                fallback: "Failed to run machine task decompose (exit \(collected.status.code))"
+            ))
         }
 
         do {

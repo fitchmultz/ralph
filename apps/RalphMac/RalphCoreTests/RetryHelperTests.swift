@@ -185,12 +185,48 @@ final class RetryHelperTests: RalphCoreTestCase {
         XCTAssertTrue(RetryHelper.defaultShouldRetry(error))
     }
 
+    func test_machineErrorDocument_userFacingDescriptionIncludesStructuredFields() {
+        let document = MachineErrorDocument(
+            version: 1,
+            code: .queueCorrupted,
+            message: "Queue is invalid.",
+            detail: "read queue file .ralph/queue.jsonc: missing terminal completed_at",
+            retryable: false
+        )
+
+        XCTAssertEqual(
+            document.userFacingDescription,
+            """
+            Code: queue_corrupted
+            Message: Queue is invalid.
+            Detail: read queue file .ralph/queue.jsonc: missing terminal completed_at
+            Retryable: no
+            """
+        )
+    }
+
     func test_retryableProcessError_localizedDescriptionIncludesExitCodeAndStderr() {
         let error = RetryableError.processError(exitCode: 7, stderr: "queue read failed")
         XCTAssertEqual(
             error.localizedDescription,
             "CLI command failed with exit code 7: queue read failed"
         )
+    }
+
+    func test_retryableProcessError_localizedDescriptionPrefersStructuredMachineError() throws {
+        let document = MachineErrorDocument(
+            version: 1,
+            code: .queueCorrupted,
+            message: "Queue is invalid.",
+            detail: "read queue file .ralph/queue.jsonc: missing terminal completed_at",
+            retryable: false
+        )
+        let error = RetryableError.processError(
+            exitCode: 7,
+            stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        )
+
+        XCTAssertEqual(error.localizedDescription, document.userFacingDescription)
     }
     
     func test_isRetryableFailure_detectsRetryablePatterns() {
@@ -238,6 +274,48 @@ final class RetryHelperTests: RalphCoreTestCase {
         )
         XCTAssertTrue(output.isRetryableFailure)
         XCTAssertEqual(output.machineError, document)
+    }
+
+    func test_failureMessage_prefersStructuredMachineErrorDocument() throws {
+        let document = MachineErrorDocument(
+            version: 1,
+            code: .queueCorrupted,
+            message: "Queue is invalid.",
+            detail: "read queue file .ralph/queue.jsonc: missing terminal completed_at",
+            retryable: false
+        )
+        let output = RalphCLIClient.CollectedOutput(
+            status: RalphCLIExitStatus(code: 1, reason: .exit),
+            stdout: "",
+            stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        )
+
+        XCTAssertEqual(
+            output.failureMessage(fallback: "fallback message"),
+            document.userFacingDescription
+        )
+    }
+
+    func test_failureMessage_fallsBackToTrimmedStderrThenDefaultMessage() {
+        let stderrOutput = RalphCLIClient.CollectedOutput(
+            status: RalphCLIExitStatus(code: 1, reason: .exit),
+            stdout: "",
+            stderr: "  queue read failed  \n"
+        )
+        XCTAssertEqual(
+            stderrOutput.failureMessage(fallback: "fallback message"),
+            "queue read failed"
+        )
+
+        let emptyOutput = RalphCLIClient.CollectedOutput(
+            status: RalphCLIExitStatus(code: 1, reason: .exit),
+            stdout: "",
+            stderr: " \n "
+        )
+        XCTAssertEqual(
+            emptyOutput.failureMessage(fallback: "fallback message"),
+            "fallback message"
+        )
     }
     
     // MARK: - Configuration Tests

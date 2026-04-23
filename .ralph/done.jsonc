@@ -1166,6 +1166,59 @@
         "runner_used": "codex",
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0039",
+      "status": "done",
+      "title": "Prefer MachineErrorDocument in RalphMac machine command failures",
+      "description": "Several RalphMac machine-command helpers still surface raw stderr text when a subprocess fails, which means users can see opaque JSON when the CLI emits the documented `machine_error` payload on stderr. `Workspace+Decompose` and queue recovery helpers currently stringify stderr directly, while task mutation conflict handling already decodes `MachineErrorDocument` for structured classification. Acceptance criteria: RalphCore centralizes machine-command failure decoding so decompose, queue recovery helpers, and other `runAndCollect` machine-command paths prefer `MachineErrorDocument` fields (`code`, `message`, optional `detail`, `retryable`) when present, with tests and behavior aligned to `docs/machine-contract.md`.",
+      "priority": "high",
+      "tags": [
+        "macos",
+        "machine-contract",
+        "ux",
+        "error-handling"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore",
+        "apps/RalphMac/RalphCoreTests",
+        "docs/machine-contract.md",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "user-request: Cross-surface coherence (RalphMac error handling): Several machine subprocess helpers (e.g. Workspace+Decompose runTaskDecompose) surface raw stderr on failure, while Workspace+TaskMutations already decodes MachineErrorDocument from stderr for classification (taskConflict).",
+        "path: docs/machine-contract.md:39 :: `machine_error` is the versioned machine stderr contract for failed `ralph machine ...` commands.",
+        "path: docs/machine-contract.md:49 :: machine clients should decode the structured error document instead of scraping English stderr text.",
+        "path: apps/RalphMac/RalphCore/ConfigModels.swift:187 :: RalphMac already defines `MachineErrorDocument` and a decode helper.",
+        "path: apps/RalphMac/RalphCore/Workspace+Decompose.swift:78 :: failed `machine task decompose` calls currently throw `collected.stderr` directly.",
+        "path: apps/RalphMac/RalphCore/Workspace+ErrorRecovery.swift:136 :: queue recovery helpers currently throw raw stderr for failed machine-command subprocesses.",
+        "path: apps/RalphMac/RalphCore/Workspace+TaskMutations.swift:261 :: task mutation conflict handling already decodes `MachineErrorDocument` from stderr for classification.",
+        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:60 :: collected machine command output already exposes a `machineError` decoding helper."
+      ],
+      "plan": [
+        "Audit RalphCore machine-command subprocess helpers that turn non-zero `runAndCollect` results into user-visible errors, including decomposition, queue recovery, and related machine paths.",
+        "Centralize a shared machine-failure decoding path that prefers `MachineErrorDocument` fields over raw stderr while preserving fallback behavior for non-machine failures.",
+        "Update `Workspace+Decompose`, queue recovery helpers, and any remaining RalphCore machine command wrappers that still stringify stderr directly to use the shared decoder.",
+        "Add or update RalphCore tests so structured `machine_error` stderr surfaces readable code/message/detail/retryable behavior and existing task-conflict classification stays intact.",
+        "Verify with focused RalphCore test coverage and `make agent-ci`."
+      ],
+      "notes": [
+        "Centralized machine-command failure formatting through MachineErrorDocument.userFacingDescription and CollectedOutput.failureMessage.",
+        "Added structured stderr regressions for decompose and queue recovery flows, plus shared formatter coverage, and registered the new test file in RalphMac.xcodeproj after agent-ci caught the missing reference.",
+        "Verified with focused RalphCore xcodebuild tests and make agent-ci."
+      ],
+      "request": "Cross-surface coherence (RalphMac error handling): Several machine subprocess helpers (e.g. Workspace+Decompose runTaskDecompose) surface raw stderr on failure, while Workspace+TaskMutations already decodes MachineErrorDocument from stderr for classification (taskConflict). When the CLI fails with the versioned machine_error JSON document on stderr, Mac users see opaque JSON instead of code/message/retryable. Acceptance: unify decoding so machine command failures in RalphCore prefer MachineErrorDocument when present (decompose, queue recovery helpers, any runAndCollect machine paths that still stringify stderr); keep behavior aligned with docs/machine-contract.md machine_error section.",
+      "created_at": "2026-04-22T15:39:39Z",
+      "updated_at": "2026-04-23T01:46:44Z",
+      "completed_at": "2026-04-23T01:46:44Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "hint_scope": "apps/RalphMac/RalphCore",
+        "hint_tags": "macos,machine-contract,ux",
+        "project_type": "code"
+      }
     }
   ]
 }

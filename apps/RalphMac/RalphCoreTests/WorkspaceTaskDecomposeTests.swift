@@ -87,6 +87,34 @@ final class WorkspaceTaskDecomposeTests: RalphCoreTestCase {
         XCTAssertTrue(log.contains("machine queue read"))
     }
 
+    func test_previewTaskDecomposition_prefersStructuredMachineErrorFromStderr() async throws {
+        let document = MachineErrorDocument(
+            version: 1,
+            code: .queueCorrupted,
+            message: "Decomposition preview could not load the queue.",
+            detail: "read queue file .ralph/queue.jsonc: missing terminal completed_at",
+            retryable: false
+        )
+        let fixture = try Self.makeMockCLIFixture(decomposeFailureDocument: document)
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        workspace = Workspace(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: try RalphCLIClient(executableURL: fixture.scriptURL)
+        )
+
+        do {
+            _ = try await workspace.previewTaskDecomposition(
+                source: .freeform("Build OAuth login"),
+                options: TaskDecomposeOptions()
+            )
+            XCTFail("Expected structured machine failure")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, document.userFacingDescription)
+        }
+    }
+
     private struct MockCLIFixture {
         let rootURL: URL
         let workspaceURL: URL
@@ -94,7 +122,9 @@ final class WorkspaceTaskDecomposeTests: RalphCoreTestCase {
         let logURL: URL
     }
 
-    private static func makeMockCLIFixture() throws -> MockCLIFixture {
+    private static func makeMockCLIFixture(
+        decomposeFailureDocument: MachineErrorDocument? = nil
+    ) throws -> MockCLIFixture {
         let queueTasks = [
             RalphMockCLITestSupport.task(
                 id: "RQ-0007",
@@ -145,6 +175,16 @@ final class WorkspaceTaskDecomposeTests: RalphCoreTestCase {
         try Self.previewJSON.write(to: previewURL, atomically: true, encoding: .utf8)
         let writeURL = fixture.rootURL.appendingPathComponent("decompose-write.json", isDirectory: false)
         try Self.writeJSON.write(to: writeURL, atomically: true, encoding: .utf8)
+        let errorURL: URL?
+        if let decomposeFailureDocument {
+            errorURL = try RalphMockCLITestSupport.writeJSONDocument(
+                decomposeFailureDocument,
+                in: fixture.rootURL,
+                name: "decompose-error.json"
+            )
+        } else {
+            errorURL = nil
+        }
 
         let script = """
         #!/bin/sh
@@ -162,6 +202,10 @@ final class WorkspaceTaskDecomposeTests: RalphCoreTestCase {
           exit 0
         fi
         if [ "$1" = "machine" ] && [ "$2" = "task" ] && [ "$3" = "decompose" ]; then
+          if [ -n "__DECOMPOSE_ERROR_PATH__" ]; then
+            cat "__DECOMPOSE_ERROR_PATH__" >&2
+            exit 9
+          fi
           if printf '%s\n' "$*" | grep -q -- '--write'; then
             cat "\(writeURL.path)"
           else
@@ -177,7 +221,18 @@ final class WorkspaceTaskDecomposeTests: RalphCoreTestCase {
         exit 1
         """
 
-        _ = try RalphMockCLITestSupport.makeExecutableScript(in: fixture.rootURL, name: fixture.scriptURL.lastPathComponent, body: script)
+        let resolvedScript: String
+        if let errorURL {
+            resolvedScript = script.replacingOccurrences(of: "__DECOMPOSE_ERROR_PATH__", with: errorURL.path)
+        } else {
+            resolvedScript = script.replacingOccurrences(of: "__DECOMPOSE_ERROR_PATH__", with: "")
+        }
+
+        _ = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: resolvedScript
+        )
         return MockCLIFixture(
             rootURL: fixture.rootURL,
             workspaceURL: fixture.workspaceURL,
