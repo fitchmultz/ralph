@@ -17,7 +17,9 @@ use std::path::Path;
 use std::process::Command;
 use thiserror::Error;
 
-use crate::runutil::{ManagedCommand, TimeoutClass, execute_managed_command};
+use crate::runutil::{
+    ManagedCommand, TimeoutClass, execute_checked_command, execute_managed_command,
+};
 
 /// Errors that can occur during git operations.
 #[derive(Error, Debug)]
@@ -199,9 +201,33 @@ pub(crate) fn git_output(
     .map_err(GitError::from)
 }
 
+pub(crate) fn git_probe_stdout(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
+    #[cfg(test)]
+    let _path_guard = crate::testsupport::path::path_lock()
+        .lock()
+        .expect("path lock");
+
+    let mut command = git_base_command(repo_root);
+    command.args(args);
+    execute_checked_command(ManagedCommand::new(
+        command,
+        format!("git {} in {}", args.join(" "), repo_root.display()),
+        TimeoutClass::MetadataProbe,
+    ))
+    .map(|output| output.stdout_lossy())
+    .map_err(GitError::from)
+}
+
+pub(crate) fn git_head_commit(repo_root: &Path) -> Result<String, GitError> {
+    git_probe_stdout(repo_root, &["rev-parse", "HEAD"])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testsupport::git as git_test;
+    use anyhow::Result;
+    use tempfile::TempDir;
 
     #[test]
     fn classify_push_error_maps_ambiguous_upstream_to_no_upstream() {
@@ -209,5 +235,19 @@ mod tests {
             "fatal: ambiguous argument '@{u}': unknown revision or path not in the working tree.";
         let err = classify_push_error(stderr);
         assert!(matches!(err, GitError::NoUpstream));
+    }
+
+    #[test]
+    fn git_head_commit_returns_current_head() -> Result<()> {
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        std::fs::write(temp.path().join("README.md"), "git helper")?;
+        git_test::commit_all(temp.path(), "init")?;
+
+        let expected = git_test::git_output(temp.path(), &["rev-parse", "HEAD"])?;
+        let actual = git_head_commit(temp.path())?;
+
+        assert_eq!(actual, expected);
+        Ok(())
     }
 }

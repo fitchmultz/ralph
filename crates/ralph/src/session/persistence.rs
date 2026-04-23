@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use crate::constants::paths::SESSION_FILENAME;
 use crate::contracts::SessionState;
 use crate::fsutil;
-use crate::runutil::{ManagedCommand, TimeoutClass, execute_checked_command};
+use crate::git::error::git_head_commit;
 
 /// Get the path to the session file.
 pub fn session_path(cache_dir: &Path) -> PathBuf {
@@ -74,20 +74,5 @@ pub fn clear_session(cache_dir: &Path) -> Result<()> {
 
 /// Get the git HEAD commit hash for session tracking.
 pub fn get_git_head_commit(repo_root: &Path) -> Option<String> {
-    let mut command = std::process::Command::new("git");
-    command
-        .arg("-c")
-        .arg("core.fsmonitor=false")
-        .arg("-C")
-        .arg(repo_root)
-        .arg("rev-parse")
-        .arg("HEAD");
-
-    execute_checked_command(ManagedCommand::new(
-        command,
-        format!("git rev-parse HEAD in {}", repo_root.display()),
-        TimeoutClass::MetadataProbe,
-    ))
-    .ok()
-    .map(|output| output.stdout_lossy())
+    git_head_commit(repo_root).ok()
 }

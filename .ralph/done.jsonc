@@ -1322,6 +1322,59 @@
       "custom_fields": {
         "scan_agent": "scan-general"
       }
+    },
+    {
+      "id": "RQ-0034",
+      "status": "done",
+      "title": "Unify git HEAD probe command construction",
+      "description": "Evidence: `session/persistence.rs` and `template/variables/detect.rs` both manually build `git -c core.fsmonitor=false rev-parse HEAD` while `git/error.rs` already centralizes `git_base_command` and `git_output`. `rg -n \"core.fsmonitor=false|rev-parse HEAD|git_base_command|git_output\\\\(\" ...` found manual fsmonitor setup at `session/persistence.rs:80` and `template/variables/detect.rs:145`, plus shared helpers at `git/error.rs:106` and `git/error.rs:181`. Why it matters: the fsmonitor workaround and managed subprocess settings should be one reusable git-probe path; duplicated command construction is easy to miss when git execution policy changes. Minimal proposed fix: add or reuse a `git_head_commit`/`git_rev_parse_head` helper built on `git_base_command` or `git_output`, then update both callers. Acceptance criteria: git probe behavior and failure handling stay unchanged and template/session tests continue passing.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "refactor",
+        "git",
+        "subprocess"
+      ],
+      "scope": [
+        "crates/ralph/src/session/persistence.rs",
+        "crates/ralph/src/template/variables/detect.rs",
+        "crates/ralph/src/git/error.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/session/persistence.rs:80 :: manual `core.fsmonitor=false` git setup for HEAD probe.",
+        "path: crates/ralph/src/session/persistence.rs:88 :: managed command description is `git rev-parse HEAD`.",
+        "path: crates/ralph/src/template/variables/detect.rs:145 :: second manual `core.fsmonitor=false` git setup for branch/context detection.",
+        "path: crates/ralph/src/git/error.rs:106 :: git_base_command already centralizes git command construction.",
+        "path: crates/ralph/src/git/error.rs:181 :: git_output already applies managed execution for git commands.",
+        "command: rg -n \"core.fsmonitor=false|rev-parse HEAD|git_base_command|git_output\\\\(\" crates/ralph/src/session/persistence.rs crates/ralph/src/template/variables/detect.rs crates/ralph/src/git/error.rs :: confirmed duplicated probe construction and existing helpers.",
+        "command: cargo test -p ralph-agent-loop --lib git_head_commit_returns_current_head :: passed",
+        "command: cargo test -p ralph-agent-loop --lib test_detect_context_ :: passed",
+        "command: cargo test -p ralph-agent-loop --lib test_load_template_with_context_git_warning :: passed",
+        "command: make agent-ci :: passed"
+      ],
+      "plan": [
+        "Add a small shared git helper for `rev-parse HEAD` that preserves fsmonitor disabling and timeout classification.",
+        "Update session persistence and template variable detection to call the shared helper.",
+        "Remove duplicated local command-building code.",
+        "Add focused regression coverage if existing tests do not cover both call sites.",
+        "Verify by running git-related unit tests, template variable detection tests, and `make agent-ci`."
+      ],
+      "notes": [
+        "Added git_probe_stdout plus git_head_commit in git::error for MetadataProbe-style HEAD queries.",
+        "Updated session persistence and template branch fallback to reuse the shared git probe path.",
+        "Added direct helper coverage and verified targeted tests plus make agent-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-19T23:44:38Z",
+      "updated_at": "2026-04-23T02:18:56Z",
+      "completed_at": "2026-04-23T02:18:56Z",
+      "started_at": null,
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
     }
   ]
 }

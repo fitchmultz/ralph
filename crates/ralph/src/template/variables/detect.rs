@@ -23,7 +23,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::runutil::{ManagedCommand, TimeoutClass, execute_checked_command};
+use crate::git::error::git_probe_stdout;
 
 use super::context::{TemplateContext, TemplateWarning};
 
@@ -139,23 +139,9 @@ fn detect_git_branch(repo_root: &Path) -> Result<Option<String>> {
 
     if !head_path.exists() {
         // Worktrees and submodules may expose `.git` as a file, so fall back to git itself.
-        let mut command = std::process::Command::new("git");
-        command
-            .arg("-c")
-            .arg("core.fsmonitor=false")
-            .arg("rev-parse")
-            .arg("--abbrev-ref")
-            .arg("HEAD")
-            .current_dir(repo_root);
+        let branch = git_probe_stdout(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])
+            .context("failed to detect template git branch")?;
 
-        let output = execute_checked_command(ManagedCommand::new(
-            command,
-            format!("git rev-parse --abbrev-ref HEAD in {}", repo_root.display()),
-            TimeoutClass::MetadataProbe,
-        ))
-        .context("failed to detect template git branch")?;
-
-        let branch = output.stdout_lossy();
         if branch != "HEAD" {
             return Ok(Some(branch));
         }
