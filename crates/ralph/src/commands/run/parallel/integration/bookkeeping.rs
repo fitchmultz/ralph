@@ -43,7 +43,6 @@ pub(crate) struct MachineIntegrationAttempt {
 pub(crate) fn finalize_bookkeeping_and_push(
     resolved: &Resolved,
     task_id: &str,
-    task_title: &str,
     config: &IntegrationConfig,
 ) -> Result<MachineIntegrationAttempt> {
     let repo_root = resolved.repo_root.as_path();
@@ -69,7 +68,7 @@ pub(crate) fn finalize_bookkeeping_and_push(
             );
         }
 
-        if let Err(err) = commit_pending_integration_changes(repo_root, task_id, task_title) {
+        if let Err(err) = commit_pending_integration_changes(repo_root, task_id) {
             return failed_attempt(
                 repo_root,
                 resolved,
@@ -283,17 +282,20 @@ fn ensure_done_task_is_terminal(done: &QueueFile, task_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn commit_pending_integration_changes(
-    repo_root: &Path,
-    task_id: &str,
-    task_title: &str,
-) -> Result<()> {
-    let commit_message = outpututil::format_task_commit_message(task_id, task_title);
+fn commit_pending_integration_changes(repo_root: &Path, task_id: &str) -> Result<()> {
+    let commit_message = format_machine_bookkeeping_commit_message(task_id);
     match git::commit_all(repo_root, &commit_message) {
         Ok(()) => Ok(()),
         Err(GitError::NoChangesToCommit) => Ok(()),
         Err(err) => Err(err.into()),
     }
+}
+
+fn format_machine_bookkeeping_commit_message(task_id: &str) -> String {
+    let raw = format!("ralph: archive {} queue bookkeeping", task_id.trim());
+    let scrubbed = raw.replace(['\n', '\r', '\t'], " ");
+    let squashed = scrubbed.split_whitespace().collect::<Vec<&str>>().join(" ");
+    outpututil::truncate_chars(&squashed, 100)
 }
 
 fn path_exists_in_ref(repo_root: &Path, remote_ref: &str, rel_path: &str) -> Result<bool> {

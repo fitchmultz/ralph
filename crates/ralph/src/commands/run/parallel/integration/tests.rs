@@ -397,13 +397,17 @@ fn machine_bookkeeping_rebuilds_from_latest_target_before_push() -> anyhow::Resu
         ci_label: "disabled".to_string(),
     };
 
-    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", "Task RQ-0001", &config)?;
+    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", &config)?;
     assert!(
         result.pushed,
         "machine integration should push successfully"
     );
 
     git_test::git_run(&worker, &["fetch", "origin", &branch])?;
+    let remote_subject = git_test::git_output(
+        &worker,
+        &["log", "-1", "--pretty=%s", &format!("origin/{branch}")],
+    )?;
     let remote_queue_json = git_test::git_output(
         &worker,
         &["show", &format!("origin/{branch}:.ralph/queue.jsonc")],
@@ -415,6 +419,7 @@ fn machine_bookkeeping_rebuilds_from_latest_target_before_push() -> anyhow::Resu
     let remote_queue: QueueFile = serde_json::from_str(&remote_queue_json)?;
     let remote_done: QueueFile = serde_json::from_str(&remote_done_json)?;
 
+    assert_eq!(remote_subject, "ralph: archive RQ-0001 queue bookkeeping");
     assert_eq!(task_ids(&remote_queue), vec!["RQ-0003"]);
     assert_eq!(task_ids(&remote_done), vec!["RQ-0002", "RQ-0001"]);
     Ok(())
@@ -474,7 +479,7 @@ fn machine_bookkeeping_applies_parallel_followup_proposal_before_push() -> anyho
         ci_label: "disabled".to_string(),
     };
 
-    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", "Task RQ-0001", &config)?;
+    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", &config)?;
     assert!(result.pushed);
 
     git_test::git_run(&worker, &["fetch", "origin", &branch])?;
@@ -556,7 +561,7 @@ fn machine_bookkeeping_blocks_invalid_parallel_followup_proposal() -> anyhow::Re
         ci_label: "disabled".to_string(),
     };
 
-    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", "Task RQ-0001", &config)?;
+    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", &config)?;
     assert!(!result.pushed);
     assert!(
         result

@@ -87,7 +87,7 @@ pub(crate) fn run_integration_loop(
 
         on_resume(&resumed.output, resumed.elapsed)?;
 
-        let machine_attempt = finalize_bookkeeping_and_push(resolved, task_id, task_title, config)?;
+        let machine_attempt = finalize_bookkeeping_and_push(resolved, task_id, config)?;
         let compliance = machine_attempt.compliance;
         let (pushed, push_check_error) =
             match head_is_synced_to_remote(repo_root, &config.target_branch) {
