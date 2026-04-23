@@ -44,9 +44,34 @@ release_run_ship_gate() {
     ralph_log_success "Ship gate passed"
 }
 
+release_changelog_has_curated_unreleased_content() {
+    local changelog="$1"
+    awk '
+        /^## \[Unreleased\]/ {
+            in_unreleased = 1
+            next
+        }
+        /^## \[/ && in_unreleased {
+            exit
+        }
+        in_unreleased && $0 !~ /^[[:space:]]*$/ {
+            found = 1
+        }
+        END {
+            exit found ? 0 : 1
+        }
+    ' "$changelog"
+}
+
 release_generate_changelog_entries() {
     ralph_log_step "Generating changelog entries"
     cd "$REPO_ROOT"
+
+    if release_changelog_has_curated_unreleased_content "$CHANGELOG"; then
+        ralph_log_info "Preserving curated CHANGELOG.md Unreleased notes"
+        return 0
+    fi
+
     ./scripts/generate-changelog.sh
 }
 

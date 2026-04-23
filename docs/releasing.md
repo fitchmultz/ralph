@@ -30,7 +30,7 @@ The full release flow now runs in this order:
 
 1. `verify` checks prerequisites, repo state, and release-note/changelog contract.
 2. `verify` syncs version metadata from `VERSION`.
-3. `verify` generates/promotes changelog entries.
+3. `verify` preserves curated `Unreleased` changelog notes when present, or auto-generates entries when the section is blank, then promotes the section.
 4. `verify` runs public-readiness checks in release context.
 5. `verify` runs the ship gate (`macos-ci` when available, otherwise `ci`).
 6. `verify` builds release artifacts and release notes.

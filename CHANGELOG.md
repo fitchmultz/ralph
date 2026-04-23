@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- RalphMac and machine integrations now cover more of the CLI contract, including workspace overview, parallel run-control support, machine error documents, and fail-fast version checks.
+- Webhook delivery gained configurable retry backoff, retry counts in app/config surfaces, safer diagnostics, replay hardening, and reloadable runtime behavior.
+- Watch mode can emit desktop notifications, with matching CLI, configuration, app, and documentation support.
+- Repository trust setup is easier to bootstrap with CLI-supported `.ralph/trust.jsonc` flows and clearer built-in profile safety summaries.
+
+### Changed
+
+- Parallel worker integration now lets Ralph rebuild queue/done bookkeeping from the latest target branch, archive the finished task, retry push races, and refresh the coordinator branch after worker success.
+- Run, doctor, queue repair, task mutation, and recovery surfaces now share clearer blocking/resume-state narration across CLI, machine output, and RalphMac.
+- Managed subprocess, wait, runner invocation, queue repair, webhook runtime, release, and macOS test code paths were split into smaller focused modules for more predictable behavior and maintenance.
+- Release verification now preserves curated `Unreleased` changelog notes when they are already present, while still auto-generating entries for blank release notes.
+
+### Fixed
+
+- Sequential run loops fail fast instead of drifting after terminal runner/session states, and run-one keeps its queue lock alive through execution.
+- Runner stream handling is more robust for Cursor/Gemini-style assistant deltas, Pi stream detail visibility, invalid resume fallbacks, and UTF-8 chunks split across fixed reads.
+- RalphMac startup, workspace launch, permission prompts, run-control lock recovery, config persistence, and settings/window routing were hardened.
+- Webhook failure storage avoids cross-process lost updates, and retry scheduling no longer blocks hot delivery workers.
+- macOS CI and release bundling are faster and more deterministic.
+
+### Security
+
+- Webhook URL validation rejects unsafe destinations by default, and public-readiness checks redact secret findings before reporting.
+- CI gate migration refuses lossy shell-string conversions, project-local execution remains trust-gated, and instruction-file path entries are validated.
+
 ## [0.3.1] - 2026-04-06
 
 ### Fixed

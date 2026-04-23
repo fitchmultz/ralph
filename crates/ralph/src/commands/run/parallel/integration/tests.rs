@@ -4,14 +4,18 @@
 //! - Cover integration config, prompt rendering, compliance helpers, and marker persistence.
 //! - Keep validation-focused tests separate from production orchestration code.
 
+use super::bookkeeping::finalize_bookkeeping_and_push;
 use super::*;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::runutil::FixedBackoffSchedule;
+use crate::testsupport::git as git_test;
 use std::collections::HashMap;
 use std::time::Duration;
 use tempfile::TempDir;
 
 fn make_task(id: &str, status: TaskStatus) -> Task {
+    let completed_at = matches!(status, TaskStatus::Done | TaskStatus::Rejected)
+        .then(|| "2026-01-01T00:00:00Z".to_string());
     Task {
         id: id.to_string(),
         title: format!("Task {}", id),
@@ -27,7 +31,7 @@ fn make_task(id: &str, status: TaskStatus) -> Task {
         agent: None,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),
-        completed_at: None,
+        completed_at,
         started_at: None,
         scheduled_start: None,
         depends_on: vec![],
@@ -39,6 +43,14 @@ fn make_task(id: &str, status: TaskStatus) -> Task {
         actual_minutes: None,
         parent_id: None,
     }
+}
+
+fn task_ids(queue_file: &QueueFile) -> Vec<String> {
+    queue_file
+        .tasks
+        .iter()
+        .map(|task| task.id.trim().to_string())
+        .collect()
 }
 
 #[test]
@@ -113,12 +125,12 @@ fn integration_prompt_contains_mandatory_contract() {
 
     assert!(prompt.contains("MUST execute integration git operations"));
     assert!(prompt.contains("Completion Contract (Mandatory)"));
-    assert!(prompt.contains("git push origin HEAD:main"));
+    assert!(prompt.contains("Do not push"));
     assert!(prompt.contains("previous failure"));
 }
 
 #[test]
-fn integration_prompt_uses_explicit_target_branch_for_push() {
+fn integration_prompt_uses_explicit_target_branch_for_integration() {
     let queue_path = crate::testsupport::path::portable_abs_path("queue.json");
     let done_path = crate::testsupport::path::portable_abs_path("done.json");
     let prompt = build_agent_integration_prompt(
@@ -138,7 +150,7 @@ fn integration_prompt_uses_explicit_target_branch_for_push() {
 
     assert!(prompt.contains("git fetch origin release/2026"));
     assert!(prompt.contains("git rebase origin/release/2026"));
-    assert!(prompt.contains("git push origin HEAD:release/2026"));
+    assert!(prompt.contains("Ralph will reconcile queue/done bookkeeping"));
 }
 
 #[test]
@@ -311,5 +323,99 @@ fn blocked_marker_roundtrip() -> anyhow::Result<()> {
 
     super::persistence::clear_blocked_push_marker(temp.path());
     assert!(read_blocked_push_marker(temp.path())?.is_none());
+    Ok(())
+}
+
+#[test]
+fn machine_bookkeeping_rebuilds_from_latest_target_before_push() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let remote = temp.path().join("remote.git");
+    std::fs::create_dir_all(&remote)?;
+    git_test::init_bare_repo(&remote)?;
+
+    let seed = temp.path().join("seed");
+    std::fs::create_dir_all(&seed)?;
+    git_test::init_repo(&seed)?;
+    git_test::add_remote(&seed, "origin", &remote)?;
+
+    let mut target_queue = QueueFile::default();
+    target_queue
+        .tasks
+        .push(make_task("RQ-0001", TaskStatus::Todo));
+    target_queue
+        .tasks
+        .push(make_task("RQ-0003", TaskStatus::Todo));
+    let mut target_done = QueueFile::default();
+    target_done
+        .tasks
+        .push(make_task("RQ-0002", TaskStatus::Done));
+    crate::queue::save_queue(&seed.join(".ralph/queue.jsonc"), &target_queue)?;
+    crate::queue::save_queue(&seed.join(".ralph/done.jsonc"), &target_done)?;
+    std::fs::write(seed.join("README.md"), "base\n")?;
+    git_test::commit_all(&seed, "seed queue")?;
+    let branch = git_test::git_output(&seed, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    git_test::push_branch(&seed, &branch)?;
+    git_test::git_run(
+        &remote,
+        &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")],
+    )?;
+
+    let worker = temp.path().join("worker");
+    git_test::clone_repo(&remote, &worker)?;
+    git_test::configure_user(&worker)?;
+
+    let mut stale_queue = QueueFile::default();
+    stale_queue
+        .tasks
+        .push(make_task("RQ-0001", TaskStatus::Todo));
+    stale_queue
+        .tasks
+        .push(make_task("RQ-0002", TaskStatus::Todo));
+    stale_queue
+        .tasks
+        .push(make_task("RQ-0003", TaskStatus::Todo));
+    crate::queue::save_queue(&worker.join(".ralph/queue.jsonc"), &stale_queue)?;
+    crate::queue::save_queue(&worker.join(".ralph/done.jsonc"), &QueueFile::default())?;
+    std::fs::write(worker.join("work.txt"), "worker implementation\n")?;
+    git_test::commit_all(&worker, "worker stale bookkeeping snapshot")?;
+
+    let resolved = crate::config::Resolved {
+        config: crate::contracts::Config::default(),
+        repo_root: worker.clone(),
+        queue_path: worker.join(".ralph/queue.jsonc"),
+        done_path: worker.join(".ralph/done.jsonc"),
+        id_prefix: "RQ".to_string(),
+        id_width: 4,
+        global_config_path: None,
+        project_config_path: None,
+    };
+    let config = IntegrationConfig {
+        max_attempts: 3,
+        backoff_schedule: FixedBackoffSchedule::from_millis(&[1]),
+        target_branch: branch.clone(),
+        ci_enabled: false,
+        ci_label: "disabled".to_string(),
+    };
+
+    let result = finalize_bookkeeping_and_push(&resolved, "RQ-0001", "Task RQ-0001", &config)?;
+    assert!(
+        result.pushed,
+        "machine integration should push successfully"
+    );
+
+    git_test::git_run(&worker, &["fetch", "origin", &branch])?;
+    let remote_queue_json = git_test::git_output(
+        &worker,
+        &["show", &format!("origin/{branch}:.ralph/queue.jsonc")],
+    )?;
+    let remote_done_json = git_test::git_output(
+        &worker,
+        &["show", &format!("origin/{branch}:.ralph/done.jsonc")],
+    )?;
+    let remote_queue: QueueFile = serde_json::from_str(&remote_queue_json)?;
+    let remote_done: QueueFile = serde_json::from_str(&remote_done_json)?;
+
+    assert_eq!(task_ids(&remote_queue), vec!["RQ-0003"]);
+    assert_eq!(task_ids(&remote_done), vec!["RQ-0002", "RQ-0001"]);
     Ok(())
 }

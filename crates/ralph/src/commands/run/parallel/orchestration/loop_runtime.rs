@@ -89,7 +89,7 @@ fn drive_parallel_loop(
 
         spawn_available_workers(resolved, opts, queue_lock, prepared)?;
 
-        drain_and_handle_finished(prepared)?;
+        drain_and_handle_finished(resolved, prepared)?;
 
         if prepared.guard.in_flight().is_empty() {
             let next_available = queue_has_next_task(resolved, queue_lock, prepared)?;
@@ -113,6 +113,8 @@ fn drive_parallel_loop(
                     &mut prepared.guard,
                     &prepared.state_path,
                     &prepared.settings.workspace_root,
+                    &resolved.repo_root,
+                    &prepared.target_branch,
                     &mut prepared.stats,
                 )?;
             }
@@ -195,13 +197,18 @@ fn spawn_available_workers(
     Ok(())
 }
 
-fn drain_and_handle_finished(prepared: &mut PreparedParallelRun) -> Result<()> {
+fn drain_and_handle_finished(
+    resolved: &config::Resolved,
+    prepared: &mut PreparedParallelRun,
+) -> Result<()> {
     let finished = prepared.guard.drain_finished_workers();
     handle_finished_workers(
         finished,
         &mut prepared.guard,
         &prepared.state_path,
         &prepared.settings.workspace_root,
+        &resolved.repo_root,
+        &prepared.target_branch,
         &mut prepared.stats,
     )
 }

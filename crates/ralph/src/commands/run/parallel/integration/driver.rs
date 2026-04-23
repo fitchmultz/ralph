@@ -15,7 +15,8 @@ use crate::commands::run::supervision::{ContinueSession, resume_continue_session
 use crate::config::Resolved;
 use crate::runutil::sleep_with_cancellation;
 
-use super::compliance::{head_is_synced_to_remote, run_compliance_checks};
+use super::bookkeeping::finalize_bookkeeping_and_push;
+use super::compliance::head_is_synced_to_remote;
 use super::persistence::{
     clear_blocked_push_marker, write_blocked_push_marker, write_handoff_packet,
 };
@@ -86,10 +87,14 @@ pub(crate) fn run_integration_loop(
 
         on_resume(&resumed.output, resumed.elapsed)?;
 
-        let compliance = run_compliance_checks(repo_root, resolved, task_id, config.ci_enabled)?;
+        let machine_attempt = finalize_bookkeeping_and_push(resolved, task_id, task_title, config)?;
+        let compliance = machine_attempt.compliance;
         let (pushed, push_check_error) =
             match head_is_synced_to_remote(repo_root, &config.target_branch) {
-                Ok(value) => (value, None),
+                Ok(value) => (
+                    machine_attempt.pushed && value,
+                    machine_attempt.push_error.clone(),
+                ),
                 Err(err) => (false, Some(format!("push sync validation failed: {}", err))),
             };
 

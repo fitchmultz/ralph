@@ -13,6 +13,7 @@
 //! - Called after the worker has completed its configured phases.
 //! - Called only in parallel-worker mode.
 
+mod bookkeeping;
 mod compliance;
 mod driver;
 mod persistence;

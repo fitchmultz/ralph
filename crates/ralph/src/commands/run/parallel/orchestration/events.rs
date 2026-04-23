@@ -82,6 +82,8 @@ pub(super) fn handle_finished_workers(
     guard: &mut ParallelCleanupGuard,
     state_path: &Path,
     workspace_root: &Path,
+    coordinator_repo_root: &Path,
+    target_branch: &str,
     stats: &mut ParallelRunStats,
 ) -> Result<()> {
     for finished_worker in finished {
@@ -100,6 +102,7 @@ pub(super) fn handle_finished_workers(
             }
 
             log::info!("Worker {} completed successfully", task_id);
+            refresh_coordinator_branch_best_effort(coordinator_repo_root, target_branch);
         } else {
             stats.record_failure();
 
@@ -160,4 +163,14 @@ pub(super) fn handle_finished_workers(
     }
 
     Ok(())
+}
+
+fn refresh_coordinator_branch_best_effort(repo_root: &Path, target_branch: &str) {
+    if let Err(err) = crate::git::branch::fast_forward_branch_to_origin(repo_root, target_branch) {
+        log::warn!(
+            "Worker completed, but local branch refresh to origin/{} failed: {:#}",
+            target_branch,
+            err
+        );
+    }
 }

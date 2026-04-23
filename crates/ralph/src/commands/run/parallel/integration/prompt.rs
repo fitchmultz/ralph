@@ -1,4 +1,4 @@
-//! Prompt assembly for agent-owned integration retries.
+//! Prompt assembly for parallel integration retries.
 //!
 //! Responsibilities:
 //! - Build the mandatory integration continuation prompt.
@@ -44,11 +44,12 @@ pub fn build_agent_integration_prompt(
 
     sanitize_prompt_for_runner(&format!(
         r#"# Parallel Integration (Mandatory) - Attempt {attempt}/{max_attempts}
-You are finalizing task `{task_id}` (`{task_title}`) for direct push to `origin/{target_branch}`.
+You are finalizing task `{task_id}` (`{task_title}`) for integration into `origin/{target_branch}`.
 
 ## Hard Requirement
 You MUST execute integration git operations yourself in this turn. Do not stop early.
 You are NOT done until all required checks are satisfied.
+Ralph will reconcile queue/done bookkeeping and push after your turn returns.
 
 ## Context
 - Phase summary: {phase_summary}
@@ -62,22 +63,19 @@ You are NOT done until all required checks are satisfied.
 2. Rebase on latest remote state: `git rebase origin/{target_branch}`
 3. If conflicts exist:
    - Resolve every conflict marker while preserving both upstream and task intent.
-   - For queue/done files, preserve other workers' entries exactly.
-   - Ensure `{task_id}` is removed from queue and present as done in done.
    - Continue rebase until complete (`git add ...`, `git rebase --continue`).
-4. Ensure bookkeeping is correct:
-   - `{queue_path_display}` does NOT contain `{task_id}`
-   - `{done_path_display}` DOES contain `{task_id}` with done status
-5. Stage and commit any remaining changes needed for integration.
+4. Do not manually edit shared bookkeeping:
+   - Leave `{queue_path_display}` and `{done_path_display}` alone unless they have conflict markers that must be resolved to complete the rebase.
+   - Ralph will rebuild those files from the latest target branch and archive `{task_id}` after your turn.
+5. Stage and commit any remaining implementation changes needed for integration.
 6. {ci_block}
-7. Push directly to base branch: `git push origin HEAD:{target_branch}`
-8. If push is rejected (non-fast-forward), repeat from step 1 in this same turn.
+7. Do not push. Stop after the workspace is rebased, conflict-free, committed, and CI-clean.
 
 ## Completion Contract (Mandatory)
 Before ending your response:
 - No unresolved merge conflicts remain.
-- Push to `origin/{target_branch}` has succeeded.
-- Bookkeeping files are semantically correct for `{task_id}`.
+- Implementation changes are committed locally.
+- Shared bookkeeping files are not manually rewritten.
 - CI has passed when enabled.
 
 If any check fails, keep working in this same turn until fixed.
