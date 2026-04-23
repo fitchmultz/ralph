@@ -1273,6 +1273,55 @@
         "hint_scope": "apps/RalphMac",
         "project_type": "code"
       }
+    },
+    {
+      "id": "RQ-0033",
+      "status": "done",
+      "title": "Centralize pre-public tracked-path scanning",
+      "description": "Evidence: `scripts/pre-public-check.sh` repeats git/file path scanning and offender reporting across related publication checks. `check_source_snapshot_artifacts` scans `.ralph` and the full tree at lines 89-135, `check_tracked_runtime_artifacts` collects `git ls-files -z`, validates safe publication paths, filters runtime/build paths, and prints offenders at lines 137-183, and `check_local_only_tracking` repeats the `git ls-files -z` collection/safe-path/offender-report pattern at lines 185-219. Why it matters: public-readiness checks protect release hygiene, so duplicated path-policy loops invite drift when new artifact classes or path-safety rules are added. Minimal proposed fix: factor a generic tracked-path scanner/reporting helper that accepts predicates and error labels, then reuse it for runtime artifacts, `.ralph` allowlist checks, and local-only tracking. Acceptance criteria: existing pre-public contract tests keep passing and source-snapshot behavior is unchanged.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "refactor",
+        "release",
+        "scripts"
+      ],
+      "scope": [
+        "scripts/pre-public-check.sh",
+        "scripts/lib/release_policy.sh",
+        "crates/ralph/tests/release_integration_contract_test.rs"
+      ],
+      "evidence": [
+        "path: scripts/pre-public-check.sh:89 :: check_source_snapshot_artifacts scans source snapshot paths and reports violations.",
+        "path: scripts/pre-public-check.sh:137 :: check_tracked_runtime_artifacts collects git ls-files and reports runtime/build artifacts.",
+        "path: scripts/pre-public-check.sh:146 :: release_collect_git_output_z is used for tracked file enumeration.",
+        "path: scripts/pre-public-check.sh:185 :: check_local_only_tracking repeats tracked-file enumeration and offender reporting.",
+        "path: scripts/pre-public-check.sh:193 :: second release_collect_git_output_z invocation repeats the same tracked-file collection.",
+        "command: wc -l scripts/pre-public-check.sh :: 349 scripts/pre-public-check.sh",
+        "command: make agent-ci :: no local changes; nothing to validate"
+      ],
+      "plan": [
+        "Introduce a helper that iterates tracked paths once with safe-publication validation and caller-provided predicates.",
+        "Refactor runtime/build artifact and local-only tracking checks to use the helper.",
+        "Preserve the existing human-readable error labels and offender listing format.",
+        "Adjust or add tests around both clean and violation cases so output semantics remain stable.",
+        "Verify by running `bash scripts/pre-public-check.sh --skip-ci --skip-links --skip-secrets`, the release integration contract test target, and `make agent-ci`."
+      ],
+      "notes": [
+        "Centralized git-tracked path scanning through shared scan_tracked_paths and report_path_violations helpers while preserving the existing runtime, local-only, and .ralph allowlist error headings.",
+        "Kept source-snapshot scanning behavior intact and reused the shared violation reporter there without changing the outward contract.",
+        "Verified with bash -n scripts/pre-public-check.sh, bash scripts/pre-public-check.sh --skip-ci --skip-links --skip-secrets --skip-clean, cargo test --test release_integration_contract_test pre_public_check_contracts, and make agent-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-19T23:44:38Z",
+      "updated_at": "2026-04-23T01:57:48Z",
+      "completed_at": "2026-04-23T01:57:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
     }
   ]
 }

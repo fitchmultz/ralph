@@ -86,6 +86,68 @@ require_git_worktree() {
     return 1
 }
 
+report_path_violations() {
+    local message="$1"
+    shift
+
+    [ "$#" -eq 0 ] && return 0
+
+    ralph_log_error "$message"
+    printf '  %s\n' "$@" >&2
+    return 1
+}
+
+scan_tracked_paths() {
+    local tracked_file
+    tracked_file=$(release_collect_git_output_z "git ls-files -z" git -C "$REPO_ROOT" ls-files -z) || return 1
+
+    local path
+    local handler
+    local failed=0
+    local handlers=("$@")
+
+    while IFS= read -r -d '' path; do
+        [ -z "$path" ] && continue
+        if ! release_require_safe_publication_path "Tracked file list" "$path"; then
+            failed=1
+            break
+        fi
+        [ -e "$REPO_ROOT/$path" ] || [ -L "$REPO_ROOT/$path" ] || continue
+        for handler in "${handlers[@]}"; do
+            if ! "$handler" "$path"; then
+                failed=1
+                break 2
+            fi
+        done
+    done <"$tracked_file"
+
+    rm -f "$tracked_file"
+    [ "$failed" -eq 0 ]
+}
+
+collect_tracked_runtime_build_path_violations() {
+    local path="$1"
+    if release_is_disallowed_tracked_runtime_build_path "$path"; then
+        tracked_violations+=("$path")
+    fi
+}
+
+collect_tracked_ralph_allowlist_violations() {
+    local path="$1"
+    if [ "$path" = ".ralph" ] || [[ "$path" == .ralph/* ]]; then
+        if [ "$path" = ".ralph" ] || [ -L "$REPO_ROOT/$path" ] || ! release_is_allowed_tracked_ralph_path "$path"; then
+            unexpected+=("$path")
+        fi
+    fi
+}
+
+collect_tracked_local_only_violations() {
+    local path="$1"
+    if release_is_local_only_path "$path"; then
+        violations+=("$path")
+    fi
+}
+
 check_source_snapshot_artifacts() {
     ralph_log_info "Checking source snapshot for local/runtime artifacts"
 
@@ -125,11 +187,9 @@ check_source_snapshot_artifacts() {
         cd "$REPO_ROOT" && find . \( -type f -o -type l \) -print0
     )
 
-    if [ "${#violations[@]}" -ne 0 ]; then
-        ralph_log_error "Source snapshot contains local/runtime artifacts that must be excluded before publication checks can pass"
-        printf '  %s\n' "${violations[@]}" >&2
-        return 1
-    fi
+    report_path_violations \
+        "Source snapshot contains local/runtime artifacts that must be excluded before publication checks can pass" \
+        "${violations[@]}" || return 1
 
     ralph_log_success "No local/runtime artifacts detected in source snapshot mode"
 }
@@ -139,45 +199,13 @@ check_tracked_runtime_artifacts() {
 
     local tracked_violations=()
     local unexpected=()
-    local path
-    local failed=0
-    local tracked_file
 
-    tracked_file=$(release_collect_git_output_z "git ls-files -z" git -C "$REPO_ROOT" ls-files -z) || return 1
+    scan_tracked_paths \
+        collect_tracked_runtime_build_path_violations \
+        collect_tracked_ralph_allowlist_violations || return 1
 
-    while IFS= read -r -d '' path; do
-        [ -z "$path" ] && continue
-        if ! release_require_safe_publication_path "Tracked file list" "$path"; then
-            failed=1
-            break
-        fi
-        [ -e "$REPO_ROOT/$path" ] || [ -L "$REPO_ROOT/$path" ] || continue
-        if release_is_disallowed_tracked_runtime_build_path "$path"; then
-            tracked_violations+=("$path")
-        fi
-        if [ "$path" = ".ralph" ] || [[ "$path" == .ralph/* ]]; then
-            if [ "$path" = ".ralph" ] || [ -L "$REPO_ROOT/$path" ] || ! release_is_allowed_tracked_ralph_path "$path"; then
-                unexpected+=("$path")
-            fi
-        fi
-    done <"$tracked_file"
-
-    rm -f "$tracked_file"
-    if [ "$failed" -ne 0 ]; then
-        return 1
-    fi
-
-    if [ "${#tracked_violations[@]}" -ne 0 ]; then
-        ralph_log_error "Tracked runtime/build artifacts detected"
-        printf '  %s\n' "${tracked_violations[@]}" >&2
-        return 1
-    fi
-
-    if [ "${#unexpected[@]}" -ne 0 ]; then
-        ralph_log_error "Tracked .ralph files outside the public allowlist detected"
-        printf '  %s\n' "${unexpected[@]}" >&2
-        return 1
-    fi
+    report_path_violations "Tracked runtime/build artifacts detected" "${tracked_violations[@]}" || return 1
+    report_path_violations "Tracked .ralph files outside the public allowlist detected" "${unexpected[@]}" || return 1
 
     ralph_log_success "No tracked runtime/build artifacts detected"
 }
@@ -186,34 +214,9 @@ check_local_only_tracking() {
     ralph_log_info "Checking tracked local-only files"
 
     local violations=()
-    local path
-    local failed=0
-    local tracked_file
 
-    tracked_file=$(release_collect_git_output_z "git ls-files -z" git -C "$REPO_ROOT" ls-files -z) || return 1
-
-    while IFS= read -r -d '' path; do
-        [ -z "$path" ] && continue
-        if ! release_require_safe_publication_path "Tracked file list" "$path"; then
-            failed=1
-            break
-        fi
-        [ -e "$REPO_ROOT/$path" ] || [ -L "$REPO_ROOT/$path" ] || continue
-        if release_is_local_only_path "$path"; then
-            violations+=("$path")
-        fi
-    done <"$tracked_file"
-
-    rm -f "$tracked_file"
-    if [ "$failed" -ne 0 ]; then
-        return 1
-    fi
-
-    if [ "${#violations[@]}" -ne 0 ]; then
-        ralph_log_error "Tracked local-only files detected"
-        printf '  %s\n' "${violations[@]}" >&2
-        return 1
-    fi
+    scan_tracked_paths collect_tracked_local_only_violations || return 1
+    report_path_violations "Tracked local-only files detected" "${violations[@]}" || return 1
 
     ralph_log_success "No tracked local-only files detected"
 }
