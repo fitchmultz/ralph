@@ -195,7 +195,7 @@ enum RalphMockCLITestSupport {
         runnability: RalphJSONValue = emptyRunnability
     ) -> MachineQueueReadDocument {
         MachineQueueReadDocument(
-            version: 2,
+            version: 1,
             paths: resolvedPaths(for: workspaceURL),
             active: RalphTaskQueueDocument(tasks: activeTasks),
             done: RalphTaskQueueDocument(tasks: doneTasks),

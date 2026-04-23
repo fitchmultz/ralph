@@ -51,6 +51,83 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0001",
+      "status": "done",
+      "title": "Restore RalphMac machine contract parity and fail-fast versioning",
+      "description": "Fix the concrete cross-surface machine-contract drift between Rust, docs, and RalphMac instead of doing another audit pass. The current app accepts several versioned machine documents without explicit version gates, misclassifies unknown blocking reasons as `mixed_queue`, still scrapes human CLI text for some recovery flows, and caches a partial Swift copy of the Rust task contract. The desired outcome is a single-source-of-truth machine/app contract that fails fast on unsupported versions, preserves operator-state semantics, keeps app-side task and graph models aligned with Rust, and removes human-text parsing from app recovery paths.",
+      "priority": "high",
+      "tags": [
+        "contracts",
+        "ralphmac",
+        "machine-api",
+        "drift",
+        "versioning"
+      ],
+      "scope": [
+        "docs/machine-contract.md",
+        "schemas/machine.schema.json",
+        "crates/ralph/src/contracts/machine.rs",
+        "crates/ralph/src/contracts/task/types.rs",
+        "crates/ralph/src/cli/machine/run.rs",
+        "crates/ralph/src/cli/machine/queue.rs",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController+MachineOutput.swift",
+        "apps/RalphMac/RalphCore/Workspace+ErrorRecovery.swift",
+        "apps/RalphMac/RalphCore/WorkspaceDiagnosticsService.swift",
+        "apps/RalphMac/RalphCore/Workspace+QueueLoading.swift",
+        "apps/RalphMac/RalphCore/Workspace+TaskMutations.swift",
+        "apps/RalphMac/RalphCore/Workspace+Decompose.swift",
+        "apps/RalphMac/RalphCore/Workspace+Analytics.swift",
+        "apps/RalphMac/RalphCore/Workspace+GraphData.swift",
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphCore/WorkspaceTaskMutationModels.swift",
+        "apps/RalphMac/RalphCore/DecompositionModels.swift",
+        "apps/RalphMac/RalphCore/RalphTaskModels.swift",
+        "apps/RalphMac/RalphCore/Workspace+HealthAndCaching.swift",
+        "apps/RalphMac/RalphCore/GraphModels.swift",
+        "apps/RalphMac/RalphCoreTests/",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "docs/machine-contract.md still documents `machine run parallel-status` as `version: 2`, but Rust emits `MACHINE_PARALLEL_STATUS_VERSION = 3`, Rust tests assert version 3, and RalphMac already hard-codes supported version 3.",
+        "RalphMac only explicitly version-gates config resolve, workspace overview, cli-spec, and parallel-status. `WorkspaceRunnerController+MachineOutput.swift` decodes run-event envelopes, run summaries, blocking payloads, resume decisions, queue paths, and embedded config documents with no version checks; `Workspace+ErrorRecovery.swift`, `Workspace+TaskMutations.swift`, `Workspace+Decompose.swift`, `Workspace+Analytics.swift`, `Workspace+GraphData.swift`, and `WorkspaceDiagnosticsService.swift` also decode versioned machine documents without validating document versions.",
+        "`WorkspaceRunnerController+MachineOutput.swift` maps any unknown blocking `reason.kind` through the default `.mixedQueue(...)` branch, so unsupported machine payloads are silently misreported instead of failing fast with a contract/version error.",
+        "`WorkspaceDiagnosticsService.swift` infers queue-lock state by English substring matching against `ralph queue unlock --dry-run` human output (`queue is not locked`, `process status: running`, `process status: not running`), while repo guidance requires machine/app integrations to consume versioned machine recovery documents rather than human CLI text.",
+        "`Workspace+QueueLoading.swift` still decides whether to fall back from `machine workspace overview` by matching English stderr such as `unrecognized subcommand`, `unexpected argument`, `unknown command`, `usage:`, and empty-exit-code heuristics instead of a structured machine capability/version signal.",
+        "`RalphTaskModels.swift` is not a full mirror of Rust `Task`: Swift omits fields present in `crates/ralph/src/contracts/task/types.rs` including `scheduled_start`, `duplicates`, and `parent_id`; cached offline tasks in `Workspace+HealthAndCaching.swift` are serialized through that lossy model, so fields can be dropped on round-trip and app-side derived models can drift from Rust.",
+        "Graph and machine wrapper models are duplicated and loosely coupled across `GraphModels.swift`, `RalphTaskModels.swift`, `ConfigModels.swift`, `WorkspaceTaskMutationModels.swift`, and `DecompositionModels.swift`, increasing drift risk because app decoders are spread across multiple partial copies instead of one shared contract layer.",
+        "Rust machine tests already assert the newer parallel-status version and continuation semantics, but there is no equivalent RalphMac fail-fast coverage proving unsupported versions, unknown blocking kinds, or lossy task-cache round trips are rejected rather than silently coerced."
+      ],
+      "plan": [
+        "Create a single RalphMac machine-contract validation layer that owns supported version constants and decoding entry points for every versioned machine document used by the app: run-event envelopes, run summaries, config resolve, workspace overview, queue validate/repair/undo, task mutate, task decompose, doctor report, queue graph, queue dashboard, and parallel-status. Every caller should decode through that layer and reject unsupported versions before applying payloads.",
+        "Refactor run-stream decoding so embedded versioned payloads are validated too: enforce run-event version 3, run-summary version 2, config resolve version 3 inside run-start/config-resolved events, and fail unknown blocking reason kinds instead of coercing them to `.mixedQueue`. Introduce an explicit unsupported-contract/reason path that surfaces operator-state incompatibility clearly in RalphMac.",
+        "Remove app dependence on human CLI prose for recovery flows. Replace `queue unlock --dry-run` substring parsing with structured machine-compatible state sourced from `machine doctor report` and/or a new machine queue-lock preview document if Rust does not already expose enough typed detail. Replace workspace-overview fallback heuristics based on English stderr with a structured machine error or explicit machine capability/version path.",
+        "Unify duplicated Swift machine/task/graph models around one contract source. Either expand `RalphTask` to preserve the full Rust task wire contract (including `scheduled_start`, `duplicates`, `parent_id`) or introduce a cache snapshot envelope that stores raw/unmapped machine fields without loss. Apply the same consolidation to graph/dashboard and continuation document wrappers so decoding logic is not duplicated across multiple files.",
+        "Update Rust docs/tests/schemas to match reality and guard against future drift: fix `docs/machine-contract.md` parallel-status version, ensure schema/examples reflect current versions and required fields, and add Rust + RalphCore tests covering unsupported document versions, unknown blocking kinds, structured queue-lock diagnostics, workspace-overview fallback behavior, graph decoding, run-event/run-summary decoding, and offline task-cache round-trip preservation."
+      ],
+      "notes": [
+        "Phase 2 should prefer hard cutover behavior over compatibility shims: unsupported machine versions/kinds should fail loudly rather than degrade into guessed UI state.",
+        "If Rust lacks a machine-safe queue-lock preview/capability document, add one instead of adding more stderr/stdout scraping in RalphMac.",
+        "Added shared fail-fast machine contract validation across RalphMac machine documents.",
+        "Replaced queue-lock dry-run prose scraping with structured machine queue unlock-inspect contract.",
+        "Expanded cached Swift task contract to preserve scheduled_start, duplicates, and parent_id.",
+        "Updated docs/tests/Xcode wiring and verified targeted RalphCore + Rust contract coverage."
+      ],
+      "request": "Look for cross-surface synchronicity issues. Areas where there is drift between whats expected and what actually exists. Impartial propagation, etc. Overt poor practices that violate decent standards of coding. See the current queue, the previous task building agent cmpletely missed the mark. overwrite that task with actual findings to be remediated. i dont want a fucking report. i want YOU to find the issues and create tasks to have the issues fixed. NO DAMN REPORTING",
+      "created_at": "2026-04-23T04:55:12Z",
+      "updated_at": "2026-04-23T16:05:24.254029000Z",
+      "completed_at": "2026-04-23T16:05:24.254029000Z",
+      "started_at": "2026-04-23T15:22:36.396092000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
+      }
     }
   ]
 }

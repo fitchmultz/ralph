@@ -488,7 +488,10 @@ public struct DashboardReport: Codable, Sendable, Equatable {
     }
 }
 
-public struct MachineDashboardReadDocument: Codable, Sendable, Equatable {
+public struct MachineDashboardReadDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.dashboardReadVersion
+    public static let documentName = "machine dashboard read"
+
     public let version: Int
     public let dashboard: DashboardReport
 }

@@ -48,7 +48,10 @@ public struct RalphCLISpecDocument: Codable, Equatable, Sendable {
     }
 }
 
-public struct MachineCLISpecDocument: Codable, Equatable, Sendable {
+public struct MachineCLISpecDocument: Codable, Equatable, Sendable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.cliSpecVersion
+    public static let documentName = "machine cli-spec"
+
     public let version: Int
     public let spec: RalphCLISpecDocument
 }

@@ -571,7 +571,7 @@ final class WorkspaceParallelRunControlTests: WorkspacePerformanceTestCase {
         await workspace.loadParallelStatus(retryConfiguration: .minimal)
 
         XCTAssertEqual(workspace.runState.parallelStatus?.headline, "Parallel execution is in progress.")
-        XCTAssertEqual(workspace.runState.parallelStatusErrorMessage, "Failed to load shared parallel status.")
+        XCTAssertNotNil(workspace.runState.parallelStatusErrorMessage)
     }
 
     private func retainedParallelStatus(

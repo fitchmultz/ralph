@@ -220,7 +220,7 @@ private extension Workspace {
             }
 
             let reportData = Data(collected.stdout.utf8)
-            let report = try JSONDecoder().decode(MachineTaskMutationDocument.self, from: reportData)
+            let report = try RalphMachineContract.decode(MachineTaskMutationDocument.self, from: reportData, operation: "task mutate")
 
             if reloadAfterSuccess {
                 await loadTasks()

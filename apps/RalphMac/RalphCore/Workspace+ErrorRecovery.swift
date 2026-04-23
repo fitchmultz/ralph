@@ -110,7 +110,7 @@ extension Workspace {
 }
 
 private extension Workspace {
-    func runRecoveryCommand<T: Decodable & Sendable>(
+    func runRecoveryCommand<T: Decodable & VersionedMachineDocument & Sendable>(
         arguments: [String],
         operation: String
     ) async throws -> T {
@@ -141,7 +141,7 @@ private extension Workspace {
         }
 
         do {
-            return try JSONDecoder().decode(T.self, from: Data(collected.stdout.utf8))
+            return try RalphMachineContract.decode(T.self, from: Data(collected.stdout.utf8), operation: operation)
         } catch {
             throw WorkspaceError.cliError(
                 "Failed to decode \(operation) JSON output: \(error.localizedDescription)"

@@ -494,7 +494,8 @@ extension Workspace {
         retryConfiguration: RetryConfiguration,
         onRetry: RetryProgressHandler? = nil
     ) async throws -> T {
-        let collected = try await client.runAndCollectWithRetry(
+        let collected = try await collectRepositoryCommand(
+            client: client,
             arguments: arguments,
             currentDirectoryURL: currentDirectoryURL,
             retryConfiguration: retryConfiguration,
@@ -505,7 +506,22 @@ extension Workspace {
         return try decoder.decode(type, from: Data(collected.stdout.utf8))
     }
 
-    func decodeMachineRepositoryJSON<T: Decodable>(
+    func collectRepositoryCommand(
+        client: RalphCLIClient,
+        arguments: [String],
+        currentDirectoryURL: URL,
+        retryConfiguration: RetryConfiguration,
+        onRetry: RetryProgressHandler? = nil
+    ) async throws -> RalphCLIClient.CollectedOutput {
+        try await client.runAndCollectWithRetry(
+            arguments: arguments,
+            currentDirectoryURL: currentDirectoryURL,
+            retryConfiguration: retryConfiguration,
+            onRetry: onRetry
+        )
+    }
+
+    func decodeMachineRepositoryJSON<T: Decodable & VersionedMachineDocument>(
         _ type: T.Type,
         client: RalphCLIClient,
         machineArguments: [String],
@@ -513,7 +529,7 @@ extension Workspace {
         retryConfiguration: RetryConfiguration,
         onRetry: RetryProgressHandler? = nil
     ) async throws -> T {
-        try await decodeRepositoryJSON(
+        let value = try await decodeRepositoryJSON(
             type,
             client: client,
             arguments: ["--no-color", "machine"] + machineArguments,
@@ -521,6 +537,13 @@ extension Workspace {
             retryConfiguration: retryConfiguration,
             onRetry: onRetry
         )
+        try RalphMachineContract.requireVersion(
+            value.version,
+            expected: T.expectedVersion,
+            document: T.documentName,
+            operation: "machine " + machineArguments.joined(separator: " ")
+        )
+        return value
     }
 
     public func updateResolvedPaths(_ paths: MachineQueuePaths) {

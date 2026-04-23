@@ -215,7 +215,10 @@ public struct TaskDecomposeEnvelope: Decodable, Sendable, Equatable {
     public let write: TaskDecomposeWriteResult?
 }
 
-struct MachineDecomposeDocument: Decodable, Sendable, Equatable {
+struct MachineDecomposeDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.taskDecomposeVersion
+    static let documentName = "machine task decompose"
+
     let version: Int
     let blocking: WorkspaceRunnerController.MachineBlockingState?
     let result: TaskDecomposeEnvelope

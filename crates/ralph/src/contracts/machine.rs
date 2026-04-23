@@ -42,6 +42,7 @@ pub const MACHINE_DOCTOR_REPORT_VERSION: u32 = 2;
 pub const MACHINE_PARALLEL_STATUS_VERSION: u32 = 3;
 pub const MACHINE_CLI_SPEC_VERSION: u32 = 2;
 pub const MACHINE_ERROR_VERSION: u32 = 1;
+pub const MACHINE_QUEUE_UNLOCK_INSPECT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -163,6 +164,27 @@ pub struct MachineQueueUndoDocument {
     #[schemars(schema_with = "option_json_value_schema")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<JsonValue>,
+    pub continuation: MachineContinuationSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MachineQueueUnlockCondition {
+    Clear,
+    Live,
+    Stale,
+    OwnerMissing,
+    OwnerUnreadable,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineQueueUnlockInspectDocument {
+    pub version: u32,
+    pub condition: MachineQueueUnlockCondition,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocking: Option<BlockingState>,
+    pub unlock_allowed: bool,
     pub continuation: MachineContinuationSummary,
 }
 

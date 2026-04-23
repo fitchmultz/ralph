@@ -28,6 +28,7 @@ extension WorkspaceRunnerController {
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
                 workspace.runState.clearLiveBlockingState()
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
+                    try? RalphMachineContract.requireVersion(document.version, expected: RalphMachineContract.configResolveVersion, document: "machine config resolve", operation: "run event config")
                     applyConfigResolveDocument(document, workspace: workspace)
                 }
             case .taskSelected:
@@ -68,6 +69,7 @@ extension WorkspaceRunnerController {
                 }
             case .configResolved:
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
+                    try? RalphMachineContract.requireVersion(document.version, expected: RalphMachineContract.configResolveVersion, document: "machine config resolve", operation: "run event config")
                     applyConfigResolveDocument(document, workspace: workspace)
                 }
             case .warning:
@@ -117,7 +119,10 @@ extension WorkspaceRunnerController {
 }
 
 extension WorkspaceRunnerController {
-    struct MachineRunEventEnvelope: Decodable, Sendable {
+    struct MachineRunEventEnvelope: Decodable, Sendable, VersionedMachineDocument {
+        static let expectedVersion = RalphMachineContract.runEventVersion
+        static let documentName = "machine run event"
+
         let version: Int
         let kind: Kind
         let taskID: String?
@@ -150,7 +155,10 @@ extension WorkspaceRunnerController {
         }
     }
 
-    struct MachineRunSummaryDocument: Decodable, Sendable {
+    struct MachineRunSummaryDocument: Decodable, Sendable, VersionedMachineDocument {
+        static let expectedVersion = RalphMachineContract.runSummaryVersion
+        static let documentName = "machine run summary"
+
         let version: Int
         let taskID: String?
         let exitCode: Int
@@ -184,7 +192,7 @@ extension WorkspaceRunnerController {
         }
 
         var isRunnerRecovery: Bool {
-            reason.kind == "runner_recovery"
+            reason.kind == .runnerRecovery
         }
 
         init(from decoder: any Decoder) throws {
@@ -210,7 +218,7 @@ extension WorkspaceRunnerController {
     }
 
     struct MachineBlockingReason: Decodable, Sendable, Equatable {
-        let kind: String
+        let kind: Kind
         let includeDraft: Bool?
         let blockedTasks: Int?
         let nextRunnableAt: String?
@@ -227,6 +235,17 @@ extension WorkspaceRunnerController {
         let dependencyBlocked: Int?
         let scheduleBlocked: Int?
         let statusFiltered: Int?
+
+        enum Kind: String, Decodable, Sendable, Equatable {
+            case idle
+            case dependencyBlocked = "dependency_blocked"
+            case scheduleBlocked = "schedule_blocked"
+            case lockBlocked = "lock_blocked"
+            case ciBlocked = "ci_blocked"
+            case runnerRecovery = "runner_recovery"
+            case operatorRecovery = "operator_recovery"
+            case mixedQueue = "mixed_queue"
+        }
 
         enum CodingKeys: String, CodingKey {
             case kind
@@ -250,23 +269,23 @@ extension WorkspaceRunnerController {
 
         func asWorkspaceBlockingReason() -> Workspace.BlockingReason {
             switch kind {
-            case "idle":
+            case .idle:
                 return .idle(includeDraft: includeDraft ?? false)
-            case "dependency_blocked":
+            case .dependencyBlocked:
                 return .dependencyBlocked(blockedTasks: blockedTasks ?? 0)
-            case "schedule_blocked":
+            case .scheduleBlocked:
                 return .scheduleBlocked(
                     blockedTasks: blockedTasks ?? 0,
                     nextRunnableAt: nextRunnableAt,
                     secondsUntilNextRunnable: secondsUntilNextRunnable
                 )
-            case "lock_blocked":
+            case .lockBlocked:
                 return .lockBlocked(lockPath: lockPath, owner: owner, ownerPID: ownerPID)
-            case "ci_blocked":
+            case .ciBlocked:
                 return .ciBlocked(pattern: pattern, exitCode: exitCode)
-            case "runner_recovery":
+            case .runnerRecovery:
                 return .runnerRecovery(scope: scope ?? "unknown", reason: reason ?? "unknown", taskID: taskID)
-            case "operator_recovery":
+            case .operatorRecovery:
                 return .operatorRecovery(
                     scope: scope ?? "unknown",
                     reason: reason ?? "unknown",
@@ -318,10 +337,10 @@ extension WorkspaceRunnerController {
             let data = Data(trimmed.utf8)
             let decoder = JSONDecoder()
 
-            if let event = try? decoder.decode(MachineRunEventEnvelope.self, from: data) {
+            if let event = try? RalphMachineContract.decode(MachineRunEventEnvelope.self, from: data, operation: "run event") {
                 return [.event(event)]
             }
-            if let summary = try? decoder.decode(MachineRunSummaryDocument.self, from: data) {
+            if let summary = try? RalphMachineContract.decode(MachineRunSummaryDocument.self, from: data, operation: "run summary") {
                 return [.summary(summary)]
             }
             return [.rawText(line + "\n")]

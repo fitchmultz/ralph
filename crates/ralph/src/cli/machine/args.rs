@@ -63,6 +63,7 @@ pub enum MachineQueueCommand {
     Validate,
     Repair(MachineQueueRepairArgs),
     Undo(MachineQueueUndoArgs),
+    UnlockInspect,
 }
 
 #[derive(Args)]

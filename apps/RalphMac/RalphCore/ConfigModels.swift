@@ -274,7 +274,10 @@ public struct MachineResumeDecision: Codable, Sendable, Equatable {
     }
 }
 
-public struct MachineConfigResolveDocument: Codable, Sendable, Equatable {
+public struct MachineConfigResolveDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.configResolveVersion
+    public static let documentName = "machine config resolve"
+
     public let version: Int
     public let paths: MachineQueuePaths
     public let safety: MachineConfigSafetySummary
@@ -290,7 +293,10 @@ public struct MachineConfigResolveDocument: Codable, Sendable, Equatable {
     }
 }
 
-public struct MachineWorkspaceOverviewDocument: Codable, Sendable, Equatable {
+public struct MachineWorkspaceOverviewDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.workspaceOverviewVersion
+    public static let documentName = "machine workspace overview"
+
     public let version: Int
     public let queue: MachineQueueReadDocument
     public let config: MachineConfigResolveDocument
@@ -441,7 +447,10 @@ public struct ParallelStatusStep: Sendable, Equatable {
     public let detail: String
 }
 
-struct MachineParallelStatusDocument: Decodable, Sendable, Equatable {
+struct MachineParallelStatusDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.parallelStatusVersion
+    static let documentName = "machine parallel status"
+
     let version: Int
     let lifecycleCounts: ParallelLifecycleCounts
     let blocking: WorkspaceRunnerController.MachineBlockingState?
@@ -477,7 +486,10 @@ struct MachineParallelStatusDocument: Decodable, Sendable, Equatable {
     }
 }
 
-struct MachineDoctorReportDocument: Decodable, Sendable, Equatable {
+struct MachineDoctorReportDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.doctorReportVersion
+    static let documentName = "machine doctor report"
+
     let version: Int
     let blocking: WorkspaceRunnerController.MachineBlockingState?
     let report: RalphJSONValue

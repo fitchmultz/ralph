@@ -22,6 +22,7 @@ This surface exists for the macOS app and any other automation that needs stable
 - `ralph machine queue validate`
 - `ralph machine queue repair`
 - `ralph machine queue undo`
+- `ralph machine queue unlock-inspect`
 - `ralph machine config resolve`
 - `ralph machine workspace overview`
 - `ralph machine task create`
@@ -157,6 +158,16 @@ When present, the document-level `blocking` mirrors `continuation.blocking` so a
 
 This is the machine-safe counterpart to `ralph undo`, which now treats checkpoints as a normal continuation workflow rather than an emergency command.
 
+### `machine queue unlock-inspect` (`version: 1`)
+
+Queue-lock inspection returns a structured document for app and automation consumers:
+- `condition` (`clear`, `live`, `stale`, `owner_missing`, `owner_unreadable`)
+- optional top-level `blocking`
+- `unlock_allowed`
+- `continuation`
+
+This is the machine-safe counterpart to `ralph queue unlock --dry-run`; app integrations should use this document instead of parsing human CLI prose.
+
 ### `machine task mutate` (`version: 2`) and `machine task decompose` (`version: 2`)
 
 Task mutation and decomposition documents now include:
@@ -165,7 +176,7 @@ Task mutation and decomposition documents now include:
 
 When present, the document-level `blocking` mirrors `continuation.blocking` so app and automation surfaces can consume a single canonical field after preview, write, and write-blocked flows.
 
-### `machine run parallel-status` (`version: 2`)
+### `machine run parallel-status` (`version: 3`)
 
 Parallel status now returns a continuation-oriented document instead of a raw state blob alone:
 - optional top-level `blocking`

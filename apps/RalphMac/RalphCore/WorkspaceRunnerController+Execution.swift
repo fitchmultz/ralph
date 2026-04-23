@@ -293,16 +293,4 @@ extension WorkspaceRunnerController {
         return filtered.starts(with: ["machine", "run"])
     }
 
-    nonisolated static func validateMachineConfigResolveVersion(_ version: Int) throws {
-        guard version == supportedMachineConfigResolveVersion else {
-            throw NSError(
-                domain: "RalphMachineContract",
-                code: 2,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Unsupported machine config resolve version \(version). RalphMac requires version \(supportedMachineConfigResolveVersion)."
-                ]
-            )
-        }
-    }
 }

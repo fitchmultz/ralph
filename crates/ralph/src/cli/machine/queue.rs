@@ -29,8 +29,9 @@ use crate::cli::machine::args::{MachineQueueArgs, MachineQueueCommand};
 use crate::cli::machine::common::{build_queue_read_document, done_queue_ref};
 use crate::cli::machine::io::print_json;
 use crate::contracts::{
-    MACHINE_DASHBOARD_READ_VERSION, MACHINE_GRAPH_READ_VERSION, MachineDashboardReadDocument,
-    MachineGraphReadDocument,
+    MACHINE_DASHBOARD_READ_VERSION, MACHINE_GRAPH_READ_VERSION,
+    MACHINE_QUEUE_UNLOCK_INSPECT_VERSION, MachineDashboardReadDocument,
+    MachineGraphReadDocument, MachineQueueUnlockCondition, MachineQueueUnlockInspectDocument,
 };
 use crate::queue::graph::{
     build_graph, find_critical_paths, get_blocked_tasks, get_runnable_tasks,
@@ -76,6 +77,64 @@ pub(crate) fn handle_queue(args: MachineQueueArgs, force: bool) -> Result<()> {
         }
         MachineQueueCommand::Undo(args) => {
             print_json(&build_undo_document(&resolved, force, &args)?)
+        }
+        MachineQueueCommand::UnlockInspect => {
+            let inspection = crate::commands::run::inspect_queue_lock(&resolved.repo_root);
+            let (condition, blocking, unlock_allowed, headline, detail) = match inspection {
+                None => (
+                    MachineQueueUnlockCondition::Clear,
+                    None,
+                    false,
+                    "Queue lock is clear".to_string(),
+                    "No queue lock is present for this repository.".to_string(),
+                ),
+                Some(inspection) => match inspection.condition {
+                    crate::commands::run::QueueLockCondition::Live => (
+                        MachineQueueUnlockCondition::Live,
+                        Some(inspection.blocking_state),
+                        false,
+                        "Queue lock is held by an active Ralph process".to_string(),
+                        "Wait for the owning Ralph process to finish or inspect the current lock owner before retrying.".to_string(),
+                    ),
+                    crate::commands::run::QueueLockCondition::Stale => (
+                        MachineQueueUnlockCondition::Stale,
+                        Some(inspection.blocking_state),
+                        true,
+                        "Queue lock is stale".to_string(),
+                        "The recorded lock owner is no longer running, so it is safe to clear the lock.".to_string(),
+                    ),
+                    crate::commands::run::QueueLockCondition::OwnerMissing => (
+                        MachineQueueUnlockCondition::OwnerMissing,
+                        Some(inspection.blocking_state),
+                        false,
+                        "Queue lock owner metadata is missing".to_string(),
+                        "Confirm no other Ralph process is active before clearing the broken lock record.".to_string(),
+                    ),
+                    crate::commands::run::QueueLockCondition::OwnerUnreadable => (
+                        MachineQueueUnlockCondition::OwnerUnreadable,
+                        Some(inspection.blocking_state),
+                        false,
+                        "Queue lock owner metadata is unreadable".to_string(),
+                        "Confirm no other Ralph process is active before clearing the broken lock record.".to_string(),
+                    ),
+                },
+            };
+            print_json(&MachineQueueUnlockInspectDocument {
+                version: MACHINE_QUEUE_UNLOCK_INSPECT_VERSION,
+                condition,
+                blocking,
+                unlock_allowed: unlock_allowed,
+                continuation: crate::contracts::MachineContinuationSummary {
+                    headline,
+                    detail,
+                    blocking: None,
+                    next_steps: vec![crate::contracts::MachineContinuationAction {
+                        title: "Inspect queue lock".to_string(),
+                        command: "ralph machine queue unlock-inspect".to_string(),
+                        detail: "Refresh the structured queue-lock state for this repository.".to_string(),
+                    }],
+                },
+            })
         }
     }
 }

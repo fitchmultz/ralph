@@ -332,13 +332,15 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
             condition: .stale,
             blocking: nil,
             doctorOutput: "doctor",
-            unlockPreview: "preview"
+            unlockPreview: "preview",
+            unlockAllowed: true
         )
         let live = QueueLockDiagnosticSnapshot(
             condition: .live,
             blocking: nil,
             doctorOutput: "doctor",
-            unlockPreview: "preview"
+            unlockPreview: "preview",
+            unlockAllowed: false
         )
 
         XCTAssertTrue(stale.canClearStaleLock)

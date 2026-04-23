@@ -45,9 +45,10 @@ public struct QueueLockDiagnosticSnapshot: Equatable, Sendable {
     let blocking: WorkspaceRunnerController.MachineBlockingState?
     let doctorOutput: String
     public let unlockPreview: String
+    public let unlockAllowed: Bool
 
     public var canClearStaleLock: Bool {
-        condition == .stale
+        condition == .stale && unlockAllowed
     }
 }
 
@@ -114,22 +115,21 @@ public enum WorkspaceDiagnosticsService {
     ) async -> QueueLockDiagnosticSnapshot {
         do {
             let doctorDocument = try await machineDoctorReport(for: workspace)
-            let unlockPreview = try await queueUnlockPreview(for: workspace)
+            let unlockInspect = try await queueUnlockInspect(for: workspace)
             return QueueLockDiagnosticSnapshot(
-                condition: deriveQueueLockCondition(
-                    blocking: doctorDocument.blocking,
-                    unlockPreview: unlockPreview
-                ),
-                blocking: doctorDocument.blocking,
+                condition: deriveQueueLockCondition(from: unlockInspect.condition),
+                blocking: unlockInspect.blocking ?? doctorDocument.blocking,
                 doctorOutput: formatDoctorReport(doctorDocument),
-                unlockPreview: unlockPreview
+                unlockPreview: formatQueueUnlockInspect(unlockInspect),
+                unlockAllowed: unlockInspect.unlockAllowed
             )
         } catch {
             return QueueLockDiagnosticSnapshot(
                 condition: .unknown,
                 blocking: nil,
                 doctorOutput: "Failed to inspect queue lock: \(error.localizedDescription)",
-                unlockPreview: "Failed to preview queue unlock: \(error.localizedDescription)"
+                unlockPreview: "Failed to preview queue unlock: \(error.localizedDescription)",
+                unlockAllowed: false
             )
         }
     }
@@ -281,39 +281,15 @@ public enum WorkspaceDiagnosticsService {
     }
 
     private static func deriveQueueLockCondition(
-        blocking: WorkspaceRunnerController.MachineBlockingState?,
-        unlockPreview: String
+        from condition: MachineQueueUnlockInspectDocument.Condition
     ) -> QueueLockDiagnosticSnapshot.Condition {
-        let normalizedPreview = unlockPreview.lowercased()
-        if normalizedPreview.contains("queue is not locked") {
-            return .clear
+        switch condition {
+        case .clear: return .clear
+        case .live: return .live
+        case .stale: return .stale
+        case .ownerMissing: return .ownerMissing
+        case .ownerUnreadable: return .ownerUnreadable
         }
-        if normalizedPreview.contains("process status: not running") {
-            return .stale
-        }
-        if normalizedPreview.contains("process status: running")
-            || normalizedPreview.contains("process status: indeterminate")
-        {
-            return .live
-        }
-        guard let blocking else {
-            return .unknown
-        }
-        let message = blocking.message.lowercased()
-        let detail = blocking.detail.lowercased()
-        if message.contains("stale queue lock") {
-            return .stale
-        }
-        if message.contains("metadata cleanup") || detail.contains("owner metadata is missing") {
-            return .ownerMissing
-        }
-        if message.contains("unreadable queue lock metadata") || detail.contains("could not read its owner metadata") {
-            return .ownerUnreadable
-        }
-        if message.contains("queue lock") {
-            return .live
-        }
-        return .unknown
     }
 
     private static func machineDoctorReport(
@@ -332,19 +308,33 @@ public enum WorkspaceDiagnosticsService {
         )
     }
 
-    private static func queueUnlockPreview(for workspace: Workspace) async throws -> String {
-        let output = try await runCollectedCommand(
-            workspace: workspace,
-            arguments: ["queue", "unlock", "--dry-run"],
-            timeoutConfiguration: .default
+    private static func queueUnlockInspect(for workspace: Workspace) async throws -> MachineQueueUnlockInspectDocument {
+        guard let client = workspace.client else {
+            throw Workspace.WorkspaceError.cliClientUnavailable
+        }
+        return try await workspace.decodeMachineRepositoryJSON(
+            MachineQueueUnlockInspectDocument.self,
+            client: client,
+            machineArguments: ["queue", "unlock-inspect"],
+            currentDirectoryURL: workspace.identityState.workingDirectoryURL,
+            retryConfiguration: .minimal,
+            onRetry: nil
         )
-        if !output.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return output.stdout
+    }
+
+    private static func formatQueueUnlockInspect(_ document: MachineQueueUnlockInspectDocument) -> String {
+        var sections = [document.continuation.headline, "", document.continuation.detail]
+        if let blocking = document.blocking {
+            sections.append("")
+            sections.append("Operator state: \(blocking.status.rawValue)")
+            sections.append(blocking.message)
+            if !blocking.detail.isEmpty {
+                sections.append(blocking.detail)
+            }
         }
-        if !output.stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return output.stderr
-        }
-        return "No queue unlock preview output was returned."
+        sections.append("")
+        sections.append("Unlock allowed: \(document.unlockAllowed ? "yes" : "no")")
+        return sections.joined(separator: "\n")
     }
 
     private static func runCollectedCommand(

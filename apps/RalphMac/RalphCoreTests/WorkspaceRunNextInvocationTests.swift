@@ -63,16 +63,16 @@ final class WorkspaceRunNextInvocationTests: WorkspacePerformanceTestCase {
               exit 0
               ;;
               *"--no-color machine run one --resume --id RQ-4242"*)
-              echo '{"version":1,"kind":"run_started","task_id":"RQ-4242","phase":null,"message":null,"payload":null}'
-              echo '{"version":1,"kind":"phase_entered","task_id":"RQ-4242","phase":"plan","message":null,"payload":null}'
-              echo '{"version":1,"kind":"runner_output","task_id":"RQ-4242","phase":"plan","message":null,"payload":{"text":"planning started\\n"}}'
+              echo '{"version":3,"kind":"run_started","timestamp":"2026-03-10T00:00:00Z","task_id":"RQ-4242","phase":null,"message":null,"payload":null}'
+              echo '{"version":3,"kind":"phase_entered","timestamp":"2026-03-10T00:00:01Z","task_id":"RQ-4242","phase":"plan","message":null,"payload":null}'
+              echo '{"version":3,"kind":"runner_output","timestamp":"2026-03-10T00:00:02Z","task_id":"RQ-4242","phase":"plan","message":null,"payload":{"text":"planning started\\n"}}'
               sleep 1
-              echo '{"version":1,"kind":"phase_completed","task_id":"RQ-4242","phase":"plan","message":null,"payload":null}'
-              echo '{"version":1,"kind":"phase_entered","task_id":"RQ-4242","phase":"implement","message":null,"payload":null}'
-              echo '{"version":1,"kind":"runner_output","task_id":"RQ-4242","phase":"implement","message":null,"payload":{"text":"implementation running\\n"}}'
+              echo '{"version":3,"kind":"phase_completed","timestamp":"2026-03-10T00:00:03Z","task_id":"RQ-4242","phase":"plan","message":null,"payload":null}'
+              echo '{"version":3,"kind":"phase_entered","timestamp":"2026-03-10T00:00:04Z","task_id":"RQ-4242","phase":"implement","message":null,"payload":null}'
+              echo '{"version":3,"kind":"runner_output","timestamp":"2026-03-10T00:00:05Z","task_id":"RQ-4242","phase":"implement","message":null,"payload":{"text":"implementation running\\n"}}'
               sleep 1
-              echo '{"version":1,"kind":"phase_completed","task_id":"RQ-4242","phase":"implement","message":null,"payload":null}'
-              echo '{"version":1,"task_id":"RQ-4242","exit_code":0,"outcome":"success"}'
+              echo '{"version":3,"kind":"phase_completed","timestamp":"2026-03-10T00:00:06Z","task_id":"RQ-4242","phase":"implement","message":null,"payload":null}'
+              echo '{"version":2,"task_id":"RQ-4242","exit_code":0,"outcome":"success"}'
               exit 0
               ;;
             esac
@@ -142,9 +142,9 @@ final class WorkspaceRunNextInvocationTests: WorkspacePerformanceTestCase {
               exit 0
               ;;
               *"--no-color machine run one --resume --force --id RQ-5555"*)
-              echo '{"version":1,"kind":"run_started","task_id":"RQ-5555","phase":null,"message":null,"payload":null}'
-              echo '{"version":1,"kind":"runner_output","task_id":"RQ-5555","phase":null,"message":null,"payload":{"text":"running explicit\\n"}}'
-              echo '{"version":1,"task_id":"RQ-5555","exit_code":0,"outcome":"success"}'
+              echo '{"version":3,"kind":"run_started","timestamp":"2026-03-10T00:00:00Z","task_id":"RQ-5555","phase":null,"message":null,"payload":null}'
+              echo '{"version":3,"kind":"runner_output","timestamp":"2026-03-10T00:00:01Z","task_id":"RQ-5555","phase":null,"message":null,"payload":{"text":"running explicit\\n"}}'
+              echo '{"version":2,"task_id":"RQ-5555","exit_code":0,"outcome":"success"}'
               exit 0
               ;;
             esac

@@ -116,8 +116,6 @@ public extension Workspace {
                 currentDirectoryURL: identityState.workingDirectoryURL,
                 retryConfiguration: retryConfiguration
             )
-            try Self.validateMachineWorkspaceOverviewVersion(document)
-
             guard !isShutDown, !Task.isCancelled, isCurrentRepositoryContext(repositoryContext) else {
                 return .failed
             }
@@ -226,25 +224,6 @@ public extension Workspace {
 }
 
 extension Workspace {
-    nonisolated static let supportedMachineWorkspaceOverviewVersion = 1
-
-    nonisolated static func validateMachineWorkspaceOverviewVersion(
-        _ document: MachineWorkspaceOverviewDocument
-    ) throws {
-        guard document.version == supportedMachineWorkspaceOverviewVersion else {
-            throw RecoveryError(
-                category: .versionMismatch,
-                message: """
-                Unsupported machine workspace overview version \(document.version). RalphMac requires version \(supportedMachineWorkspaceOverviewVersion).
-                """,
-                operation: "loadWorkspaceOverview",
-                suggestions: [
-                    "Rebuild RalphMac and the bundled CLI from the same revision.",
-                ]
-            )
-        }
-    }
-
     nonisolated static func shouldFallbackToLegacyWorkspaceOverview(
         for error: any Error
     ) -> Bool {

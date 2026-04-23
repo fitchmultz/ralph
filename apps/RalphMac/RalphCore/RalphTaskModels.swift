@@ -319,10 +319,13 @@ public struct RalphTask: Codable, Sendable, Equatable, Identifiable {
     public var completedAt: Date?
     public var estimatedMinutes: Int?
     public var actualMinutes: Int?
+    public var scheduledStart: Date?
     public var dependsOn: [String]?
     public var blocks: [String]?
     public var relatesTo: [String]?
+    public var duplicates: String?
     public var customFields: [String: String]?
+    public var parentID: String?
 
     private enum CodingKeys: String, CodingKey {
         case id, status, title, description, priority, tags, scope, evidence, plan, notes
@@ -333,7 +336,10 @@ public struct RalphTask: Codable, Sendable, Equatable, Identifiable {
         case completedAt = "completed_at"
         case estimatedMinutes = "estimated_minutes"
         case actualMinutes = "actual_minutes"
+        case scheduledStart = "scheduled_start"
+        case duplicates
         case customFields = "custom_fields"
+        case parentID = "parent_id"
     }
 
     public init(
@@ -355,10 +361,13 @@ public struct RalphTask: Codable, Sendable, Equatable, Identifiable {
         completedAt: Date? = nil,
         estimatedMinutes: Int? = nil,
         actualMinutes: Int? = nil,
+        scheduledStart: Date? = nil,
         dependsOn: [String]? = nil,
         blocks: [String]? = nil,
         relatesTo: [String]? = nil,
-        customFields: [String: String]? = nil
+        duplicates: String? = nil,
+        customFields: [String: String]? = nil,
+        parentID: String? = nil
     ) {
         self.id = id
         self.status = status
@@ -378,10 +387,13 @@ public struct RalphTask: Codable, Sendable, Equatable, Identifiable {
         self.completedAt = completedAt
         self.estimatedMinutes = estimatedMinutes
         self.actualMinutes = actualMinutes
+        self.scheduledStart = scheduledStart
         self.dependsOn = dependsOn
         self.blocks = blocks
         self.relatesTo = relatesTo
+        self.duplicates = duplicates
         self.customFields = customFields
+        self.parentID = parentID
     }
 }
 
@@ -418,7 +430,10 @@ public struct RalphTaskQueueDocument: Codable, Sendable, Equatable {
     }
 }
 
-public struct MachineQueueReadDocument: Codable, Sendable, Equatable {
+public struct MachineQueueReadDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.queueReadVersion
+    public static let documentName = "machine queue read"
+
     public let version: Int
     public let paths: MachineQueuePaths
     public let active: RalphTaskQueueDocument

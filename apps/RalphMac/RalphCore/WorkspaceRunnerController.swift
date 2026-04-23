@@ -23,8 +23,6 @@ import Foundation
 
 @MainActor
 final class WorkspaceRunnerController {
-    nonisolated static let supportedMachineConfigResolveVersion = 3
-    nonisolated static let supportedMachineParallelStatusVersion = 3
 
     weak var workspace: Workspace?
     var activeRun: RalphCLIRun?
@@ -88,7 +86,7 @@ final class WorkspaceRunnerController {
                 runState.parallelStatusErrorMessage = "CLI client not available."
             },
             load: { client, workingDirectoryURL, retryConfiguration, onRetry in
-                let document = try await workspace.decodeMachineRepositoryJSON(
+                try await workspace.decodeMachineRepositoryJSON(
                     MachineParallelStatusDocument.self,
                     client: client,
                     machineArguments: ["run", "parallel-status"],
@@ -96,8 +94,6 @@ final class WorkspaceRunnerController {
                     retryConfiguration: retryConfiguration,
                     onRetry: onRetry
                 )
-                try Self.validateMachineParallelStatusVersion(document.version)
-                return document
             },
             apply: { [runState = workspace.runState] decoded in
                 runState.parallelStatus = decoded.asWorkspaceParallelStatus()
@@ -127,7 +123,7 @@ final class WorkspaceRunnerController {
                 runState.runnerConfigErrorMessage = "CLI client not available."
             },
             load: { client, workingDirectoryURL, retryConfiguration, onRetry in
-                let document = try await workspace.decodeMachineRepositoryJSON(
+                try await workspace.decodeMachineRepositoryJSON(
                     MachineConfigResolveDocument.self,
                     client: client,
                     machineArguments: ["config", "resolve"],
@@ -135,8 +131,6 @@ final class WorkspaceRunnerController {
                     retryConfiguration: retryConfiguration,
                     onRetry: onRetry
                 )
-                try Self.validateMachineConfigResolveVersion(document.version)
-                return document
             },
             apply: { [self, workspace] decoded in
                 applyConfigResolveDocument(decoded, workspace: workspace)
@@ -275,16 +269,4 @@ final class WorkspaceRunnerController {
         }
     }
 
-    nonisolated static func validateMachineParallelStatusVersion(_ version: Int) throws {
-        guard version == supportedMachineParallelStatusVersion else {
-            throw NSError(
-                domain: "RalphMachineContract",
-                code: 3,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Unsupported machine parallel status version \(version). RalphMac requires version \(supportedMachineParallelStatusVersion)."
-                ]
-            )
-        }
-    }
 }

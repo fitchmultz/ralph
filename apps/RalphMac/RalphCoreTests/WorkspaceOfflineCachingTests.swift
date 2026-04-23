@@ -11,6 +11,7 @@
  - Tests mutate in-memory workspace state only.
  */
 
+import Foundation
 import XCTest
 @testable import RalphCore
 
@@ -103,5 +104,32 @@ final class WorkspaceOfflineCachingTests: RalphCoreTestCase {
 
         workspace.clearCachedTasks()
         XCTAssertTrue(workspace.cachedTasks.isEmpty)
+    }
+
+    func testCachedTaskRoundTripPreservesExpandedContractFields() throws {
+        let workspaceURL = RalphCoreTestSupport.workspaceURL(label: "offline-cache-round-trip")
+        let workspace = Workspace(workingDirectoryURL: workspaceURL)
+        let scheduledStart = ISO8601DateFormatter().date(from: "2026-04-23T12:00:00Z")
+
+        workspace.tasks = [
+            RalphTask(
+                id: "RQ-TEST",
+                status: .todo,
+                title: "Test",
+                priority: .medium,
+                scheduledStart: scheduledStart,
+                duplicates: "RQ-0009",
+                parentID: "RQ-0001"
+            )
+        ]
+
+        workspace.refreshCachedTasks()
+        workspace.cachedTasks = []
+        workspace.loadCachedTasks()
+
+        XCTAssertEqual(workspace.cachedTasks.count, 1)
+        XCTAssertEqual(workspace.cachedTasks.first?.scheduledStart, scheduledStart)
+        XCTAssertEqual(workspace.cachedTasks.first?.duplicates, "RQ-0009")
+        XCTAssertEqual(workspace.cachedTasks.first?.parentID, "RQ-0001")
     }
 }

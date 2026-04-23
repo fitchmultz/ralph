@@ -49,7 +49,10 @@ struct WorkspaceValidationWarning: Decodable, Sendable, Equatable {
     }
 }
 
-struct MachineQueueValidateDocument: Decodable, Sendable, Equatable {
+struct MachineQueueValidateDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.queueValidateVersion
+    static let documentName = "machine queue validate"
+
     let version: Int
     let valid: Bool
     let blocking: WorkspaceRunnerController.MachineBlockingState?
@@ -61,7 +64,10 @@ struct MachineQueueValidateDocument: Decodable, Sendable, Equatable {
     }
 }
 
-struct MachineQueueRepairDocument: Decodable, Sendable, Equatable {
+struct MachineQueueRepairDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.queueRepairVersion
+    static let documentName = "machine queue repair"
+
     let version: Int
     let dryRun: Bool
     let changed: Bool
@@ -83,7 +89,10 @@ struct MachineQueueRepairDocument: Decodable, Sendable, Equatable {
     }
 }
 
-struct MachineQueueUndoDocument: Decodable, Sendable, Equatable {
+struct MachineQueueUndoDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.queueUndoVersion
+    static let documentName = "machine queue undo"
+
     let version: Int
     let dryRun: Bool
     let restored: Bool
@@ -148,7 +157,37 @@ struct MachineTaskCreateRequest: Codable, Sendable {
     }
 }
 
-struct MachineTaskCreateDocument: Codable, Sendable {
+struct MachineQueueUnlockInspectDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.queueUnlockInspectVersion
+    static let documentName = "machine queue unlock inspect"
+
+    enum Condition: String, Decodable, Sendable, Equatable {
+        case clear
+        case live
+        case stale
+        case ownerMissing = "owner_missing"
+        case ownerUnreadable = "owner_unreadable"
+    }
+
+    let version: Int
+    let condition: Condition
+    let blocking: WorkspaceRunnerController.MachineBlockingState?
+    let unlockAllowed: Bool
+    let continuation: WorkspaceContinuationSummary
+
+    enum CodingKeys: String, CodingKey {
+        case version
+        case condition
+        case blocking
+        case unlockAllowed = "unlock_allowed"
+        case continuation
+    }
+}
+
+struct MachineTaskCreateDocument: Codable, Sendable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.taskCreateVersion
+    static let documentName = "machine task create"
+
     let version: Int
     let task: RalphTask
 }
@@ -209,7 +248,10 @@ struct WorkspaceTaskMutationReport: Codable, Sendable {
     let tasks: [WorkspaceTaskMutationTaskReport]
 }
 
-struct MachineTaskMutationDocument: Decodable, Sendable {
+struct MachineTaskMutationDocument: Decodable, Sendable, VersionedMachineDocument {
+    static let expectedVersion = RalphMachineContract.taskMutateVersion
+    static let documentName = "machine task mutate"
+
     let version: Int
     let blocking: WorkspaceRunnerController.MachineBlockingState?
     let report: WorkspaceTaskMutationReport

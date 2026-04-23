@@ -49,7 +49,7 @@ extension Workspace {
         return writeResult
     }
 
-    private func runTaskDecompose<T: Decodable>(
+    private func runTaskDecompose<T: Decodable & VersionedMachineDocument>(
         source: TaskDecomposeSourceInput,
         options: TaskDecomposeOptions,
         write: Bool,
@@ -84,7 +84,7 @@ extension Workspace {
 
         do {
             let data = Data(collected.stdout.utf8)
-            return try JSONDecoder().decode(T.self, from: data)
+            return try RalphMachineContract.decode(T.self, from: data, operation: write ? "task decompose write" : "task decompose preview")
         } catch {
             throw WorkspaceError.cliError(
                 "Failed to decode machine task decompose JSON output: \(error.localizedDescription)"

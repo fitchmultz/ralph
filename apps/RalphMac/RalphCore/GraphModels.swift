@@ -24,7 +24,10 @@ public struct RalphGraphDocument: Codable, Sendable, Equatable {
     }
 }
 
-public struct MachineGraphReadDocument: Codable, Sendable, Equatable {
+public struct MachineGraphReadDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.graphReadVersion
+    public static let documentName = "machine graph read"
+
     public let version: Int
     public let graph: RalphGraphDocument
 }
