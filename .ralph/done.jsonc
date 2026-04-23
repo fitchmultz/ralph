@@ -1375,6 +1375,56 @@
       "custom_fields": {
         "scan_agent": "scan-general"
       }
+    },
+    {
+      "id": "RQ-0035",
+      "status": "done",
+      "title": "Share Unix process-group setup for child processes",
+      "description": "Evidence: three subprocess paths repeat the same Unix `pre_exec` / `setpgid(0, 0)` isolation block: managed shell execution in `runutil/shell/execute.rs:75-80`, runner execution in `runner/execution/process/mod.rs:164-167`, and parallel worker command construction in `commands/run/parallel/worker_command.rs:33-38`. Why it matters: process-group isolation is part of Ralph's cleanup and signal semantics; three copies make it harder to audit safety comments, platform cfgs, and future escalation behavior consistently. Minimal proposed fix: add one helper for attaching a `Command` to a new process group on Unix and no-op/compile cleanly elsewhere, then call it from all three sites. Acceptance criteria: command behavior is unchanged, Windows still compiles, and subprocess cleanup tests pass.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "refactor",
+        "subprocess",
+        "signals"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/shell/execute.rs",
+        "crates/ralph/src/runner/execution/process/mod.rs",
+        "crates/ralph/src/commands/run/parallel/worker_command.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runutil/shell/execute.rs:75 :: managed shell execution has a local pre_exec safety block.",
+        "path: crates/ralph/src/runutil/shell/execute.rs:80 :: managed shell execution calls `libc::setpgid(0, 0)`.",
+        "path: crates/ralph/src/runner/execution/process/mod.rs:164 :: runner execution has a local pre_exec safety block.",
+        "path: crates/ralph/src/runner/execution/process/mod.rs:167 :: runner execution calls `libc::setpgid(0, 0)`.",
+        "path: crates/ralph/src/commands/run/parallel/worker_command.rs:33 :: worker command construction has a local pre_exec safety block.",
+        "path: crates/ralph/src/commands/run/parallel/worker_command.rs:38 :: worker command construction calls `libc::setpgid(0, 0)`.",
+        "command: rg -n \"pre_exec|setpgid\\\\(0, 0\\\\)\" crates/ralph/src/runutil/shell/execute.rs crates/ralph/src/runner/execution/process/mod.rs crates/ralph/src/commands/run/parallel/worker_command.rs :: confirmed three copies."
+      ],
+      "plan": [
+        "Add a narrowly named helper for Unix process-group isolation of `std::process::Command` values.",
+        "Replace the three local `pre_exec` blocks with calls to the helper.",
+        "Keep the safety comment with the helper so the invariant is documented once.",
+        "Ensure non-Unix builds keep the same behavior through cfg-gated no-op behavior or cfg-gated call sites.",
+        "Verify by running shell helper tests, runner execution process tests, parallel worker command tests, and `make agent-ci`."
+      ],
+      "notes": [
+        "Added a shared runutil helper for Unix child process-group isolation and routed the three production call sites through it.",
+        "Verified with cargo fmt, focused shell/runner/worker tests, and make agent-ci.",
+        "Attempted a Windows cross-check with cargo check --target x86_64-pc-windows-msvc, but the host lacks the required cross C toolchain and the run failed in ring before reaching Ralph code."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-19T23:44:38Z",
+      "updated_at": "2026-04-23T02:21:55Z",
+      "completed_at": "2026-04-23T02:21:55Z",
+      "started_at": "2026-04-23T02:21:55Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
     }
   ]
 }

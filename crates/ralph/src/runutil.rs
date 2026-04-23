@@ -14,6 +14,7 @@
 mod abort;
 mod ci_gate;
 mod execution;
+mod process_groups;
 mod retry;
 mod revert;
 mod shell;
@@ -35,6 +36,7 @@ pub(crate) use abort::{
     RunAbort, RunAbortReason, abort_reason, is_dirty_repo_error, is_queue_validation_error,
 };
 pub(crate) use ci_gate::execute_ci_gate;
+pub(crate) use process_groups::isolate_child_process_group;
 
 pub(crate) use execution::{
     RunnerErrorMessages, RunnerExecutionContext, RunnerFailureHandling, RunnerInvocation,

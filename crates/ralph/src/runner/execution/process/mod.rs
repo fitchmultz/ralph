@@ -23,9 +23,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-#[cfg(unix)]
-use std::os::unix::process::CommandExt;
-
 use super::super::{
     OutputHandler, OutputStream, RunnerError, RunnerOutput, runner_execution_error,
     runner_execution_error_with_source,
@@ -33,6 +30,7 @@ use super::super::{
 use super::json::extract_session_id_from_text;
 use super::stream::{StreamSink, spawn_json_reader, spawn_reader};
 use crate::contracts::Runner;
+use crate::runutil::isolate_child_process_group;
 use cleanup::ProcessCleanupGuard;
 #[cfg(test)]
 pub(crate) use wait::wait_for_child;
@@ -160,14 +158,7 @@ fn run_with_streaming_json_inner(
         cmd.stdin(Stdio::piped());
     }
 
-    #[cfg(unix)]
-    // SAFETY: `pre_exec` only isolates the child process group.
-    unsafe {
-        cmd.pre_exec(|| {
-            let _ = libc::setpgid(0, 0);
-            Ok(())
-        });
-    }
+    isolate_child_process_group(&mut cmd);
 
     let ctrlc = ctrlc_state().map_err(|e| RunnerError::Other(anyhow::anyhow!(e)))?;
     ctrlc.interrupted.store(false, Ordering::SeqCst);

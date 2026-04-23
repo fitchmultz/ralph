@@ -20,10 +20,9 @@ use std::path::Path;
 use std::process::Stdio;
 
 use anyhow::{Context, Result, bail};
-
-#[cfg(unix)]
-use std::os::unix::process::CommandExt;
 use std::sync::{Arc, Mutex};
+
+use crate::runutil::isolate_child_process_group;
 
 use super::argv::build_argv_command;
 use super::capture::{BoundedCapture, join_capture_thread, spawn_capture_thread, unwrap_capture};
@@ -71,16 +70,7 @@ pub(crate) fn execute_managed_command(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    #[cfg(unix)]
-    // SAFETY: `pre_exec` runs in the forked child before `exec`; this closure
-    // only makes the async-signal-safe `setpgid(0, 0)` call and does not touch
-    // shared Rust state.
-    unsafe {
-        managed.command.pre_exec(|| {
-            let _ = libc::setpgid(0, 0);
-            Ok(())
-        });
-    }
+    isolate_child_process_group(&mut managed.command);
 
     let description = managed.description.clone();
     let timeout = managed

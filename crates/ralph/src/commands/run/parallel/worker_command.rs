@@ -11,12 +11,10 @@ use crate::agent::AgentOverrides;
 use crate::commands::run::parallel::args::build_override_args;
 use crate::commands::run::parallel::path_map::map_resolved_path_into_workspace;
 use crate::config;
+use crate::runutil::isolate_child_process_group;
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
-
-#[cfg(unix)]
-use std::os::unix::process::CommandExt;
 
 pub(crate) fn build_worker_command(
     resolved: &config::Resolved,
@@ -28,17 +26,7 @@ pub(crate) fn build_worker_command(
 ) -> Result<(Command, Vec<String>)> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     let mut cmd = Command::new(exe);
-
-    #[cfg(unix)]
-    // SAFETY: `pre_exec` runs in the forked child before `exec`; this closure
-    // only makes the async-signal-safe `setpgid(0, 0)` call and does not touch
-    // shared Rust state.
-    unsafe {
-        cmd.pre_exec(|| {
-            let _ = libc::setpgid(0, 0);
-            Ok(())
-        });
-    }
+    isolate_child_process_group(&mut cmd);
 
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
