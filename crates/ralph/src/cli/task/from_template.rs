@@ -20,7 +20,7 @@ use std::collections::HashMap;
 
 use crate::agent;
 use crate::cli::task::args::TaskFromTemplateArgs;
-use crate::commands::task::{TaskBuildOptions, build_task};
+use crate::commands::task::{TaskBuildOptions, TaskBuildOutputTarget, build_task};
 use crate::config;
 use crate::template::load_template_with_context;
 
@@ -71,6 +71,7 @@ pub fn handle(resolved: &config::Resolved, args: &TaskFromTemplateArgs, force: b
         runner_cli_overrides: overrides.runner_cli,
         force,
         repoprompt_tool_injection: agent::resolve_rp_required(args.repo_prompt, resolved),
+        output: TaskBuildOutputTarget::Terminal,
         template_hint: Some(args.template.clone()),
         template_target: target,
         strict_templates: args.strict_templates,

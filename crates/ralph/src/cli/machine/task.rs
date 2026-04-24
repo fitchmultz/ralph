@@ -30,18 +30,35 @@ use crate::cli::machine::io::{print_json, read_json_input};
 use crate::commands::task as task_cmd;
 use crate::config;
 use crate::contracts::{
-    MACHINE_DECOMPOSE_VERSION, MACHINE_TASK_CREATE_VERSION, MACHINE_TASK_MUTATION_VERSION,
-    MachineDecomposeDocument, MachineTaskCreateDocument, MachineTaskCreateRequest,
-    MachineTaskMutationDocument, RunnerCliOptionsPatch, Task, TaskStatus,
+    MACHINE_DECOMPOSE_VERSION, MACHINE_TASK_BUILD_VERSION, MACHINE_TASK_CREATE_VERSION,
+    MACHINE_TASK_MUTATION_VERSION, MachineDecomposeDocument, MachineTaskBuildDocument,
+    MachineTaskBuildRequest, MachineTaskBuildResult, MachineTaskCreateDocument,
+    MachineTaskCreateRequest, MachineTaskMutationDocument, RunnerCliOptionsPatch, Task, TaskStatus,
 };
 use crate::queue;
 use crate::timeutil;
 
-use continuation::{decompose_continuation, mutation_continuation};
+use continuation::{build_continuation, decompose_continuation, mutation_continuation};
 
 pub(super) fn handle_task(args: MachineTaskArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match args.command {
+        MachineTaskCommand::Build(args) => {
+            let raw = read_json_input(args.input.as_deref())?;
+            let request: MachineTaskBuildRequest =
+                serde_json::from_str(&raw).context("parse machine task build request")?;
+            let repoprompt_tool_injection =
+                agent::resolve_rp_required(args.agent.repo_prompt, &resolved);
+            let overrides = agent::resolve_agent_overrides(&args.agent)?;
+            let document = build_task_from_request(
+                &resolved,
+                &request,
+                overrides,
+                repoprompt_tool_injection,
+                force,
+            )?;
+            print_json(&document)
+        }
         MachineTaskCommand::Create(args) => {
             let raw = read_json_input(args.input.as_deref())?;
             let request: MachineTaskCreateRequest =
@@ -116,6 +133,73 @@ pub(super) fn handle_task(args: MachineTaskArgs, force: bool) -> Result<()> {
             print_json(&build_decompose_document(&preview, write.as_ref()))
         }
     }
+}
+
+fn build_task_from_request(
+    resolved: &config::Resolved,
+    request: &MachineTaskBuildRequest,
+    overrides: agent::AgentOverrides,
+    repoprompt_tool_injection: bool,
+    force: bool,
+) -> Result<MachineTaskBuildDocument> {
+    if request.version != MACHINE_TASK_BUILD_VERSION {
+        bail!(
+            "Unsupported machine task build request version {}",
+            request.version
+        );
+    }
+    if request.request.trim().is_empty() {
+        bail!("Task build request cannot be empty");
+    }
+
+    let before = queue::load_queue(&resolved.queue_path)?;
+    let before_ids = queue::task_id_set(&before);
+
+    task_cmd::build_task(
+        resolved,
+        task_cmd::TaskBuildOptions {
+            request: request.request.trim().to_string(),
+            hint_tags: request.tags.join(","),
+            hint_scope: request.scope.join(","),
+            runner_override: overrides.runner,
+            model_override: overrides.model,
+            reasoning_effort_override: overrides.reasoning_effort,
+            runner_cli_overrides: overrides.runner_cli,
+            force,
+            repoprompt_tool_injection,
+            output: task_cmd::TaskBuildOutputTarget::Quiet,
+            template_hint: request.template.clone(),
+            template_target: request.target.clone(),
+            strict_templates: request.strict_templates,
+            estimated_minutes: request.estimated_minutes,
+        },
+    )?;
+
+    let after = queue::load_queue(&resolved.queue_path)?;
+    let added_ids = queue::added_tasks(&before_ids, &after)
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect::<Vec<_>>();
+    let tasks = after
+        .tasks
+        .into_iter()
+        .filter(|task| added_ids.contains(&task.id))
+        .collect::<Vec<_>>();
+    let continuation = build_continuation(tasks.len());
+    let blocking = continuation.blocking.clone();
+
+    Ok(MachineTaskBuildDocument {
+        version: MACHINE_TASK_BUILD_VERSION,
+        mode: "write".to_string(),
+        blocking,
+        result: MachineTaskBuildResult {
+            created_count: tasks.len(),
+            task_ids: added_ids,
+            tasks,
+        },
+        warnings: Vec::new(),
+        continuation,
+    })
 }
 
 pub(crate) fn build_task_mutation_document(
@@ -197,6 +281,7 @@ fn create_task(
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force,
             repoprompt_tool_injection: false,
+            output: task_cmd::TaskBuildOutputTarget::Quiet,
             template_hint: Some(template.clone()),
             template_target: request.target.clone(),
             strict_templates: false,

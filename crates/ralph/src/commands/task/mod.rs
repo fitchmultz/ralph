@@ -74,6 +74,34 @@ pub struct TaskBuildRefactorOptions {
     pub repoprompt_tool_injection: bool,
 }
 
+/// Canonical destination for runner output during task build workflows.
+pub enum TaskBuildOutputTarget {
+    /// Stream runner output directly to stdout/stderr for human CLI use.
+    Terminal,
+    /// Suppress direct output so stdout remains reserved for machine JSON.
+    Quiet,
+    /// Deliver output to an app/event handler without writing to stdout/stderr.
+    Handler(runner::OutputHandler),
+}
+
+impl TaskBuildOutputTarget {
+    pub(crate) fn output_handler(&self) -> Option<runner::OutputHandler> {
+        match self {
+            TaskBuildOutputTarget::Terminal | TaskBuildOutputTarget::Quiet => None,
+            TaskBuildOutputTarget::Handler(handler) => Some(handler.clone()),
+        }
+    }
+
+    pub(crate) fn output_stream(&self) -> runner::OutputStream {
+        match self {
+            TaskBuildOutputTarget::Terminal => runner::OutputStream::Terminal,
+            TaskBuildOutputTarget::Quiet | TaskBuildOutputTarget::Handler(_) => {
+                runner::OutputStream::HandlerOnly
+            }
+        }
+    }
+}
+
 // TaskBuildOptions controls runner-driven task creation via .ralph/prompts/task_builder.md.
 pub struct TaskBuildOptions {
     pub request: String,
@@ -85,6 +113,8 @@ pub struct TaskBuildOptions {
     pub runner_cli_overrides: RunnerCliOptionsPatch,
     pub force: bool,
     pub repoprompt_tool_injection: bool,
+    /// Single source of truth for runner output routing.
+    pub output: TaskBuildOutputTarget,
     /// Optional template name to use as a base for task fields
     pub template_hint: Option<String>,
     /// Optional target path for template variable substitution
@@ -238,15 +268,16 @@ pub use update::{update_all_tasks, update_task, update_task_without_lock};
 #[cfg(test)]
 mod tests {
     use super::{
-        TaskBuildOptions, TaskUpdateSettings, read_request_from_args_or_reader,
-        resolve_task_build_settings, resolve_task_update_settings,
+        TaskBuildOptions, TaskBuildOutputTarget, TaskUpdateSettings,
+        read_request_from_args_or_reader, resolve_task_build_settings,
+        resolve_task_update_settings,
     };
-    use crate::config;
     use crate::contracts::{
         ClaudePermissionMode, Config, RunnerApprovalMode, RunnerCliConfigRoot,
         RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode,
         RunnerVerbosity, UnsupportedOptionPolicy,
     };
+    use crate::{config, runner};
     use std::collections::BTreeMap;
     use std::io::Cursor;
     use std::path::PathBuf;
@@ -298,6 +329,7 @@ mod tests {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            output: TaskBuildOutputTarget::Terminal,
             template_hint: None,
             template_target: None,
             strict_templates: false,
@@ -342,6 +374,21 @@ mod tests {
         let reader = Cursor::new("   ");
         let err = read_request_from_args_or_reader(&args, false, reader).unwrap_err();
         assert!(err.to_string().contains("Missing request"));
+    }
+
+    #[test]
+    fn task_build_output_target_maps_to_runner_settings() {
+        assert_eq!(
+            TaskBuildOutputTarget::Terminal.output_stream(),
+            runner::OutputStream::Terminal
+        );
+        assert!(TaskBuildOutputTarget::Terminal.output_handler().is_none());
+
+        assert_eq!(
+            TaskBuildOutputTarget::Quiet.output_stream(),
+            runner::OutputStream::HandlerOnly
+        );
+        assert!(TaskBuildOutputTarget::Quiet.output_handler().is_none());
     }
 
     #[test]

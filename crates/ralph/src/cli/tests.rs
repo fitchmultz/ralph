@@ -14,9 +14,19 @@
 //! - Removed flags/subcommands must remain rejected.
 
 use super::{Cli, Command};
+use crate::cli::app_parity::unclassified_human_cli_commands;
 use crate::cli::{machine, queue, run, task};
 use clap::Parser;
 use clap::error::ErrorKind;
+
+#[test]
+fn app_parity_registry_classifies_every_human_cli_root_command() {
+    let missing = unclassified_human_cli_commands();
+    assert!(
+        missing.is_empty(),
+        "new human-facing CLI commands need RalphMac parity registry entries: {missing:?}"
+    );
+}
 
 #[test]
 fn cli_parses_queue_list_smoke() {
@@ -154,6 +164,31 @@ fn cli_parses_machine_run_loop_parallel_default_missing_value() {
                 _ => panic!("expected machine run loop command"),
             },
             _ => panic!("expected machine run command"),
+        },
+        _ => panic!("expected machine command"),
+    }
+}
+
+#[test]
+fn cli_parses_machine_task_build_input() {
+    let cli = Cli::try_parse_from([
+        "ralph",
+        "machine",
+        "task",
+        "build",
+        "--input",
+        "request.json",
+    ])
+    .expect("parse");
+    match cli.command {
+        Command::Machine(args) => match args.command {
+            machine::MachineCommand::Task(args) => match args.command {
+                machine::MachineTaskCommand::Build(args) => {
+                    assert_eq!(args.input.as_deref(), Some("request.json"));
+                }
+                _ => panic!("expected machine task build command"),
+            },
+            _ => panic!("expected machine task command"),
         },
         _ => panic!("expected machine command"),
     }

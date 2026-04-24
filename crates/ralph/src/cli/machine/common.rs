@@ -246,6 +246,10 @@ pub(crate) fn machine_task_mutate_command(dry_run: bool) -> &'static str {
     }
 }
 
+pub(crate) fn machine_task_build_command() -> &'static str {
+    "ralph machine task build --input <PATH>"
+}
+
 pub(crate) fn machine_task_decompose_command(write: bool, suffix: &'static str) -> String {
     if write {
         format!("ralph machine task decompose --write {suffix}")

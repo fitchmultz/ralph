@@ -18,6 +18,7 @@ mod args;
 mod helpers;
 
 pub mod app;
+pub mod app_parity;
 pub mod cleanup;
 pub mod color;
 pub mod completions;

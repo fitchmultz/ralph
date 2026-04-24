@@ -118,9 +118,18 @@ pub struct MachineTaskArgs {
 
 #[derive(Subcommand)]
 pub enum MachineTaskCommand {
+    Build(Box<MachineTaskBuildArgs>),
     Create(MachineTaskCreateArgs),
     Mutate(MachineTaskMutateArgs),
     Decompose(Box<MachineTaskDecomposeArgs>),
+}
+
+#[derive(Args)]
+pub struct MachineTaskBuildArgs {
+    #[arg(long, value_name = "PATH")]
+    pub input: Option<String>,
+    #[command(flatten)]
+    pub agent: agent::AgentArgs,
 }
 
 #[derive(Args)]

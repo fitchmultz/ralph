@@ -28,6 +28,7 @@ fn test_task_build_options_default_values() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        output: task_cmd::TaskBuildOutputTarget::Terminal,
         template_hint: None,
         template_target: None,
         strict_templates: false,
@@ -41,6 +42,10 @@ fn test_task_build_options_default_values() {
     assert_eq!(opts.model_override, Some(Model::Gpt53Codex));
     assert!(opts.reasoning_effort_override.is_none());
     assert!(!opts.force);
+    assert!(matches!(
+        opts.output,
+        task_cmd::TaskBuildOutputTarget::Terminal
+    ));
 }
 
 #[test]
@@ -55,6 +60,7 @@ fn test_task_build_options_with_values() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: true,
         repoprompt_tool_injection: false,
+        output: task_cmd::TaskBuildOutputTarget::Terminal,
         template_hint: None,
         template_target: None,
         strict_templates: false,
@@ -82,6 +88,7 @@ fn test_task_build_options_empty_request_validation() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        output: task_cmd::TaskBuildOutputTarget::Terminal,
         template_hint: None,
         template_target: None,
         strict_templates: false,
@@ -103,6 +110,7 @@ fn test_task_build_options_whitespace_request_validation() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        output: task_cmd::TaskBuildOutputTarget::Terminal,
         template_hint: None,
         template_target: None,
         strict_templates: false,
@@ -135,6 +143,7 @@ fn test_task_build_options_all_runners() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            output: task_cmd::TaskBuildOutputTarget::Terminal,
             template_hint: None,
             template_target: None,
             strict_templates: false,
@@ -164,6 +173,7 @@ fn test_task_build_options_all_models() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            output: task_cmd::TaskBuildOutputTarget::Terminal,
             template_hint: None,
             template_target: None,
             strict_templates: false,
@@ -194,6 +204,7 @@ fn test_task_build_options_all_reasoning_efforts() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            output: task_cmd::TaskBuildOutputTarget::Terminal,
             template_hint: None,
             template_target: None,
             strict_templates: false,

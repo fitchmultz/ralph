@@ -14,8 +14,8 @@
 
 use crate::cli::machine::common::{
     machine_queue_graph_command, machine_queue_undo_dry_run_command,
-    machine_queue_validate_command, machine_run_one_resume_command, machine_task_decompose_command,
-    machine_task_mutate_command,
+    machine_queue_validate_command, machine_run_one_resume_command, machine_task_build_command,
+    machine_task_decompose_command, machine_task_mutate_command,
 };
 use crate::commands::task as task_cmd;
 use crate::contracts::{
@@ -27,6 +27,33 @@ fn step(title: &str, command: &str, detail: &str) -> MachineContinuationAction {
         title: title.to_string(),
         command: command.to_string(),
         detail: detail.to_string(),
+    }
+}
+
+pub(super) fn build_continuation(created_count: usize) -> MachineContinuationSummary {
+    MachineContinuationSummary {
+        headline: "AI Build has created task drafts.".to_string(),
+        detail: format!(
+            "Ralph ran the task-builder prompt and added {created_count} task(s) to the queue."
+        ),
+        blocking: None,
+        next_steps: vec![
+            step(
+                "Review created tasks",
+                machine_queue_graph_command(),
+                "Inspect the new task placement, relationships, estimates, and scope.",
+            ),
+            step(
+                "Run the next task",
+                machine_run_one_resume_command(),
+                "Continue from the updated queue when the task drafts look right.",
+            ),
+            step(
+                "Build another task",
+                machine_task_build_command(),
+                "Use the same machine contract for another guided AI task creation.",
+            ),
+        ],
     }
 }
 

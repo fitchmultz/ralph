@@ -32,6 +32,7 @@ pub const MACHINE_QUEUE_UNDO_VERSION: u32 = 1;
 pub const MACHINE_CONFIG_RESOLVE_VERSION: u32 = 3;
 pub const MACHINE_WORKSPACE_OVERVIEW_VERSION: u32 = 1;
 pub const MACHINE_TASK_CREATE_VERSION: u32 = 1;
+pub const MACHINE_TASK_BUILD_VERSION: u32 = 1;
 pub const MACHINE_TASK_MUTATION_VERSION: u32 = 2;
 pub const MACHINE_GRAPH_READ_VERSION: u32 = 1;
 pub const MACHINE_DASHBOARD_READ_VERSION: u32 = 1;
@@ -264,6 +265,48 @@ pub struct MachineTaskCreateRequest {
 pub struct MachineTaskCreateDocument {
     pub version: u32,
     pub task: Task,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineTaskBuildRequest {
+    pub version: u32,
+    pub request: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scope: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub strict_templates: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_minutes: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineTaskBuildDocument {
+    pub version: u32,
+    pub mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocking: Option<BlockingState>,
+    pub result: MachineTaskBuildResult,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    pub continuation: MachineContinuationSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineTaskBuildResult {
+    pub created_count: usize,
+    #[serde(default)]
+    pub task_ids: Vec<String>,
+    #[serde(default)]
+    pub tasks: Vec<Task>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

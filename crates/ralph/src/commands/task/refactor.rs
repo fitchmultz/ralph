@@ -19,7 +19,7 @@
 //! - File grouping uses test file naming conventions for relationship detection.
 //! - Batch mode determines grouping strategy (Auto, Never, Aggressive).
 
-use super::{BatchMode, TaskBuildOptions, TaskBuildRefactorOptions};
+use super::{BatchMode, TaskBuildOptions, TaskBuildOutputTarget, TaskBuildRefactorOptions};
 use crate::config;
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -111,6 +111,7 @@ pub fn build_refactor_tasks(
                 runner_cli_overrides: opts.runner_cli_overrides.clone(),
                 force: opts.force,
                 repoprompt_tool_injection: opts.repoprompt_tool_injection,
+                output: TaskBuildOutputTarget::Terminal,
                 template_hint: Some("refactor".to_string()),
                 template_target: None,
                 strict_templates: false,

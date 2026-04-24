@@ -20,401 +20,554 @@
  - Task creation runs asynchronously and reports success/failure.
  */
 
-import SwiftUI
 import RalphCore
+import SwiftUI
 
 // MARK: - Creation Mode
 enum TaskCreationMode {
-    case quick     // Title + Priority only
-    case advanced  // All fields
+  case quick
+  case aiBuild
+  case advanced
 }
 
 // MARK: - Template Info
 struct TemplateInfo: Identifiable, Equatable {
-    let id = UUID()
-    let name: String
-    let description: String
-    let icon: String
-    let requiresTarget: Bool
-    let defaultPriority: RalphTaskPriority
-    let defaultTags: [String]
+  let id = UUID()
+  let name: String
+  let description: String
+  let icon: String
+  let requiresTarget: Bool
+  let defaultPriority: RalphTaskPriority
+  let defaultTags: [String]
 }
 
 // MARK: - View
 @MainActor
 struct TaskCreationView: View {
-    private enum AccessibilityID {
-        static let titleField = "task-creation-title-field"
-        static let submitButton = "task-creation-submit-button"
-    }
+  private enum AccessibilityID {
+    static let titleField = "task-creation-title-field"
+    static let submitButton = "task-creation-submit-button"
+  }
 
-    @ObservedObject var workspace: Workspace
-    @Environment(\.dismiss) private var dismiss
+  @ObservedObject var workspace: Workspace
+  @Environment(\.dismiss) private var dismiss
 
-    // MARK: Mode & State
-    @State private var mode: TaskCreationMode = .quick
-    @State private var selectedTemplate: TemplateInfo? = nil
-    @State private var showingTemplatePicker = true // Start with template picker
+  // MARK: Mode & State
+  @State private var mode: TaskCreationMode = .quick
+  @State private var selectedTemplate: TemplateInfo? = nil
+  @State private var showingTemplatePicker = true  // Start with template picker
 
-    // MARK: Task Fields
-    @State private var title = ""
-    @State private var description = ""
-    @State private var priority: RalphTaskPriority = .medium
-    @State private var tags: [String] = []
-    @State private var scope: [String] = []
-    @State private var target: String = "" // For template variables
+  // MARK: Task Fields
+  @State private var title = ""
+  @State private var description = ""
+  @State private var priority: RalphTaskPriority = .medium
+  @State private var tags: [String] = []
+  @State private var scope: [String] = []
+  @State private var target: String = ""  // For template variables
+  @State private var aiRequest = ""
+  @State private var strictTemplates = false
+  @State private var estimatedMinutes: Int?
+  @State private var createdTasks: [RalphTask] = []
 
-    // MARK: UI State
-    @State private var isCreating = false
-    @State private var recoveryError: RecoveryError?
-    @State private var showingRecoverySheet = false
+  // MARK: UI State
+  @State private var isCreating = false
+  @State private var recoveryError: RecoveryError?
+  @State private var showingRecoverySheet = false
 
-    // MARK: Available Templates
-    private let templates: [TemplateInfo] = [
-        TemplateInfo(name: "bug", description: "Bug fix with reproduction steps", icon: "ladybug.fill", requiresTarget: false, defaultPriority: .high, defaultTags: ["bug", "fix"]),
-        TemplateInfo(name: "feature", description: "New feature with design and docs", icon: "star.fill", requiresTarget: false, defaultPriority: .medium, defaultTags: ["feature", "enhancement"]),
-        TemplateInfo(name: "refactor", description: "Code refactoring", icon: "arrow.2.squarepath", requiresTarget: false, defaultPriority: .medium, defaultTags: ["refactor", "cleanup"]),
-        TemplateInfo(name: "test", description: "Test addition or improvement", icon: "checkmark.seal.fill", requiresTarget: false, defaultPriority: .high, defaultTags: ["test", "coverage"]),
-        TemplateInfo(name: "docs", description: "Documentation update", icon: "doc.text.fill", requiresTarget: false, defaultPriority: .low, defaultTags: ["docs", "documentation"]),
-        TemplateInfo(name: "add-tests", description: "Add tests for existing code", icon: "plus.viewfinder", requiresTarget: true, defaultPriority: .high, defaultTags: ["test", "coverage", "quality"]),
-        TemplateInfo(name: "refactor-performance", description: "Optimize performance", icon: "gauge.high", requiresTarget: true, defaultPriority: .medium, defaultTags: ["refactor", "performance", "optimization"]),
-        TemplateInfo(name: "fix-error-handling", description: "Fix error handling", icon: "exclamationmark.triangle.fill", requiresTarget: true, defaultPriority: .high, defaultTags: ["bug", "error-handling", "reliability"]),
-        TemplateInfo(name: "add-docs", description: "Add documentation for file/module", icon: "text.badge.plus", requiresTarget: true, defaultPriority: .low, defaultTags: ["docs", "documentation"]),
-        TemplateInfo(name: "security-audit", description: "Security audit", icon: "lock.shield.fill", requiresTarget: true, defaultPriority: .critical, defaultTags: ["security", "audit", "compliance"]),
-    ]
+  // MARK: Available Templates
+  private let templates: [TemplateInfo] = [
+    TemplateInfo(
+      name: "bug", description: "Bug fix with reproduction steps", icon: "ladybug.fill",
+      requiresTarget: false, defaultPriority: .high, defaultTags: ["bug", "fix"]),
+    TemplateInfo(
+      name: "feature", description: "New feature with design and docs", icon: "star.fill",
+      requiresTarget: false, defaultPriority: .medium, defaultTags: ["feature", "enhancement"]),
+    TemplateInfo(
+      name: "refactor", description: "Code refactoring", icon: "arrow.2.squarepath",
+      requiresTarget: false, defaultPriority: .medium, defaultTags: ["refactor", "cleanup"]),
+    TemplateInfo(
+      name: "test", description: "Test addition or improvement", icon: "checkmark.seal.fill",
+      requiresTarget: false, defaultPriority: .high, defaultTags: ["test", "coverage"]),
+    TemplateInfo(
+      name: "docs", description: "Documentation update", icon: "doc.text.fill",
+      requiresTarget: false, defaultPriority: .low, defaultTags: ["docs", "documentation"]),
+    TemplateInfo(
+      name: "add-tests", description: "Add tests for existing code", icon: "plus.viewfinder",
+      requiresTarget: true, defaultPriority: .high, defaultTags: ["test", "coverage", "quality"]),
+    TemplateInfo(
+      name: "refactor-performance", description: "Optimize performance", icon: "gauge.high",
+      requiresTarget: true, defaultPriority: .medium,
+      defaultTags: ["refactor", "performance", "optimization"]),
+    TemplateInfo(
+      name: "fix-error-handling", description: "Fix error handling",
+      icon: "exclamationmark.triangle.fill", requiresTarget: true, defaultPriority: .high,
+      defaultTags: ["bug", "error-handling", "reliability"]),
+    TemplateInfo(
+      name: "add-docs", description: "Add documentation for file/module", icon: "text.badge.plus",
+      requiresTarget: true, defaultPriority: .low, defaultTags: ["docs", "documentation"]),
+    TemplateInfo(
+      name: "security-audit", description: "Security audit", icon: "lock.shield.fill",
+      requiresTarget: true, defaultPriority: .critical,
+      defaultTags: ["security", "audit", "compliance"]),
+  ]
 
-    var body: some View {
-        NavigationStack {
-            Group {
-                if showingTemplatePicker {
-                    templatePickerView()
-                } else {
-                    taskFormView()
-                }
-            }
-            .navigationTitle(showingTemplatePicker ? "New Task" : "Create Task")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    if showingTemplatePicker {
-                        Button("Cancel") { dismiss() }
-                    } else {
-                        Button("Back") { showingTemplatePicker = true }
-                    }
-                }
-
-                if !showingTemplatePicker {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Create") { createTask() }
-                            .disabled(!canCreate() || isCreating)
-                            .accessibilityIdentifier(AccessibilityID.submitButton)
-                    }
-                }
-            }
-        }
-        .frame(minWidth: 500, minHeight: showingTemplatePicker ? 400 : 600)
-        .sheet(isPresented: $showingRecoverySheet) {
-            if let error = recoveryError {
-                ErrorRecoverySheet(
-                    error: error,
-                    workspace: workspace,
-                    onRetry: {
-                        showingRecoverySheet = false
-                        createTask()
-                    },
-                    onDismiss: {
-                        showingRecoverySheet = false
-                        recoveryError = nil
-                    }
-                )
-            }
-        }
-    }
-
-    // MARK: - Template Picker View
-    @ViewBuilder
-    private func templatePickerView() -> some View {
-        VStack(spacing: 0) {
-            // Mode Toggle
-            Picker("Mode", selection: $mode) {
-                Text("Quick Create").tag(TaskCreationMode.quick)
-                Text("Advanced").tag(TaskCreationMode.advanced)
-            }
-            .pickerStyle(.segmented)
-            .padding()
-            .accessibilityLabel("Creation mode")
-            .accessibilityHint("Choose between quick create or advanced template selection")
-
-            if mode == .quick {
-                quickCreateForm()
-            } else {
-                templateGalleryView()
-            }
-        }
-    }
-
-    // MARK: - Quick Create Form
-    @ViewBuilder
-    private func quickCreateForm() -> some View {
-        Form {
-            Section {
-                TextField("Task title", text: $title)
-                    .font(.title3)
-                    .accessibilityLabel("Task title")
-                    .accessibilityHint("Enter a title for the new task")
-                    .accessibilityIdentifier(AccessibilityID.titleField)
-
-                Picker("Priority", selection: $priority) {
-                    ForEach(RalphTaskPriority.allCases, id: \.self) { p in
-                        HStack {
-                            Circle()
-                                .fill(priorityColor(p))
-                                .frame(width: 8, height: 8)
-                                .accessibilityLabel("Priority: \(p.displayName)")
-                            Text(p.displayName)
-                        }
-                        .tag(p)
-                    }
-                }
-                .accessibilityLabel("Task priority")
-            }
-
-            Section {
-                Button("Create Task") { createTask() }
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
-                    .accessibilityLabel("Create task")
-                    .accessibilityHint("Creates the new task with the specified title and priority")
-                    .accessibilityIdentifier(AccessibilityID.submitButton)
-            }
-        }
-        .formStyle(.grouped)
-        .padding()
-    }
-
-    // MARK: - Template Gallery View
-    @ViewBuilder
-    private func templateGalleryView() -> some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 16) {
-                // "No Template" option
-                templateCard(
-                    name: "Blank",
-                    description: "Start from scratch",
-                    icon: "doc",
-                    requiresTarget: false,
-                    isSelected: selectedTemplate == nil
-                ) {
-                    selectedTemplate = nil
-                    showingTemplatePicker = false
-                }
-
-                // Template cards
-                ForEach(templates) { template in
-                    templateCard(
-                        name: template.name,
-                        description: template.description,
-                        icon: template.icon,
-                        requiresTarget: template.requiresTarget,
-                        isSelected: selectedTemplate?.id == template.id
-                    ) {
-                        selectedTemplate = template
-                        applyTemplate(template)
-                        showingTemplatePicker = false
-                    }
-                }
-            }
-            .padding()
-        }
-    }
-
-    // MARK: - Template Card
-    @ViewBuilder
-    private func templateCard(
-        name: String,
-        description: String,
-        icon: String,
-        requiresTarget: Bool,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: icon)
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-
-                    Spacer()
-
-                    if requiresTarget {
-                        Image(systemName: "text.cursor")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .help("Requires target path")
-                            .accessibilityLabel("Requires target input")
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(name)
-                        .font(.headline)
-
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            .padding()
-            .frame(height: 100)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
-            )
-            .clipShape(.rect(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(name) template")
-        .accessibilityValue(description)
-        .accessibilityHint(requiresTarget ? "Requires a target path to be specified" : "Click to select this template")
-    }
-
-    // MARK: - Task Form View
-    @ViewBuilder
-    private func taskFormView() -> some View {
-        Form {
-            // Template indicator
-            if let template = selectedTemplate {
-                Section {
-                    HStack {
-                        Image(systemName: template.icon)
-                        Text("Using template: \(template.name)")
-                            .font(.caption)
-                        Spacer()
-                    }
-                    .foregroundStyle(.secondary)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Using template: \(template.name)")
-                }
-            }
-
-            // Target input for templates requiring it
-            if selectedTemplate?.requiresTarget == true {
-                Section("Target") {
-                    TextField("File or module path (e.g., src/main.rs)", text: $target)
-                        .accessibilityLabel("Target path")
-                        .accessibilityHint("Required for template variable substitution")
-                    Text("Required for template variable substitution ({{target}}, {{module}}, {{file}})")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // Basic Fields
-            Section("Basic Information") {
-                TextField("Title", text: $title)
-                    .accessibilityLabel("Task title")
-                    .accessibilityIdentifier(AccessibilityID.titleField)
-
-                Picker("Priority", selection: $priority) {
-                    ForEach(RalphTaskPriority.allCases, id: \.self) { p in
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(priorityColor(p))
-                                .frame(width: 8, height: 8)
-                                .accessibilityLabel("Priority: \(p.displayName)")
-                            Text(p.displayName)
-                        }
-                        .tag(p)
-                    }
-                }
-                .accessibilityLabel("Task priority")
-            }
-
-            // Description
-            Section("Description") {
-                TextEditor(text: $description)
-                    .frame(minHeight: 60)
-                    .accessibilityLabel("Task description")
-                    .accessibilityHint("Enter a description for the task")
-            }
-
-            // Tags
-            Section("Tags") {
-                TagEditorView(tags: $tags)
-            }
-
-            // Scope
-            Section("Scope") {
-                StringArrayEditor(items: $scope, placeholder: "Add file path...")
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    // MARK: - Helper Methods
-
-    private func applyTemplate(_ template: TemplateInfo) {
-        priority = template.defaultPriority
-        tags = template.defaultTags
-
-        // Set a placeholder title based on template
-        if template.requiresTarget {
-            title = "\(template.name) for {{target}}"
+  var body: some View {
+    NavigationStack {
+      Group {
+        if showingTemplatePicker {
+          templatePickerView()
         } else {
-            title = ""
+          taskFormView()
         }
+      }
+      .navigationTitle(showingTemplatePicker ? "New Task" : "Create Task")
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          if showingTemplatePicker {
+            Button("Cancel") { dismiss() }
+          } else {
+            Button("Back") { showingTemplatePicker = true }
+          }
+        }
+
+        if !showingTemplatePicker {
+          ToolbarItem(placement: .primaryAction) {
+            Button(mode == .aiBuild ? "Build" : "Create") { submit() }
+              .disabled(!canCreate() || isCreating)
+              .accessibilityIdentifier(AccessibilityID.submitButton)
+          }
+        }
+      }
     }
-
-    private func canCreate() -> Bool {
-        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
-        let hasTargetIfRequired = !(selectedTemplate?.requiresTarget == true && target.trimmingCharacters(in: .whitespaces).isEmpty)
-        return hasTitle && hasTargetIfRequired
+    .frame(minWidth: 500, minHeight: showingTemplatePicker ? 400 : 600)
+    .sheet(isPresented: $showingRecoverySheet) {
+      if let error = recoveryError {
+        ErrorRecoverySheet(
+          error: error,
+          workspace: workspace,
+          onRetry: {
+            showingRecoverySheet = false
+            createTask()
+          },
+          onDismiss: {
+            showingRecoverySheet = false
+            recoveryError = nil
+          }
+        )
+      }
     }
+  }
 
-    private func createTask() {
-        isCreating = true
+  // MARK: - Template Picker View
+  @ViewBuilder
+  private func templatePickerView() -> some View {
+    VStack(spacing: 0) {
+      // Mode Toggle
+      Picker("Mode", selection: $mode) {
+        Text("Manual").tag(TaskCreationMode.quick)
+        Text("AI Build").tag(TaskCreationMode.aiBuild)
+        Text("Advanced").tag(TaskCreationMode.advanced)
+      }
+      .pickerStyle(.segmented)
+      .padding()
+      .accessibilityLabel("Creation mode")
+      .accessibilityHint("Choose between quick create or advanced template selection")
 
-        Task { @MainActor in
-            do {
-                try await workspace.createTask(
-                    title: title,
-                    description: description.isEmpty ? nil : description,
-                    priority: priority,
-                    tags: tags,
-                    scope: scope.isEmpty ? nil : scope,
-                    template: selectedTemplate?.name,
-                    target: target.isEmpty ? nil : target
-                )
+      if mode == .quick {
+        quickCreateForm()
+      } else if mode == .aiBuild {
+        aiBuildForm()
+      } else {
+        templateGalleryView()
+      }
+    }
+  }
 
-                isCreating = false
-                dismiss()
-            } catch {
-                isCreating = false
-                let classifiedError = RecoveryError.classify(
-                    error: error,
-                    operation: "createTask",
-                    workspaceURL: workspace.identityState.workingDirectoryURL
-                )
-                recoveryError = classifiedError
-                showingRecoverySheet = true
+  // MARK: - AI Build Form
+  @ViewBuilder
+  private func aiBuildForm() -> some View {
+    Form {
+      Section("Request") {
+        TextEditor(text: $aiRequest)
+          .font(.body)
+          .frame(minHeight: 120)
+          .accessibilityLabel("AI build request")
+          .accessibilityHint("Describe the task or task set Ralph should create")
+
+        if !createdTasks.isEmpty {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Created \(createdTasks.count) task\(createdTasks.count == 1 ? "" : "s")")
+              .font(.headline)
+            ForEach(createdTasks.prefix(5), id: \.id) { task in
+              VStack(alignment: .leading, spacing: 2) {
+                Text("\(task.id) \(task.title)")
+                  .font(.subheadline)
+                Text(task.priority.displayName)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+              }
             }
+          }
+          .padding(.vertical, 4)
         }
-    }
+      }
 
-    private func priorityColor(_ priority: RalphTaskPriority) -> Color {
-        switch priority {
-        case .critical: return .red
-        case .high: return .orange
-        case .medium: return .yellow
-        case .low: return .gray
+      Section("Guidance") {
+        TagEditorView(tags: $tags)
+        StringArrayEditor(items: $scope, placeholder: "Add file path or area...")
+        TextField("Target path", text: $target)
+          .accessibilityLabel("Template target path")
+        TextField("Estimate", value: $estimatedMinutes, format: .number)
+          .accessibilityLabel("Estimated minutes")
+        Toggle("Strict template validation", isOn: $strictTemplates)
+          .accessibilityLabel("Strict template validation")
+      }
+
+      Section("Template") {
+        Picker(
+          "Template",
+          selection: Binding(
+            get: { selectedTemplate?.name ?? "none" },
+            set: { value in
+              if value == "none" {
+                selectedTemplate = nil
+              } else {
+                selectedTemplate = templates.first { $0.name == value }
+              }
+            }
+          )
+        ) {
+          Text("None").tag("none")
+          ForEach(templates) { template in
+            Text(template.name).tag(template.name)
+          }
         }
+      }
+
+      Section {
+        Button {
+          buildTask()
+        } label: {
+          if isCreating {
+            ProgressView()
+          } else {
+            Label("Build with AI", systemImage: "sparkles")
+          }
+        }
+        .disabled(aiRequest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreating)
+        .accessibilityIdentifier(AccessibilityID.submitButton)
+      }
     }
+    .formStyle(.grouped)
+    .padding()
+  }
+
+  // MARK: - Quick Create Form
+  @ViewBuilder
+  private func quickCreateForm() -> some View {
+    Form {
+      Section {
+        TextField("Task title", text: $title)
+          .font(.title3)
+          .accessibilityLabel("Task title")
+          .accessibilityHint("Enter a title for the new task")
+          .accessibilityIdentifier(AccessibilityID.titleField)
+
+        Picker("Priority", selection: $priority) {
+          ForEach(RalphTaskPriority.allCases, id: \.self) { p in
+            HStack {
+              Circle()
+                .fill(priorityColor(p))
+                .frame(width: 8, height: 8)
+                .accessibilityLabel("Priority: \(p.displayName)")
+              Text(p.displayName)
+            }
+            .tag(p)
+          }
+        }
+        .accessibilityLabel("Task priority")
+      }
+
+      Section {
+        Button("Create Task") { createTask() }
+          .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
+          .accessibilityLabel("Create task")
+          .accessibilityHint("Creates the new task with the specified title and priority")
+          .accessibilityIdentifier(AccessibilityID.submitButton)
+      }
+    }
+    .formStyle(.grouped)
+    .padding()
+  }
+
+  // MARK: - Template Gallery View
+  @ViewBuilder
+  private func templateGalleryView() -> some View {
+    ScrollView {
+      LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 16) {
+        // "No Template" option
+        templateCard(
+          name: "Blank",
+          description: "Start from scratch",
+          icon: "doc",
+          requiresTarget: false,
+          isSelected: selectedTemplate == nil
+        ) {
+          selectedTemplate = nil
+          showingTemplatePicker = false
+        }
+
+        // Template cards
+        ForEach(templates) { template in
+          templateCard(
+            name: template.name,
+            description: template.description,
+            icon: template.icon,
+            requiresTarget: template.requiresTarget,
+            isSelected: selectedTemplate?.id == template.id
+          ) {
+            selectedTemplate = template
+            applyTemplate(template)
+            showingTemplatePicker = false
+          }
+        }
+      }
+      .padding()
+    }
+  }
+
+  // MARK: - Template Card
+  @ViewBuilder
+  private func templateCard(
+    name: String,
+    description: String,
+    icon: String,
+    requiresTarget: Bool,
+    isSelected: Bool,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      VStack(alignment: .leading, spacing: 12) {
+        HStack {
+          Image(systemName: icon)
+            .font(.title2)
+            .foregroundStyle(Color.accentColor)
+            .accessibilityHidden(true)
+
+          Spacer()
+
+          if requiresTarget {
+            Image(systemName: "text.cursor")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .help("Requires target path")
+              .accessibilityLabel("Requires target input")
+          }
+        }
+
+        VStack(alignment: .leading, spacing: 4) {
+          Text(name)
+            .font(.headline)
+
+          Text(description)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+      }
+      .padding()
+      .frame(height: 100)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(isSelected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05))
+      .overlay(
+        RoundedRectangle(cornerRadius: 10)
+          .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+      )
+      .clipShape(.rect(cornerRadius: 10))
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel("\(name) template")
+    .accessibilityValue(description)
+    .accessibilityHint(
+      requiresTarget ? "Requires a target path to be specified" : "Click to select this template")
+  }
+
+  // MARK: - Task Form View
+  @ViewBuilder
+  private func taskFormView() -> some View {
+    Form {
+      // Template indicator
+      if let template = selectedTemplate {
+        Section {
+          HStack {
+            Image(systemName: template.icon)
+            Text("Using template: \(template.name)")
+              .font(.caption)
+            Spacer()
+          }
+          .foregroundStyle(.secondary)
+          .accessibilityElement(children: .combine)
+          .accessibilityLabel("Using template: \(template.name)")
+        }
+      }
+
+      // Target input for templates requiring it
+      if selectedTemplate?.requiresTarget == true {
+        Section("Target") {
+          TextField("File or module path (e.g., src/main.rs)", text: $target)
+            .accessibilityLabel("Target path")
+            .accessibilityHint("Required for template variable substitution")
+          Text("Required for template variable substitution ({{target}}, {{module}}, {{file}})")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+
+      // Basic Fields
+      Section("Basic Information") {
+        TextField("Title", text: $title)
+          .accessibilityLabel("Task title")
+          .accessibilityIdentifier(AccessibilityID.titleField)
+
+        Picker("Priority", selection: $priority) {
+          ForEach(RalphTaskPriority.allCases, id: \.self) { p in
+            HStack(spacing: 6) {
+              Circle()
+                .fill(priorityColor(p))
+                .frame(width: 8, height: 8)
+                .accessibilityLabel("Priority: \(p.displayName)")
+              Text(p.displayName)
+            }
+            .tag(p)
+          }
+        }
+        .accessibilityLabel("Task priority")
+      }
+
+      // Description
+      Section("Description") {
+        TextEditor(text: $description)
+          .frame(minHeight: 60)
+          .accessibilityLabel("Task description")
+          .accessibilityHint("Enter a description for the task")
+      }
+
+      // Tags
+      Section("Tags") {
+        TagEditorView(tags: $tags)
+      }
+
+      // Scope
+      Section("Scope") {
+        StringArrayEditor(items: $scope, placeholder: "Add file path...")
+      }
+    }
+    .formStyle(.grouped)
+  }
+
+  // MARK: - Helper Methods
+
+  private func applyTemplate(_ template: TemplateInfo) {
+    priority = template.defaultPriority
+    tags = template.defaultTags
+
+    // Set a placeholder title based on template
+    if template.requiresTarget {
+      title = "\(template.name) for {{target}}"
+    } else {
+      title = ""
+    }
+  }
+
+  private func canCreate() -> Bool {
+    if mode == .aiBuild {
+      return !aiRequest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+    let hasTargetIfRequired =
+      !(selectedTemplate?.requiresTarget == true
+      && target.trimmingCharacters(in: .whitespaces).isEmpty)
+    return hasTitle && hasTargetIfRequired
+  }
+
+  private func submit() {
+    if mode == .aiBuild {
+      buildTask()
+    } else {
+      createTask()
+    }
+  }
+
+  private func buildTask() {
+    isCreating = true
+
+    Task { @MainActor in
+      do {
+        createdTasks = try await workspace.buildTask(
+          request: aiRequest,
+          tags: tags,
+          scope: scope,
+          template: selectedTemplate?.name,
+          target: target.isEmpty ? nil : target,
+          strictTemplates: strictTemplates,
+          estimatedMinutes: estimatedMinutes
+        )
+
+        isCreating = false
+      } catch {
+        isCreating = false
+        let classifiedError = RecoveryError.classify(
+          error: error,
+          operation: "buildTask",
+          workspaceURL: workspace.identityState.workingDirectoryURL
+        )
+        recoveryError = classifiedError
+        showingRecoverySheet = true
+      }
+    }
+  }
+
+  private func createTask() {
+    isCreating = true
+
+    Task { @MainActor in
+      do {
+        try await workspace.createTask(
+          title: title,
+          description: description.isEmpty ? nil : description,
+          priority: priority,
+          tags: tags,
+          scope: scope.isEmpty ? nil : scope,
+          template: selectedTemplate?.name,
+          target: target.isEmpty ? nil : target
+        )
+
+        isCreating = false
+        dismiss()
+      } catch {
+        isCreating = false
+        let classifiedError = RecoveryError.classify(
+          error: error,
+          operation: "createTask",
+          workspaceURL: workspace.identityState.workingDirectoryURL
+        )
+        recoveryError = classifiedError
+        showingRecoverySheet = true
+      }
+    }
+  }
+
+  private func priorityColor(_ priority: RalphTaskPriority) -> Color {
+    switch priority {
+    case .critical: return .red
+    case .high: return .orange
+    case .medium: return .yellow
+    case .low: return .gray
+    }
+  }
 }
 
 // MARK: - Preview
 #Preview {
-    TaskCreationView(workspace: PreviewWorkspaceSupport.makeWorkspace(label: "task-creation"))
+  TaskCreationView(workspace: PreviewWorkspaceSupport.makeWorkspace(label: "task-creation"))
 }

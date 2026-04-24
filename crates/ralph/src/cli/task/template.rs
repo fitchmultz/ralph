@@ -110,6 +110,7 @@ pub fn handle(resolved: &config::Resolved, args: &TaskTemplateArgs) -> Result<()
                         build_args.repo_prompt,
                         resolved,
                     ),
+                    output: task_cmd::TaskBuildOutputTarget::Terminal,
                     template_hint: Some(build_args.template.clone()),
                     template_target: build_args.target.clone(),
                     strict_templates: build_args.strict_templates,
