@@ -1,6 +1,9 @@
 /**
  MenuBarContentView
 
+ Purpose:
+ - Render the menu bar dropdown content.
+
  Responsibilities:
  - Render the menu bar dropdown content.
  - Display current/next task information.
@@ -12,6 +15,9 @@
  Does not handle:
  - Menu bar icon rendering (see MenuBarIconView).
  - Direct business logic (delegates to Workspace/MenuBarManager).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Observes WorkspaceManager.shared and MenuBarManager.shared.

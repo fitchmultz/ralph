@@ -1,4 +1,20 @@
 //! Phase 2 (implementation) execution.
+//!
+//! Purpose:
+//! - Phase 2 (implementation) execution.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::shared::{execute_runner_pass, run_ci_gate_with_continue};
 use super::{PhaseInvocation, PhaseType, PostRunMode, phase_session_id_for_runner};

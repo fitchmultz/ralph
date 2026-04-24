@@ -1,12 +1,21 @@
 //! Kimi-style stream event extraction.
 //!
+//! Purpose:
+//! - Kimi-style stream event extraction.
+//!
 //! Responsibilities:
 //! - Render role-based assistant content arrays with text and think entries.
 //! - Render deferred tool calls carried in `tool_calls`.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Claude/Codex event typing.
 //! - Cursor nested tool call envelopes.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::outpututil;
 use serde_json::Value as JsonValue;

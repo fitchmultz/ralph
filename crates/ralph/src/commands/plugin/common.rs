@@ -1,5 +1,8 @@
 //! Shared helpers for plugin commands.
 //!
+//! Purpose:
+//! - Shared helpers for plugin commands.
+//!
 //! Responsibilities:
 //! - Resolve plugin installation roots from repo/config scope choices.
 //! - Emit shared operator guidance reused by multiple plugin commands.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin manifest validation.
 //! - Plugin file creation, copying, or deletion workflows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Project-scope plugins live under `.ralph/plugins`.

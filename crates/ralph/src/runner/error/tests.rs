@@ -1,15 +1,22 @@
 //! Runner error regression tests.
 //!
+//! Purpose:
+//! - Runner error regression tests.
+//!
 //! Responsibilities:
 //! - Verify runner error formatting remains redacted and user-facing context stays intact.
 //! - Cover retry classification heuristics for textual, IO, and fatal failures.
 //! - Lock down helper constructors used by runner execution paths.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Runner subprocess integration or command assembly.
 //! - Model validation or provider-specific invocation flows.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Tests exercise the parent `runner::error` module through `super::*`.
 //! - Redaction-sensitive strings must never leak into formatted messages.
 

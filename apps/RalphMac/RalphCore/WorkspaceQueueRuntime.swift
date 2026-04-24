@@ -1,6 +1,9 @@
 /**
  WorkspaceQueueRuntime
 
+ Purpose:
+ - Own the workspace queue watcher and consume its event stream.
+
  Responsibilities:
  - Own the workspace queue watcher and consume its event stream.
  - Serialize watcher-driven queue/config refresh work for one workspace.
@@ -10,6 +13,9 @@
  - Manual CLI-driven queue loads.
  - Task filtering, sorting, or presentation.
  - Run-loop lifecycle beyond refreshing resolved runner configuration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - This runtime is workspace-local and must stay confined to one workspace instance.

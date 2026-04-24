@@ -1,5 +1,8 @@
 //! Ralph CLI facade.
 //!
+//! Purpose:
+//! - Ralph CLI facade.
+//!
 //! Responsibilities:
 //! - Expose the top-level Clap surface for the `ralph` binary.
 //! - Re-export shared CLI helpers used across subcommand modules.
@@ -9,6 +12,10 @@
 //! - Command execution logic beyond delegated helper entrypoints.
 //! - Queue persistence or runner execution internals.
 //! - Large parse-regression suites beyond delegated test modules.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Top-level clap types remain stable re-exports for the rest of the crate.

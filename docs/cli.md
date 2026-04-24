@@ -1,4 +1,9 @@
 # CLI Reference
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 This page documents Ralph's current command surface. Default `ralph --help` shows the core workflow only; use `ralph help-all` or `ralph <command> --help` to reveal advanced and experimental surfaces.
 

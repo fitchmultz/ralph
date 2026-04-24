@@ -1,5 +1,8 @@
 //! Resume fallback coverage for supervision continue sessions.
 //!
+//! Purpose:
+//! - Resume fallback coverage for supervision continue sessions.
+//!
 //! Responsibilities:
 //! - Verify invalid or missing session identifiers fall back to fresh runner invocations.
 //! - Cover runner-specific resume semantics for Opencode, Pi, Gemini, and Claude.
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - Post-run supervision or git/queue mutations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Fake runner scripts emit machine-readable output matching each runner contract.

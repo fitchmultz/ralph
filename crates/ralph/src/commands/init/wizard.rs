@@ -1,5 +1,8 @@
 //! Interactive onboarding wizard for Ralph initialization.
 //!
+//! Purpose:
+//! - Interactive onboarding wizard for Ralph initialization.
+//!
 //! Responsibilities:
 //! - Display welcome screen and collect user preferences.
 //! - Guide users through runner, model, and phase selection.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - File creation (see `super::writers`).
 //! - CLI argument parsing (handled by CLI layer).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Wizard is only run in interactive TTY environments.

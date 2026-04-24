@@ -1,14 +1,21 @@
 //! Queue continuation helper builders shared across machine queue documents.
 //!
+//! Purpose:
+//! - Queue continuation helper builders shared across machine queue documents.
+//!
 //! Responsibilities:
 //! - Build stable blocking and continuation payload fragments for validate/repair flows.
 //! - Keep command/action text centralized so machine documents stay consistent.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue IO, locking, repair execution, or undo restoration.
 //! - CLI routing or JSON serialization.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Returned actions remain deterministic and version-safe for machine consumers.
 //! - Helpers stay focused on shared document text, not business logic branching elsewhere.
 

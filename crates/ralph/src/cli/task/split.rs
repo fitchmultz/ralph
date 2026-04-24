@@ -1,5 +1,8 @@
 //! Task splitting command handler for `ralph task split` subcommand.
 //!
+//! Purpose:
+//! - Task splitting command handler for `ralph task split` subcommand.
+//!
 //! Responsibilities:
 //! - Handle `split` command (break down a task into child tasks).
 //! - Support automatic plan distribution across child tasks.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue persistence and locking semantics (see `crate::queue` and `crate::lock`).
 //! - Task cloning for non-split scenarios (see `clone.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Source task must exist in queue (not done archive).

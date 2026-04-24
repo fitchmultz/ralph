@@ -1,14 +1,21 @@
 //! Shared validation helpers for queue operations.
 //!
+//! Purpose:
+//! - Shared validation helpers for queue operations.
+//!
 //! Responsibilities:
 //! - Validate common queue inputs (task IDs, custom fields, timestamps).
 //! - Provide consistent, actionable error context for queue operations.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Reading or writing queue files.
 //! - Validating full task schemas (see queue schema validation).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers pass raw user input that may need trimming.
 //! - Errors are surfaced directly to CLI/GUI callers.
 

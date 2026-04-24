@@ -1,10 +1,17 @@
 //! CLI argument validation coverage for queue sorting commands.
 //!
+//! Purpose:
+//! - CLI argument validation coverage for queue sorting commands.
+//!
 //! Responsibilities:
 //! - Verify `queue list` and `queue sort` reject unsupported `--sort-by` values.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Successful ordering semantics or dry-run behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Clap errors should mention the invalid value and representative valid choices.

@@ -1,4 +1,9 @@
 # Dependencies System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 Ralph's dependency system provides powerful task relationship management, enabling you to control execution order, visualize workflows, and analyze critical paths.
 

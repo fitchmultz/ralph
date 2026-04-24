@@ -4,8 +4,20 @@
 //! - Centralize "do the work" command implementations separate from the CLI surface (`crate::cli`).
 //! - Mirror the CLI structure for easier navigation and maintenance.
 //!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Non-goals:
 //! - This module does not define clap argument parsing; see `crate::cli` for that.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 pub mod app;
 pub mod cleanup;

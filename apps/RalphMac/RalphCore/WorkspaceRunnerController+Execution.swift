@@ -1,6 +1,9 @@
 /**
  WorkspaceRunnerController+Execution
 
+ Purpose:
+ - Schedule workspace run tasks and own subprocess finalization.
+
  Responsibilities:
  - Schedule workspace run tasks and own subprocess finalization.
  - Resolve next-task selection for app-launched one-shot runs.
@@ -10,6 +13,12 @@
  Does not handle:
  - Machine output decoding details.
  - Queue watching.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

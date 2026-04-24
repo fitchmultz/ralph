@@ -1,5 +1,8 @@
 //! Interactive AGENTS.md wizard facade.
 //!
+//! Purpose:
+//! - Interactive AGENTS.md wizard facade.
+//!
 //! Responsibilities:
 //! - Re-export the prompt, init, and update helpers used by context workflows.
 //! - Keep the root wizard module thin while delegating behavior to focused companions.
@@ -8,6 +11,10 @@
 //! - Prompt backend implementations.
 //! - Init/update wizard step orchestration details.
 //! - Wizard-specific test scenarios.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Wizard callers run in interactive TTY environments enforced by the CLI/workflow layer.

@@ -1,5 +1,8 @@
 //! Contract tests for `ralph run` CLI override behavior.
 //!
+//! Purpose:
+//! - Contract tests for `ralph run` CLI override behavior.
+//!
 //! Responsibilities:
 //! - Validate CLI override parsing for runner/model/effort and repo-prompt flags.
 //! - Guard against regressions in accepted values and aliases.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Full command execution semantics (NoTodo behavior is enough for parsing).
 //! - Prompt rendering or RepoPrompt injection behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The Ralph binary is runnable in a temporary initialized repo.

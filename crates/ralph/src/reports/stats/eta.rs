@@ -1,5 +1,8 @@
 //! Execution-history ETA helpers for stats reports.
 //!
+//! Purpose:
+//! - Execution-history ETA helpers for stats reports.
+//!
 //! Responsibilities:
 //! - Resolve runner/model settings for a stats report ETA lookup.
 //! - Read ETA history samples from cache and convert them into report output.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue summary or breakdown calculation.
 //! - Text or JSON rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - ETA remains optional when there are no samples for the resolved runner/model/phases key.

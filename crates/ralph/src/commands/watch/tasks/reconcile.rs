@@ -1,5 +1,8 @@
 //! Watch-task reconciliation helpers.
 //!
+//! Purpose:
+//! - Watch-task reconciliation helpers.
+//!
 //! Responsibilities:
 //! - Match detected comments against active watch tasks.
 //! - Upgrade legacy structured metadata when the same comment still exists.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Task construction for new comments.
 //! - Watch-loop or file-watching orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Title or note text is never used for deduplication.

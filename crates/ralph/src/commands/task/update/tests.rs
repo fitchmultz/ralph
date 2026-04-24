@@ -1,5 +1,8 @@
 //! Task update tests.
 //!
+//! Purpose:
+//! - Task update tests.
+//!
 //! Responsibilities:
 //! - Verify queue-backup restore behavior for parse, validation, and save flows.
 //! - Exercise update-state helpers without invoking external runners.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - End-to-end runner execution.
 //! - CLI formatting assertions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Test queues use local temp directories and repo-scoped `.ralph` files.

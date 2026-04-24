@@ -1,11 +1,18 @@
 //! Lock test helpers shared across integration tests.
 //!
+//! Purpose:
+//! - Lock test helpers shared across integration tests.
+//!
 //! Responsibilities:
 //! - Provide short-lived process utilities for lock-related tests.
 //!
 //! Not handled here:
 //! - Lock acquisition logic or filesystem operations.
 //! - Assertions about lock behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Spawns the current test binary with `--help` and waits for exit.

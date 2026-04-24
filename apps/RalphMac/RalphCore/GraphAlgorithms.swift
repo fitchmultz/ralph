@@ -1,6 +1,9 @@
 /**
  GraphAlgorithms
 
+ Purpose:
+ - Provide graph algorithms for dependency analysis (cycle detection, etc.).
+
  Responsibilities:
  - Provide graph algorithms for dependency analysis (cycle detection, etc.).
  - Detect circular dependencies using path-aware DFS from each node.
@@ -9,6 +12,9 @@
  Does not handle:
  - UI rendering or visualization (handled by DependencyGraphView).
  - Direct graph data fetching (handled by Workspace).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Edge types: dependency and blocks participate in cycle detection.

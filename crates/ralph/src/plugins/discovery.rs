@@ -1,5 +1,8 @@
 //! Plugin discovery (global + project).
 //!
+//! Purpose:
+//! - Plugin discovery (global + project).
+//!
 //! Responsibilities:
 //! - Locate plugin manifests in well-known directories.
 //! - Apply precedence: project overrides global by plugin id.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Enable/disable decisions (see `registry`).
 //! - Any plugin execution.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

@@ -1,5 +1,8 @@
 //! Lock owner metadata.
 //!
+//! Purpose:
+//! - Lock owner metadata.
+//!
 //! Responsibilities:
 //! - Define lock owner metadata and parse/render helpers.
 //! - Read and write owner files for lock directories.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Lock acquisition policy or stale-lock decisions.
 //! - PID liveness detection.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Owner files are small text blobs with one `key: value` pair per line.

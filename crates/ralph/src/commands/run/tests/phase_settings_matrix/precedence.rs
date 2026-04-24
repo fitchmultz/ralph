@@ -1,5 +1,8 @@
 //! Precedence-chain coverage for per-phase settings resolution.
 //!
+//! Purpose:
+//! - Precedence-chain coverage for per-phase settings resolution.
+//!
 //! Responsibilities:
 //! - Verify CLI, task, config, and code-default precedence for phase settings.
 //! - Keep override ordering assertions localized to one matrix-focused module.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Model defaulting details.
 //! - Validation-error or warning-specific coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Higher-precedence override layers must win without changing untouched phases.

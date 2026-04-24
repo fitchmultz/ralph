@@ -1,5 +1,8 @@
 //! Shared publish-mode, filtering, and queue lookup helpers for `ralph queue issue`.
 //!
+//! Purpose:
+//! - Shared publish-mode, filtering, and queue lookup helpers for `ralph queue issue`.
+//!
 //! Responsibilities:
 //! - Define internal publish result/filter/summary types.
 //! - Parse and validate bulk publish filters.
@@ -9,6 +12,10 @@
 //! - GitHub issue creation/update side effects.
 //! - Interactive prompt rendering.
 //! - Clap type definitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Status filters default to the established non-draft publishable statuses.

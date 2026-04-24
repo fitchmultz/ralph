@@ -1,5 +1,8 @@
 //! Prompt abstractions for the AGENTS.md wizard.
 //!
+//! Purpose:
+//! - Prompt abstractions for the AGENTS.md wizard.
+//!
 //! Responsibilities:
 //! - Define the prompt operations required by the init and update wizards.
 //! - Provide the dialoguer-backed interactive implementation.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Scripted test prompt playback.
 //! - Wizard step orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Prompt failures are surfaced with prompt-specific context.

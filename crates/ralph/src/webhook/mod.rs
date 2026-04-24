@@ -1,5 +1,8 @@
 //! Asynchronous webhook notification system with bounded queue.
 //!
+//! Purpose:
+//! - Asynchronous webhook notification system with bounded queue.
+//!
 //! Responsibilities:
 //! - Enqueue webhook events to a background worker (non-blocking).
 //! - Background worker handles HTTP delivery with retries.
@@ -7,11 +10,15 @@
 //! - Generate HMAC-SHA256 signatures for webhook verification.
 //! - Expose delivery diagnostics and bounded replay controls for failed events.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Webhook endpoint management or registration.
 //! - UI mode detection (callers should suppress if desired).
 //! - Response processing beyond HTTP status check.
 //! - Exactly-once delivery guarantees.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Webhook failures are logged but never fail the calling operation.

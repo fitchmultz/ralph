@@ -1,5 +1,8 @@
 //! Run-oriented machine command handlers.
 //!
+//! Purpose:
+//! - Run-oriented machine command handlers.
+//!
 //! Responsibilities:
 //! - Implement `ralph machine run ...` operations.
 //! - Emit NDJSON run events and final machine run summaries.
@@ -9,6 +12,10 @@
 //! - Queue/task/config command routing.
 //! - Clap argument definitions.
 //! - Human-facing CLI rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine run streams stay NDJSON-only.

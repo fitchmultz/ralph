@@ -1,5 +1,8 @@
 //! PRD workflow orchestration.
 //!
+//! Purpose:
+//! - PRD workflow orchestration.
+//!
 //! Responsibilities:
 //! - Read PRD files, parse them, generate tasks, and persist or preview results.
 //! - Keep queue lock/load/save behavior separate from parsing and generation logic.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CLI parsing.
 //! - Low-level markdown parsing details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dry-runs never mutate queue state.

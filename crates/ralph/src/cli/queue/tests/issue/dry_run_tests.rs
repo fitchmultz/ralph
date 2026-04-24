@@ -1,5 +1,8 @@
 //! Dry-run and preview-path queue issue tests.
 //!
+//! Purpose:
+//! - Dry-run and preview-path queue issue tests.
+//!
 //! Responsibilities:
 //! - Verify single-task preview succeeds without mutating the queue.
 //! - Verify publish-many filtering succeeds in preview mode.
@@ -9,6 +12,10 @@
 //! - Execute-mode GitHub create/update behavior.
 //! - Failure-path coverage unrelated to preview mode.
 //! - Fake `gh` executable definitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview-mode tests do not depend on persisted GitHub metadata changes.

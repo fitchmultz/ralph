@@ -1,10 +1,22 @@
 //! Tests for parallel integration helpers.
 //!
+//! Purpose:
+//! - Tests for parallel integration helpers.
+//!
 //! Responsibilities:
 //! - Cover integration config, prompt rendering, compliance helpers, and marker persistence.
 //! - Keep validation-focused tests separate from production orchestration code.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
-use super::bookkeeping::finalize_bookkeeping_and_push;
+use super::bookkeeping::{finalize_bookkeeping_and_push, rebuild_bookkeeping_from_target};
 use super::*;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::runutil::FixedBackoffSchedule;
@@ -503,6 +515,62 @@ fn machine_bookkeeping_applies_parallel_followup_proposal_before_push() -> anyho
     assert_eq!(remote_queue.tasks[0].relates_to, vec!["RQ-0001"]);
     assert_eq!(remote_queue.tasks[1].depends_on, vec!["RQ-0002"]);
     assert!(!crate::queue::default_followups_path(&worker, "RQ-0001").exists());
+    Ok(())
+}
+
+#[test]
+fn machine_bookkeeping_keeps_followup_proposal_until_push_succeeds() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let remote = temp.path().join("remote.git");
+    std::fs::create_dir_all(&remote)?;
+    git_test::init_bare_repo(&remote)?;
+
+    let seed = temp.path().join("seed");
+    std::fs::create_dir_all(&seed)?;
+    git_test::init_repo(&seed)?;
+    git_test::add_remote(&seed, "origin", &remote)?;
+
+    let mut source = make_task("RQ-0001", TaskStatus::Todo);
+    source.request = Some("Audit docs and create follow-up work".to_string());
+    crate::queue::save_queue(
+        &seed.join(".ralph/queue.jsonc"),
+        &QueueFile {
+            version: 1,
+            tasks: vec![source],
+        },
+    )?;
+    crate::queue::save_queue(&seed.join(".ralph/done.jsonc"), &QueueFile::default())?;
+    std::fs::write(seed.join("README.md"), "base\n")?;
+    git_test::commit_all(&seed, "seed queue")?;
+    let branch = git_test::git_output(&seed, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    git_test::push_branch(&seed, &branch)?;
+    git_test::git_run(
+        &remote,
+        &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")],
+    )?;
+
+    let worker = temp.path().join("worker");
+    git_test::clone_repo(&remote, &worker)?;
+    git_test::configure_user(&worker)?;
+    let proposal_path = write_parallel_followups(&worker, "RQ-0001", valid_parallel_followups())?;
+
+    let resolved = crate::config::Resolved {
+        config: crate::contracts::Config::default(),
+        repo_root: worker.clone(),
+        queue_path: worker.join(".ralph/queue.jsonc"),
+        done_path: worker.join(".ralph/done.jsonc"),
+        id_prefix: "RQ".to_string(),
+        id_width: 4,
+        global_config_path: None,
+        project_config_path: None,
+    };
+
+    let report = rebuild_bookkeeping_from_target(&resolved, "RQ-0001", &branch)?;
+
+    assert!(report.is_some());
+    assert!(proposal_path.exists());
+    let queue = crate::queue::load_queue(&resolved.queue_path)?;
+    assert_eq!(task_ids(&queue), vec!["RQ-0002", "RQ-0003"]);
     Ok(())
 }
 

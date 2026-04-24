@@ -1,5 +1,8 @@
 //! RepoPrompt mode and flag resolution.
 //!
+//! Purpose:
+//! - RepoPrompt mode and flag resolution.
+//!
 //! Responsibilities:
 //! - Define RepoPromptMode enum with clap ValueEnum support.
 //! - Define RepopromptFlags struct for resolved flag state.
@@ -9,6 +12,10 @@
 //! - CLI argument struct definitions (see `super::args`).
 //! - Override resolution logic (see `super::resolve`).
 //! - Runner/model parsing (see `crate::runner`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - RepoPromptMode::Tools enables tool injection without plan requirement.

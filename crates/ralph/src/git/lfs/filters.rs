@@ -1,11 +1,18 @@
 //! Git LFS filter validation.
 //!
+//! Purpose:
+//! - Git LFS filter validation.
+//!
 //! Responsibilities:
 //! - Validate `filter.lfs.smudge` and `filter.lfs.clean` git config entries.
 //! - Normalize missing-key cases into misconfiguration instead of hard failure.
 //!
 //! Not handled here:
 //! - `git lfs status` parsing or pointer validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `git config --get` exit code `1` with empty stderr indicates a missing config key.

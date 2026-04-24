@@ -1,11 +1,18 @@
 //! Doctor auto-fix behavior tests.
 //!
+//! Purpose:
+//! - Doctor auto-fix behavior tests.
+//!
 //! Responsibilities:
 //! - Verify doctor reports and repairs confirmed stale queue locks when requested.
 //! - Verify queue repair behavior for invalid repo state.
 //!
 //! Not handled here:
 //! - Human-readable baseline diagnostics unrelated to auto-fix.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests start from seeded doctor fixtures, then inject broken state explicitly.

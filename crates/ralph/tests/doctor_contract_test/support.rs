@@ -1,5 +1,8 @@
 //! Shared setup helpers for `doctor_contract_test`.
 //!
+//! Purpose:
+//! - Shared setup helpers for `doctor_contract_test`.
+//!
 //! Responsibilities:
 //! - Create isolated git repositories for doctor contract coverage.
 //! - Seed cached `.ralph/` fixtures instead of running real `ralph init`.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Individual doctor assertions or output parsing.
 //! - Generic test support used by other suites.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Seeded repos rely on cached `seed_ralph_dir()` scaffolding rather than real init.

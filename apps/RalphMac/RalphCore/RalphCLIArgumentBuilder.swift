@@ -1,6 +1,9 @@
 /**
  RalphCLIArgumentBuilder
 
+ Purpose:
+ - Translate typed CLI selections into argv arrays for subprocess execution.
+
  Responsibilities:
  - Translate typed CLI selections into argv arrays for subprocess execution.
  - Keep positional and option token rendering consistent with the emitted CLI spec.
@@ -8,6 +11,9 @@
  Does not handle:
  - Interactive prompting or validation of clap semantics.
  - Command execution.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - `command.path` includes the root executable name as its first segment.

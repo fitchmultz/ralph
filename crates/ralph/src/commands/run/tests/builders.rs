@@ -1,5 +1,8 @@
 //! Shared config and override builders for run-command tests.
 //!
+//! Purpose:
+//! - Shared config and override builders for run-command tests.
+//!
 //! Responsibilities:
 //! - Construct resolved config fixtures with stable queue and agent defaults.
 //! - Centralize task-agent and CLI-override builders used across run suites.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue/task fixtures.
 //! - Log-capture support.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Helpers mirror the current run-command config contract closely enough for unit tests.

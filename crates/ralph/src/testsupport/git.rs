@@ -1,13 +1,23 @@
 //! Git helpers for unit tests.
 //!
+//! Purpose:
+//! - Git helpers for unit tests.
+//!
 //! Responsibilities:
 //! - Initialize temporary git repositories for tests.
 //! - Run git commands and capture output in a consistent, checked manner.
 //! - Support bare remotes and multi-repo workflows for testing merge scenarios.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - Real remotes over network, LFS configuration, or complex git workflows.
 //! - Non-test safety checks or user interaction.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `git` is available on PATH.

@@ -1,5 +1,8 @@
 //! Output rendering helpers for queue export formats.
 //!
+//! Purpose:
+//! - Output rendering helpers for queue export formats.
+//!
 //! Responsibilities:
 //! - Render filtered tasks as CSV, TSV, JSON, Markdown, or GitHub issue markdown.
 //! - Keep format-specific escaping and deterministic ordering centralized.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue loading or filter selection.
 //! - CLI file/stdout IO orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Markdown and GitHub exports sort by task ID for deterministic output.

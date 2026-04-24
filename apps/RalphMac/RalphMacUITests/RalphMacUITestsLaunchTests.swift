@@ -1,12 +1,21 @@
 /**
  RalphMacUITestsLaunchTests
 
+ Purpose:
+ - Measure application launch performance.
+
  Responsibilities:
  - Measure application launch performance.
  - Verify app launches successfully.
 
  Does not handle:
  - Functional testing (see RalphMacUITests).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import XCTest

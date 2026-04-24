@@ -1,5 +1,8 @@
 //! `ralph app ...` command group for macOS GUI integration.
 //!
+//! Purpose:
+//! - `ralph app ...` command group for macOS GUI integration.
+//!
 //! Responsibilities:
 //! - Define clap structures for app-related commands (currently `open`).
 //! - Route app subcommands to the command implementation layer (`crate::commands::app`).
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Building or installing the SwiftUI app bundle (see `apps/RalphMac/`).
 //! - Any queue/runner logic (Ralph remains CLI-first; the GUI shells out to the CLI).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `ralph app open` is macOS-only; non-macOS platforms return a clear error.

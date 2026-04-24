@@ -1,8 +1,20 @@
 //! Aging report unit tests grouped by concern.
 //!
+//! Purpose:
+//! - Aging report unit tests grouped by concern.
+//!
 //! Responsibilities:
 //! - Provide focused regression coverage for threshold validation and aging computation.
 //! - Keep the production aging modules free of large inline scenario blocks.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::collections::HashMap;
 

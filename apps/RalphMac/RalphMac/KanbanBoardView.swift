@@ -1,6 +1,9 @@
 /**
  KanbanBoardView
 
+ Purpose:
+ - Display a horizontal Kanban board with all status columns.
+
  Responsibilities:
  - Display a horizontal Kanban board with all status columns.
  - Handle drag-and-drop between columns to change task status.
@@ -11,6 +14,9 @@
  - Task editing (delegates to TaskDetailView via navigation).
  - Task creation (handled by parent view).
  - Direct CLI execution (delegates to Workspace).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected and provides task data.

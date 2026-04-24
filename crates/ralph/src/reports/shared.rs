@@ -1,5 +1,8 @@
 //! Shared reporting utilities and types.
 //!
+//! Purpose:
+//! - Shared reporting utilities and types.
+//!
 //! Responsibilities:
 //! - Define common report output formats (text/JSON).
 //! - Provide duration formatting helpers used by all reports.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Report-specific business logic.
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Durations are formatted consistently across all reports.

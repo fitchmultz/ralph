@@ -1,6 +1,9 @@
 /**
  TaskDecomposeView
 
+ Purpose:
+ - Present a dedicated UI for previewing and writing task decompositions.
+
  Responsibilities:
  - Present a dedicated UI for previewing and writing task decompositions.
  - Support freeform decomposition and existing-task decomposition from a selected task context.
@@ -10,6 +13,9 @@
  - Direct queue mutation outside the CLI.
  - Long-running stream output or cancellation plumbing.
  - Generic task creation workflows.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Preview must be run before write.

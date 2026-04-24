@@ -1,11 +1,18 @@
 //! Queue aging subcommand.
 //!
+//! Purpose:
+//! - Queue aging subcommand.
+//!
 //! Responsibilities:
 //! - Handle `ralph queue aging` command to show task aging buckets.
 //!
 //! Not handled here:
 //! - Actual aging computation (see crate::reports::aging).
 //! - Output formatting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are validated before processing.

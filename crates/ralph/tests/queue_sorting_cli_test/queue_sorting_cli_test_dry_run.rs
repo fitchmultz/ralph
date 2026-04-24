@@ -1,11 +1,18 @@
 //! Dry-run reporting coverage for `queue sort`.
 //!
+//! Purpose:
+//! - Dry-run reporting coverage for `queue sort`.
+//!
 //! Responsibilities:
 //! - Verify dry-run mode reports proposed ordering without mutating queue files.
 //! - Cover already-sorted messaging regressions.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persistent `queue sort` mutations or `queue list` output ordering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Dry-run tests compare raw queue file contents before and after execution.

@@ -1,12 +1,19 @@
 //! Revert and prompt parsing tests for runutil.
 //!
+//! Purpose:
+//! - Revert and prompt parsing tests for runutil.
+//!
 //! Responsibilities:
 //! - Validate revert prompt parsing and rendered prompt ordering.
 //! - Verify git revert mode outcomes under deterministic prompt handlers.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Runner backend error handling.
 //! - Queue validation error classification.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Tests operate on isolated temp repos.

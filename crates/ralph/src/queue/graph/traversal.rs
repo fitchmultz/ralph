@@ -1,5 +1,8 @@
 //! Chain traversal and relationship queries for `DependencyGraph`.
 //!
+//! Purpose:
+//! - Chain traversal and relationship queries for `DependencyGraph`.
+//!
 //! Responsibilities:
 //! - Provide transitive "chain" traversal helpers over relationship edges.
 //! - Provide bounded variants for UI rendering (limit + truncated flag).
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Graph construction (see `build`).
 //! - Topological sort / critical path algorithms (see `algorithms`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Traversals are best-effort and tolerate missing task IDs by returning partial results.

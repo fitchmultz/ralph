@@ -1,9 +1,21 @@
 //! Review prompt loading and rendering (code review, completion checklist, iteration checklist,
+//!
+//! Purpose:
+//! - Review prompt loading and rendering (code review, completion checklist, iteration checklist,.
+//!
 //! phase2 handoff).
 //!
 //! Responsibilities: load review-related templates, render task-scoped content, and apply
-//! project-type guidance for code review prompts.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!   project-type guidance for code review prompts.
+//!
 //! Not handled: worker phase prompt composition, queue updates, or RepoPrompt instruction injection.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: required placeholders are present and task IDs are non-empty where needed.
 
 use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};

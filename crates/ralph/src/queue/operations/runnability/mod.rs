@@ -1,13 +1,20 @@
 //! Runnability analysis facade for queue tasks.
 //!
+//! Purpose:
+//! - Runnability analysis facade for queue tasks.
+//!
 //! Responsibilities:
 //! - Re-export the public report/types API for runnability inspection.
 //! - Keep the crate-facing surface stable while delegating focused responsibilities.
 //! - Centralize module-level documentation for runnability behavior.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue persistence or locking.
 //! - Task execution or mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Report generation is deterministic for a provided `now` timestamp.

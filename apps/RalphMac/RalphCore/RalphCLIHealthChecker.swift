@@ -1,6 +1,9 @@
 /**
  RalphCLIHealthChecker
 
+ Purpose:
+ - Probe whether the Ralph CLI is available for a workspace.
+
  Responsibilities:
  - Probe whether the Ralph CLI is available for a workspace.
  - Cache health results and coalesce duplicate in-flight checks.
@@ -10,6 +13,9 @@
  - Process retry loops outside health probes.
  - Workspace error recovery presentation.
  - Parsing command output beyond simple success/failure checks.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Health checks may cancel and replace an older in-flight check for the same workspace.

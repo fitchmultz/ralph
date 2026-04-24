@@ -1,5 +1,8 @@
 //! Continue-session state preservation regressions.
 //!
+//! Purpose:
+//! - Continue-session state preservation regressions.
+//!
 //! Responsibilities:
 //! - Validate `ContinueSession` stores CLI override state and phase type without re-resolution.
 //! - Keep lightweight state-only regressions out of orchestration-heavy suites.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Runner subprocess execution.
 //! - Queue, git, or CI orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests operate on plain structs without touching the filesystem.

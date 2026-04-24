@@ -1,5 +1,8 @@
 //! Task start handler for `ralph task start`.
 //!
+//! Purpose:
+//! - Task start handler for `ralph task start`.
+//!
 //! Responsibilities:
 //! - Set `started_at` for a task (RFC3339 UTC).
 //! - Transition task status to `doing` when appropriate.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Terminal completion/archiving (see `status.rs` and `queue::complete_task`).
 //! - Batch operations (see `batch.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue file is locked during mutation.

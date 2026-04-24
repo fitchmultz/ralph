@@ -1,5 +1,8 @@
 //! Tests for import command.
 //!
+//! Purpose:
+//! - Tests for import command.
+//!
 //! Responsibilities:
 //! - Test import command handlers and validation.
 //! - Test CSV and JSON import formats.
@@ -8,6 +11,12 @@
 //! Not handled here:
 //! - Export operations (see export.rs).
 //! - List/search operations (see list_search.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::resolved_for_dir;
 use crate::cli::queue::{

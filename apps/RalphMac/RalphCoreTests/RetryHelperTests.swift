@@ -1,12 +1,21 @@
 /**
  RetryHelperTests
 
+ Purpose:
+ - Validate RetryHelper retry logic, backoff calculation, and error classification.
+
  Responsibilities:
  - Validate RetryHelper retry logic, backoff calculation, and error classification.
  - Cover success on first attempt, success after retries, and max retries exceeded.
 
  Does not handle:
  - Integration with actual CLI operations (see RetryIntegrationTests).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

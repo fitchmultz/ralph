@@ -1,6 +1,9 @@
 /**
  NavigationViewModelTests
 
+ Purpose:
+ - Validate NavigationViewModel persistence via RalphAppDefaults.
+
  Responsibilities:
  - Validate NavigationViewModel persistence via RalphAppDefaults.
  - Ensure navigation state is correctly saved and restored across app launches.
@@ -10,6 +13,9 @@
  - UI-level navigation interactions.
  - Window routing or focused scene action behavior.
  - Cross-workspace synchronization outside persisted state.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests run on the main actor.

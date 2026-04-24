@@ -1,13 +1,20 @@
 //! Runtime-tree sync tests for parallel workspace state synchronization.
 //!
+//! Purpose:
+//! - Runtime-tree sync tests for parallel workspace state synchronization.
+//!
 //! Responsibilities:
 //! - Verify `.ralph` runtime files are copied into worker workspaces.
 //! - Verify runtime exclusions for ephemeral `.ralph` directories.
 //! - Verify config/prompt sync scenarios remain intact.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Custom queue/done path mapping edge cases.
 //! - Gitignored allowlist unit coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Test names and assertions match the prior flat suite exactly.

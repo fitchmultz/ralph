@@ -1,6 +1,9 @@
 /**
  AppSettings+Appearance
 
+ Purpose:
+ - Render appearance selection and preview controls for Settings.
+
  Responsibilities:
  - Render appearance selection and preview controls for Settings.
  - Bridge the shared app-appearance controller into the settings tab.
@@ -8,6 +11,12 @@
  Does not handle:
  - Window-level appearance application logic.
  - Runner or notification settings.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

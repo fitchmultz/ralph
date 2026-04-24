@@ -1,5 +1,8 @@
 //! Handler for `ralph task from template` command.
 //!
+//! Purpose:
+//! - Handler for `ralph task from template` command.
+//!
 //! Responsibilities:
 //! - Parse template name and variable overrides from CLI arguments.
 //! - Load template with variable substitution using the template system.
@@ -9,6 +12,10 @@
 //! - Template loading logic (see `crate::template::loader`).
 //! - Task creation logic (see `crate::commands::task::build`).
 //! - Variable substitution implementation (see `crate::template::variables`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The `--title` argument is required and becomes the task request.

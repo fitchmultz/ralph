@@ -1,5 +1,8 @@
 //! Workspace+ANSIParsing
 //!
+//! Purpose:
+//! - Parse ANSI SGR escape sequences into styled console segments.
+//!
 //! Responsibilities:
 //! - Parse ANSI SGR escape sequences into styled console segments.
 //! - Retain a bounded attributed-output model for SwiftUI console rendering.
@@ -11,12 +14,15 @@
 //! - Console view rendering.
 //! - Run phase detection from human-readable output.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Parsed state is stored in `workspace.runState.attributedOutput`.
 //! - Background colors are parsed for correctness but not yet rendered in `ANSISegment`.
 //! - Truncation keeps the newest parsed segments.
 //! - Run state must come from structured machine events, not ANSI/text parsing.
-
+//!
 public import Foundation
 public import SwiftUI
 

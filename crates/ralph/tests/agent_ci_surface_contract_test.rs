@@ -1,5 +1,8 @@
 //! Agent CI surface classifier contract tests.
 //!
+//! Purpose:
+//! - Agent CI surface classifier contract tests.
+//!
 //! Responsibilities:
 //! - Verify the classifier reasons about the current uncommitted working tree.
 //! - Guard representative path routing for `noop`, `ci-docs`, `ci-fast`, `ci`, and `macos-ci`.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Executing the Makefile targets selected by the classifier.
 //! - Exhaustive path-matrix testing for every policy branch.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The classifier script and shared shell libs live at stable repo-relative paths.

@@ -1,6 +1,9 @@
 /**
  SettingsSmokeContractRunner
 
+ Purpose:
+ - Run the noninteractive macOS Settings smoke contract inside the app process.
+
  Responsibilities:
  - Run the noninteractive macOS Settings smoke contract inside the app process.
  - Keep contract-mode window presentation offscreen so local verification does not steal focus.
@@ -10,6 +13,9 @@
  - Interactive UI automation.
  - General app launch policy outside Settings contract mode.
  - Settings UI content or state persistence.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Contract mode is enabled only via `--settings-smoke-contract`.

@@ -1,6 +1,9 @@
 /**
  AnalyticsDashboardView
 
+ Purpose:
+ - Display productivity metrics and analytics charts using per-section workspace state.
+
  Responsibilities:
  - Display productivity metrics and analytics charts using per-section workspace state.
  - Trigger analytics refreshes when the selected time range changes.
@@ -10,6 +13,9 @@
  - CLI execution.
  - Analytics state modeling.
  - Queue mutation.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace analytics state is updated through `Workspace.loadAnalytics`.

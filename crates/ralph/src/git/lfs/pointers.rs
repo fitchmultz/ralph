@@ -1,10 +1,17 @@
 //! Git LFS pointer validation.
 //!
+//! Purpose:
+//! - Git LFS pointer validation.
+//!
 //! Responsibilities:
 //! - Validate expected LFS pointer files and filter modified-path lists to LFS-tracked files.
 //!
 //! Not handled here:
 //! - LFS detection or aggregated health reporting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Large files are assumed to be checked-out LFS content and skipped as valid.

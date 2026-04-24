@@ -1,6 +1,9 @@
 /**
  WindowView
 
+ Purpose:
+ - Manage the tab-based interface for a single window.
+
  Responsibilities:
  - Manage the tab-based interface for a single window.
  - Handle workspace tab creation, closure, and switching.
@@ -12,6 +15,9 @@
  - Workspace content rendering (see WorkspaceView).
  - Cross-window command fan-out (handled by focused scene routing).
  - Window tabbing mode configuration (handled by AppDelegate).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - windowState is managed by the parent and updated on changes.
@@ -119,7 +125,6 @@ struct WindowView: View {
         if let workspace = manager.workspaces.first(where: { $0.id == workspaceID }) {
             fallbackDirectory = workspace.identityState.workingDirectoryURL
             if workspace.runState.isRunning {
-                // Show alert before closing - for now, just cancel.
                 workspace.cancel()
             }
             manager.closeWorkspace(workspace)

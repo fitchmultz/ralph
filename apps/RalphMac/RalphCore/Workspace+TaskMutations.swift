@@ -1,6 +1,9 @@
 /**
  Workspace+TaskMutations
 
+ Purpose:
+ - Apply single-task and bulk task mutations through `ralph machine task mutate`.
+
  Responsibilities:
  - Apply single-task and bulk task mutations through `ralph machine task mutate`.
  - Build atomic mutation requests from app task state and user edits.
@@ -10,6 +13,9 @@
  - Task creation flows.
  - Queue refresh notifications outside post-mutation reloads.
  - Task conflict diffing helpers (see Workspace+ConflictDetection).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - The workspace must have a configured CLI client before mutations run.

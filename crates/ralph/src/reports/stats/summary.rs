@@ -1,5 +1,8 @@
 //! Stats summary and time-tracking helpers.
 //!
+//! Purpose:
+//! - Stats summary and time-tracking helpers.
+//!
 //! Responsibilities:
 //! - Collect and tag-filter the task set used by stats reports.
 //! - Compute terminal summary counts and time-tracking aggregates.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Velocity or slow-group breakdown rendering.
 //! - Execution-history ETA calculation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Duration metrics only count positive elapsed intervals.

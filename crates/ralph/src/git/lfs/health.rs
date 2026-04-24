@@ -1,10 +1,17 @@
 //! Git LFS health reporting.
 //!
+//! Purpose:
+//! - Git LFS health reporting.
+//!
 //! Responsibilities:
 //! - Aggregate LFS detection, filter validation, status parsing, and pointer validation into one report.
 //!
 //! Not handled here:
 //! - Low-level git command execution details beyond the delegated helpers.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Unexpected failures propagate only when LFS is detected and a sub-check fails.

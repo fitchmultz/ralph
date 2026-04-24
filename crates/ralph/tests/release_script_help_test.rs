@@ -1,5 +1,8 @@
 //! Release script help output contract tests.
 //!
+//! Purpose:
+//! - Release script help output contract tests.
+//!
 //! Responsibilities:
 //! - Assert that scripts/release.sh --help exits successfully.
 //! - Verify help output contains the explicit transaction command model and reconcile flow.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Full validation of release process behavior.
 //! - Testing actual release creation (requires git/credentials).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The release.sh script exists at scripts/release.sh relative to repo root.

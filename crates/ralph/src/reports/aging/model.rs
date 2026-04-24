@@ -1,5 +1,8 @@
 //! Aging report data structures.
 //!
+//! Purpose:
+//! - Aging report data structures.
+//!
 //! Responsibilities:
 //! - Define serializable aging report payload types.
 //! - Keep aggregation output stable across text and JSON renderers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Per-task bucket computation.
 //! - Text rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Bucket order is decided by the report builder, not by these types.

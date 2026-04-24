@@ -1,6 +1,9 @@
 /**
  RalphCoreTestSupport+Filesystem
 
+ Purpose:
+ - Centralize deterministic temp-directory, workspace-path, and cleanup helpers for RalphCore tests.
+
  Responsibilities:
  - Centralize deterministic temp-directory, workspace-path, and cleanup helpers for RalphCore tests.
  - Provide one portable source of filesystem fixtures so tests do not hardcode `/tmp` or hide cleanup failures.
@@ -8,6 +11,9 @@
  Does not handle:
  - Async wait utilities.
  - UI automation helpers.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - All temp fixtures live under `FileManager.default.temporaryDirectory`.

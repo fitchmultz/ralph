@@ -1,5 +1,8 @@
 //! Integration tests for `ralph task clone` / `ralph task duplicate`.
 //!
+//! Purpose:
+//! - Integration tests for `ralph task clone` / `ralph task duplicate`.
+//!
 //! Responsibilities:
 //! - Verify clone creates a new task ID and persists it to the queue.
 //! - Verify `--dry-run` does not mutate the queue.
@@ -8,6 +11,10 @@
 //!
 //! Not handled here:
 //! - Full formatting snapshotting of clone stdout (prefer state assertions).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - New task ID increments from max existing numeric suffix in the queue/done set.

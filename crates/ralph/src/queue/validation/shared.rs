@@ -1,5 +1,8 @@
 //! Shared queue validation data structures.
 //!
+//! Purpose:
+//! - Shared queue validation data structures.
+//!
 //! Responsibilities:
 //! - Build stable task lookup structures shared across validators.
 //! - Expose active-task and all-task views without repeating collection code.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Validation policy or warning generation.
 //! - Queue mutation or repair.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task IDs are trimmed before use as lookup keys.

@@ -1,13 +1,23 @@
 //! Tests for task lock coexistence with supervising process.
 //!
+//! Purpose:
+//! - Tests for task lock coexistence with supervising process.
+//!
 //! Responsibilities:
 //! - Verify shared lock behavior for task labels under supervision.
 //! - Ensure supervisor and task owners can coexist safely.
 //! - Test multiple concurrent task locks from the same process.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not covered here:
 //! - General lock ownership metadata formatting (see `lock_test.rs`).
 //! - Temp directory helpers or atomic writes.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Lock directory is a local filesystem path under a temp repo.

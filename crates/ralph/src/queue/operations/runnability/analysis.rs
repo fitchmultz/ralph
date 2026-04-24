@@ -1,13 +1,20 @@
 //! Per-task runnability analysis helpers.
 //!
+//! Purpose:
+//! - Per-task runnability analysis helpers.
+//!
 //! Responsibilities:
 //! - Analyze a single task against status, dependency, and schedule blockers.
 //! - Build dependency issue details for callers and reports.
 //! - Keep blocker ordering and rule evaluation centralized.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Full report aggregation or selection.
 //! - Queue persistence or task mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Reasons are appended in stable order: status/flags, dependencies, schedule.

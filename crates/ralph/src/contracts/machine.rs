@@ -1,5 +1,8 @@
 //! Versioned machine-contract documents for app/CLI integration.
 //!
+//! Purpose:
+//! - Versioned machine-contract documents for app/CLI integration.
+//!
 //! Responsibilities:
 //! - Define the stable JSON documents consumed by the macOS app via `ralph machine ...`.
 //! - Centralize machine-only request/response and event envelope types.
@@ -9,6 +12,10 @@
 //! - Command execution or clap wiring.
 //! - Human CLI rendering.
 //! - Queue/task/run business logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Every machine document includes an explicit `version`.

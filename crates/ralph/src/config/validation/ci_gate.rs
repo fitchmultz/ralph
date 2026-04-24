@@ -1,5 +1,8 @@
 //! CI gate argv validation.
 //!
+//! Purpose:
+//! - CI gate argv validation.
+//!
 //! Responsibilities:
 //! - Validate CI gate enablement and argv shape.
 //! - Reject shell-launcher argv to preserve argv-only execution semantics.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Trust decisions for project-local execution.
 //! - Agent-level iteration or phase validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Enabled CI gates must provide a non-empty argv array.

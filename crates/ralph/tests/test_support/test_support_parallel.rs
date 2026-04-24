@@ -1,12 +1,19 @@
 //! Parallel-mode fixture helpers for integration tests.
 //!
+//! Purpose:
+//! - Parallel-mode fixture helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Generate deterministic fake `gh`, merge-agent, and runner binaries.
 //! - Read persisted parallel state for assertions.
 //! - Keep parallel-mode fixture wiring centralized and reproducible.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Generic repo setup or queue fixture creation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Fake CLI helpers are shell scripts and require a Unix-like test environment.

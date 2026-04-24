@@ -1,14 +1,25 @@
 /**
  WorkspaceRunnerController+MachineOutput
 
- Responsibilities:
+ Purpose:
  - Decode machine-run envelopes and summaries emitted by the CLI.
+
+ Responsibilities:
  - Apply structured run-event updates to workspace run state and console output.
  - Keep machine-contract helpers separate from runner lifecycle orchestration.
+ - Reject nested machine payloads whose versions do not match RalphMac's contract table.
 
  Does not handle:
  - Process start/stop scheduling.
  - Queue watching or workspace retarget lifecycle.
+
+ Usage:
+ - Called by streaming run-control code for each decoded machine output item.
+ - Appends visible console errors when nested contract validation fails.
+
+ Invariants/Assumptions:
+ - Top-level run envelopes are decoded before reaching this file.
+ - Nested versioned payloads must be checked before mutating workspace state.
  */
 
 import Foundation
@@ -28,8 +39,11 @@ extension WorkspaceRunnerController {
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
                 workspace.runState.clearLiveBlockingState()
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
-                    try? RalphMachineContract.requireVersion(document.version, expected: RalphMachineContract.configResolveVersion, document: "machine config resolve", operation: "run event config")
-                    applyConfigResolveDocument(document, workspace: workspace)
+                    applyValidatedConfigResolveDocument(
+                        document,
+                        workspace: workspace,
+                        operation: "run event config"
+                    )
                 }
             case .taskSelected:
                 workspace.runState.currentTaskID = event.taskID ?? workspace.runState.currentTaskID
@@ -69,8 +83,11 @@ extension WorkspaceRunnerController {
                 }
             case .configResolved:
                 if let document = event.payload?.decode(MachineConfigResolveDocument.self, at: ["config"]) {
-                    try? RalphMachineContract.requireVersion(document.version, expected: RalphMachineContract.configResolveVersion, document: "machine config resolve", operation: "run event config")
-                    applyConfigResolveDocument(document, workspace: workspace)
+                    applyValidatedConfigResolveDocument(
+                        document,
+                        workspace: workspace,
+                        operation: "run event config"
+                    )
                 }
             case .warning:
                 if let message = event.message, !message.isEmpty {
@@ -99,6 +116,35 @@ extension WorkspaceRunnerController {
 
     private func decodeBlockingState(from payload: RalphJSONValue?) -> MachineBlockingState? {
         payload?.decode(MachineBlockingState.self)
+    }
+
+    private func applyValidatedConfigResolveDocument(
+        _ document: MachineConfigResolveDocument,
+        workspace: Workspace,
+        operation: String
+    ) {
+        do {
+            try RalphMachineContract.requireVersion(
+                document.version,
+                expected: RalphMachineContract.configResolveVersion,
+                document: "machine config resolve",
+                operation: operation
+            )
+            applyConfigResolveDocument(document, workspace: workspace)
+        } catch {
+            let recoveryError = (error as? RecoveryError) ?? RecoveryError.classify(
+                error: error,
+                operation: operation,
+                workspaceURL: workspace.identityState.workingDirectoryURL
+            )
+            workspace.runState.runnerConfigErrorMessage = recoveryError.message
+            workspace.diagnosticsState.lastRecoveryError = recoveryError
+            appendConsoleText("[error] \(recoveryError.message)\n", workspace: workspace)
+            RalphLogger.shared.error(
+                "Rejected machine config document: \(recoveryError.fullErrorDetails)",
+                category: .workspace
+            )
+        }
     }
 
     private func appendResumeDecision(_ decision: MachineResumeDecision, workspace: Workspace) {

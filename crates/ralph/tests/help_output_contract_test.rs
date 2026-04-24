@@ -1,5 +1,8 @@
 //! CLI help output contract tests for the Ralph binary.
 //!
+//! Purpose:
+//! - CLI help output contract tests for the Ralph binary.
+//!
 //! Responsibilities:
 //! - Assert key help text snippets remain present for core commands.
 //! - Guard against regression in documented flags and examples.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Full validation of help output formatting.
 //! - Behavior tests for command execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The Ralph binary is built and discoverable by the test harness.

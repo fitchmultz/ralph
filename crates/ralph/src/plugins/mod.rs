@@ -1,5 +1,8 @@
 //! Plugin system for Ralph (runners + task processors).
 //!
+//! Purpose:
+//! - Plugin system for Ralph (runners + task processors).
+//!
 //! Responsibilities:
 //! - Define plugin manifest contracts and validation.
 //! - Discover plugin packages from global + project plugin directories.
@@ -9,6 +12,10 @@
 //! - CLI Clap argument definitions (see `crate::cli::plugin`).
 //! - Execution-phase orchestration (see `crate::commands::run`).
 //! - Streaming JSON parsing (see `crate::runner::execution::process`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Plugins are discovered from:

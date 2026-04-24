@@ -1,13 +1,20 @@
 //! Shared fixtures and command helpers for queue sorting CLI integration tests.
 //!
+//! Purpose:
+//! - Shared fixtures and command helpers for queue sorting CLI integration tests.
+//!
 //! Responsibilities:
 //! - Initialize disposable Ralph repos for sorting scenarios.
 //! - Build canonical priority and timestamp-rich queue fixtures using shared task builders.
 //! - Provide stable helpers for running sort/list commands and reading task ordering assertions.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Scenario assertions for specific sort modes.
 //! - Queue sorting implementation logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Fixture queues always live at `.ralph/queue.jsonc`.

@@ -1,5 +1,8 @@
 //! Prompt version-tracking storage.
 //!
+//! Purpose:
+//! - Prompt version-tracking storage.
+//!
 //! Responsibilities:
 //! - Load and save prompt version metadata on disk.
 //! - Define the persisted schema for exported prompt digests.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Prompt export/sync policy.
 //! - Template discovery.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Schema version `2` is the only accepted persisted format.

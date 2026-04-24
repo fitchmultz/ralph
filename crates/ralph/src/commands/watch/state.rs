@@ -1,5 +1,8 @@
 //! State management for the watch command.
 //!
+//! Purpose:
+//! - State management for the watch command.
+//!
 //! Responsibilities:
 //! - Track pending files that need processing.
 //! - Manage debounce timing to batch rapid file changes.
@@ -8,6 +11,10 @@
 //! - File watching or event handling (see `event_loop/mod.rs`).
 //! - Comment detection (see `comments.rs`).
 //! - Task creation (see `tasks.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `WatchState` is protected by a mutex in the watch loop.

@@ -1,11 +1,17 @@
 /**
  ANSIParserTestSupport
 
+ Purpose:
+ - Provide a fresh Workspace test fixture for split ANSI parser suites.
+
  Responsibilities:
  - Provide a fresh Workspace test fixture for split ANSI parser suites.
 
  Does not handle:
  - Defining parser assertions for specific escape-sequence behaviors.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests are main-actor isolated because Workspace is main-actor isolated.

@@ -1,6 +1,9 @@
 /**
  AppDelegate
 
+ Purpose:
+ - Configure activation policy and window behavior before SwiftUI takes over.
+
  Responsibilities:
  - Configure activation policy and window behavior before SwiftUI takes over.
  - Disable automatic window tabbing globally before any windows are created.
@@ -10,6 +13,9 @@
  - SwiftUI view hierarchy.
  - Window content management.
  - App command routing or keyboard shortcut dispatch.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Must be connected via @NSApplicationDelegateAdaptor in the SwiftUI App struct.

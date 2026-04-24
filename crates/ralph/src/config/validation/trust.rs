@@ -1,5 +1,8 @@
 //! Project execution trust validation.
 //!
+//! Purpose:
+//! - Project execution trust validation.
+//!
 //! Responsibilities:
 //! - Reject execution-sensitive project config when the repository is untrusted.
 //! - Detect trust-relevant settings across the base agent, plugins, and profiles.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue thresholds or git-ref validation.
 //! - Repo trust-file loading.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing trust means the repo is untrusted.

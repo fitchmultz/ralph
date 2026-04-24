@@ -1,4 +1,9 @@
 # Ralph Plugin System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 ![Plugin Architecture](../assets/images/2026-03-10-12-05-00-plugin-architecture.png)
 

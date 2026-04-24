@@ -1,5 +1,8 @@
 //! `ralph watch` command: Clap types and handler.
 //!
+//! Purpose:
+//! - `ralph watch` command: Clap types and handler.
+//!
 //! Responsibilities:
 //! - Define clap arguments for watch commands.
 //! - Dispatch watch execution with file watching and task detection.
@@ -8,6 +11,10 @@
 //! - File system watching implementation details.
 //! - TODO/FIXME comment detection logic.
 //! - Queue mutation operations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Configuration is resolved from the current working directory.

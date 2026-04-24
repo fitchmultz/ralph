@@ -1,12 +1,21 @@
 //! CI failure pattern detection helpers.
 //!
+//! Purpose:
+//! - CI failure pattern detection helpers.
+//!
 //! Responsibilities:
 //! - Detect common CI failure signatures from stdout/stderr.
 //! - Extract structured details for operator-facing remediation messages.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Running the CI gate command.
 //! - Formatting markdown compliance messages.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 #[derive(Debug, Clone)]
 pub(crate) struct DetectedErrorPattern {

@@ -1,5 +1,8 @@
 //! Regression coverage for the `ralph scan` CLI surface.
 //!
+//! Purpose:
+//! - Regression coverage for the `ralph scan` CLI surface.
+//!
 //! Responsibilities:
 //! - Verify help examples stay current.
 //! - Verify scan flag parsing and positional-prompt behavior.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Scan execution and queue writes.
 //! - Runner integration behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Help output stays aligned with the clap surface.

@@ -1,5 +1,8 @@
 //! Workspace+GraphData
 //!
+//! Purpose:
+//! - Load dependency graph data from the Ralph CLI.
+//!
 //! Responsibilities:
 //! - Load dependency graph data from the Ralph CLI.
 //!
@@ -8,10 +11,13 @@
 //! - Queue task loading or mutations.
 //! - Analytics loading.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Graph payloads must conform to `MachineGraphReadDocument`.
 //! - Errors are surfaced through the workspace recovery state.
-
+//!
 import Foundation
 
 public extension Workspace {

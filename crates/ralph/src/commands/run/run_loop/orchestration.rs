@@ -1,5 +1,8 @@
 //! Sequential run-loop state machine.
 //!
+//! Purpose:
+//! - Sequential run-loop state machine.
+//!
 //! Responsibilities:
 //! - Route between sequential and parallel execution.
 //! - Drive per-iteration task execution, wait transitions, and abort handling.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Session recovery policy details.
 //! - Wait-loop file watching internals.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue lock contention, dirty repos, and queue validation failures are terminal.

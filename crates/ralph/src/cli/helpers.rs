@@ -1,5 +1,8 @@
 //! Shared helpers for the top-level CLI surface.
 //!
+//! Purpose:
+//! - Shared helpers for the top-level CLI surface.
+//!
 //! Responsibilities:
 //! - Emit top-level helper commands such as `help-all` and `cli-spec`.
 //! - Centralize small queue/list helper utilities reused by subcommands.
@@ -9,6 +12,10 @@
 //! - Clap argument definitions.
 //! - Subcommand business logic beyond small shared helpers.
 //! - Parse-regression tests.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `cli-spec` remains machine-readable and broken-pipe tolerant.

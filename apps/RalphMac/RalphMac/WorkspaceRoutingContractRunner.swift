@@ -1,6 +1,9 @@
 /**
  WorkspaceRoutingContractRunner
 
+ Purpose:
+ - Run the noninteractive macOS workspace-routing contract inside the app process.
+
  Responsibilities:
  - Run the noninteractive macOS workspace-routing contract inside the app process.
  - Verify bootstrap window routing, URL-open retarget/focus behavior, and pending scene-route delivery.
@@ -10,6 +13,9 @@
  - Interactive UI automation.
  - Settings window verification.
  - General app launch policy outside workspace-routing contract mode.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Contract mode is enabled only via `--workspace-routing-contract`.

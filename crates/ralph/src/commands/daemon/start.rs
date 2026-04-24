@@ -1,5 +1,8 @@
 //! Daemon start command implementation.
 //!
+//! Purpose:
+//! - Daemon start command implementation.
+//!
 //! Responsibilities:
 //! - Start the daemon as a background process on Unix systems.
 //! - Check for existing running daemon and handle stale state.
@@ -11,6 +14,10 @@
 //! - Windows daemon management (returns error on non-Unix systems).
 //! - Daemon stop/status/logs operations (handled in other modules).
 //! - Signal handling or process lifecycle management after spawn.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Requires Unix platform; fails gracefully on Windows.

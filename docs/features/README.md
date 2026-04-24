@@ -1,4 +1,9 @@
 # Ralph Features Documentation
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](../index.md)
+
 
 Welcome to the Ralph features documentation. This index provides organized navigation to all feature guides, from core concepts to advanced integration options.
 
@@ -79,6 +84,7 @@ Detailed configuration guides for specific features:
 | Document | Description |
 |----------|-------------|
 | **[Configuration](./configuration.md)** | Feature-specific configuration guide |
+| **[Complete Configuration Example](./configuration-example.md)** | Long assembled configuration sample |
 | **[Profiles](./profiles.md)** | Configuration profiles for quick workflow switching |
 | **[Prompts](./prompts.md)** | Custom prompt templates and overrides |
 | **[Migrations](./migrations.md)** | Configuration and data migration guide |

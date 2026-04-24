@@ -1,5 +1,8 @@
 //! CI gate execution for post-run supervision.
 //!
+//! Purpose:
+//! - CI gate execution for post-run supervision.
+//!
 //! Responsibilities:
 //! - Execute the configured CI gate command (default: make ci).
 //! - Capture stdout/stderr for compliance messages.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Queue maintenance (see queue_ops.rs).
 //! - Git operations (see git_ops.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - CI gate command is configured or defaults to "make ci".

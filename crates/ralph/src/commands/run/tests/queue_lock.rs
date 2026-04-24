@@ -1,4 +1,20 @@
 //! Queue lock handling tests for run command.
+//!
+//! Purpose:
+//! - Queue lock handling tests for run command.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::{find_definitely_dead_pid, resolved_with_repo_root, task_with_status};
 use crate::commands::run::run_session::create_session_for_task;

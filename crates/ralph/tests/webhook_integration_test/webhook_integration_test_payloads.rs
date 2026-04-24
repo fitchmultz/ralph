@@ -1,11 +1,18 @@
 //! Payload-shape coverage for delivered webhook events.
 //!
+//! Purpose:
+//! - Payload-shape coverage for delivered webhook events.
+//!
 //! Responsibilities:
 //! - Validate signed requests and structured loop/phase payload fields.
 //! - Keep payload assertions isolated from delivery and filtering mechanics.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue backpressure or disabled-configuration behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Each test waits for a matching request before asserting on JSON fields or headers.

@@ -1,5 +1,14 @@
 //! Git operations module.
 //!
+//! Purpose:
+//! - Git operations module.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! This module provides a comprehensive set of git operations for Ralph,
 //! organized into focused submodules:
 //!
@@ -17,6 +26,9 @@
 //! # What this does NOT handle
 //! - General file system operations (use std::fs or anyhow)
 //! - Non-git version control systems
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 
 pub mod branch;
 pub mod clean;

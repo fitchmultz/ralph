@@ -1,12 +1,19 @@
 //! Queue and task fixture helpers for integration tests.
 //!
+//! Purpose:
+//! - Queue and task fixture helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Build realistic queue/task fixtures for CLI and rendering tests.
 //! - Read and write queue/done files under temporary Ralph repos.
 //! - Snapshot queue state for isolation assertions.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Repo initialization, command execution, or snapshot formatting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Queue fixtures target the v1 queue contract.

@@ -1,5 +1,8 @@
 //! Watch-task orchestration.
 //!
+//! Purpose:
+//! - Watch-task orchestration.
+//!
 //! Responsibilities:
 //! - Coordinate detected-comment ingestion into queue task creation or suggestion output.
 //! - Delegate task reconciliation and task construction to focused helpers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Comment detection (see `super::comments`).
 //! - File watching and debounce orchestration (see `super::event_loop` / `super::processor`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Watch identity is explicit and location-aware.

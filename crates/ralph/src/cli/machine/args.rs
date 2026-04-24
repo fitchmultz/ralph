@@ -1,5 +1,8 @@
 //! Clap argument definitions for `ralph machine`.
 //!
+//! Purpose:
+//! - Clap argument definitions for `ralph machine`.
+//!
 //! Responsibilities:
 //! - Define the versioned machine-facing subcommands consumed by the macOS app.
 //! - Keep machine Clap wiring separate from execution logic.
@@ -9,6 +12,10 @@
 //! - JSON document emission.
 //! - Queue/task/run business logic.
 //! - Machine contract schema types.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine commands stay non-human-facing and versioned.

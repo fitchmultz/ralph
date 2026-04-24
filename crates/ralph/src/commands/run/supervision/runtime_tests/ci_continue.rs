@@ -1,5 +1,8 @@
 //! CI-continue resume coverage for supervision.
 //!
+//! Purpose:
+//! - CI-continue resume coverage for supervision.
+//!
 //! Responsibilities:
 //! - Verify CI-gate continue flows resume the same runner session with the operator message.
 //! - Keep interrupt-flag coordination localized to CI-continue regressions.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Base resume fallback behavior for invalid sessions.
 //! - Post-run git/queue scenarios without CI continue.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests hold the interrupt mutex for the full scenario when mutating interrupt state.

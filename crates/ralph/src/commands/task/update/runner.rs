@@ -1,5 +1,8 @@
 //! Prompt rendering and runner execution for task updates.
 //!
+//! Purpose:
+//! - Prompt rendering and runner execution for task updates.
+//!
 //! Responsibilities:
 //! - Build the task-updater prompt with repo-prompt and instruction-file wrappers.
 //! - Resolve runner settings and execute the configured agent for task updates.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue locking, backup management, or validation.
 //! - Dry-run preview printing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Prompt rendering must match the real task-updater workflow for dry-run and live execution.

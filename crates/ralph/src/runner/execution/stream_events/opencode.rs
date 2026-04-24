@@ -1,11 +1,20 @@
 //! OpenCode stream event extraction.
 //!
+//! Purpose:
+//! - OpenCode stream event extraction.
+//!
 //! Responsibilities:
 //! - Render plain `text`, `reasoning`, `error`, and tool-use events emitted by OpenCode.
 //! - Handle assistant `message` content carried outside the Claude schema.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Codex item streams or Cursor tool call envelopes.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::outpututil;
 use serde_json::Value as JsonValue;

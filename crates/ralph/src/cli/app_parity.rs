@@ -1,5 +1,8 @@
 //! RalphMac CLI parity registry.
 //!
+//! Purpose:
+//! - RalphMac CLI parity registry.
+//!
 //! Responsibilities:
 //! - Classify human-facing top-level CLI command families for native app parity work.
 //! - Keep owner/work-zone, machine-contract, app-surface, and test expectations together.
@@ -9,6 +12,10 @@
 //! - Hidden machine subcommands.
 //! - Runtime dispatch or machine JSON contract execution.
 //! - Per-subcommand implementation status beyond the owner feature family.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Every non-machine top-level command has exactly one registry entry.

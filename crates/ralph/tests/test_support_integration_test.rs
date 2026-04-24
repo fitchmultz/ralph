@@ -1,13 +1,23 @@
 //! Integration tests for shared integration-test helpers in `test_support`.
 //!
+//! Purpose:
+//! - Integration tests for shared integration-test helpers in `test_support`.
+//!
 //! Responsibilities:
 //! - Verify helper behavior that affects cross-suite determinism.
 //! - Assert `git_init` creates a usable initial commit in isolated repos.
 //! - Assert wait helpers cover success and timeout cases deterministically.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - End-to-end CLI behavior (covered by command-specific integration tests).
 //! - Filesystem lock behavior (covered by lock-specific tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Git is available on PATH.

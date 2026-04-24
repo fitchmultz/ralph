@@ -1,5 +1,8 @@
 //! Queue archive subcommand.
 //!
+//! Purpose:
+//! - Queue archive subcommand.
+//!
 //! Responsibilities:
 //! - Move terminal tasks (done/rejected) from queue.json to done.json.
 //! - Support dry-run mode to preview what would be archived.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Automatic archiving based on task age (see `queue.auto_archive_terminal_after_days`).
 //! - Archive internals (see `crate::queue::operations::archive`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dry-run mode does NOT create undo snapshots or write to disk.

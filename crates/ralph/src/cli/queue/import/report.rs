@@ -1,5 +1,8 @@
 //! Import reporting types.
 //!
+//! Purpose:
+//! - Import reporting types.
+//!
 //! Responsibilities:
 //! - Capture parsed/imported/skipped/renamed counts for queue import.
 //! - Render concise operator-facing summaries after dry-runs or writes.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Parsing or normalization.
 //! - Duplicate-policy execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Rename mappings are already finalized when the report is rendered.

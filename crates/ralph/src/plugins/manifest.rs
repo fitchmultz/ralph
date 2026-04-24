@@ -1,11 +1,20 @@
 //! Plugin manifest schema and validation.
 //!
+//! Purpose:
+//! - Plugin manifest schema and validation.
+//!
 //! Responsibilities:
 //! - Define `PluginManifest` and validate required invariants.
 //!
 //! Not handled here:
 //! - Filesystem discovery (see `discovery`).
 //! - Enable/disable policy (see `registry`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
+//! - Manifest executable paths stay plugin-directory-relative after validation.
 
 use std::path::{Component, Path};
 

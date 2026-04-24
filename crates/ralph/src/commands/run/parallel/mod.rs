@@ -1,5 +1,8 @@
 //! Parallel run loop supervisor and worker orchestration for direct-push mode.
 //!
+//! Purpose:
+//! - Parallel run loop supervisor and worker orchestration for direct-push mode.
+//!
 //! Responsibilities:
 //! - Coordinate parallel task execution across multiple workers.
 //! - Manage settings resolution and preflight validation.
@@ -14,6 +17,10 @@
 //! - State initialization (see `state_init.rs`).
 //! - Worker lifecycle (see `worker.rs`).
 //! - Integration loop logic (see `integration.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue order is authoritative for task selection.

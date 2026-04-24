@@ -1,4 +1,20 @@
 //! Tests for `followups.rs` queue-growth proposal operations.
+//!
+//! Purpose:
+//! - Tests for `followups.rs` queue-growth proposal operations.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::path::Path;
 
@@ -233,6 +249,36 @@ fn apply_followups_rejects_empty_independence_rationale_before_mutation() {
     .unwrap_err();
 
     assert!(format!("{err:#}").contains("follow-up independence_rationale must be non-empty"));
+    assert_eq!(queue_snapshot(&active), before);
+}
+
+#[test]
+fn apply_followups_rejects_queue_validation_failure_before_mutation() {
+    let mut active = QueueFile {
+        version: 1,
+        tasks: vec![task("RQ-0001")],
+    };
+    let before = queue_snapshot(&active);
+    let mut value = proposal_json("RQ-0001");
+    value["tasks"][0]["depends_on_keys"] = serde_json::json!(["cli-flags"]);
+    value["tasks"][1]["depends_on_keys"] = serde_json::json!(["docs-hierarchy"]);
+    let proposal = parse_proposal(value);
+
+    let err = apply_followups_in_memory(
+        &mut active,
+        None,
+        &proposal,
+        "RQ-0001",
+        Path::new(".ralph/cache/followups/RQ-0001.json"),
+        "2026-04-23T20:00:00Z",
+        "RQ",
+        4,
+        10,
+        false,
+    )
+    .unwrap_err();
+
+    assert!(format!("{err:#}").contains("validate queue after applying follow-up proposal"));
     assert_eq!(queue_snapshot(&active), before);
 }
 

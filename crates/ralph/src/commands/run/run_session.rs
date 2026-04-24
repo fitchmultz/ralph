@@ -1,5 +1,8 @@
 //! Session management for run orchestration.
 //!
+//! Purpose:
+//! - Session management for run orchestration.
+//!
 //! Responsibilities:
 //! - Create session state for crash recovery.
 //! - Validate resumed tasks before continuing execution.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Session loading and clearing orchestration beyond invalid-target cleanup.
 //! - Session prompt handling.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Session IDs are unique and include timestamp + task_id.

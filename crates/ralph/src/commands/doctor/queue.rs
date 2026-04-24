@@ -1,5 +1,8 @@
 //! Queue health checks and repair for the doctor command.
 //!
+//! Purpose:
+//! - Queue health checks and repair for the doctor command.
+//!
 //! Responsibilities:
 //! - Validate queue file existence and format
 //! - Check done archive integrity
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue modification outside of repair context
 //! - Lock directory management (see lock.rs)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue validation failures can be repaired via queue::repair module.

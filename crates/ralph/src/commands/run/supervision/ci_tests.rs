@@ -1,11 +1,20 @@
 //! CI supervision tests extracted from the production module.
 //!
+//! Purpose:
+//! - CI supervision tests extracted from the production module.
+//!
 //! Responsibilities:
 //! - Cover CI pattern detection, compliance messaging, and continue-session behavior.
 //! - Keep large scenario suites out of `ci.rs`.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Production CI execution logic.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::*;
 use crate::contracts::{

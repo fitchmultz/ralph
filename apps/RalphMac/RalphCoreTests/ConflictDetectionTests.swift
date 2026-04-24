@@ -1,6 +1,9 @@
 /**
  ConflictDetectionTests
 
+ Purpose:
+ - Validate conflict detection logic for external task changes.
+
  Responsibilities:
  - Validate conflict detection logic for external task changes.
  - Ensure checkForConflict and detectConflictedFields work correctly.
@@ -9,6 +12,9 @@
  Does not handle:
  - UI-level conflict resolution (see RalphMacUITests).
  - File watching integration (tested separately).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests run on the main actor.

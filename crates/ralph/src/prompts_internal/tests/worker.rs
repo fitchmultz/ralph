@@ -1,7 +1,18 @@
 //! Worker prompt loading and rendering tests.
 //!
+//! Purpose:
+//! - Worker prompt loading and rendering tests.
+//!
 //! Responsibilities: validate worker prompt loading, fallback behavior, and rendering.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: phase-specific worker prompts (see phases.rs), task builder, or scan prompts.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: embedded defaults are available; temp directories are writable.
 
 use super::*;

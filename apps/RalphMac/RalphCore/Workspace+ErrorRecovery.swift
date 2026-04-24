@@ -1,6 +1,9 @@
 /**
  Workspace+ErrorRecovery
 
+ Purpose:
+ - Define workspace-scoped mutation/conflict error cases.
+
  Responsibilities:
  - Define workspace-scoped mutation/conflict error cases.
  - Convert raw operation failures into recovery UI state.
@@ -11,6 +14,9 @@
  - CLI health checking internals.
  - Conflict diff rendering.
  - Task mutation request construction.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Recovery state is mutated on the main actor with the rest of `Workspace`.

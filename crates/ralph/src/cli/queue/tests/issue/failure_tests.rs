@@ -1,5 +1,8 @@
 //! Failure-path queue issue publish tests.
 //!
+//! Purpose:
+//! - Failure-path queue issue publish tests.
+//!
 //! Responsibilities:
 //! - Verify user-facing errors for missing tasks and missing `gh` binaries.
 //! - Verify unauthenticated `gh` flows surface the expected guidance.
@@ -9,6 +12,10 @@
 //! - Execute-mode success cases.
 //! - Publish-many happy-path assertions.
 //! - Fake `gh` script implementation details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Test function names remain stable.

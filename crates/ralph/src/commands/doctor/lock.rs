@@ -1,5 +1,8 @@
 //! Lock directory health checks for the doctor command.
 //!
+//! Purpose:
+//! - Lock directory health checks for the doctor command.
+//!
 //! Responsibilities:
 //! - Inspect the canonical queue lock path using the shared run-time lock semantics.
 //! - Surface live, stale, and metadata-broken queue locks through doctor results.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Active lock acquisition (see lock module)
 //! - Queue content validation (see queue.rs)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Only confirmed dead-PID stale locks are auto-fixable here.

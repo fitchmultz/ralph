@@ -1,12 +1,21 @@
 //! Shared helpers for stream event display extraction.
 //!
+//! Purpose:
+//! - Shared helpers for stream event display extraction.
+//!
 //! Responsibilities:
 //! - Provide small formatting helpers reused by protocol-specific collectors.
 //! - Keep repeated text/error/result extraction logic out of the hot-path router.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Protocol-specific event branching.
 //! - Tool-call correlation.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::outpututil;
 use serde_json::Value as JsonValue;

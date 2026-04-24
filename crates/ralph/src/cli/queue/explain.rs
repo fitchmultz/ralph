@@ -1,11 +1,18 @@
 //! Queue explain subcommand.
 //!
+//! Purpose:
+//! - Queue explain subcommand.
+//!
 //! Responsibilities:
 //! - Report why tasks are (not) runnable with human-readable text or JSON output.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task selection or execution (see `crate::commands::run`).
 //! - Queue persistence or mutations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - JSON output is versioned and stable for scripting.

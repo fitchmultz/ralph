@@ -1,5 +1,8 @@
 //! Productivity calculations and core business logic.
 //!
+//! Purpose:
+//! - Productivity calculations and core business logic.
+//!
 //! Responsibilities:
 //! - Record task completions and update stats.
 //! - Calculate streaks, velocity, and estimation accuracy.
@@ -9,6 +12,12 @@
 //! - Persistence (see `super::persistence`).
 //! - Data structure definitions (see `super::types`).
 //! - Report formatting (see `super::reports`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use time::OffsetDateTime;

@@ -1,5 +1,8 @@
 //! Tree normalization helpers for task decomposition.
 //!
+//! Purpose:
+//! - Tree normalization helpers for task decomposition.
+//!
 //! Responsibilities:
 //! - Normalize planner JSON into bounded Ralph decomposition trees.
 //! - Resolve sibling dependency references within normalized child groups.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Runner invocation or prompt rendering.
 //! - Queue writes or task ID materialization.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dependency inference remains limited to sibling tasks within the same parent group.

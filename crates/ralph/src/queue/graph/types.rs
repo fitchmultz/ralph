@@ -1,5 +1,8 @@
 //! Core types for the queue dependency graph.
 //!
+//! Purpose:
+//! - Core types for the queue dependency graph.
+//!
 //! Responsibilities:
 //! - Define the graph data model (`TaskNode`, `DependencyGraph`) and public result types.
 //! - Provide minimal "core" `DependencyGraph` methods that do not belong to algorithms/traversal.
@@ -8,6 +11,10 @@
 //! - Building graphs from queue files (see `build`).
 //! - Graph algorithms (see `algorithms`).
 //! - Chain traversal utilities (see `traversal`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `DependencyGraph` keys are canonicalized task IDs (trimmed).

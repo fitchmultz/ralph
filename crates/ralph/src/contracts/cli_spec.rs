@@ -1,5 +1,8 @@
 //! CLI specification contract emitted as deterministic JSON.
 //!
+//! Purpose:
+//! - CLI specification contract emitted as deterministic JSON.
+//!
 //! Responsibilities:
 //! - Define the versioned, serialized data model (`CliSpec`, `CommandSpec`, `ArgSpec`) for emitting
 //!   a machine-readable description of Ralph's clap CLI.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Extracting data from `clap::Command` (see `crate::cli_spec`).
 //! - CLI command wiring, IO, or printing (see `crate::commands` when integrated).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `CliSpec.version` is bumped only for breaking JSON changes.

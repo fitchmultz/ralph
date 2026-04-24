@@ -1,5 +1,8 @@
 //! Integration tests for `ralph task template` subcommands (list, show, build).
 //!
+//! Purpose:
+//! - Integration tests for `ralph task template` subcommands (list, show, build).
+//!
 //! Responsibilities:
 //! - Test template list command shows built-in and custom templates.
 //! - Test template show command displays template details correctly.
@@ -10,6 +13,10 @@
 //! - Full task creation via build command (requires AI runner, see unit tests).
 //! - Template variable substitution (see task_from_template.rs).
 //! - Template loading internals (see template::loader tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp directories.

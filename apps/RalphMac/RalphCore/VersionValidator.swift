@@ -1,6 +1,9 @@
 /**
  VersionValidator
 
+ Purpose:
+ - Parse and validate semantic version strings from the ralph CLI.
+
  Responsibilities:
  - Parse and validate semantic version strings from the ralph CLI.
  - Compare versions against a supported range.
@@ -9,6 +12,9 @@
  Does not handle:
  - Executing the CLI (see RalphCLIClient).
  - UI presentation of errors.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Version strings follow semantic versioning (MAJOR.MINOR.PATCH).

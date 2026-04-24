@@ -1,5 +1,8 @@
 //! Post-run supervision scenario coverage.
 //!
+//! Purpose:
+//! - Post-run supervision scenario coverage.
+//!
 //! Responsibilities:
 //! - Group post-run supervision regressions by queue/archive behavior, CI/maintenance edges,
 //!   and git publish-mode outcomes.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Continue-session resume fallback logic.
 //! - Parallel-worker bookkeeping restore.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Child modules stay focused on one post-run behavior seam each.

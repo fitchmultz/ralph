@@ -1,5 +1,8 @@
 //! Queue validation facade.
 //!
+//! Purpose:
+//! - Queue validation facade.
+//!
 //! Responsibilities:
 //! - Expose queue validation entrypoints and warning types.
 //! - Coordinate queue-file checks with dependency, relationship, and parent validators.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue persistence or mutation workflows.
 //! - Config validation or CLI reporting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task IDs are unique within a queue file and across active/done files, except rejected tasks.

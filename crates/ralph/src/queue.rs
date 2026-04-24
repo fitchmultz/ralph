@@ -1,5 +1,8 @@
 //! Task queue persistence, validation, and pruning.
 //!
+//! Purpose:
+//! - Task queue persistence, validation, and pruning.
+//!
 //! Responsibilities:
 //! - Load, save, and validate queue files in JSON format.
 //! - Provide operations for moving completed tasks and pruning history.
@@ -9,6 +12,10 @@
 //! - Directory lock acquisition (see `crate::lock`).
 //! - CLI parsing or user interaction.
 //! - Runner integration or external command execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files conform to the schema in `crate::contracts`.

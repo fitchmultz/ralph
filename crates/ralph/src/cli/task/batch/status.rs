@@ -1,8 +1,20 @@
 //! Status-specific batch handlers.
 //!
+//! Purpose:
+//! - Status-specific batch handlers.
+//!
 //! Responsibilities:
 //! - Handle terminal status updates that archive tasks individually.
 //! - Handle non-terminal status updates through shared queue batch helpers.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::cli::task::args::TaskBatchArgs;
 use crate::cli::task::batch::{context::BatchContext, dry_run};

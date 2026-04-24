@@ -1,5 +1,8 @@
 //! Watch command implementation for file monitoring and task detection.
 //!
+//! Purpose:
+//! - Watch command implementation for file monitoring and task detection.
+//!
 //! Responsibilities:
 //! - Set up file system watcher using the notify crate.
 //! - Orchestrate debouncing, comment detection, and task creation.
@@ -9,6 +12,10 @@
 //! - CLI argument parsing (see `crate::cli::watch`).
 //! - Low-level comment detection (see `comments.rs`).
 //! - Task creation details (see `tasks.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The module structure uses tight visibility; only `run_watch`, `CommentType`,

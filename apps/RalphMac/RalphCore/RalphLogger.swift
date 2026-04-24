@@ -1,6 +1,9 @@
 /**
  RalphLogger
  
+ Purpose:
+ - Provide centralized structured logging using modern OSLog Logger API.
+
  Responsibilities:
  - Provide centralized structured logging using modern OSLog Logger API.
  - Define consistent subsystem and category structure for all app logging.
@@ -12,6 +15,9 @@
  - Direct UI presentation of logs (see views for that).
  - Log rotation or archival management (OSLog handles this).
  
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
  Invariants/assumptions callers must respect:
  - Use appropriate privacy qualifiers - mark sensitive data as .private.
  - Use appropriate log levels - fault for catastrophic failures only.

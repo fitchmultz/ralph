@@ -4,7 +4,7 @@
 
 **Keep this file updated** as you learn project patterns. Follow: concise, index-style, no duplication.
 
-> ⚠️ **CRITICAL**: Current date is **March 2026**. Always verify information is up-to-date; never assume 2024 references are current.
+> ⚠️ **CRITICAL**: Treat the shell `date` output as the current-date source of truth for each session. Always verify time-sensitive information; never rely on stale dates embedded in docs.
 
 ---
 
@@ -19,6 +19,8 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 | Topic | Location |
 |-------|----------|
 | Architecture & design | `docs/index.md` |
+| Project operating constitution | `docs/guides/project-operating-constitution.md` |
+| Decision log | `docs/decisions.md` |
 | Contributing guide | `CONTRIBUTING.md` |
 | Configuration | `docs/configuration.md` |
 | CLI reference | `docs/cli.md` |
@@ -44,6 +46,7 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 - **Verify before done**: Test coverage required for all new/changed behavior
 - **Roadmap quality**: Use chunky, dependency-aware roadmap items; combine adjacent evidence/cleanup/tuning work instead of splitting follow-ups into tiny tasks
 - **CI source of truth**: Local `make agent-ci` / `make release-gate` is canonical; do not treat GitHub Actions as a substitute gate
+- **Operating constitution**: Follow `docs/guides/project-operating-constitution.md` for source-of-truth, one-canonical-path, cutover, documentation, downstream synchronization, UX, and validation rules
 
 ### GitHub Actions (explicit repo exception)
 
@@ -67,15 +70,19 @@ Two-tier approach: `anyhow` for propagation, `thiserror` for domain errors.
 | Domain errors | `thiserror` enums like `RunnerError` |
 
 ### Module Documentation Required
-Every source file MUST start with `//!` docs covering:
+Every source file MUST start with top-of-file purpose docs covering:
+- Purpose (why the file exists)
 - Responsibilities (what it handles)
 - Non-scope (what it explicitly does NOT handle)
+- Usage (how callers should enter or consume it)
 - Invariants/assumptions callers must respect
 
 ### Session ID Format
 `{task_id}-p{phase}-{timestamp}` (Unix epoch seconds). No `ralph-` prefix. Passed via `--session` flag.
 
 ### Configuration Precedence
+Derived summary; `docs/configuration.md` is the configuration source of truth.
+
 1. CLI flags
 2. `.ralph/config.jsonc`
 3. `~/.config/ralph/config.jsonc`
@@ -84,9 +91,10 @@ Every source file MUST start with `//!` docs covering:
 ### Repo Execution Trust
 - Repo-local execution settings (for example `agent.ci_gate`, runner binary overrides, plugin runner selection, and `plugins.*`) are gated by local `.ralph/trust.jsonc`, not shared config.
 - Trust file shape: `{"allow_project_commands": true, "trusted_at": "<RFC3339 optional>"}`.
-- Missing trust file means the repo is untrusted.
+- Missing trust file means the repo is untrusted and repo config may not define `agent.ci_gate`, runner binary overrides, plugin runner selections, or `plugins.*`; move those settings to trusted global config or create the local trust file.
 - Untrusted repos ignore project-scope plugins under `.ralph/plugins`; only trusted repos may execute project-local plugins.
 - Plugin manifest executables must stay plugin-dir-relative; absolute and escaping paths are invalid.
+- `.ralph/trust.jsonc` must remain untracked.
 
 ### Queue Load/Validate Semantics
 - `queue::load_and_validate_queues` is read-only: it may tolerate JSON syntax repair in memory, but it must never rewrite queue/done files.
@@ -96,11 +104,6 @@ Every source file MUST start with `//!` docs covering:
 ### Repo Target Resolution
 - Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).
 - `RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and `RALPH_DONE_PATH_OVERRIDE` are unsupported.
-
-### Repo Execution Trust
-- Repo-local execution settings are trust-gated through local-only `.ralph/trust.jsonc`.
-- Missing trust file means repo config may not define `agent.ci_gate`, runner binary overrides, plugin runner selections, or `plugins.*`; move those settings to trusted global config or create the local trust file.
-- `.ralph/trust.jsonc` must remain untracked.
 
 ### CI Gate Execution
 - `agent.ci_gate` is argv-only. Shell-string execution is unsupported; reject shell launchers such as `sh -c`, `cmd /C`, `pwsh -Command`, or `powershell -Command`.
@@ -277,6 +280,8 @@ Every source file MUST start with `//!` docs covering:
 - Stable machine-readable output is exposed via `ralph task decompose --format json`.
 
 ### Release Versioning
+Derived operational summary; `docs/releasing.md`, `docs/guides/release-runbook.md`, and the top-level `VERSION` file are the release source-of-truth materials.
+
 - Canonical repo version source is the top-level `VERSION` file.
 - Use `./scripts/versioning.sh check` (or `make version-check`) to verify Cargo, Xcode, and app compatibility metadata stay in sync.
 - Use `./scripts/versioning.sh sync --version <x.y.z>` (or `make version-sync VERSION=<x.y.z>`) for release bumps; do not hand-edit Cargo/Xcode/version-range files independently.

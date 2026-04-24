@@ -1,3 +1,22 @@
+/**
+ CrashReporterTests
+
+ Purpose:
+ - Keep CrashReporterTests behavior scoped to its owning RalphMac feature.
+
+ Responsibilities:
+ - Provide focused app, core, or test behavior for its owning feature.
+
+ Scope:
+ - Limited to this file's owning RalphMac feature boundary.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Keep behavior aligned with Ralph's machine-contract and queue semantics.
+ */
+
 /*
  Purpose:
  - Exercise crash-report storage, formatting, and operational-issue behavior in RalphCore tests.

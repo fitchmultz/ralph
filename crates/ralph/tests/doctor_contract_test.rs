@@ -1,5 +1,8 @@
 //! Contract tests for `ralph doctor` output and diagnostics.
 //!
+//! Purpose:
+//! - Contract tests for `ralph doctor` output and diagnostics.
+//!
 //! Responsibilities:
 //! - Provide shared command helpers for doctor contract suites.
 //! - Split baseline, runner-binary, JSON, and auto-fix behavior into focused modules.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Production doctor logic or check implementation.
 //! - Generic integration-test helpers shared outside this suite.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Child modules use cached seeded fixtures unless a test intentionally needs a git-only repo.

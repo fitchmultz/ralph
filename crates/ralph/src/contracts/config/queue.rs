@@ -1,10 +1,19 @@
 //! Queue configuration structs and aging thresholds.
 //!
+//! Purpose:
+//! - Queue configuration structs and aging thresholds.
+//!
 //! Responsibilities:
 //! - Define queue-related configuration structs and merge behavior.
 //!
 //! Not handled here:
 //! - Queue file IO (see `crate::queue` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -1,5 +1,8 @@
 //! Model-related configuration contracts.
 //!
+//! Purpose:
+//! - Model-related configuration contracts.
+//!
 //! Responsibilities:
 //! - Define the Model enum and model effort settings.
 //! - Handle custom serialization for model identifiers.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Runner definitions (see `super::runner`).
 //! - Core config structs (see `super::config`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

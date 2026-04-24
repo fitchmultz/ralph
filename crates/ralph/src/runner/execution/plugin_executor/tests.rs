@@ -1,5 +1,8 @@
 //! Regression tests for plugin-executor metadata and session-policy helpers.
 //!
+//! Purpose:
+//! - Regression tests for plugin-executor metadata and session-policy helpers.
+//!
 //! Responsibilities:
 //! - Confirm built-in runner registration remains complete.
 //! - Verify managed-session behavior for built-in runners.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - End-to-end runner subprocess execution.
 //! - Response parsing details covered by execution test suites.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Built-in runner metadata must always be available from a fresh executor.

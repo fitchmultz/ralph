@@ -1,5 +1,8 @@
 //! Regression coverage for machine task command parsing helpers.
 //!
+//! Purpose:
+//! - Regression coverage for machine task command parsing helpers.
+//!
 //! Responsibilities:
 //! - Validate supported status parsing.
 //! - Validate supported child-policy parsing.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Machine task write workflows.
 //! - Queue mutation/decomposition integration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Parsing remains case-insensitive for supported values.

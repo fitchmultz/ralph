@@ -10,6 +10,12 @@
 //!
 //! Scope:
 //! - Detail-column section implementations live in `RunControlDetailSections+...` companion files.
+//!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+//! Invariants/Assumptions:
+//! - Callers keep usage within the documented responsibilities and owning feature contracts.
 
 import RalphCore
 import SwiftUI

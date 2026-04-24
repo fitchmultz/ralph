@@ -1,7 +1,18 @@
 //! Prompt internal tests - shared test utilities and module declarations.
 //!
+//! Purpose:
+//! - Prompt internal tests - shared test utilities and module declarations.
+//!
 //! Responsibilities: provide shared imports, helpers, and module declarations for prompt tests.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: actual test implementations (see submodules).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: tests run in isolated temp directories; Config::default() is valid.
 
 pub(crate) use super::registry::{PromptTemplateId, prompt_template};

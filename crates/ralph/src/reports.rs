@@ -1,11 +1,21 @@
 //! Task statistics and reporting commands.
 //!
+//! Purpose:
+//! - Task statistics and reporting commands.
+//!
 //! Responsibilities:
 //! - Provide analytics reports for queue inspection.
 //! - Define shared report output format used by queue CLI.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - CLI argument parsing or queue persistence.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Inputs are validated queue files.

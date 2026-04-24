@@ -1,5 +1,8 @@
 //! Iteration handling for multi-iteration task execution.
 //!
+//! Purpose:
+//! - Iteration handling for multi-iteration task execution.
+//!
 //! Responsibilities:
 //! - Resolve iteration count from task config (task > config > default).
 //! - Apply follow-up reasoning effort overrides for subsequent iterations.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual iteration loop execution (handled in `run_one_impl`).
 //! - Runner invocation (handled by `phases` module).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Iteration count must be >= 1 (validated).

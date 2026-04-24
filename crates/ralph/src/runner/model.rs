@@ -1,16 +1,23 @@
 //! Runner model defaults, normalization, validation, and parsing.
 //!
+//! Purpose:
+//! - Runner model defaults, normalization, validation, and parsing.
+//!
 //! Responsibilities:
 //! - Provide per-runner default models.
 //! - Normalize models when a model is incompatible with a selected runner.
 //! - Validate runner/model compatibility (notably Codex restrictions).
 //! - Parse CLI/config string values into `Model` and `ReasoningEffort`.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Runner execution dispatch (see `runner.rs`).
 //! - CLI option resolution (see `runner/execution/cli_options.rs`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Codex runner only supports `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.3-codex-spark`,
 //!   and `gpt-5.3`.
 //! - Non-Codex runners must never "inherit" Codex-only defaults.

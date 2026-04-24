@@ -1,14 +1,21 @@
 //! Stream reader regression coverage.
 //!
+//! Purpose:
+//! - Stream reader regression coverage.
+//!
 //! Responsibilities:
 //! - Verify buffer-limit enforcement and empty/partial input handling for stream readers.
 //! - Lock down the configured maximum line and buffer sizes.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Runner-specific display-line extraction.
 //! - Higher-level execution supervision outside the spawned reader threads.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Reader threads should complete successfully for normal, empty, and bounded oversized inputs.
 //! - Shared output buffers must never exceed configured hard limits.
 

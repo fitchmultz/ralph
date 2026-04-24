@@ -1,5 +1,8 @@
 //! PRD markdown parsing.
 //!
+//! Purpose:
+//! - PRD markdown parsing.
+//!
 //! Responsibilities:
 //! - Parse PRD markdown into structured title, introduction, user stories, and requirements.
 //! - Preserve parsing semantics independent of queue insertion policy.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue I/O and locking.
 //! - Task generation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - User stories use `###` headings inside the `User Stories` section.

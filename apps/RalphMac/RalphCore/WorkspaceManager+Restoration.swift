@@ -1,6 +1,9 @@
 /**
  WorkspaceManager+Restoration
 
+ Purpose:
+ - Persist and claim window restoration state across launches.
+
  Responsibilities:
  - Persist and claim window restoration state across launches.
  - Rebuild window/tab state from persisted workspace snapshots.
@@ -8,6 +11,9 @@
  Does not handle:
  - Workspace creation policy outside restoration flows.
  - Scene routing registrations.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Claimed window states are unique per live scene until the pool is reset.

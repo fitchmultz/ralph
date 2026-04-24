@@ -1,6 +1,9 @@
 /**
  RalphCLIClient+Retry
 
+ Purpose:
+ - Add retry-aware collection APIs on top of `RalphCLIClient`.
+
  Responsibilities:
  - Add retry-aware collection APIs on top of `RalphCLIClient`.
  - Convert failed collected output into retryable error shapes.
@@ -10,6 +13,9 @@
  - Process spawning or pipe management.
  - Recovery UI categorization.
  - Health-check orchestration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Retries are intended for transient failures only.

@@ -1,5 +1,8 @@
 //! Processor plugin hook execution facade.
 //!
+//! Purpose:
+//! - Processor plugin hook execution facade.
+//!
 //! Responsibilities:
 //! - Invoke enabled processor plugins for supported hooks.
 //! - Keep payload IO and hook dispatch split by concern.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Plugin discovery or enable policy.
 //! - Runner execution, CI gate orchestration, or queue mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Plugins are trusted and non-zero exit remains a hard failure.

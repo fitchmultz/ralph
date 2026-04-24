@@ -1,5 +1,8 @@
 //! Resolved settings and RepoPrompt override policy for parallel runs.
 //!
+//! Purpose:
+//! - Resolved settings and RepoPrompt override policy for parallel runs.
+//!
 //! Responsibilities:
 //! - Build `ParallelSettings` from resolved config and CLI options.
 //! - Apply agent override rules specific to parallel worker processes.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Workspace-root gitignore validation (see `preflight.rs`).
 //! - Orchestration or worker lifecycle.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `Resolved` reflects the active repo and merged config.

@@ -1,5 +1,8 @@
 //! Execution-history weighting and timestamp helpers.
 //!
+//! Purpose:
+//! - Execution-history weighting and timestamp helpers.
+//!
 //! Responsibilities:
 //! - Compute weighted historical averages for phase durations.
 //! - Parse persisted timestamps into Unix seconds for recency calculations.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Disk IO.
 //! - Real-time progress tracking.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Recent executions receive higher weight than older ones.

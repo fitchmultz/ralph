@@ -1,7 +1,18 @@
 //! Task updater prompt loading and rendering.
 //!
+//! Purpose:
+//! - Task updater prompt loading and rendering.
+//!
 //! Responsibilities: load the task updater template and render task IDs and field updates.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: task persistence, queue mutations, or phase-specific prompt composition.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: required placeholders exist and task IDs are non-empty.
 
 use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};

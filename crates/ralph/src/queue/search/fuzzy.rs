@@ -1,5 +1,8 @@
 //! Fuzzy search for tasks with relevance scoring.
 //!
+//! Purpose:
+//! - Fuzzy search for tasks with relevance scoring.
+//!
 //! Responsibilities:
 //! - Search tasks using fuzzy matching with relevance scoring
 //! - Return results sorted by score (highest first)
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Substring or regex matching (see substring.rs)
 //! - Status/tag/scope filtering (see filter.rs)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty/whitespace query returns empty results

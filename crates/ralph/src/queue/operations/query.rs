@@ -1,15 +1,22 @@
 //! Query helpers for queue tasks.
 //!
+//! Purpose:
+//! - Query helpers for queue tasks.
+//!
 //! Responsibilities:
 //! - Locate tasks in active/done queues and determine runnable indices.
 //! - Enforce runnable status and dependency rules for selection.
 //! - Emit typed `QueueQueryError` for stable test assertions.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persisting queue data or mutating task fields.
 //! - Normalizing IDs beyond trimming whitespace.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Queues are already loaded and represent the source of truth.
 //! - Task IDs are matched after trimming and are case-sensitive.
 //! - Query errors wrap typed `QueueQueryError` variants for downcasting in tests.

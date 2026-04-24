@@ -1,5 +1,8 @@
 //! Queue file loading facade with read-only semantics.
 //!
+//! Purpose:
+//! - Queue file loading facade with read-only semantics.
+//!
 //! Responsibilities:
 //! - Expose queue-file load helpers for plain reads, parse repair, and validation.
 //! - Coordinate queue/done loading for read-only validation flows.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue file saving (see `queue::save`).
 //! - ID generation or backup management.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing queue files return default empty queues.

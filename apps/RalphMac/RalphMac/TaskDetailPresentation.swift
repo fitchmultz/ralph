@@ -1,6 +1,9 @@
 /**
  TaskDetailPresentation
 
+ Purpose:
+ - Provide presentation-only helpers for task detail sections.
+
  Responsibilities:
  - Provide presentation-only helpers for task detail sections.
  - Centralize formatting and relationship-edge derivation used by decomposed task detail components.
@@ -9,6 +12,9 @@
  Does not handle:
  - Mutable editor state.
  - Conflict resolution or persistence side effects.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Helpers are side-effect free and safe to call during SwiftUI rendering.

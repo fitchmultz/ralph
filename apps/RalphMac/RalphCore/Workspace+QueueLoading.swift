@@ -1,5 +1,8 @@
 //! Workspace+QueueLoading
 //!
+//! Purpose:
+//! - Load queue tasks through the Ralph machine contract.
+//!
 //! Responsibilities:
 //! - Load queue tasks through the Ralph machine contract.
 //! - Coordinate queue file watching and workspace-local refresh state.
@@ -9,11 +12,14 @@
 //! - Task filtering or task presentation.
 //! - Runner execution state beyond refreshing config after queue changes.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - The workspace must point at a Ralph-initialized directory to load tasks.
 //! - Queue snapshots are always sourced from `ralph machine queue read`.
 //! - Queue refresh events retain previous and current task snapshots for view-local reactions.
-
+//!
 public import Foundation
 public import Combine
 

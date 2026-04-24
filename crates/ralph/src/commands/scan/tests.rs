@@ -1,14 +1,21 @@
 //! Scan command regression coverage.
 //!
+//! Purpose:
+//! - Scan command regression coverage.
+//!
 //! Responsibilities:
 //! - Verify scan runner settings resolve approval behavior correctly.
 //! - Cover preflight validation failure and post-run task backfill behavior.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Prompt template contents.
 //! - Full CLI argument parsing (covered by integration tests).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Invalid queues should fail before runner execution.
 //! - Newly added scan tasks should receive default request/timestamp backfills.
 

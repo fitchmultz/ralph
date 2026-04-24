@@ -1,5 +1,8 @@
 //! Integration test hub for queue list/sort ordering behavior.
 //!
+//! Purpose:
+//! - Integration test hub for queue list/sort ordering behavior.
+//!
 //! Responsibilities:
 //! - Group queue sorting coverage by CLI validation, list ordering, persistent sort mutations, and dry-run output.
 //! - Keep queue fixture builders in adjacent suite-local support layered on shared integration helpers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue validation runtime tests inside `src/queue/`.
 //! - Other queue CLI behaviors unrelated to sorting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Sorting fixtures are serialized through shared task builders instead of inline JSON blobs.

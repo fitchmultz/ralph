@@ -1,11 +1,18 @@
 //! Configuration profile helpers for resolving effective profile patches.
 //!
+//! Purpose:
+//! - Configuration profile helpers for resolving effective profile patches.
+//!
 //! Responsibilities:
 //! - Provide helpers to list and resolve config-defined profiles.
 //!
 //! Not handled here:
 //! - CLI parsing (see `crate::cli` / `crate::agent::args`).
 //! - Applying profiles to resolved config (see `crate::config`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Profile values are `AgentConfig` patches: only `Some(...)` fields override.

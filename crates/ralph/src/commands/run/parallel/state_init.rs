@@ -1,5 +1,8 @@
 //! Parallel state initialization and validation for direct-push mode.
 //!
+//! Purpose:
+//! - Parallel state initialization and validation for direct-push mode.
+//!
 //! Responsibilities:
 //! - Load or initialize parallel state file with proper defaults.
 //! - Validate target branch consistency and auto-heal when safe.
@@ -9,6 +12,10 @@
 //! - State persistence I/O (see `super::state`).
 //! - Worker orchestration (see `super::orchestration`).
 //! - General state mutations during run (see `super::orchestration`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - State file path is under `.ralph/cache/parallel/state.json`.

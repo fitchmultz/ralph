@@ -1,9 +1,21 @@
 /**
  TaskAgingCard
 
+ Purpose:
+ - Show task aging distribution with visual indicators.
+
  Responsibilities:
  - Show task aging distribution with visual indicators.
  - Categories: Fresh, Warning, Stale, Rotten
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

@@ -1,5 +1,8 @@
 //! `ralph daemon ...` command group for background service management.
 //!
+//! Purpose:
+//! - `ralph daemon ...` command group for background service management.
+//!
 //! Responsibilities:
 //! - Define clap structures for daemon commands and flags.
 //! - Route daemon subcommands to the daemon command implementations.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Daemon process management (see `crate::commands::daemon`).
 //! - Queue execution logic (see `crate::commands::run`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Daemon is Unix-only (Windows uses different service mechanisms).

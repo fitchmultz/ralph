@@ -1,5 +1,8 @@
 //! Gemini runner plugin implementation.
 //!
+//! Purpose:
+//! - Gemini runner plugin implementation.
+//!
 //! Responsibilities:
 //! - Build Gemini CLI commands for run and resume operations.
 //! - Parse Gemini JSON response format.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Process execution (handled by parent module).
 //! - CLI option resolution (handled by cli_spec module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use serde_json::Value as JsonValue;
 

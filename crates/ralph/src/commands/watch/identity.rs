@@ -1,5 +1,8 @@
 //! Watch identity helpers for the watch command.
 //!
+//! Purpose:
+//! - Watch identity helpers for the watch command.
+//!
 //! Responsibilities:
 //! - Define the versioned metadata contract for watch-created tasks.
 //! - Build deterministic identities from detected comments.
@@ -9,6 +12,10 @@
 //! - Queue loading or saving.
 //! - File watching or comment detection.
 //! - Task creation and reconciliation orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - V2 identity is based on normalized path, line, comment type, and content hash.

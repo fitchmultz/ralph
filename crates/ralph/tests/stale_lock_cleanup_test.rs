@@ -1,13 +1,23 @@
 //! Integration tests for stale lock cleanup behavior.
 //!
+//! Purpose:
+//! - Integration tests for stale lock cleanup behavior.
+//!
 //! Responsibilities:
 //! - Verify force acquisition clears stale lock metadata.
 //! - Ensure active locks are not removed even when forced.
 //! - Verify resume flow clears stale locks automatically (regression test for RQ-0643).
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not covered here:
 //! - Shared task lock behavior (see `task_lock_coexistence_test.rs`).
 //! - Temp directory helpers or atomic writes.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The fake PID used is not running on the test system.

@@ -1,5 +1,8 @@
 //! Run-one context preparation.
 //!
+//! Purpose:
+//! - Run-one context preparation.
+//!
 //! Responsibilities:
 //! - Prepare the context for run-one execution (lock, queue, config).
 //! - Keep acquired queue locks alive for the full run-one critical section.
@@ -10,6 +13,10 @@
 //! Not handled here:
 //! - Task execution setup (see execution_setup.rs).
 //! - Phase execution (see phase_execution.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers pass the correct `QueueLockMode` for their context.

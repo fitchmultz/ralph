@@ -1,5 +1,8 @@
 //! Parse-regression tests for the top-level CLI surface.
 //!
+//! Purpose:
+//! - Parse-regression tests for the top-level CLI surface.
+//!
 //! Responsibilities:
 //! - Verify key top-level command routes and rejected legacy flags.
 //! - Keep root CLI parsing coverage out of the root facade file.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Exhaustive per-subcommand argument validation owned by submodules.
 //! - Runtime execution behavior after parsing succeeds.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests exercise the public `Cli` parser exactly as end users invoke it.

@@ -1,5 +1,8 @@
 //! Execution history facade for ETA estimation and persistence.
 //!
+//! Purpose:
+//! - Execution history facade for ETA estimation and persistence.
+//!
 //! Responsibilities:
 //! - Re-export execution history data models, storage helpers, and averaging logic.
 //! - Keep persistence and weighted-estimation concerns split into focused companions.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Real-time progress tracking.
 //! - UI or CLI ETA presentation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Public re-exports preserve the existing `crate::execution_history::*` API surface.

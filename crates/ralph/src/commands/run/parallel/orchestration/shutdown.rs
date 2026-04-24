@@ -1,5 +1,8 @@
 //! Parallel run-loop shutdown and finalization.
 //!
+//! Purpose:
+//! - Parallel run-loop shutdown and finalization.
+//!
 //! Responsibilities:
 //! - Emit final notifications/webhooks.
 //! - Clear stop-signal state and decide whether to surface interrupt errors.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Active worker orchestration.
 //! - Preflight/bootstrap.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Called exactly once after the orchestration loop finishes.

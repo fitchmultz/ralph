@@ -1,6 +1,9 @@
 /**
  WorkspaceView+Sheets
 
+ Purpose:
+ - Build workspace-scoped sheet content for error recovery, command palette, and operational health.
+
  Responsibilities:
  - Build workspace-scoped sheet content for error recovery, command palette, and operational health.
  - Keep sheet composition out of the root split-view shell.
@@ -8,6 +11,12 @@
  Does not handle:
  - Sheet trigger actions.
  - Column rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

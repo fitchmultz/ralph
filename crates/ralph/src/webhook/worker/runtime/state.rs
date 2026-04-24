@@ -1,4 +1,20 @@
 //! Global dispatcher state, reload/rebuild decisions, and config entry points.
+//!
+//! Purpose:
+//! - Global dispatcher state, reload/rebuild decisions, and config entry points.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::WebhookConfig;
 use std::sync::{Arc, OnceLock, RwLock};

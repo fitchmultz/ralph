@@ -1,5 +1,8 @@
 //! Integration tests for parallel direct-push mode.
 //!
+//! Purpose:
+//! - Integration tests for parallel direct-push mode.
+//!
 //! Responsibilities:
 //! - Test direct-push integration paths (no PR creation).
 //! - Verify worker lifecycle states and transitions.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - PR-based parallel flow (removed in rewrite).
 //! - Merge-agent behavior (removed in rewrite).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests prefer explicit fake runner binary paths when they need local runners.

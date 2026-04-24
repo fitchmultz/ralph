@@ -1,5 +1,8 @@
 //! Stats breakdown helpers.
 //!
+//! Purpose:
+//! - Stats breakdown helpers.
+//!
 //! Responsibilities:
 //! - Compute rolling velocity breakdowns by tag and runner.
 //! - Compute slow-group medians by tag and runner.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Summary counts or time-tracking aggregates.
 //! - Report rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Velocity uses completion timestamps from terminal tasks only.

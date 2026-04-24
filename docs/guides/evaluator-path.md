@@ -1,4 +1,9 @@
 # Evaluator Path
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](../index.md)
+
 
 Use this guide when you want a fast, high-signal evaluation of Ralph without first wiring up an external runner.
 

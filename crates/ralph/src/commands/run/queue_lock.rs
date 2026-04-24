@@ -1,5 +1,8 @@
 //! Queue lock helpers for run command.
 //!
+//! Purpose:
+//! - Queue lock helpers for run command.
+//!
 //! Responsibilities:
 //! - Clear stale queue locks when resuming a session.
 //! - Detect queue lock contention errors that should not be retried.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Lock acquisition logic (see `crate::queue`).
 //! - Session management (see `crate::session`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `clear_stale_queue_lock_for_resume` uses `force=true` which only clears

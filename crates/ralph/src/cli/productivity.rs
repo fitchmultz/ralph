@@ -1,5 +1,8 @@
 //! Productivity CLI commands.
 //!
+//! Purpose:
+//! - Productivity CLI commands.
+//!
 //! Responsibilities:
 //! - Provide human- and machine-readable views of productivity stats.
 //! - Read from `.ralph/cache/productivity.jsonc` via `crate::productivity`.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Recording completions (handled where tasks are completed).
 //! - Queue mutations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Stats timestamps are RFC3339.

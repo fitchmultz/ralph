@@ -1,5 +1,8 @@
 //! Centralized constants for the Ralph CLI.
 //!
+//! Purpose:
+//! - Centralized constants for the Ralph CLI.
+//!
 //! This module consolidates all magic numbers, limits, and default values
 //! to improve maintainability and prevent drift between duplicated values.
 //!
@@ -11,6 +14,10 @@
 //! Not handled here:
 //! - Runtime configuration values (see `crate::config`).
 //! - User-customizable thresholds (see `crate::contracts::Config`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All constants are `pub` within their submodule; visibility is controlled by module exports.

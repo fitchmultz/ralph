@@ -1,6 +1,9 @@
 /**
  TaskListTransientState
 
+ Purpose:
+ - Own transient UI state for `TaskListView` that should not live inline in the view body.
+
  Responsibilities:
  - Own transient UI state for `TaskListView` that should not live inline in the view body.
  - Coordinate externally-triggered queue refresh feedback, including highlighted rows and banner visibility.
@@ -9,6 +12,9 @@
  Does not handle:
  - Task filtering, sorting, or persistence.
  - Primary task selection rules or keyboard focus wiring.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Access is confined to the main actor because it drives SwiftUI view state.

@@ -1,5 +1,8 @@
 //! JSON repair utilities for fixing common agent-induced JSON errors.
 //!
+//! Purpose:
+//! - JSON repair utilities for fixing common agent-induced JSON errors.
+//!
 //! Responsibilities:
 //! - Attempt to repair malformed JSON caused by common agent mistakes.
 //! - Fix single-quoted strings, unquoted object keys, trailing commas,
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - JSONC parsing with comments (handled by `crate::jsonc`).
 //! - Semantic validation of queue content.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Repair functions return `None` if no changes were made.
@@ -158,18 +165,17 @@ fn repair_unescaped_newlines(raw: &str) -> String {
     result
 }
 
-/// Placeholder for future unescaped quote repair within JSON string values.
+/// Preserve unsupported unescaped quote cases within JSON string values.
 ///
-/// Currently tracks string state but does not modify quotes. Properly escaping
+/// Properly escaping
 /// internal quotes requires look-ahead heuristics to distinguish between:
 /// - Quotes that close a string (followed by structural chars like `:`, `,`, `}`, `]`)
 /// - Quotes that are content and need escaping (followed by other chars)
 ///
-/// This is a complex repair that risks over-escaping. For now, this function
-/// passes through unchanged to avoid making valid JSON invalid.
+/// This repair is intentionally unsupported because over-escaping can make
+/// valid JSON invalid. The canonical repair path leaves these inputs unchanged
+/// and lets validation surface the remaining syntax error.
 fn repair_unescaped_quotes(raw: &str) -> String {
-    // Future implementation: use look-ahead to determine if a quote inside
-    // a string should be escaped or is closing the string.
     raw.to_string()
 }
 

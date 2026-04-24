@@ -1,4 +1,9 @@
 # Getting Started with Ralph
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](../index.md)
+
 
 Welcome to Ralph! This guide will walk you through everything you need to know to get up and running with AI-powered task automation.
 

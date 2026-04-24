@@ -1,5 +1,8 @@
 //! CLI execution history persistence for ETA estimation.
 //!
+//! Purpose:
+//! - CLI execution history persistence for ETA estimation.
+//!
 //! Responsibilities:
 //! - Persist execution history entries for CLI runs after a task is completed.
 //! - Enforce "record only on Done" semantics to avoid polluting ETA samples.
@@ -8,6 +11,10 @@
 //! - Measuring or accumulating timings (see `execution_timings` and phase instrumentation).
 //! - Recording history for non-CLI clients (handled by their entrypoints).
 //! - Parallel worker mode behavior (callers must skip).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Call only after the run completes (best-effort persistence).

@@ -1,5 +1,8 @@
 //! Clap arguments for `ralph queue export`.
 //!
+//! Purpose:
+//! - Clap arguments for `ralph queue export`.
+//!
 //! Responsibilities:
 //! - Define the user-facing flags and help text for queue export.
 //! - Keep argument parsing concerns separate from queue loading and rendering.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Export execution logic.
 //! - Task filtering or format rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Defaults match the existing CLI surface.

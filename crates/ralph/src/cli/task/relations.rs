@@ -1,5 +1,8 @@
 //! Task relationship command handlers for `ralph task` subcommands.
 //!
+//! Purpose:
+//! - Task relationship command handlers for `ralph task` subcommands.
+//!
 //! Responsibilities:
 //! - Handle `relate` command (generic relationship).
 //! - Handle `blocks` command (mark as blocking).
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Task dependencies (handled via `edit.rs` for depends_on field).
 //! - Task building or batch operations (see `build.rs`, `batch.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Relationships are stored as task fields (blocks, relates_to, duplicates).

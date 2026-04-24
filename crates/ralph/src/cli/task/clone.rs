@@ -1,5 +1,8 @@
 //! Task cloning command handler for `ralph task clone` subcommand.
 //!
+//! Purpose:
+//! - Task cloning command handler for `ralph task clone` subcommand.
+//!
 //! Responsibilities:
 //! - Handle `clone` command (duplicate an existing task).
 //! - Support `duplicate` alias.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Task building or batch operations (see `build.rs`, `batch.rs`).
 //! - Template-based task creation (see `template.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Source task can be from queue or done archive.

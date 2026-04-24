@@ -1,5 +1,8 @@
 //! Task context and status management for run execution.
 //!
+//! Purpose:
+//! - Task context and status management for run execution.
+//!
 //! Responsibilities:
 //! - Format task JSON as prompt context for runners.
 //! - Mark tasks as Doing with webhook notifications.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Task selection (handled by `selection` module).
 //! - Task updates during execution (handled by `task` command).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task JSON serialization must succeed for context generation.

@@ -1,5 +1,8 @@
 //! Workspace+CLISpec
 //!
+//! Purpose:
+//! - Load the machine CLI spec document for Advanced Runner.
+//!
 //! Responsibilities:
 //! - Load the machine CLI spec document for Advanced Runner.
 //! - Flatten command trees for display and selection.
@@ -10,11 +13,14 @@
 //! - Queue loading or analytics loading.
 //! - Task mutations.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - The machine CLI spec remains the source of truth for command and arg structure.
 //! - Hidden commands and args are filtered app-side only for presentation.
 //! - Argument building honors single-value versus multi-value inputs.
-
+//!
 public import Foundation
 public import Combine
 

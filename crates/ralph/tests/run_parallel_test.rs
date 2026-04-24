@@ -1,5 +1,8 @@
 //! E2E integration tests for parallel run execution paths.
 //!
+//! Purpose:
+//! - E2E integration tests for parallel run execution paths.
+//!
 //! Responsibilities:
 //! - Test path mapping, state initialization, and workspace synchronization.
 //! - Verify task selection and worker coordination in parallel mode.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - State recovery after crashes (see `parallel_state_recovery_test.rs`).
 //! - Queue mutation validation (see `parallel_queue_mutation_test.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/Assumptions:
 //! - Tests use explicit fake runner binary paths to avoid external dependencies.

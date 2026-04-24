@@ -1,5 +1,8 @@
 //! Prompt inspection command facade.
 //!
+//! Purpose:
+//! - Prompt inspection command facade.
+//!
 //! Responsibilities:
 //! - Expose prompt management and preview entrypoints for the CLI layer.
 //! - Re-export shared option types used by integration tests and callers.
@@ -9,6 +12,10 @@
 //! - CLI argument parsing (see `crate::cli::prompt`).
 //! - Runner execution or task mutations.
 //! - Prompt template persistence details beyond delegated management helpers.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview rendering reuses production prompt-building flows for fidelity.

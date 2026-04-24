@@ -1,11 +1,20 @@
 //! Integration tests for continuous execution mode (`--wait-when-empty` / `--continuous`).
 //!
+//! Purpose:
+//! - Integration tests for continuous execution mode (`--wait-when-empty` / `--continuous`).
+//!
 //! Responsibilities:
 //! - Test CLI argument parsing for continuous mode flags
 //!
 //! Not handled here:
 //! - Full lifecycle tests (requires mock runner)
 //! - Parallel mode tests
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::Command;
 

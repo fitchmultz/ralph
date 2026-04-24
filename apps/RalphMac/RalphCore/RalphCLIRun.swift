@@ -1,6 +1,9 @@
 /**
  RalphCLIRun
 
+ Purpose:
+ - Own a single running Ralph CLI subprocess.
+
  Responsibilities:
  - Own a single running Ralph CLI subprocess.
  - Bridge pipe readability callbacks into async event streams.
@@ -10,6 +13,9 @@
  - Building commands to execute.
  - Retry policies or health checks.
  - Parsing streamed output into domain models.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Instances are created only by `RalphCLIClient.start(...)`.

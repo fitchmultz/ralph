@@ -1,10 +1,19 @@
 //! Phase override configuration for per-phase runner/model/reasoning settings.
 //!
+//! Purpose:
+//! - Phase override configuration for per-phase runner/model/reasoning settings.
+//!
 //! Responsibilities:
 //! - Define phase override structs and merge behavior.
 //!
 //! Not handled here:
 //! - Phase execution logic (see `crate::commands::run::phases` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::model::{Model, ReasoningEffort};
 use crate::contracts::runner::Runner;

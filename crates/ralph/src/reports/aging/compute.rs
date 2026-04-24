@@ -1,5 +1,8 @@
 //! Aging computation helpers.
 //!
+//! Purpose:
+//! - Aging computation helpers.
+//!
 //! Responsibilities:
 //! - Select the correct anchor timestamp for each task status.
 //! - Compute age durations and bucket assignments.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Report aggregation or rendering.
 //! - Threshold configuration loading.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Future or invalid timestamps produce `Unknown`.

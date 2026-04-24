@@ -1,6 +1,9 @@
 /**
  RalphMacApp
 
+ Purpose:
+ - Define the macOS SwiftUI app entry point and scene graph.
+
  Responsibilities:
  - Define the macOS SwiftUI app entry point and scene graph.
  - Wire the shared workspace manager, menu bar, and app-level command surfaces together.
@@ -8,6 +11,9 @@
  Does not handle:
  - URL routing implementation details.
  - Window bootstrap or UI-testing window policy.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - App support behaviors are implemented in adjacent `RalphMacApp+...` files and related app helpers.

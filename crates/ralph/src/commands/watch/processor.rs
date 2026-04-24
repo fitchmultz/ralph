@@ -1,5 +1,8 @@
 //! File processing for the watch command.
 //!
+//! Purpose:
+//! - File processing for the watch command.
+//!
 //! Responsibilities:
 //! - Process pending files and detect comments.
 //! - Coordinate between debounce logic, comment detection, and task handling.
@@ -9,6 +12,10 @@
 //! - File watching or event handling (see `event_loop/mod.rs`).
 //! - Low-level comment detection (see `comments.rs`).
 //! - Task creation or identity rules (see `tasks.rs` / `identity.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Files are skipped if recently processed (within debounce window).

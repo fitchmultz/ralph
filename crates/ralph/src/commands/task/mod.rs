@@ -1,5 +1,8 @@
 //! Task-building and task-updating command helpers (request parsing, runner invocation, and queue updates).
 //!
+//! Purpose:
+//! - Task-building and task-updating command helpers (request parsing, runner invocation, and queue updates).
+//!
 //! Responsibilities:
 //! - Shared types and configuration for task operations (build, update, refactor).
 //! - Parse task request inputs from CLI args or stdin.
@@ -13,6 +16,10 @@
 //! - CLI argument definitions or command routing.
 //! - Runner process implementation details or output parsing.
 //! - Queue schema definitions or config persistence.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue/done files are the source of truth for task ordering and status.
@@ -261,7 +268,7 @@ pub fn compare_task_fields(before: &str, after: &str) -> Result<Vec<String>> {
 }
 
 // Re-export public functions from submodules
-pub use build::{build_task, build_task_without_lock};
+pub use build::{build_task, build_task_created_tasks, build_task_without_lock};
 pub use refactor::build_refactor_tasks;
 pub use update::{update_all_tasks, update_task, update_task_without_lock};
 

@@ -1,14 +1,21 @@
 //! Tests for `edit.rs` operations (`apply_task_edit` and parsing/validation behavior).
 //!
+//! Purpose:
+//! - Tests for `edit.rs` operations (`apply_task_edit` and parsing/validation behavior).
+//!
 //! Responsibilities:
 //! - Validate edit behavior and error context for task updates.
 //! - Cover success paths and key failure modes for edits.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Integration with on-disk queue persistence or CLI parsing.
 //! - End-to-end GUI edit flows.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Helper builders in this module construct valid baseline tasks.
 //! - Errors are surfaced as user-facing strings.
 

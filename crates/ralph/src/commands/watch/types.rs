@@ -1,5 +1,8 @@
 //! Types for the watch command.
 //!
+//! Purpose:
+//! - Types for the watch command.
+//!
 //! Responsibilities:
 //! - Define `CommentType` enum for TODO/FIXME/HACK/XXX comment detection.
 //! - Define `DetectedComment` struct for representing found comments.
@@ -9,6 +12,10 @@
 //! - File watching logic (see `event_loop/mod.rs`).
 //! - Comment detection regex building (see `comments.rs`).
 //! - Task creation from comments (see `tasks.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `CommentType::All` is a wildcard that matches all comment types.

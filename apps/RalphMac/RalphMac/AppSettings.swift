@@ -1,6 +1,9 @@
 /**
  SettingsView
 
+ Purpose:
+ - Provide the macOS Settings window UI for Runner, Notifications, and Appearance.
+
  Responsibilities:
  - Provide the macOS Settings window UI for Runner, Notifications, and Appearance.
  - Bind to SettingsViewModel for state management.
@@ -10,6 +13,9 @@
  - Config persistence (see SettingsViewModel).
  - CLI operations (see RalphCLIClient).
  - Tab-specific control implementation details in this file.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Must receive a valid Workspace for the settings context.

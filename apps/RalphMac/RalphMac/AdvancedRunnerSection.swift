@@ -1,6 +1,9 @@
 /**
  AdvancedRunnerSection
 
+ Purpose:
+ - Provide Advanced Runner content column with command list and filters.
+
  Responsibilities:
  - Provide Advanced Runner content column with command list and filters.
  - Provide Advanced Runner detail column with argument configuration and command preview.
@@ -9,6 +12,9 @@
  Does not handle:
  - Direct CLI execution (delegated to Workspace).
  - Command palette functionality (see CommandPaletteView).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected via @ObservedObject.

@@ -1,11 +1,17 @@
 /**
  TimeoutConfigurationTests
 
+ Purpose:
+ - Validate timeout configuration presets and custom values.
+
  Responsibilities:
  - Validate timeout configuration presets and custom values.
 
  Does not handle:
  - CLI health probing or workspace offline caching behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Timeout presets are synchronous value types with deterministic defaults.

@@ -1,5 +1,8 @@
 //! Queue-config validation rules.
 //!
+//! Purpose:
+//! - Queue-config validation rules.
+//!
 //! Responsibilities:
 //! - Validate queue override fields and threshold ranges.
 //! - Enforce queue aging-threshold ordering rules.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Active/done queue file contents.
 //! - Agent or trust validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue overrides are optional but must be valid when specified.

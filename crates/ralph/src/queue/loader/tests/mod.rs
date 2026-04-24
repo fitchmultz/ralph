@@ -1,11 +1,20 @@
 //! Queue loader tests grouped by behavior.
 //!
+//! Purpose:
+//! - Queue loader tests grouped by behavior.
+//!
 //! Responsibilities:
 //! - Provide shared fixtures for queue loader tests.
 //! - Split loader coverage by validation behavior, repair behavior, and parsing edge cases.
 //!
 //! Not handled here:
 //! - Production loader logic.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::read::*;
 use crate::config::Resolved;

@@ -1,12 +1,19 @@
 //! Runner-specific CLI flag mapping for normalized options.
 //!
+//! Purpose:
+//! - Runner-specific CLI flag mapping for normalized options.
+//!
 //! Responsibilities:
 //! - Translate normalized runner CLI options into runner-specific CLI flags.
 //! - Preserve required ordering constraints (e.g., Codex global options before `exec`).
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Resolving option precedence (see `cli_options`).
 //! - Prompt rendering or process execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Output format is validated upstream to be newline-delimited JSON (`stream_json`).

@@ -1,13 +1,20 @@
 //! Gitignored allowlist sync tests for parallel workspace state synchronization.
 //!
+//! Purpose:
+//! - Gitignored allowlist sync tests for parallel workspace state synchronization.
+//!
 //! Responsibilities:
 //! - Verify `.env*` allowlist sync behavior for ignored repo files.
 //! - Verify ignored directories and worker-parent paths are excluded.
 //! - Verify unit-level filtering behavior for gitignored path normalization.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - `.ralph` runtime-tree recursion coverage.
 //! - Custom bookkeeping path mapping scenarios.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Test names and assertions match the prior flat suite exactly.

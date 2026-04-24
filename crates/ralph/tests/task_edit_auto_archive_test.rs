@@ -1,5 +1,8 @@
 //! Integration tests for `ralph task edit` auto-archive behavior.
 //!
+//! Purpose:
+//! - Integration tests for `ralph task edit` auto-archive behavior.
+//!
 //! Responsibilities:
 //! - Verify that task edit auto-archives terminal tasks when configured.
 //! - Verify that archived task IDs are listed in output.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Unit testing of archive internals (covered by module/unit tests).
 //! - Testing of other edit functionality.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `ralph init --force --non-interactive` creates a usable `.ralph/` structure.

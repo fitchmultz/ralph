@@ -1,12 +1,21 @@
 //! Integration configuration and handoff data structures.
 //!
+//! Purpose:
+//! - Integration configuration and handoff data structures.
+//!
 //! Responsibilities:
 //! - Define reusable integration-loop configuration and outcome types.
 //! - Define blocked-push marker and remediation handoff payloads.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persistence to disk.
 //! - Compliance validation or retry orchestration.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::config::Resolved;
 use crate::runutil::FixedBackoffSchedule;

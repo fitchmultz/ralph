@@ -1,5 +1,8 @@
 //! Tag-breakdown helpers for stats reports.
 //!
+//! Purpose:
+//! - Tag-breakdown helpers for stats reports.
+//!
 //! Responsibilities:
 //! - Count tag occurrences across the filtered report task set.
 //! - Convert normalized counts into stable, sorted report output.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Task filtering or summary totals.
 //! - Text rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tags are normalized to lowercase for grouping.

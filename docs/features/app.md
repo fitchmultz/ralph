@@ -1,6 +1,11 @@
 # macOS App
 
 Purpose: document Ralph's macOS SwiftUI app, user-facing workflows, and CLI parity expectations.
+Status: Active
+Owner: Maintainers
+Source of truth: this document for macOS app user-facing workflows and parity expectations
+Parent: [Feature Documentation](README.md)
+Related: [Machine Contract](../machine-contract.md), [CI and Test Strategy](../guides/ci-strategy.md)
 
 ## Overview
 
@@ -41,7 +46,7 @@ The app centers around workspace navigation and fast task handling:
 - **Queue**: inspect tasks, status, priority, and dependency context
 - **Quick Actions**: shortcuts for frequent task and run operations
 - **Run Control**: launch and supervise execution flows
-- **Advanced Runner**: runner/model-oriented controls
+- **Advanced Runner**: diagnostic runner/model controls; not a parity-completion surface
 - **Analytics**: high-level productivity and queue trend visibility
 - **Graph View**: visualize dependency relationships
 - **Command Palette**: keyboard-first command execution
@@ -54,7 +59,7 @@ Documented from `apps/RalphMac/RalphMac/RalphMacApp.swift` command registrations
 - `⌘1`: Show Queue
 - `⌘2`: Show Quick Actions
 - `⌘3`: Show Run Control
-- `⌘4`: Show Advanced Runner
+- `⌘4`: Show Advanced Runner diagnostics
 - `⌘5`: Show Analytics
 - `⌃⌘S`: Toggle sidebar
 - `⇧⌘K`: Toggle view mode
@@ -102,7 +107,10 @@ Behavioral notes:
 The app is a thin client that shells out to the `ralph` binary via `RalphCLIClient`.
 
 Practical implications:
+- Native workflows should use versioned `ralph machine ...` JSON contracts or
+  shared structured JSON command outputs, not human CLI text.
 - CLI and app should remain behaviorally aligned for core task/run operations.
+- Advanced Runner access does not count as native app parity.
 - Most data and execution issues can be reproduced via CLI commands.
 - `ralph doctor` remains the primary diagnostics entry point.
 

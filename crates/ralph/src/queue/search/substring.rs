@@ -1,5 +1,8 @@
 //! Substring and regex search for tasks.
 //!
+//! Purpose:
+//! - Substring and regex search for tasks.
+//!
 //! Responsibilities:
 //! - Search tasks by substring or regex pattern across all text fields
 //! - Handle regex compilation with descriptive error messages
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Fuzzy matching (see fuzzy.rs)
 //! - Status/tag/scope filtering (see filter.rs)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty/whitespace query returns empty results

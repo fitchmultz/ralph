@@ -1,9 +1,13 @@
 //! Purpose: Validate generated JSON schemas against runtime contract constraints.
+//!
 //! Responsibilities: Read committed schemas and assert key fields align with
 //! runtime validation and documented wire contracts.
+//!
 //! Scope: Schema-alignment regression coverage only; schema generation remains
 //! owned by the CLI and Makefile.
+//!
 //! Usage: Run with `cargo test -p ralph-agent-loop --test schema_alignment_test`.
+//!
 //! Invariants/assumptions: The committed `schemas/` files are regenerated from
 //! current Rust contracts before assertions are updated.
 

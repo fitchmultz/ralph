@@ -1,6 +1,9 @@
 /**
  Workspace+Decompose
 
+ Purpose:
+ - Execute `ralph machine task decompose` preview and write operations through the CLI.
+
  Responsibilities:
  - Execute `ralph machine task decompose` preview and write operations through the CLI.
  - Build deterministic CLI arguments from app-side decomposition inputs.
@@ -9,6 +12,9 @@
  Does not handle:
  - SwiftUI presentation or form state.
  - Local decomposition planning or queue mutations outside the CLI.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Preview and write must use the same source/options except for `--write`.

@@ -1,6 +1,9 @@
 /**
  AppAppearanceController
 
+ Purpose:
+ - Persist the selected app-wide color-scheme preference.
+
  Responsibilities:
  - Persist the selected app-wide color-scheme preference.
  - Apply the corresponding AppKit appearance immediately.
@@ -9,6 +12,12 @@
  Does not handle:
  - Settings window layout.
  - Workspace-specific appearance overrides.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import AppKit

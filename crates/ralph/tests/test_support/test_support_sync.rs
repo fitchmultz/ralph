@@ -1,12 +1,19 @@
 //! Deterministic synchronization helpers for integration tests.
 //!
+//! Purpose:
+//! - Deterministic synchronization helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Provide bounded condition waiting without raw sleeps.
 //! - Expose reusable cross-thread signaling for subprocess and async test coordination.
 //! - Offer deterministic process-state helpers used by integration fixtures.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Filesystem fixture setup or command execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Wait helpers are timeout-bounded and may return `false`/`None` instead of panicking.

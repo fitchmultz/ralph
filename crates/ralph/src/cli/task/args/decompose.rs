@@ -1,5 +1,8 @@
 //! CLI arguments for `ralph task decompose`.
 //!
+//! Purpose:
+//! - CLI arguments for `ralph task decompose`.
+//!
 //! Responsibilities:
 //! - Define clap arguments for decomposition previews and writes.
 //! - Mirror runner override flags used by other runner-backed task commands.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Source resolution or queue mutation.
 //! - Planner execution or prompt rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview is the default mode; `--write` must be explicit for mutation.

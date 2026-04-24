@@ -1,4 +1,9 @@
 # Security Model
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Purpose: describe Ralph’s trust boundaries, secret-handling expectations, and publication safety controls.
 

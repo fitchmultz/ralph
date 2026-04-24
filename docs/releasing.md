@@ -1,4 +1,9 @@
 # Releasing Ralph
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Ralph releases now use an explicit verify-then-publish transaction model. `verify` prepares a publish-ready local snapshot, records verification state under `target/release-verifications/`, and `execute` publishes only if that exact snapshot still matches the workspace.
 

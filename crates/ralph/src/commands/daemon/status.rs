@@ -1,5 +1,8 @@
 //! Daemon status command implementation.
 //!
+//! Purpose:
+//! - Daemon status command implementation.
+//!
 //! Responsibilities:
 //! - Display daemon runtime status to users (running/stopped/indeterminate).
 //! - Report daemon PID, start time, and command when running.
@@ -10,6 +13,10 @@
 //! - Starting or stopping the daemon (see `super::start` and `super::stop`).
 //! - Daemon log inspection (see `super::logs`).
 //! - PID liveness checks themselves (handled in `crate::lock`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - State file lives at `{cache_dir}/daemon.json`.

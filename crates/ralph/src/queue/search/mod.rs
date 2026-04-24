@@ -1,5 +1,8 @@
 //! Task queue search and filtering.
 //!
+//! Purpose:
+//! - Task queue search and filtering.
+//!
 //! Responsibilities:
 //! - Filtering tasks by status/tag/scope
 //! - Searching across task text fields (substring, regex, or fuzzy matching)
@@ -8,6 +11,10 @@
 //! - Queue persistence, repair, or validation (see `crate::queue`)
 //! - Task mutation or state changes
 //! - Search result ordering beyond basic filtering
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Search patterns are normalized (lowercase, trimmed) before comparison

@@ -1,14 +1,21 @@
 //! Plugin response-parser regression coverage.
 //!
+//! Purpose:
+//! - Plugin response-parser regression coverage.
+//!
 //! Responsibilities:
 //! - Verify built-in parser extraction across valid, invalid, and empty response lines.
 //! - Preserve multiline accumulation behavior where runner protocols require it.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Command construction or executor dispatch metadata.
 //! - Live subprocess streaming integration.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Parsers should return `None` for invalid JSON rather than panic.
 //! - Streaming runners may accumulate buffer state across successive lines.
 

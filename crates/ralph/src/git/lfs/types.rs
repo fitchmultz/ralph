@@ -1,11 +1,18 @@
 //! Git LFS data types.
 //!
+//! Purpose:
+//! - Git LFS data types.
+//!
 //! Responsibilities:
 //! - Define LFS filter, status, pointer, and health-report models.
 //! - Provide convenience helpers for health/issue reporting.
 //!
 //! Not handled here:
 //! - Running git commands or parsing command output.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `lfs_initialized = false` means the repository should be treated as healthy.

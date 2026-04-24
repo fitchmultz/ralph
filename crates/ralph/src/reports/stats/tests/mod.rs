@@ -1,8 +1,20 @@
 //! Stats report unit tests grouped by concern.
 //!
+//! Purpose:
+//! - Stats report unit tests grouped by concern.
+//!
 //! Responsibilities:
 //! - Provide focused regression coverage for stats summary and breakdown helpers.
 //! - Keep production stats modules free of large inline test blocks.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::collections::HashMap;
 

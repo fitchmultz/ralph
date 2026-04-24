@@ -1,6 +1,9 @@
 /**
  RalphCLISpecModels
 
+ Purpose:
+ - Define typed models for the CLI spec emitted by `ralph machine cli-spec`.
+
  Responsibilities:
  - Define typed models for the CLI spec emitted by `ralph machine cli-spec`.
  - Keep both opaque and versioned schema representations available to the app.
@@ -8,6 +11,9 @@
  Does not handle:
  - Building argv tokens from user selections.
  - CLI process execution.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - `RalphCLISpecDocument.version` changes only for breaking schema updates.

@@ -1,6 +1,9 @@
 /**
  WorkspaceCorePerformanceTests
 
+ Purpose:
+ - Validate workspace task-diffing and task-blocking performance characteristics.
+
  Responsibilities:
  - Validate workspace task-diffing and task-blocking performance characteristics.
  - Cover console buffer and ANSI truncation regressions.
@@ -8,6 +11,9 @@
 
  Does not handle:
  - Runner configuration, run-control flows, or task-mutation CLI payload assertions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests inherit a fresh main-actor workspace from `WorkspacePerformanceTestCase`.

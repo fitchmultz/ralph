@@ -1,6 +1,9 @@
 /**
  RunControlConsoleView
 
+ Purpose:
+ - Display live console output from task execution with ANSI color support
+
  Responsibilities:
  - Display live console output from task execution with ANSI color support
  - Auto-scroll to show latest output
@@ -10,6 +13,9 @@
  Does not handle:
  - Direct CLI communication (delegated to Workspace)
  - ANSI parsing logic (handled by Workspace.ANSISegment)
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected as ObservedObject for reactive updates

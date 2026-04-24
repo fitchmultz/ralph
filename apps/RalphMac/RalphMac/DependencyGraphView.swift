@@ -1,6 +1,9 @@
 /**
  DependencyGraphView
 
+ Purpose:
+ - Host the task dependency graph experience and choose between visual and accessibility-focused presentations.
+
  Responsibilities:
  - Host the task dependency graph experience and choose between visual and accessibility-focused presentations.
  - Bridge workspace graph loading to the dedicated dependency-graph view model.
@@ -8,6 +11,9 @@
  Does not handle:
  - Graph layout simulation or presentation building.
  - Canvas drawing details.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Graph data is loaded through `Workspace.loadGraphData()`.

@@ -1,4 +1,9 @@
 # CI and Test Strategy
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](../index.md)
+
 
 Purpose: canonical operator guide for local validation gates, profiling, and macOS UI evidence capture.
 

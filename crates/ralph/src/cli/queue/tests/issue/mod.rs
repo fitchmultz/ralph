@@ -1,5 +1,8 @@
 //! Queue issue CLI tests grouped by behavior.
 //!
+//! Purpose:
+//! - Queue issue CLI tests grouped by behavior.
+//!
 //! Responsibilities:
 //! - Act as the thin suite hub for queue issue publish regressions.
 //! - Re-export shared issue-test helpers for focused companion modules.
@@ -9,6 +12,10 @@
 //! - Fake `gh` executable generation.
 //! - Large create/update/failure scenario bodies.
 //! - Shared queue fixture construction details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Companion modules preserve existing test names and assertions.

@@ -1,14 +1,21 @@
 //! Tests for `query.rs` operations (finding/selecting runnable tasks).
 //!
+//! Purpose:
+//! - Tests for `query.rs` operations (finding/selecting runnable tasks).
+//!
 //! Responsibilities:
 //! - Validate runnable selection logic and query error context.
 //! - Cover status, dependency, and target-id failure modes.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - End-to-end CLI command execution or queue persistence.
 //! - Validation of task edit inputs.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Helpers construct tasks with predictable IDs and statuses.
 //! - Queue order determines selection precedence.
 

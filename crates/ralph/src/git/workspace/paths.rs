@@ -1,5 +1,8 @@
 //! Workspace path resolution helpers.
 //!
+//! Purpose:
+//! - Workspace path resolution helpers.
+//!
 //! Responsibilities:
 //! - Compute the effective workspace root from config and repository location.
 //! - Keep tilde expansion and relative-path policy centralized.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Workspace creation, cleanup, or git subprocess execution.
 //! - Validation of workspace contents.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Relative workspace roots are resolved against `repo_root`.

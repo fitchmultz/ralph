@@ -1,5 +1,8 @@
 //! Queue relationship validation.
 //!
+//! Purpose:
+//! - Queue relationship validation.
+//!
 //! Responsibilities:
 //! - Validate `blocks`, `relates_to`, and `duplicates` relationships.
 //! - Detect hard relationship errors and non-blocking duplicate warnings.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - `depends_on` graph analysis.
 //! - `parent_id` hierarchy validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `blocks` relationships must remain acyclic.

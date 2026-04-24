@@ -1,5 +1,8 @@
 //! `ralph context init` integration tests.
 //!
+//! Purpose:
+//! - `ralph context init` integration tests.
+//!
 //! Responsibilities:
 //! - Cover AGENTS.md creation and generated section expectations.
 //! - Verify project-type detection and explicit hint behavior.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - `context validate` or `context update` behaviors.
 //! - Interactive flows requiring a TTY.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Each test starts from a fresh temp repo.

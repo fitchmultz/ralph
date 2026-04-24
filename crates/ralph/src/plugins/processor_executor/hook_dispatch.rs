@@ -1,5 +1,8 @@
 //! Processor-hook selection and subprocess dispatch.
 //!
+//! Purpose:
+//! - Processor-hook selection and subprocess dispatch.
+//!
 //! Responsibilities:
 //! - Filter enabled processor plugins for a requested hook.
 //! - Execute processor binaries with managed subprocess handling.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Temp-file payload creation.
 //! - Plugin discovery or trust policy.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Processor chains run in deterministic ascending plugin-id order.

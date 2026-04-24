@@ -1,5 +1,8 @@
 //! Task building functionality for creating new tasks via runner invocation.
 //!
+//! Purpose:
+//! - Task building functionality for creating new tasks via runner invocation.
+//!
 //! Responsibilities:
 //! - Build tasks using AI runners via .ralph/prompts/task_builder.md.
 //! - Apply template hints and target contexts when specified.
@@ -12,6 +15,10 @@
 //! - Refactor task generation (see refactor.rs).
 //! - CLI argument parsing or command routing.
 //! - Direct queue file manipulation outside of runner-driven changes.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue file is the source of truth for task ordering.
@@ -26,18 +33,25 @@ use crate::{config, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Context, Result, bail};
 
 pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result<()> {
+    build_task_created_tasks(resolved, opts).map(|_| ())
+}
+
+pub fn build_task_created_tasks(
+    resolved: &config::Resolved,
+    opts: TaskBuildOptions,
+) -> Result<Vec<crate::contracts::Task>> {
     build_task_impl(resolved, opts, true)
 }
 
 pub fn build_task_without_lock(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result<()> {
-    build_task_impl(resolved, opts, false)
+    build_task_impl(resolved, opts, false).map(|_| ())
 }
 
 fn build_task_impl(
     resolved: &config::Resolved,
     mut opts: TaskBuildOptions,
     acquire_lock: bool,
-) -> Result<()> {
+) -> Result<Vec<crate::contracts::Task>> {
     let _queue_lock = if acquire_lock {
         Some(queue::acquire_queue_lock(
             &resolved.repo_root,
@@ -217,6 +231,7 @@ fn build_task_impl(
     .context("validate queue set after task")?;
 
     let added = queue::added_tasks(&before_ids, &after);
+    let mut created_tasks = Vec::new();
     if !added.is_empty() {
         let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
 
@@ -238,6 +253,13 @@ fn build_task_impl(
 
         queue::save_queue(&resolved.queue_path, &after)
             .context("save queue with backfilled fields")?;
+
+        created_tasks = after
+            .tasks
+            .iter()
+            .filter(|task| added_ids.contains(&task.id))
+            .cloned()
+            .collect();
     }
     if added.is_empty() {
         log::info!("Task builder completed. No new tasks detected.");
@@ -250,5 +272,5 @@ fn build_task_impl(
             log::info!("...and {} more.", added.len() - 10);
         }
     }
-    Ok(())
+    Ok(created_tasks)
 }

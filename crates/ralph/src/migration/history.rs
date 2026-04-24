@@ -1,5 +1,8 @@
 //! Migration history persistence for tracking applied migrations.
 //!
+//! Purpose:
+//! - Migration history persistence for tracking applied migrations.
+//!
 //! Responsibilities:
 //! - Load and save migration history from `.ralph/cache/migrations.jsonc`.
 //! - Provide default history for new projects.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Migration execution logic (see `super::mod.rs`).
 //! - Config file modifications (see `config_migrations/`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - History file is stored in `.ralph/cache/migrations.jsonc`.

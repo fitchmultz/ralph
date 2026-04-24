@@ -1,6 +1,9 @@
 /**
  WindowStatePersistenceTests
 
+ Purpose:
+ - Validate WindowState model encoding, selection validation, and persistence through WorkspaceManager.
+
  Responsibilities:
  - Validate WindowState model encoding, selection validation, and persistence through WorkspaceManager.
  - Cover workspace snapshot persistence and corrupt-snapshot recovery surfaces.
@@ -8,6 +11,9 @@
  Does not handle:
  - Window restoration selection flows.
  - Scene routing and effective-workspace behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Persistence behavior is exercised through the shared WindowStateTestCase environment.

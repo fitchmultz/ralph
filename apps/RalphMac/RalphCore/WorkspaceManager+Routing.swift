@@ -1,6 +1,9 @@
 /**
  WorkspaceManager+Routing
 
+ Purpose:
+ - Bridge scene-scoped route registration to the shared WorkspaceSceneRouter.
+
  Responsibilities:
  - Bridge scene-scoped route registration to the shared WorkspaceSceneRouter.
  - Reveal workspaces and persist registered window states for unfocused surfaces.
@@ -8,6 +11,9 @@
  Does not handle:
  - Window restoration storage.
  - Workspace creation and migration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Route actions must be registered before unfocused surfaces attempt to target them.

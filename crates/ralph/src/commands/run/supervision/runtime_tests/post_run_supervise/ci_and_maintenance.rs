@@ -1,11 +1,20 @@
 //! CI-gate and queue-maintenance-focused post-run supervision scenarios.
 //!
+//! Purpose:
+//! - CI-gate and queue-maintenance-focused post-run supervision scenarios.
+//!
 //! Responsibilities:
 //! - Validate CI enforcement boundaries and maintenance-only queue repair behavior.
 //!
 //! Not handled here:
 //! - Upstream push semantics once git finalization succeeds.
 //! - Dirty-repo archival behavior unrelated to CI/maintenance triggers.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::support::{make_task, resolved_for_repo, write_done_tasks, write_queue};
 use crate::commands::run::supervision::{PushPolicy, post_run_supervise};

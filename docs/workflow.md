@@ -1,4 +1,9 @@
 # Workflow and Architecture
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 ![3-Phase Workflow](assets/images/2026-02-07-workflow-3phase.png)
 

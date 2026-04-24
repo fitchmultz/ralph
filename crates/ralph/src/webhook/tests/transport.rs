@@ -1,12 +1,19 @@
 //! Webhook dispatcher, retry, and redaction tests.
 //!
+//! Purpose:
+//! - Webhook dispatcher, retry, and redaction tests.
+//!
 //! Responsibilities:
 //! - Verify dispatcher rebuilds, destination redaction, and failure-record redaction.
 //! - Assert retry scheduling and worker-pool concurrency behavior with the test transport.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Payload/config serialization behavior.
 //! - Diagnostics replay filtering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Serial tests reset dispatcher state before installing test transports.

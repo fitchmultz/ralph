@@ -1,12 +1,21 @@
 //! Cursor-style tool call extraction.
 //!
+//! Purpose:
+//! - Cursor-style tool call extraction.
+//!
 //! Responsibilities:
 //! - Render nested `tool_call` envelopes used by Cursor-style runner output.
 //! - Preserve tool argument summaries through shared detail formatting.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Codex command items.
 //! - Gemini/Kimi role-based assistant payloads.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::outpututil;
 use serde_json::Value as JsonValue;

@@ -1,5 +1,8 @@
 //! Source and attach-target resolution helpers for task decomposition.
 //!
+//! Purpose:
+//! - Source and attach-target resolution helpers for task decomposition.
+//!
 //! Responsibilities:
 //! - Resolve freeform versus existing-task decomposition sources.
 //! - Validate optional attach targets and effective parents before writes.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Planner invocation, prompt construction, or response parsing.
 //! - Queue mutation, undo snapshots, or task materialization.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Existing-task decomposition only operates on active, non-terminal tasks.

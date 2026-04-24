@@ -1,11 +1,18 @@
 //! Snapshot normalization helpers for integration tests.
 //!
+//! Purpose:
+//! - Snapshot normalization helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Normalize CLI output so snapshots stay deterministic across terminals and dates.
 //! - Bind `insta` settings shared by CLI snapshot suites.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Creating queue fixtures or subprocess execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Date normalization intentionally targets `YYYY-MM-DD` spans only.

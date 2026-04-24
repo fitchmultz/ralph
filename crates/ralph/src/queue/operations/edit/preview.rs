@@ -1,13 +1,20 @@
 //! Task edit preview functionality.
 //!
+//! Purpose:
+//! - Task edit preview functionality.
+//!
 //! Responsibilities:
 //! - Preview task edit changes without applying them to the actual queue.
 //! - Generate a TaskEditPreview showing old/new values and any validation warnings.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Actually modifying the queue (see `apply.rs`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Creates a clone of the queue to simulate edits without side effects.
 //! - Validation warnings are collected and returned in the preview.
 

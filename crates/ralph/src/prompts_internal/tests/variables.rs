@@ -1,8 +1,19 @@
 //! Variable expansion and placeholder validation tests.
 //!
+//! Purpose:
+//! - Variable expansion and placeholder validation tests.
+//!
 //! Responsibilities: validate environment variable expansion, config variable expansion,
-//! and placeholder detection.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!   and placeholder detection.
+//!
 //! Not handled: prompt rendering or file loading.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: env vars with RALPH_TEST_ prefix are safe to manipulate;
 //! config paths follow dot notation.
 

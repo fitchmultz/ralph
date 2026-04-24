@@ -1,10 +1,19 @@
 //! Parallel run-loop configuration.
 //!
+//! Purpose:
+//! - Parallel run-loop configuration.
+//!
 //! Responsibilities:
 //! - Define parallel config struct, merge behavior, and related enums.
 //!
 //! Not handled here:
 //! - Parallel execution logic (see `crate::parallel` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

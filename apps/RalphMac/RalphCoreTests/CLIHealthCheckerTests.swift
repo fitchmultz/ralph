@@ -1,12 +1,18 @@
 /**
  CLIHealthCheckerTests
 
+ Purpose:
+ - Validate CLI health status classification and executable probing behavior.
+
  Responsibilities:
  - Validate CLI health status classification and executable probing behavior.
  - Cover timeout cleanup and fallback version probing behavior.
 
  Does not handle:
  - General recovery category formatting or workspace offline banners.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock executables behave like small shell scripts and must be marked executable.

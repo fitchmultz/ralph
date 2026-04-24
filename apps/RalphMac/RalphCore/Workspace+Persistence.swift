@@ -1,6 +1,9 @@
 /**
  Workspace+Persistence
 
+ Purpose:
+ - Persist workspace identity state through a single snapshot store.
+
  Responsibilities:
  - Persist workspace identity state through a single snapshot store.
  - Preserve user-selected workspace folder access with security-scoped bookmarks.
@@ -12,6 +15,9 @@
  - Queue mutation flows.
  - CLI subprocess execution.
  - Error recovery presentation.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Persistence keys remain namespaced by `Workspace.id`.

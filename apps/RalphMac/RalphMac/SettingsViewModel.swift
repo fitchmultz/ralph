@@ -1,6 +1,9 @@
 /**
  SettingsViewModel
 
+ Purpose:
+ - Load and cache current configuration from CLI.
+
  Responsibilities:
  - Load and cache current configuration from CLI.
  - Provide @Published properties for Settings UI binding.
@@ -9,7 +12,10 @@
 
  Does not handle:
  - Settings view layout (see SettingsView).
- - Global config editing (only project config for now).
+ - Global config editing; settings persistence is scoped to project config.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Must be created on MainActor.

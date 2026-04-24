@@ -1,6 +1,9 @@
 /**
  WorkspaceTaskPresentationTests
 
+ Purpose:
+ - Validate deterministic task filtering and ordering snapshots.
+
  Responsibilities:
  - Validate deterministic task filtering and ordering snapshots.
  - Cover strict ascending/descending sorting semantics with tied primary keys.
@@ -9,6 +12,12 @@
  Does not handle:
  - Queue file decoding or file-watcher behavior.
  - UI rendering or SwiftUI selection.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

@@ -1,6 +1,9 @@
 /**
  AppSettings+Runner
 
+ Purpose:
+ - Render runner, model, phase, iteration, and reasoning controls for Settings.
+
  Responsibilities:
  - Render runner, model, phase, iteration, and reasoning controls for Settings.
  - Keep runner-tab selection UI and button-grid helpers out of the root settings shell.
@@ -8,6 +11,12 @@
  Does not handle:
  - Notifications or appearance settings.
  - Underlying settings persistence logic.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

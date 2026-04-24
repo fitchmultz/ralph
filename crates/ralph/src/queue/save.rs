@@ -1,5 +1,8 @@
 //! Queue file saving functionality.
 //!
+//! Purpose:
+//! - Queue file saving functionality.
+//!
 //! Responsibilities:
 //! - Serialize queue files to JSON with pretty formatting.
 //! - Write queue files atomically to prevent corruption.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue file loading or backup creation.
 //! - Lock acquisition (assumed to be held by caller).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are written atomically using `write_atomic`.

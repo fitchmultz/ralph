@@ -1,5 +1,8 @@
 //! Stats report data structures.
 //!
+//! Purpose:
+//! - Stats report data structures.
+//!
 //! Responsibilities:
 //! - Define the serializable stats report model shared by text and JSON rendering.
 //! - Keep report payload types independent from calculation helpers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Metric calculation.
 //! - Rendering or ETA resolution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - These types stay serialization-friendly for CLI and dashboard consumers.

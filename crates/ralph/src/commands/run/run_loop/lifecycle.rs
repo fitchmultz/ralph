@@ -1,5 +1,8 @@
 //! Sequential run-loop lifecycle bookkeeping.
 //!
+//! Purpose:
+//! - Sequential run-loop lifecycle bookkeeping.
+//!
 //! Responsibilities:
 //! - Own loop-level counters, stop-signal state, notifications, and webhook lifecycle events.
 //! - Provide explicit helpers for success/failure accounting and loop finalization.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Per-task execution.
 //! - Session recovery or queue waiting decisions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Loop webhooks bracket the entire run-loop attempt.

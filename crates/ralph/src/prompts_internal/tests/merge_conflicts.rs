@@ -1,7 +1,18 @@
 //! Merge conflict prompt tests.
 //!
+//! Purpose:
+//! - Merge conflict prompt tests.
+//!
 //! Responsibilities: validate merge conflict prompt rendering and placeholder replacement.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: prompt loading via overrides or merge runner execution.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: conflict file list must be non-empty.
 
 use super::super::registry::{PromptTemplateId, prompt_template};

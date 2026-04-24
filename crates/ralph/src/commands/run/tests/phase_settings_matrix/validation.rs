@@ -1,5 +1,8 @@
 //! Validation-error coverage for per-phase settings resolution.
 //!
+//! Purpose:
+//! - Validation-error coverage for per-phase settings resolution.
+//!
 //! Responsibilities:
 //! - Assert phase-scoped validation failures for invalid runner/model combinations.
 //! - Keep error-message expectations close to the invalid input scenarios.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Success-path precedence behavior.
 //! - Integration-style matrix combinations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Invalid phase settings must fail the full matrix resolution.

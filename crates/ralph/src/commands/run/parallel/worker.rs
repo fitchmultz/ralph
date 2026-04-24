@@ -1,12 +1,21 @@
 //! Worker lifecycle facade for parallel task execution.
 //!
+//! Purpose:
+//! - Worker lifecycle facade for parallel task execution.
+//!
 //! Responsibilities:
 //! - Re-export task selection, worker command construction, and process helpers.
 //! - Keep implementation modules focused while preserving the existing worker API.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Parallel orchestration loop control.
 //! - Persistent worker state serialization.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 #[path = "worker_command.rs"]
 mod command;

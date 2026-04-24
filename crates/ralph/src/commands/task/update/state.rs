@@ -1,5 +1,8 @@
 //! Queue-state preparation, backup, and restore helpers for task updates.
 //!
+//! Purpose:
+//! - Queue-state preparation, backup, and restore helpers for task updates.
+//!
 //! Responsibilities:
 //! - Create pre-update queue backups and restore them when post-run queue handling fails.
 //! - Validate queue/done state before and after task-update runner execution.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Prompt rendering or runner execution.
 //! - CLI-facing dry-run output.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Backup restoration targets the active queue file only.

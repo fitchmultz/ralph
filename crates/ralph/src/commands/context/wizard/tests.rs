@@ -1,5 +1,8 @@
 //! Wizard-specific unit tests.
 //!
+//! Purpose:
+//! - Wizard-specific unit tests.
+//!
 //! Responsibilities:
 //! - Verify scripted prompt playback and validation errors.
 //! - Cover init and update wizard result shaping.
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - End-to-end context command workflow coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests preserve prompt ordering expected by scripted helpers.

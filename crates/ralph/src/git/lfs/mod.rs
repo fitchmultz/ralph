@@ -1,5 +1,8 @@
 //! Git LFS facade.
 //!
+//! Purpose:
+//! - Git LFS facade.
+//!
 //! Responsibilities:
 //! - Expose Git LFS detection, filter/status parsing, pointer validation, and health reporting.
 //! - Keep LFS concerns split into focused submodules instead of one large implementation file.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Regular git status/commit/clean operations.
 //! - Repository cleanliness policy outside LFS.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Repositories without LFS remain a healthy no-op case.

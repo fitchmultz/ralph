@@ -1,5 +1,8 @@
 //! `ralph context validate` integration tests.
 //!
+//! Purpose:
+//! - `ralph context validate` integration tests.
+//!
 //! Responsibilities:
 //! - Cover success and failure flows for context validation.
 //! - Verify custom path handling and strict-mode behavior.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - `context init` generation behavior.
 //! - `context update` mutation workflows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Validation uses on-disk AGENTS.md content only.

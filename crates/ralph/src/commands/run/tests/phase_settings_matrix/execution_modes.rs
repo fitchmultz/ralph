@@ -1,5 +1,8 @@
 //! Phase-count and warning coverage for per-phase settings resolution.
 //!
+//! Purpose:
+//! - Phase-count and warning coverage for per-phase settings resolution.
+//!
 //! Responsibilities:
 //! - Verify single-pass, two-phase, and three-phase mapping behavior.
 //! - Assert warning flags for overrides that become unused under each mode.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Override-precedence ordering.
 //! - Invalid-model validation behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Single-pass execution resolves through Phase 2 settings.

@@ -1,12 +1,21 @@
 /**
  RetryIntegrationTests
 
+ Purpose:
+ - Validate retry behavior with mock CLI client simulating transient failures.
+
  Responsibilities:
  - Validate retry behavior with mock CLI client simulating transient failures.
  - Cover file lock simulation and retry recovery scenarios.
 
  Does not handle:
  - Real file system locking (requires external process coordination).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

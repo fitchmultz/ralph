@@ -1,4 +1,20 @@
 //! Integration tests for init command validation and config wiring.
+//!
+//! Purpose:
+//! - Integration tests for init command validation and config wiring.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use ralph::commands::init::{InitOptions, run_init};

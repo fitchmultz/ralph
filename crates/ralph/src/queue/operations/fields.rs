@@ -1,15 +1,22 @@
 //! Custom field mutation helpers for queue tasks.
 //!
+//! Purpose:
+//! - Custom field mutation helpers for queue tasks.
+//!
 //! Responsibilities:
 //! - Set or update a single custom field on a task.
 //! - Validate task IDs, custom field keys, and timestamps.
 //! - Preview custom field changes without applying them.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persisting queue files to disk or resolving task selection rules.
 //! - Validating non-custom task fields.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers supply a loaded `QueueFile` and RFC3339 `now` timestamp.
 //! - Custom field keys are non-empty and contain no whitespace.
 

@@ -1,5 +1,8 @@
 //! Parsing functions for agent-related CLI inputs.
 //!
+//! Purpose:
+//! - Parsing functions for agent-related CLI inputs.
+//!
 //! Responsibilities:
 //! - Parse runner strings into Runner enum variants.
 //! - Parse git revert mode strings into GitRevertMode enum.
@@ -9,6 +12,10 @@
 //! - Model parsing (see `crate::runner`).
 //! - Reasoning effort parsing (see `crate::runner`).
 //! - Override resolution (see `super::resolve`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Parsing is case-insensitive for runner strings.

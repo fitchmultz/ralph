@@ -1,5 +1,8 @@
 //! Queue-file level validation.
 //!
+//! Purpose:
+//! - Queue-file level validation.
+//!
 //! Responsibilities:
 //! - Validate standalone queue file invariants and done-file terminal status rules.
 //! - Enforce active/done duplicate-ID rules before graph validation runs.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Dependency, relationship, or parent graph logic.
 //! - Queue loading or repair.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Rejected tasks are excluded from duplicate-ID conflicts.

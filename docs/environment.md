@@ -1,4 +1,9 @@
 # Environment Variables
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 ![Environment Variables](assets/images/2026-02-07-environment.png)
 

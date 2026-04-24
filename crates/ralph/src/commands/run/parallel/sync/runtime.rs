@@ -1,13 +1,20 @@
 //! `.ralph` runtime tree synchronization.
 //!
+//! Purpose:
+//! - `.ralph` runtime tree synchronization.
+//!
 //! Responsibilities:
 //! - Copy repo-local `.ralph` runtime content into worker workspaces.
 //! - Exclude queue/done bookkeeping files that are seeded from resolved paths.
 //! - Skip coordinator-only runtime directories such as cache, logs, locks, and workspaces.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Gitignored non-`.ralph` allowlist syncing.
 //! - Bookkeeping path mapping into workspace roots.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Resolved queue/done files are always synced explicitly outside this module.

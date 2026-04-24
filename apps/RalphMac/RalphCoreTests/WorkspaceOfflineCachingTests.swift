@@ -1,11 +1,17 @@
 /**
  WorkspaceOfflineCachingTests
 
+ Purpose:
+ - Validate workspace offline-banner and cached-task presentation behavior.
+
  Responsibilities:
  - Validate workspace offline-banner and cached-task presentation behavior.
 
  Does not handle:
  - CLI health probe execution or recovery category formatting.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests mutate in-memory workspace state only.

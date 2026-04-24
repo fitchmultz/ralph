@@ -1,7 +1,18 @@
 //! Phase-specific worker prompt rendering tests.
 //!
+//! Purpose:
+//! - Phase-specific worker prompt rendering tests.
+//!
 //! Responsibilities: validate phase 1, 2, 2-handoff, 3, and single-phase prompt rendering.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: base worker prompts, task builder, or scan prompts.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: phase templates contain expected placeholders; config expansion works.
 
 use super::*;

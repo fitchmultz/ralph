@@ -1,4 +1,9 @@
 # Troubleshooting
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Purpose: provide fast resolution paths for common setup and CI failures.
 

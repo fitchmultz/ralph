@@ -1,6 +1,9 @@
 /**
  WorkspaceManager
 
+ Purpose:
+ - Own the shared WorkspaceManager singleton and its stored app-wide state.
+
  Responsibilities:
  - Own the shared WorkspaceManager singleton and its stored app-wide state.
  - Coordinate initialization across decomposed lifecycle, restoration, versioning, and routing files.
@@ -8,6 +11,9 @@
  Does not handle:
  - Per-workspace rendering or command execution details.
  - The concrete implementation of restoration, versioning, or defaults management in this file.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - The shared instance is the sole app-wide workspace manager.

@@ -1,6 +1,9 @@
 /**
  WorkspaceTaskMutationModels
 
+ Purpose:
+ - Define app-side machine JSON contracts for task mutation and queue continuation workflows.
+
  Responsibilities:
  - Define app-side machine JSON contracts for task mutation and queue continuation workflows.
  - Provide Codable request/response models used by workspace task mutation and recovery flows.
@@ -10,6 +13,9 @@
  - Executing CLI processes.
  - Diffing tasks or deciding which edits to send.
  - Queue loading or optimistic-lock conflict resolution.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Field names must match the CLI's `TaskEditKey` snake_case values.

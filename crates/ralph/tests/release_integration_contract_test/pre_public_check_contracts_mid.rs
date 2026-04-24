@@ -1,7 +1,19 @@
 //! `pre-public-check.sh` contract coverage (tracked-path and git snapshot section).
 //!
+//! Purpose:
+//! - `pre-public-check.sh` contract coverage (tracked-path and git snapshot section).
+//!
 //! Responsibilities:
 //! - Tracked forbidden paths, release-context checks, and git enumeration failures.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::Command;
 

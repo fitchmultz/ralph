@@ -1,6 +1,9 @@
 /**
  StringArrayEditor
 
+ Purpose:
+ - Display a list of editable text items.
+
  Responsibilities:
  - Display a list of editable text items.
  - Support deletion of items.
@@ -10,6 +13,12 @@
  - Complex validation of item content.
  - Rich text editing.
  - Reordering items (can add if needed).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

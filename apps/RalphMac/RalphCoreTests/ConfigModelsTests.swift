@@ -1,11 +1,17 @@
 /**
  ConfigModelsTests
 
+ Purpose:
+ - Regression-test decoding of RalphCore config models against CLI-shaped JSON payloads.
+
  Responsibilities:
  - Regression-test decoding of RalphCore config models against CLI-shaped JSON payloads.
 
  Does not handle:
  - Config validation semantics (CLI remains source of truth).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Fixtures mirror snake_case keys from `ralph machine config resolve` documents.

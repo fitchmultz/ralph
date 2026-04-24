@@ -1,5 +1,8 @@
 //! Runner-related configuration contracts.
 //!
+//! Purpose:
+//! - Runner-related configuration contracts.
+//!
 //! Responsibilities:
 //! - Define runner identity (`Runner`) as a string-serialized value (built-ins + plugins).
 //! - Define runner CLI normalization types (approval/sandbox/plan/etc).
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin discovery / registry (see `crate::plugins`).
 //! - Runner execution dispatch (see `crate::runner`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `Runner` MUST serialize to a single string token for config/CLI stability.

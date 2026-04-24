@@ -1,11 +1,18 @@
 //! Search options for task filtering and searching.
 //!
+//! Purpose:
+//! - Search options for task filtering and searching.
+//!
 //! Responsibilities:
 //! - Define `SearchOptions` struct that unifies parameters for CLI and GUI clients
 //!
 //! Not handled here:
 //! - Actual search/filter implementation (see sibling modules)
 //! - Default value logic for scopes (handled by callers)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All boolean flags default to false for conservative/safe behavior

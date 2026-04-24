@@ -1,5 +1,8 @@
 //! Integration tests for `ralph config show --format` flag.
 //!
+//! Purpose:
+//! - Integration tests for `ralph config show --format` flag.
+//!
 //! Responsibilities:
 //! - Test that `--format json` and `--format yaml` produce valid parseable output.
 //! - Test that both formats contain the same top-level keys for parity.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Config resolution logic (see config_test.rs).
 //! - Config file loading/saving (see config.rs tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp directories to avoid user global config interference.

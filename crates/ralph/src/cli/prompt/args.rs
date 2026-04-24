@@ -1,5 +1,8 @@
 //! Prompt CLI argument definitions.
 //!
+//! Purpose:
+//! - Prompt CLI argument definitions.
+//!
 //! Responsibilities:
 //! - Define clap structures and enum routing for `ralph prompt ...`.
 //! - Validate phase parsing for worker prompt previews.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Prompt execution logic.
 //! - Resolved-config based routing decisions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Phase parsing accepts only 1, 2, or 3.

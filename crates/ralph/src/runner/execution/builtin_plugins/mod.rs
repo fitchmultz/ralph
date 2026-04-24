@@ -1,5 +1,8 @@
 //! Built-in runner plugin implementations.
 //!
+//! Purpose:
+//! - Built-in runner plugin implementations.
+//!
 //! Responsibilities:
 //! - Implement RunnerPlugin trait for all 7 built-in runners.
 //! - Implement ResponseParser trait for each runner's JSON format.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - External plugin protocol execution (see plugin.rs).
 //! - Process execution and streaming (see process.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Each built-in runner has a corresponding variant in BuiltInRunnerPlugin.

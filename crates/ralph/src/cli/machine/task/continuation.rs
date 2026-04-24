@@ -1,5 +1,8 @@
 //! Machine task continuation document builders.
 //!
+//! Purpose:
+//! - Machine task continuation document builders.
+//!
 //! Responsibilities:
 //! - Build stable continuation summaries for task mutation and decomposition flows.
 //! - Keep operator-facing next steps and blocking narration consistent for machine task commands.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue/task write orchestration.
 //! - Machine JSON envelope assembly.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Continuation text stays deterministic for machine consumers.

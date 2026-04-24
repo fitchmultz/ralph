@@ -1,5 +1,8 @@
 //! Relationship validation runtime tests.
 //!
+//! Purpose:
+//! - Relationship validation runtime tests.
+//!
 //! Responsibilities:
 //! - Cover `blocks`, `relates_to`, and `duplicates` validation rules.
 //! - Verify self-reference, missing-target, and cycle semantics.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Parent chain validation.
 //! - Required-field or archive validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Relationship tests operate on active queue state unless done/archive behavior matters.

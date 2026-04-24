@@ -1,12 +1,19 @@
 //! Tests for parallel workspace state synchronization.
 //!
+//! Purpose:
+//! - Tests for parallel workspace state synchronization.
+//!
 //! Responsibilities:
 //! - Organize sync tests by behavior area.
 //! - Provide shared fixtures and imports for companion sync test modules.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Individual test scenarios, which live in sibling modules.
 //! - Production sync implementation logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - This hub stays thin; behavior-specific assertions live in companion files.

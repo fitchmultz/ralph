@@ -1,5 +1,8 @@
 //! Integration tests for daemon mode (`ralph daemon`).
 //!
+//! Purpose:
+//! - Integration tests for daemon mode (`ralph daemon`).
+//!
 //! Responsibilities:
 //! - Test that daemon commands exist and have proper help output
 //! - Test stale state detection and cleanup
@@ -8,6 +11,12 @@
 //! Not handled here:
 //! - Continuous mode logic (see run_loop_continuous_test.rs)
 //! - Windows service management (daemon is Unix-only)
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 mod test_support;
 

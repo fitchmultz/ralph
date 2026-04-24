@@ -1,11 +1,18 @@
 //! Shared types for sequential run-loop orchestration.
 //!
+//! Purpose:
+//! - Shared types for sequential run-loop orchestration.
+//!
 //! Responsibilities:
 //! - Define configuration and mutable bookkeeping for the sequential run loop.
 //!
 //! Not handled here:
 //! - The loop state machine itself.
 //! - Wait or session recovery behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `max_tasks == 0` means unbounded execution.

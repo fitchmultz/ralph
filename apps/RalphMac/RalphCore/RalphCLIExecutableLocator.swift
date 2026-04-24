@@ -1,6 +1,9 @@
 /**
  RalphCLIExecutableLocator
 
+ Purpose:
+ - Provide a single place to resolve the on-disk `ralph` executable used by the macOS GUI.
+
  Responsibilities:
  - Provide a single place to resolve the on-disk `ralph` executable used by the macOS GUI.
  - Prefer the app-bundled `ralph` placed next to the app executable (Contents/MacOS/ralph).
@@ -8,6 +11,9 @@
  Does not handle:
  - Building or copying the `ralph` binary into the bundle (handled by the Xcode build phase).
  - Falling back to `PATH` lookup. If the binary isn't bundled, the GUI treats this as a configuration error.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - The GUI build step bundles an executable file named `ralph` into the app bundle.

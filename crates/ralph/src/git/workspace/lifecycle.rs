@@ -1,5 +1,8 @@
 //! Workspace lifecycle orchestration.
 //!
+//! Purpose:
+//! - Workspace lifecycle orchestration.
+//!
 //! Responsibilities:
 //! - Create, reuse, reset, and remove isolated git workspaces.
 //! - Validate user inputs and filesystem safety around workspace removal.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Low-level git command execution details.
 //! - Workspace path derivation rules.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task IDs and base branches must be non-empty after trimming.

@@ -1,5 +1,8 @@
 //! `ralph context update` integration tests.
 //!
+//! Purpose:
+//! - `ralph context update` integration tests.
+//!
 //! Responsibilities:
 //! - Cover file-based update flows, section targeting, and dry-run behavior.
 //! - Verify custom output-path handling for updates.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - `context init` generation paths.
 //! - Validation-only reporting behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Update tests mutate only temp-repo fixtures.

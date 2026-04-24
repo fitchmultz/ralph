@@ -1,5 +1,8 @@
 //! Batch task operations for `ralph task batch`.
 //!
+//! Purpose:
+//! - Batch task operations for `ralph task batch`.
+//!
 //! Responsibilities:
 //! - Route each batch subcommand to a focused handler.
 //! - Share loaded queue/done context, selector resolution, and mutation scaffolding.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue mutation logic itself (see `crate::queue::operations`).
 //! - Single-task task commands.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Supports dry-run previews and continue-on-error consistently across operations.

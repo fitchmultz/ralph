@@ -1,14 +1,21 @@
 //! Task selection helpers for run commands.
 //!
+//! Purpose:
+//! - Task selection helpers for run commands.
+//!
 //! Responsibilities:
 //! - Apply `run one`/`run --target` selection rules over queue and done data.
 //! - Delegate to queue selection helpers while preserving CLI operation context.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persisting queue state or mutating tasks.
 //! - Dependency resolution beyond what queue selection helpers enforce.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers pass fully loaded `QueueFile` values and consistent done refs.
 //! - Target task IDs are trimmed and validated by downstream helpers.
 

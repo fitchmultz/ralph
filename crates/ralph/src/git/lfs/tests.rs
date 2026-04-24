@@ -1,10 +1,17 @@
 //! Git LFS tests.
 //!
+//! Purpose:
+//! - Git LFS tests.
+//!
 //! Responsibilities:
 //! - Cover focused LFS helpers and the aggregate health report.
 //!
 //! Not handled here:
 //! - Higher-level git command flows outside the LFS subsystem.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temporary repositories.

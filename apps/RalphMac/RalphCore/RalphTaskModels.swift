@@ -1,6 +1,9 @@
 /**
  RalphTaskModels
 
+ Purpose:
+ - Define task, agent-override, queue-document, and queue machine-document models shared across the app.
+
  Responsibilities:
  - Define task, agent-override, queue-document, and queue machine-document models shared across the app.
  - Normalize task-level execution overrides into canonical forms.
@@ -8,6 +11,9 @@
  Does not handle:
  - Graph visualization or analytics aggregation.
  - Workspace mutations or persistence side effects.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Queue payloads decode from the current queue document object shape.

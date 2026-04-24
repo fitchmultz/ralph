@@ -1,4 +1,9 @@
 # Ralph Migration System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 The migration system manages breaking changes to configuration keys, file formats, and project structure. It provides automated detection, safe application with backup/rollback capability, and preserves JSONC comments during migrations.
 

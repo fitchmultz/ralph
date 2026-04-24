@@ -1,6 +1,9 @@
 /**
  WindowState
 
+ Purpose:
+ - Represent the state of a single window including its tabs (workspace IDs).
+
  Responsibilities:
  - Represent the state of a single window including its tabs (workspace IDs).
  - Support persistence for window restoration across app launches.
@@ -9,6 +12,9 @@
  Does not handle:
  - Workspace content or CLI operations (see Workspace).
  - Direct UI rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - WindowState is Codable for JSON persistence.

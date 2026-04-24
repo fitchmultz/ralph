@@ -1,5 +1,8 @@
 //! Runner configuration and binary checks for the doctor command.
 //!
+//! Purpose:
+//! - Runner configuration and binary checks for the doctor command.
+//!
 //! Responsibilities:
 //! - Verify runner binary availability
 //! - Check model compatibility with selected runner
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Runner execution (see runner module)
 //! - Git repository checks (see git.rs)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Runner binaries may have different flag conventions

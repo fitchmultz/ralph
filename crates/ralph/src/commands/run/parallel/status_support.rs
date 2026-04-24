@@ -1,8 +1,13 @@
 //! Purpose: parallel status inspection helpers.
+//!
 //! Responsibilities: inspect worker workspaces, blocked-push markers, and lifecycle summaries.
+//!
 //! Scope: read-only status aggregation for `ralph run parallel status`.
+//!
 //! Usage: called from `parallel_ops` status/document rendering code.
+//!
 //! Not handled here: CLI dispatch, table rendering, or retry mutation flow.
+//!
 //! Invariants/assumptions: reads workspace-local runtime artifacts only and never mutates queue or worker state.
 
 use crate::commands::run::parallel::{

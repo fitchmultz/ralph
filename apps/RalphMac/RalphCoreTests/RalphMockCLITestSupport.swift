@@ -1,6 +1,9 @@
 /**
  RalphMockCLITestSupport
 
+ Purpose:
+ - Centralize mock Ralph CLI script creation for RalphCore tests.
+
  Responsibilities:
  - Centralize mock Ralph CLI script creation for RalphCore tests.
  - Generate machine-readable config, queue, graph, and CLI-spec fixtures with workspace-resolved paths.
@@ -11,6 +14,9 @@
  - Production CLI behavior.
  - UI-test harness setup.
  - Highly stateful shell routing beyond writing the mock executable and fixture documents.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Encoded task dates use ISO8601 to match production decode paths.

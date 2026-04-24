@@ -1,4 +1,20 @@
 //! Integration tests for repo execution trust CLI (`ralph config trust init`, `ralph init --trust-project-commands`).
+//!
+//! Purpose:
+//! - Integration tests for repo execution trust CLI (`ralph config trust init`, `ralph init --trust-project-commands`).
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 mod test_support;

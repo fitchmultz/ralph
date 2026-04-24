@@ -1,8 +1,20 @@
 /**
  PriorityDistributionCard
 
+ Purpose:
+ - Show a compact bar chart of tasks by priority.
+
  Responsibilities:
  - Show a compact bar chart of tasks by priority.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

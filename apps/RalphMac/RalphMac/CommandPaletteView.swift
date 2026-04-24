@@ -1,6 +1,9 @@
 /**
  CommandPaletteView
  
+ Purpose:
+ - Display the command palette as a modal overlay.
+
  Responsibilities:
  - Display the command palette as a modal overlay.
  - Handle search input and display filtered results.
@@ -11,6 +14,9 @@
  - Command execution logic (handled by CommandPaletteViewModel).
  - Fuzzy search algorithm (handled by CommandPaletteViewModel).
  
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
  Invariants/assumptions:
  - Must be presented as an overlay/sheet.
  - Dismisses on Escape key or clicking outside.

@@ -1,5 +1,8 @@
 //! Queue waiting and wakeup handling for the sequential run loop.
 //!
+//! Purpose:
+//! - Queue waiting and wakeup handling for the sequential run loop.
+//!
 //! Responsibilities:
 //! - Watch queue/runtime files and wake the run loop when work becomes runnable.
 //! - Translate wait outcomes into explicit state-machine exits.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Session recovery or per-task execution.
 //! - Parallel orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue/done state is re-evaluated from disk on each wakeup.

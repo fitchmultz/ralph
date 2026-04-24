@@ -1,10 +1,17 @@
 //! CLI arguments for task lifecycle commands.
 //!
+//! Purpose:
+//! - CLI arguments for task lifecycle commands.
+//!
 //! Responsibilities:
 //! - Define Args structs for show, ready, status, done, start, reject, and schedule commands.
 //!
 //! Not handled here:
 //! - Command execution (see status, show, start, and schedule handlers).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap.

@@ -1,14 +1,21 @@
 //! Watch processor regression coverage.
 //!
+//! Purpose:
+//! - Watch processor regression coverage.
+//!
 //! Responsibilities:
 //! - Verify pending-file processing handles debounce, missing files, and read failures.
 //! - Cover stale-history cleanup and state-poison resilience.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - File watcher event-loop orchestration.
 //! - Low-level comment parsing beyond the processor contract.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Missing files count as processed for reconciliation.
 //! - Existing-path read failures should not be recorded as successful processing.
 //! - Old `last_processed` entries should be pruned during normal processing.

@@ -1,5 +1,8 @@
 //! Debounce helpers for the watch command.
 //!
+//! Purpose:
+//! - Debounce helpers for the watch command.
+//!
 //! Responsibilities:
 //! - Determine if a file can be reprocessed based on last processing time.
 //! - Clean up old entries from the processing history to prevent memory leaks.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - File watching or event handling (see `event_loop/mod.rs`).
 //! - State management (see `state.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `can_reprocess` returns true if file has never been processed or if

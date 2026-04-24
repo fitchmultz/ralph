@@ -1,11 +1,18 @@
 //! CLI arguments for task template commands.
 //!
+//! Purpose:
+//! - CLI arguments for task template commands.
+//!
 //! Responsibilities:
 //! - Define Args structs for template commands and from-template commands.
 //! - Define TaskTemplateCommand and TaskFromCommand enums.
 //!
 //! Not handled here:
 //! - Command execution (see template and from_template handlers).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap.

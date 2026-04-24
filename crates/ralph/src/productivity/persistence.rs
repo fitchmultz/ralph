@@ -1,11 +1,18 @@
 //! Productivity stats persistence layer.
 //!
+//! Purpose:
+//! - Productivity stats persistence layer.
+//!
 //! Responsibilities:
 //! - Load and save productivity stats from/to the cache directory.
 //!
 //! Not handled here:
 //! - Data structure definitions (see `super::types`).
 //! - Business logic for updating stats (see `super::calculations`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Stats file is JSON with schema version for migrations.

@@ -1,5 +1,8 @@
 //! Queue file backup and cleanup functionality.
 //!
+//! Purpose:
+//! - Queue file backup and cleanup functionality.
+//!
 //! Responsibilities:
 //! - Create timestamped backups of queue files before modifications.
 //! - Prune old backups to prevent unbounded growth (respects MAX_QUEUE_BACKUP_FILES).
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual file modification (callers handle that after backup).
 //! - Lock acquisition (assumed to be held by caller).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Backup directory is writable; failures are logged but not fatal.

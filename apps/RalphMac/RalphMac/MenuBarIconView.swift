@@ -1,6 +1,9 @@
 /**
  MenuBarIconView
 
+ Purpose:
+ - Render the menu bar icon with status indication.
+
  Responsibilities:
  - Render the menu bar icon with status indication.
  - Show different icons based on workspace state (idle, running, all done).
@@ -9,6 +12,9 @@
  Does not handle:
  - Menu content rendering.
  - Business logic.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Observes WorkspaceManager.shared for state changes.

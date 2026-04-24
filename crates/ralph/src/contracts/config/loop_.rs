@@ -1,10 +1,19 @@
 //! Run loop waiting configuration for daemon/continuous mode.
 //!
+//! Purpose:
+//! - Run loop waiting configuration for daemon/continuous mode.
+//!
 //! Responsibilities:
 //! - Define loop config struct and merge behavior.
 //!
 //! Not handled here:
 //! - Loop execution logic (see `crate::commands::run` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

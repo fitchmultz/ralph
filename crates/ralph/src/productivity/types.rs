@@ -1,5 +1,8 @@
 //! Productivity stats data structures.
 //!
+//! Purpose:
+//! - Productivity stats data structures.
+//!
 //! Responsibilities:
 //! - Define all data structures for productivity tracking (stats, streaks, milestones, reports).
 //!
@@ -7,6 +10,12 @@
 //! - Persistence logic (see `super::persistence`).
 //! - Calculations and business logic (see `super::calculations`).
 //! - Report formatting and display (see `super::reports`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

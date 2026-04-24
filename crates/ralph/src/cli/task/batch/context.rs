@@ -1,13 +1,22 @@
 //! Shared context and mutation helpers for batch task CLI operations.
 //!
+//! Purpose:
+//! - Shared context and mutation helpers for batch task CLI operations.
+//!
 //! Responsibilities:
 //! - Load queue/done state and shared batch metadata.
 //! - Acquire queue locks and create undo snapshots for mutating operations.
 //! - Persist updated queue/done files after batch mutations.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Operation-specific queue mutations.
 //! - Dry-run rendering or task selection.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::config;
 use crate::contracts::QueueFile;

@@ -1,5 +1,8 @@
 //! Cleanup guard for parallel run loop to ensure resources are cleaned up on any exit path.
 //!
+//! Purpose:
+//! - Cleanup guard for parallel run loop to ensure resources are cleaned up on any exit path.
+//!
 //! Responsibilities:
 //! - Own and manage resources that need cleanup: in-flight workers,
 //!   workspace directories, and parallel state.
@@ -9,6 +12,10 @@
 //! - Actual worker execution logic (see `super::worker`).
 //! - Integration loop execution (see `super::integration`).
 //! - State persistence format (see `super::state`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Cleanup is idempotent and best-effort; errors are logged but not propagated.

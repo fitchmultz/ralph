@@ -1,9 +1,21 @@
 /**
  BurndownChartView
 
+ Purpose:
+ - Render a line chart showing remaining tasks over time.
+
  Responsibilities:
  - Render a line chart showing remaining tasks over time.
  - Uses SwiftUI Charts LineMark for visualization.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

@@ -1,15 +1,22 @@
 //! Batch task generation operations (clone and split).
 //!
+//! Purpose:
+//! - Batch task generation operations (clone and split).
+//!
 //! Responsibilities:
 //! - Batch clone multiple tasks with new IDs.
 //! - Batch split multiple tasks into child tasks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task deletion (see delete.rs).
 //! - Task filtering/selection (see filters.rs).
 //! - Task field updates (see update.rs).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Clone operations can source from active or done queues.
 //! - Split operations only work on tasks in the active queue.
 //! - Both operations support atomic rollback on failure.

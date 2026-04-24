@@ -1,5 +1,8 @@
 //! Test that .env load errors (except NotFound) emit warnings.
 //!
+//! Purpose:
+//! - Test that .env load errors (except NotFound) emit warnings.
+//!
 //! Responsibilities:
 //! - Verify that missing .env files do NOT produce warnings.
 //! - Verify that invalid .env files DO produce warnings while still allowing success.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Testing the actual content loading from valid .env files.
 //! - Testing environment variable propagation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The Ralph binary is built and discoverable by the test harness.

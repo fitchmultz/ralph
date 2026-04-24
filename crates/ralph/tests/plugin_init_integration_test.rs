@@ -1,11 +1,26 @@
 //! Integration tests for `ralph plugin init` command.
 //!
+//! Purpose:
+//! - Integration tests for `ralph plugin init` command.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Tests cover:
 //! - Scaffold default (project) + validate
 //! - Dry-run writes nothing
 //! - Invalid id rejected
 //! - Target exists (force semantics)
 //! - Global scope requires HOME
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use std::path::Path;

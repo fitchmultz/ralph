@@ -1,12 +1,18 @@
 /**
  WorkspaceTaskCreationIntegrationTests
 
+ Purpose:
+ - Verify Workspace task creation uses the deterministic direct-create path against a real CLI-backed workspace.
+
  Responsibilities:
  - Verify Workspace task creation uses the deterministic direct-create path against a real CLI-backed workspace.
 
  Does not handle:
  - Queue watcher edge cases.
  - Retargeting/refresh coverage across multiple workspaces.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests initialize isolated temp workspaces with `ralph init --non-interactive` before exercising task creation.

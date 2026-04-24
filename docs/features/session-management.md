@@ -1,4 +1,9 @@
 # Session Management
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 Ralph's session management system provides crash recovery, explicit resume decisions, and runner-level continue support for long-running agent work.
 

@@ -1,5 +1,8 @@
 //! Notification configuration for post-run supervision.
 //!
+//! Purpose:
+//! - Notification configuration for post-run supervision.
+//!
 //! Responsibilities:
 //! - Build notification configuration from resolved config and CLI overrides.
 //! - CLI overrides take precedence over config file settings.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual notification delivery (handled by crate::notification).
 //! - Queue or git operations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Notification settings are optional with sensible defaults.

@@ -1,5 +1,8 @@
 //! Task decomposition planning and queue materialization helpers.
 //!
+//! Purpose:
+//! - Task decomposition planning and queue materialization helpers.
+//!
 //! Responsibilities:
 //! - Re-export the task decomposition preview/write API from focused companion modules.
 //! - Keep the root module as a thin facade for planner, normalization, and queue-write workflows.
@@ -9,6 +12,10 @@
 //! - Planner prompt construction or runner invocation details.
 //! - Source/attach validation or queue mutation internals.
 //! - Tree normalization and materialization helper implementations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview stays side-effect free with respect to queue/done files.

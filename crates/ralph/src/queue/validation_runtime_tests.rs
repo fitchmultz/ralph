@@ -1,5 +1,8 @@
 //! Queue validation runtime test hub.
 //!
+//! Purpose:
+//! - Queue validation runtime test hub.
+//!
 //! Responsibilities:
 //! - Group queue validation runtime coverage by validation concern.
 //! - Keep helper builders and fixtures in adjacent test-only modules.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Validation implementation logic (see `validation.rs`).
 //! - Queue loading or repair integration flows outside validation coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Each child module targets one validation seam.

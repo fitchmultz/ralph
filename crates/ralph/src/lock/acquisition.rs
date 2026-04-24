@@ -1,5 +1,8 @@
 //! Lock acquisition and shared-lock semantics.
 //!
+//! Purpose:
+//! - Lock acquisition and shared-lock semantics.
+//!
 //! Responsibilities:
 //! - Create lock directories and owner files.
 //! - Apply stale-lock force-removal and shared supervisor/task lock rules.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - PID liveness implementation details.
 //! - Lock cleanup retries after drop.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - A `task` lock may coexist only with a supervising `owner` file.

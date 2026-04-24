@@ -1,12 +1,19 @@
 //! Notification configuration resolution.
 //!
+//! Purpose:
+//! - Notification configuration resolution.
+//!
 //! Responsibilities:
 //! - Define CLI override and runtime configuration types for notifications.
 //! - Merge config-file values with CLI overrides into a resolved runtime config.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Notification display or sound playback.
 //! - UI activity detection beyond suppression flags.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Runtime config defaults remain explicit and stable.

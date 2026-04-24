@@ -1,5 +1,8 @@
 //! Git branch helpers for resolving the current branch name.
 //!
+//! Purpose:
+//! - Git branch helpers for resolving the current branch name.
+//!
 //! Responsibilities:
 //! - Determine the current branch name for the repository.
 //! - Fail fast on detached HEAD states to avoid ambiguous base branches.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Branch creation or deletion (see `git/workspace.rs`).
 //! - Push operations (see `git/commit.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Caller expects a named branch (not detached HEAD).

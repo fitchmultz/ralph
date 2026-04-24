@@ -1,10 +1,19 @@
 //! Productivity module tests.
 //!
+//! Purpose:
+//! - Productivity module tests.
+//!
 //! Responsibilities:
 //! - Unit tests for productivity tracking functionality.
 //!
 //! Not handled here:
 //! - Integration tests (see `tests/` directory).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::collections::BTreeMap;
 

@@ -1,8 +1,20 @@
 //! `pre-public-check.sh` contract coverage (early section).
 //!
+//! Purpose:
+//! - `pre-public-check.sh` contract coverage (early section).
+//!
 //! Responsibilities:
 //! - Source snapshot / `--allow-no-git` behavior and markdown discovery wiring.
 //! - CI surface and git worktree prerequisites.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::Command;
 

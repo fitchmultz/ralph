@@ -1,5 +1,8 @@
 //! Tests for doctor types and blocking-state aggregation.
 //!
+//! Purpose:
+//! - Tests for doctor types and blocking-state aggregation.
+//!
 //! Responsibilities:
 //! - Unit tests for CheckResult factory methods.
 //! - Tests for DoctorReport aggregation logic.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Integration tests for individual checks (see module tests).
 //! - External system validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Blocking-state derivation prefers hard stalls over softer waiting states.

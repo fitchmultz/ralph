@@ -1,8 +1,19 @@
 //! Scan prompt loading and rendering.
 //!
+//! Purpose:
+//! - Scan prompt loading and rendering.
+//!
 //! Responsibilities: load the scan prompt template, render user focus and scan mode, and apply
-//! project-type guidance where enabled.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!   project-type guidance where enabled.
+//!
 //! Not handled: task creation logic, queue mutations, or phase-specific prompt composition.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: required placeholders exist and empty user focus normalizes to "(none)".
 
 use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};

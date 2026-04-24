@@ -1,5 +1,8 @@
 //! Shared GitHub CLI helpers for git-facing integrations.
 //!
+//! Purpose:
+//! - Shared GitHub CLI helpers for git-facing integrations.
+//!
 //! Responsibilities:
 //! - Provide consistent `gh` command construction with updater prompts disabled.
 //! - Run managed `gh` subprocesses with centralized truncation logging.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - PR- or issue-specific command flags and JSON parsing.
 //! - Authentication or lifecycle policy decisions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All commands use `GH_NO_UPDATE_NOTIFIER=1`.

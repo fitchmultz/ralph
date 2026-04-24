@@ -1,4 +1,9 @@
 # Ralph Prompt System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 ![Prompt System](../assets/images/2026-02-07-11-32-24-prompts.png)
 

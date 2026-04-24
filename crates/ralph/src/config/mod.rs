@@ -1,5 +1,8 @@
 //! Configuration resolution for Ralph, including global and project layers.
 //!
+//! Purpose:
+//! - Configuration resolution for Ralph, including global and project layers.
+//!
 //! Responsibilities:
 //! - Resolve configuration from multiple layers: global config, project config, and defaults.
 //! - Load and parse config files (JSON with JSONC comment support via `load_layer`).
@@ -14,6 +17,10 @@
 //! - Runner execution or agent invocation (see `crate::runner`).
 //! - Prompt rendering or template processing (see `crate::prompts_internal`).
 //! - Lock management (see `crate::lock`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Config version must be 2; unsupported versions are rejected.

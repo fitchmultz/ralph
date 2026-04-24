@@ -1,15 +1,22 @@
 //! Task edit application logic.
 //!
+//! Purpose:
+//! - Task edit application logic.
+//!
 //! Responsibilities:
 //! - Apply edits to task fields with proper validation.
 //! - Update timestamps and maintain task consistency.
 //! - Rollback changes if validation fails.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue persistence (callers must save the queue after editing).
 //! - Previewing changes without applying them (see `preview.rs`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers provide a valid RFC3339 `now` value for timestamp updates.
 //! - Task IDs are matched after trimming and are case-sensitive.
 //! - Failed validation rolls back the task to its previous state.

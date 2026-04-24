@@ -1,12 +1,21 @@
 //! Sink rendering helpers for runner JSON events.
 //!
+//! Purpose:
+//! - Sink rendering helpers for runner JSON events.
+//!
 //! Responsibilities:
 //! - Render normalized display lines to terminal sinks and optional handlers.
 //! - Keep output fanout separate from event parsing and stream reading.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - JSON parsing or event correlation.
 //! - Buffer management.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::runner::{OutputHandler, OutputStream};
 use serde_json::Value as JsonValue;

@@ -1,5 +1,8 @@
 //! Git-ref validation rules.
 //!
+//! Purpose:
+//! - Git-ref validation rules.
+//!
 //! Responsibilities:
 //! - Validate git branch/ref names used by configuration or runtime helpers.
 //! - Return human-readable invalidity reasons instead of boolean results.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Git command execution.
 //! - Queue, trust, or agent validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Rules track Ralph's supported subset of `git check-ref-format`.

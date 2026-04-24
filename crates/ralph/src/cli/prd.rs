@@ -1,5 +1,8 @@
 //! `ralph prd ...` command group: Clap types and handler.
 //!
+//! Purpose:
+//! - `ralph prd ...` command group: Clap types and handler.
+//!
 //! Responsibilities:
 //! - Define clap structures for PRD-related commands.
 //! - Route PRD subcommands to the implementation layer.
@@ -8,6 +11,10 @@
 //! - PRD parsing logic (see `crate::commands::prd`).
 //! - Queue persistence or lock management.
 //! - Task generation from PRD content.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers resolve configuration before executing commands.

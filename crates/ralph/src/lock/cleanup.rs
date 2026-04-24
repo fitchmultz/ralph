@@ -1,5 +1,8 @@
 //! Lock cleanup helpers.
 //!
+//! Purpose:
+//! - Lock cleanup helpers.
+//!
 //! Responsibilities:
 //! - Remove owner files and lock directories with retry/backoff handling.
 //! - Preserve shared task/supervisor lock semantics during cleanup.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Lock acquisition decisions or stale-lock policy.
 //! - PID liveness detection.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task sidecars must not remove the lock directory while other owner files remain.

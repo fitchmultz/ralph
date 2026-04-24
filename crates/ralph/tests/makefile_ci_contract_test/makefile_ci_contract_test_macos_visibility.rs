@@ -1,5 +1,8 @@
 //! macOS app visibility contract tests for CI-gated sources.
 //!
+//! Purpose:
+//! - macOS app visibility contract tests for CI-gated sources.
+//!
 //! Responsibilities:
 //! - Keep default macOS CI/build codepaths free of ad hoc foreground app activation calls.
 //! - Guard the workspace-window anchor against regressing back to headed reveal APIs.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Interactive UI-test bundles and test-only helper code.
 //! - Runtime behavior outside the tracked app-target Swift sources.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Shared foreground activation is centralized in `RalphMacPresentationRuntime`.

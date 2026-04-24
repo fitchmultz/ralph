@@ -1,5 +1,8 @@
 //! Daemon command implementation for background service management.
 //!
+//! Purpose:
+//! - Daemon command implementation for background service management.
+//!
 //! Responsibilities:
 //! - Re-export daemon subcommands (start, stop, serve, status, logs)
 //! - Define shared types (DaemonState) and constants
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Individual command implementations (see submodules)
 //! - Windows service management (Unix-only implementation)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Daemon uses a dedicated lock at `.ralph/cache/daemon.lock`

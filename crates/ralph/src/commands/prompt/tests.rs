@@ -1,5 +1,8 @@
 //! Tests for prompt command helpers.
 //!
+//! Purpose:
+//! - Tests for prompt command helpers.
+//!
 //! Responsibilities:
 //! - Validate worker task-id resolution behavior used by prompt previews.
 //! - Keep prompt helper tests adjacent to the helper seams they cover.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Full prompt rendering integration tests (see `crates/ralph/tests/prompt_cmd_test.rs`).
 //! - CLI parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Temp directories stand in for isolated repo roots.

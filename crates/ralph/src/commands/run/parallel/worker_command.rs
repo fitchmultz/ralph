@@ -1,11 +1,20 @@
 //! Worker subprocess command construction.
 //!
+//! Purpose:
+//! - Worker subprocess command construction.
+//!
 //! Responsibilities:
 //! - Build the CLI argv/environment for parallel worker subprocesses.
 //! - Map coordinator queue/done paths into the worker workspace.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task selection or worker lifecycle management.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::agent::AgentOverrides;
 use crate::commands::run::parallel::args::build_override_args;

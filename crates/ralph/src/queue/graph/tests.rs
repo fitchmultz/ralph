@@ -1,11 +1,18 @@
 //! Unit tests for `crate::queue::graph`.
 //!
+//! Purpose:
+//! - Unit tests for `crate::queue::graph`.
+//!
 //! Responsibilities:
 //! - Validate graph construction, traversal, bounded traversal, and algorithms.
 //! - Cover both success paths and key failure modes (e.g., cycle detection).
 //!
 //! Not handled here:
 //! - Integration-level UI rendering behavior (covered elsewhere).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task timestamps are present (to satisfy `Task` invariants in this crate's contracts).

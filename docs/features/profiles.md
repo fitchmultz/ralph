@@ -1,4 +1,9 @@
 # Ralph Configuration Profiles
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 ![Custom Profiles](../assets/images/2026-03-10-12-11-39-profiles.png)
 

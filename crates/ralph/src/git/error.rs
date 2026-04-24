@@ -1,5 +1,14 @@
 //! Git-related error types and error classification.
 //!
+//! Purpose:
+//! - Git-related error types and error classification.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! This module defines all error types that can occur during git operations.
 //! It provides structured error variants for common failure modes like dirty
 //! repositories, authentication failures, and missing upstream configuration.
@@ -11,6 +20,9 @@
 //! # What this does NOT handle
 //! - Success cases or happy-path results
 //! - Non-git related errors (use anyhow for those)
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 
 use anyhow::{Context, Result};
 use std::path::Path;

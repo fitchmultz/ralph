@@ -1,11 +1,18 @@
 //! Doctor JSON output contract tests.
 //!
+//! Purpose:
+//! - Doctor JSON output contract tests.
+//!
 //! Responsibilities:
 //! - Verify stable JSON structure for successful and failing doctor runs.
 //! - Keep missing-queue coverage on git-only repos while success cases use seeded fixtures.
 //!
 //! Not handled here:
 //! - Human-readable output formatting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - JSON payloads come from stdout while logs may still go to stderr.

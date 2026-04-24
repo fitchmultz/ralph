@@ -1,12 +1,18 @@
 /**
  QueueFileWatcherTests
 
+ Purpose:
+ - Validate queue file watcher notification, debounce, replacement, and retry-exhaustion behavior.
+
  Responsibilities:
  - Validate queue file watcher notification, debounce, replacement, and retry-exhaustion behavior.
 
  Does not handle:
  - Higher-level workspace task creation flows.
  - Queue graph/analytics refresh assertions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests exercise the low-level watcher directly against isolated `.ralph` fixtures.

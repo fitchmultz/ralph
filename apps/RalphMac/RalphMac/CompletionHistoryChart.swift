@@ -1,8 +1,20 @@
 /**
  CompletionHistoryChart
 
+ Purpose:
+ - Render a line chart showing both tasks created and completed over time.
+
  Responsibilities:
  - Render a line chart showing both tasks created and completed over time.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

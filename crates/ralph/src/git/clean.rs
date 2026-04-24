@@ -1,5 +1,14 @@
 //! Repository cleanliness validation.
 //!
+//! Purpose:
+//! - Repository cleanliness validation.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! This module provides functions for validating that a repository is in a clean
 //! state, with support for allowing specific paths to be dirty (e.g., Ralph's
 //! own configuration files).
@@ -13,6 +22,9 @@
 //! - Actual git operations (see git/commit.rs)
 //! - Status parsing details (see git/status.rs)
 //! - LFS validation (see git/lfs.rs)
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 
 use crate::git::error::GitError;
 use crate::git::status::{parse_porcelain_z_entries, status_porcelain};

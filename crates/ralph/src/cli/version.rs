@@ -1,5 +1,8 @@
 //! Version command for Ralph CLI.
 //!
+//! Purpose:
+//! - Version command for Ralph CLI.
+//!
 //! Responsibilities:
 //! - Display version information including package version, git commit, and build timestamp.
 //! - Provide both simple and verbose output modes for version details.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Version bumping or release management (see release workflow).
 //! - Changelog generation or modification.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Version info is captured at compile time via environment variables set by the build script.

@@ -1,5 +1,8 @@
 //! Workspace+Analytics
 //!
+//! Purpose:
+//! - Load analytics data for dashboard surfaces.
+//!
 //! Responsibilities:
 //! - Load analytics data for dashboard surfaces.
 //! - Decode the aggregated dashboard endpoint into per-section dashboard state.
@@ -10,11 +13,14 @@
 //! - Queue mutations or task presentation.
 //! - Graph loading.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Analytics state is derived from the dashboard endpoint only.
 //! - Each analytics section owns its own lifecycle instead of sharing a global error bit.
 //! - Failed loads should retain stale data only when the caller has previous section content.
-
+//!
 public import Foundation
 public import Combine
 

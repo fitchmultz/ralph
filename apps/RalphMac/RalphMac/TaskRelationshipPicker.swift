@@ -1,6 +1,9 @@
 /**
  TaskRelationshipPicker
 
+ Purpose:
+ - Display and edit task relationship arrays (dependsOn, blocks, relatesTo).
+
  Responsibilities:
  - Display and edit task relationship arrays (dependsOn, blocks, relatesTo).
  - Provide a picker to select from available tasks.
@@ -9,6 +12,9 @@
  Does not handle:
  - Direct persistence (handled by parent view).
  - Complex multi-hop cycle validation (uses simplified cycle detection).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - existingEdges should represent the current state of all task relationships.

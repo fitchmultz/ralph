@@ -1,6 +1,9 @@
 /**
  DependencyGraphAccessibilityView
 
+ Purpose:
+ - Present dependency graph relationships as an accessibility-friendly list.
+
  Responsibilities:
  - Present dependency graph relationships as an accessibility-friendly list.
  - Surface cycle warnings and task relationship summaries without relying on canvas rendering.
@@ -8,6 +11,9 @@
  Does not handle:
  - Layout simulation or canvas navigation.
  - Graph data fetching.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Nodes and edges are already synchronized by the dependency graph view model.

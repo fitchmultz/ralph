@@ -1,6 +1,9 @@
 /**
  VersionValidatorTests
 
+ Purpose:
+ - Validate semantic version parsing logic.
+
  Responsibilities:
  - Validate semantic version parsing logic.
  - Test version range validation.
@@ -9,6 +12,12 @@
  Does not handle:
  - Actual CLI execution (covered by RalphCLIClientTests).
  - UI integration (covered by E2E tests).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

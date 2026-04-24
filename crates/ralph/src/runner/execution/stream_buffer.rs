@@ -1,14 +1,21 @@
 //! Shared bounded-buffer helpers for runner stream processing.
 //!
+//! Purpose:
+//! - Shared bounded-buffer helpers for runner stream processing.
+//!
 //! Responsibilities:
 //! - Enforce the global runner output buffer limit.
 //! - Provide one truncation implementation for raw and JSON readers.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Stream IO or JSON parsing.
 //! - Terminal rendering or output handlers.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers hold any external synchronization around the target buffer.
 
 use crate::constants::buffers::MAX_BUFFER_SIZE;

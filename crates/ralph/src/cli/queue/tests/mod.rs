@@ -1,5 +1,8 @@
 //! Shared test helpers for queue CLI subcommand tests.
 //!
+//! Purpose:
+//! - Shared test helpers for queue CLI subcommand tests.
+//!
 //! Responsibilities:
 //! - Provide common utilities for creating test environments and mock data.
 //! - Define base argument builders for consistent test setup.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual test cases (see individual test modules).
 //! - Test assertions and specific test logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests using these helpers run in isolated temp directories.

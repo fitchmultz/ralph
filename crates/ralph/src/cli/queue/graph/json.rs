@@ -1,5 +1,8 @@
 //! JSON-format rendering for `queue graph`.
 //!
+//! Purpose:
+//! - JSON-format rendering for `queue graph`.
+//!
 //! Responsibilities:
 //! - Render focused and full graph JSON payloads for external tools.
 //! - Keep JSON field shapes stable and deterministic.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - CLI argument parsing.
 //! - Tree, list, or DOT rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Emitted task collections are sorted for deterministic snapshots.

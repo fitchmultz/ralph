@@ -1,5 +1,8 @@
 //! Directory lock facade for queue and daemon coordination.
 //!
+//! Purpose:
+//! - Directory lock facade for queue and daemon coordination.
+//!
 //! Responsibilities:
 //! - Expose lock acquisition, owner metadata, stale-lock handling, and PID liveness helpers.
 //! - Keep concurrency-critical concerns split into focused submodules.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue mutation or config validation.
 //! - Cross-machine or distributed locking.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers hold `DirLock` for the full critical section.

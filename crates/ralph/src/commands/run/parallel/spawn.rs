@@ -1,11 +1,18 @@
 //! Register a workspace with the cleanup guard and spawn a worker child process.
 //!
+//! Purpose:
+//! - Register a workspace with the cleanup guard and spawn a worker child process.
+//!
 //! Responsibilities:
 //! - Tie workspace creation, sync, and process spawn into one transactional step for the guard.
 //!
 //! Not handled here:
 //! - Selecting tasks or building runner command lines (see `worker.rs`).
 //! - Integration loop or push retries.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - On any error after workspace registration, the guard remains responsible for teardown.

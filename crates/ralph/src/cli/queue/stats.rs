@@ -1,12 +1,22 @@
 //! Queue stats subcommand.
 //!
+//! Purpose:
+//! - Queue stats subcommand.
+//!
 //! Responsibilities:
 //! - Print task statistics (completion rate, avg duration, tag breakdown).
 //! - Include execution-history-based ETA estimates when available.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - Task execution or runner behavior.
 //! - Queue mutations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are loaded and validated before reporting.

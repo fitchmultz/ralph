@@ -1,5 +1,8 @@
 //! Webhook notification helpers for run-one.
 //!
+//! Purpose:
+//! - Webhook notification helpers for run-one.
+//!
 //! Responsibilities:
 //! - Execute phase 1 (planning) with webhook notifications.
 //! - Execute implementation phases (phase 2, 3, or single) with webhook notifications.
@@ -9,6 +12,10 @@
 //! - Context preparation (see context.rs).
 //! - Task setup (see execution_setup.rs).
 //! - Phase execution logic (see phase_execution.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Webhook notifications are best-effort and do not fail the run on error.

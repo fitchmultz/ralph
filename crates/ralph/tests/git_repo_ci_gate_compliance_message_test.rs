@@ -1,5 +1,8 @@
 //! Integration tests for CI gate compliance message delivery to agent.
 //!
+//! Purpose:
+//! - Integration tests for CI gate compliance message delivery to agent.
+//!
 //! Responsibilities:
 //! - Verify CI failure compliance messages reach the agent via Continue session.
 //! - Ensure strict enforcement language and CI output context are passed to retry.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - CI gate execution itself (see ci_gate_*_test.rs).
 //! - Git revert behavior (see git_repo_ci_gate_revert_test.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - CI gate command runs in subprocess with captured output.

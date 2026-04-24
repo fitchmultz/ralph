@@ -1,6 +1,9 @@
 /**
  WorkspaceDiagnosticsService
 
+ Purpose:
+ - Execute workspace-scoped diagnostics commands used by recovery UI.
+
  Responsibilities:
  - Execute workspace-scoped diagnostics commands used by recovery UI.
  - Load recent Ralph logs through the shared logger using async-friendly APIs.
@@ -11,6 +14,9 @@
  - SwiftUI sheet presentation or button state.
  - Error classification.
  - Opening Finder, links, or pasteboard integration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Diagnostics run against a live `Workspace` configured on the main actor.

@@ -1,5 +1,8 @@
 //! Shared task fixtures for run-command tests.
 //!
+//! Purpose:
+//! - Shared task fixtures for run-command tests.
+//!
 //! Responsibilities:
 //! - Build representative queue tasks with stable defaults for run-test scenarios.
 //! - Centralize task-shape setup so sibling suites avoid duplicating queue fixtures.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Config or override builder helpers.
 //! - Queue-lock or process-environment helpers.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Returned tasks match the queue schema expected by run-command tests.

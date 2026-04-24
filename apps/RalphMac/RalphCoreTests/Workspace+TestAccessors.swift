@@ -1,12 +1,18 @@
 /**
  Workspace+TestAccessors
 
+ Purpose:
+ - Expose narrowly scoped test-only accessors over internal Workspace state for RalphCore tests.
+
  Responsibilities:
  - Expose narrowly scoped test-only accessors over internal Workspace state for RalphCore tests.
 
  Does not handle:
  - Production API surface changes.
  - Test fixture creation.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Accessors mirror existing internal state without adding new behavior.

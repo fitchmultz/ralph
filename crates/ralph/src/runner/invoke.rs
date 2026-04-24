@@ -1,15 +1,22 @@
 //! Unified runner invocation dispatch for prompt and resume operations.
 //!
+//! Purpose:
+//! - Unified runner invocation dispatch for prompt and resume operations.
+//!
 //! Responsibilities:
 //! - Centralize built-in runner invocation/resume validation and dispatch.
 //! - Share exit-status and semantic-failure handling across operations.
 //! - Keep `runner.rs` as a thin public facade over a cohesive dispatch model.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Plugin registry lookup for external plugin runners (see `plugin_dispatch`).
 //! - Runner-specific command construction (see `crate::runner::execution`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Built-in runner binaries are resolved before dispatch.
 //! - Model validation occurs before execution for every operation.
 

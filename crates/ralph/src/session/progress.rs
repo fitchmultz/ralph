@@ -1,11 +1,18 @@
 //! Session loop-progress mutation helpers.
 //!
+//! Purpose:
+//! - Session loop-progress mutation helpers.
+//!
 //! Responsibilities:
 //! - Increment persisted loop progress without exposing persistence details to callers.
 //!
 //! Not handled here:
 //! - Session validation.
 //! - Recovery prompting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing session files are a no-op.

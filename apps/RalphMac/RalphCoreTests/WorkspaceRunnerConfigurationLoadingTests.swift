@@ -1,12 +1,18 @@
 /**
  WorkspaceRunnerConfigurationLoadingTests
 
+ Purpose:
+ - Validate runner-configuration loading, decoding, failure clearing, and shutdown suppression behavior.
+
  Responsibilities:
  - Validate runner-configuration loading, decoding, failure clearing, and shutdown suppression behavior.
 
  Does not handle:
  - Working-directory retargeting coverage.
  - Workspace-manager CLI override behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs emulate only the config-resolve surfaces asserted by each test.

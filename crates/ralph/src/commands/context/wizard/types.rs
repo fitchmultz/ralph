@@ -1,5 +1,8 @@
 //! Shared data models for the AGENTS.md wizard.
 //!
+//! Purpose:
+//! - Shared data models for the AGENTS.md wizard.
+//!
 //! Responsibilities:
 //! - Define init-wizard configuration hints and result payloads.
 //! - Define the update-wizard return shape consumed by the workflow layer.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Prompting.
 //! - Wizard step orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Default command hints remain the canonical generated-command fallbacks.

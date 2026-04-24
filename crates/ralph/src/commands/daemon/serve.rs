@@ -1,5 +1,8 @@
 //! Internal daemon serve command implementation.
 //!
+//! Purpose:
+//! - Internal daemon serve command implementation.
+//!
 //! Responsibilities:
 //! - Run the continuous execution loop in daemon mode.
 //! - Acquire and hold the daemon lock for process lifecycle.
@@ -13,6 +16,10 @@
 //! Signal handling:
 //! - SIGTERM is registered here to trigger graceful shutdown via the stop
 //!   signal mechanism (see `crate::signal`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - This function is internal and should not be called directly by users.

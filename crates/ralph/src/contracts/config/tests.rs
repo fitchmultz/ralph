@@ -1,10 +1,19 @@
 //! Tests for configuration contracts.
 //!
+//! Purpose:
+//! - Tests for configuration contracts.
+//!
 //! Responsibilities:
 //! - Test config merge behavior and serialization.
 //!
 //! Not handled here:
 //! - Integration tests (see `crates/ralph/tests/`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::{
     AgentConfig, Config, GitRevertMode, Model, NotificationConfig, PhaseOverrideConfig,

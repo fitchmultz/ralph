@@ -1,5 +1,8 @@
 //! Dispatch logic for `ralph run`.
 //!
+//! Purpose:
+//! - Dispatch logic for `ralph run`.
+//!
 //! Responsibilities:
 //! - Resolve config/profile context for run commands.
 //! - Route parsed clap commands into the runtime entrypoints.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Clap type definitions.
 //! - Help-text content.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Profile resolution happens once before per-command dispatch.

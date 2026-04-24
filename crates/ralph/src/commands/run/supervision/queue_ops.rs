@@ -1,5 +1,8 @@
 //! Queue maintenance operations for post-run supervision.
 //!
+//! Purpose:
+//! - Queue maintenance operations for post-run supervision.
+//!
 //! Responsibilities:
 //! - Explicitly repair and validate queue and done files for post-run recovery.
 //! - Ensure task status transitions to Done appropriately.
@@ -9,6 +12,10 @@
 //! - Git operations (see git_ops.rs).
 //! - CI gate execution (see ci.rs).
 //! - Notification logic (see notify.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files follow the QueueFile schema.

@@ -1,12 +1,18 @@
 /**
  WorkspaceRunStateResumeBlockingTests
 
+ Purpose:
+ - Validate runner configuration resume preview, queue preflight blocking, machine-run
+
  Responsibilities:
  - Validate runner configuration resume preview, queue preflight blocking, machine-run
    output application for resume/blocking/summary, and run-control preview task selection.
 
  Does not handle:
  - Live `runNextTask` streaming, loop/cancel scheduling, parallel status loading, watcher health.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs intentionally implement only the command paths exercised by each scenario.

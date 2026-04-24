@@ -1,5 +1,8 @@
 //! AGENTS.md template rendering helpers.
 //!
+//! Purpose:
+//! - AGENTS.md template rendering helpers.
+//!
 //! Responsibilities:
 //! - Select the correct embedded template for the detected project type.
 //! - Build repository-map placeholders from repo structure.
@@ -7,6 +10,12 @@
 //!
 //! Not handled here:
 //! - Interactive prompting or file writes.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::types::DetectedProjectType;
 use super::wizard;

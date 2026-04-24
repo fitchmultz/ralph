@@ -1,6 +1,9 @@
 /**
  RalphE2ESmokeTests
 
+ Purpose:
+ - Validate that the real `ralph` binary can be executed end-to-end from Swift.
+
  Responsibilities:
  - Validate that the real `ralph` binary can be executed end-to-end from Swift.
  - Exercise a minimal workflow in an isolated temp directory:
@@ -10,6 +13,9 @@
 
  Does not handle:
  - Comprehensive CLI correctness. This is intentionally a smoke test.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - A deterministic `ralph` binary must be available via either:

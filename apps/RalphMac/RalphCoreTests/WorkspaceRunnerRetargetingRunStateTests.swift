@@ -1,12 +1,18 @@
 /**
  WorkspaceRunnerRetargetingRunStateTests
 
+ Purpose:
+ - Validate working-directory retargeting invalidates in-flight run state deterministically.
+
  Responsibilities:
  - Validate working-directory retargeting invalidates in-flight run state deterministically.
 
  Does not handle:
  - Runner-configuration decoding assertions.
  - Workspace-manager CLI override behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock run scripts cooperate with SIGINT/SIGTERM cancellation and expose only the exercised command surface.

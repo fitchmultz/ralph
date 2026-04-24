@@ -1,5 +1,8 @@
 //! Configuration layer handling for Ralph.
 //!
+//! Purpose:
+//! - Configuration layer handling for Ralph.
+//!
 //! Responsibilities:
 //! - Define `ConfigLayer` for partial config from JSON files.
 //! - Load config layers with JSONC comment support.
@@ -10,6 +13,10 @@
 //! - Config validation (see `super::validation`).
 //! - Path resolution (see `super::resolution`).
 //! - Profile application (see `super::resolution`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `save_layer` creates parent directories automatically if needed.

@@ -1,5 +1,8 @@
 //! Read-only queue/report command regression tests.
 //!
+//! Purpose:
+//! - Read-only queue/report command regression tests.
+//!
 //! Responsibilities:
 //! - Verify read-only CLI surfaces do not mutate queue/done files.
 //! - Verify read-only CLI surfaces do not leave the repo dirty.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Mutation commands such as archive/import/repair.
 //! - Full report rendering correctness (covered by other tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated git repos outside the workspace repo.

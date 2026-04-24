@@ -1,12 +1,21 @@
 //! Worker-event handling helpers for parallel orchestration.
 //!
+//! Purpose:
+//! - Worker-event handling helpers for parallel orchestration.
+//!
 //! Responsibilities:
 //! - Summarize blocked workers at loop start.
 //! - Apply worker exit events to persisted parallel state.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Worker spawning or selection.
 //! - Loop termination decisions.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use std::collections::HashSet;

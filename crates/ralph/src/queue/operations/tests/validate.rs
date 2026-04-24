@@ -1,14 +1,21 @@
 //! Tests for `validate.rs` helpers.
 //!
+//! Purpose:
+//! - Tests for `validate.rs` helpers.
+//!
 //! Responsibilities:
 //! - Validate shared queue input validation helpers.
 //! - Ensure error context is actionable and consistent.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - End-to-end queue operations or persistence.
 //! - Validation of full queue schemas.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Helper errors are surfaced directly to CLI/GUI consumers.
 
 use crate::queue::operations::validate::{

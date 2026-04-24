@@ -1,5 +1,8 @@
 //! Core traits for the runner plugin system.
 //!
+//! Purpose:
+//! - Core traits for the runner plugin system.
+//!
 //! Responsibilities:
 //! - Define the RunnerPlugin trait interface for all runner implementations.
 //! - Define ResponseParser trait for runner-specific JSON parsing.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Concrete runner implementations (see builtin_plugins.rs).
 //! - External plugin protocol execution (see plugin.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - All built-in runners MUST implement RunnerPlugin via BuiltInRunnerPlugin enum.

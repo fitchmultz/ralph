@@ -1,6 +1,9 @@
 /**
  CommandPaletteViewModel
  
+ Purpose:
+ - Manage the command palette's search query and filtered results.
+
  Responsibilities:
  - Manage the command palette's search query and filtered results.
  - Handle command execution via focused scene actions.
@@ -11,6 +14,9 @@
  - UI rendering (handled by CommandPaletteView).
  - Direct view manipulation outside the focused scene contracts.
  
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
  Invariants/assumptions:
  - Must be used as @StateObject in the view hierarchy.
  - Commands are static; no dynamic command registration.

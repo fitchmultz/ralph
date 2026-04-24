@@ -1,5 +1,8 @@
 //! Task building command handler for `ralph task` and `ralph task build`.
 //!
+//! Purpose:
+//! - Task building command handler for `ralph task` and `ralph task build`.
+//!
 //! Responsibilities:
 //! - Handle the default task command (when no subcommand is given).
 //! - Handle explicit `build` subcommand.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Template management (see `template.rs`).
 //! - Task updates or edits (see `edit.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Reads request from args or stdin.

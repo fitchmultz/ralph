@@ -1,12 +1,18 @@
 /**
  RalphMacApp+Support
 
+ Purpose:
+ - Provide app-level support actions such as log export, crash-report export, and alerts.
+
  Responsibilities:
  - Provide app-level support actions such as log export, crash-report export, and alerts.
 
  Does not handle:
  - URL routing.
  - Window/bootstrap lifecycle.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - AppKit save panels and alerts must run on the main actor.

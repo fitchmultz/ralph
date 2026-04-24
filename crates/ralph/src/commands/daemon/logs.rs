@@ -1,5 +1,8 @@
 //! Daemon log inspection and tailing implementation.
 //!
+//! Purpose:
+//! - Daemon log inspection and tailing implementation.
+//!
 //! Responsibilities:
 //! - Read and filter daemon log files with support for tail, follow, and JSON output.
 //! - Parse timestamps and log levels from log lines for filtering.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Log file creation and writing (handled by daemon process stdio redirection).
 //! - Log rotation policy (handled externally).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Log files use RFC3339 timestamps at the start of lines when present.

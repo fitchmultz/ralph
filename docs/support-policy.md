@@ -1,4 +1,9 @@
 # Support Policy
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Purpose: clarify supported platforms/tooling and what maintainers can realistically support.
 

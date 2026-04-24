@@ -1,5 +1,8 @@
 //! Text rendering helpers for stats reports.
 //!
+//! Purpose:
+//! - Text rendering helpers for stats reports.
+//!
 //! Responsibilities:
 //! - Render the human-readable `ralph queue stats` text output.
 //! - Keep CLI presentation separate from metrics computation.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - JSON rendering.
 //! - Stats calculation or ETA lookup.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Rendering consumes a fully-populated `StatsReport`.

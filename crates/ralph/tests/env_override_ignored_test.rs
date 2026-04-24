@@ -1,5 +1,8 @@
 //! Integration tests for ignored RALPH_*_OVERRIDE environment variables.
 //!
+//! Purpose:
+//! - Integration tests for ignored RALPH_*_OVERRIDE environment variables.
+//!
 //! Responsibilities:
 //! - Verify repository resolution is based on command CWD, not override env vars.
 //! - Verify queue/done path resolution ignores override env vars.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Parallel execution orchestration behavior.
 //! - CI gate command semantics.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Test repos are isolated temp git repos.

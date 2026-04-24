@@ -1,5 +1,8 @@
 //! `ralph queue ...` command group: Clap types and handler facade.
 //!
+//! Purpose:
+//! - `ralph queue ...` command group: Clap types and handler facade.
+//!
 //! Responsibilities:
 //! - Define clap structures for queue-related subcommands.
 //! - Route queue subcommands to their specific handlers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue persistence and locking semantics (see `crate::queue` and `crate::lock`).
 //! - Task execution or runner behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Configuration is resolved from the current working directory.

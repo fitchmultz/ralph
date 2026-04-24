@@ -1,5 +1,8 @@
 //! Snapshot tests for `ralph queue graph` output formats.
 //!
+//! Purpose:
+//! - Snapshot tests for `ralph queue graph` output formats.
+//!
 //! Responsibilities:
 //! - Lock in deterministic graph outputs for the primary human-readable and export formats.
 //! - Provide small fixtures that exercise dependencies + blocks + relates + duplicates.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Deep algorithm validation (covered by graph unit tests / invariants near implementation).
 //! - Exhaustive traversal edge cases beyond the focused fixture below.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - DOT output ordering is deterministic (nodes are collected into a Vec and sorted).

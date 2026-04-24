@@ -1,5 +1,8 @@
 //! Parent relationship validation runtime tests.
 //!
+//! Purpose:
+//! - Parent relationship validation runtime tests.
+//!
 //! Responsibilities:
 //! - Cover `parent_id` warnings and cycle errors.
 //! - Verify parent lookup across active queue and done archive.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Dependency graph validation.
 //! - JSON deserialization coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing or self-parent cases are warnings, not hard errors.

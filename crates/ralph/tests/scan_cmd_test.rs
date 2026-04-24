@@ -1,5 +1,8 @@
 //! Unit tests for commands/scan.rs (scan option wiring and focus handling).
 //!
+//! Purpose:
+//! - Unit tests for commands/scan.rs (scan option wiring and focus handling).
+//!
 //! Responsibilities:
 //! - Validate ScanOptions construction behavior and override wiring.
 //! - Ensure focus text handling covers common edge cases.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - End-to-end scan execution or queue mutation.
 //! - Runner invocation behavior or prompt rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - ScanOptions runner/model fields represent overrides, not resolved defaults.
@@ -175,7 +182,7 @@ fn test_scan_options_special_characters_in_focus() {
         "fix: bug #123",
         "TODO: implement feature X",
         "FIXME: race condition",
-        "HACK: temporary workaround",
+        "HACK: synthetic workaround",
         "NOTE: review this code",
         "XXX: needs refactoring",
     ];

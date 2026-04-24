@@ -1,5 +1,8 @@
 //! Data types for GitHub PR helpers.
 //!
+//! Purpose:
+//! - Data types for GitHub PR helpers.
+//!
 //! Responsibilities:
 //! - Define public PR operation/status types consumed by the rest of the crate.
 //! - Define serde-backed view payloads shared by parsing/execution helpers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Running `gh` commands.
 //! - Converting raw payloads into derived status models.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `PrViewJson` matches the subset of `gh pr view --json` fields requested by this module.

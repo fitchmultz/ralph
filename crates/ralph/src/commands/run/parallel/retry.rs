@@ -1,8 +1,13 @@
 //! Purpose: parallel retry command handler.
+//!
 //! Responsibilities: reset terminal worker state so the coordinator can re-run it.
+//!
 //! Scope: retrying blocked or failed parallel workers only.
+//!
 //! Usage: re-exported through `crate::commands::run::parallel_retry`.
+//!
 //! Not handled here: status inspection, rendering, or orchestration.
+//!
 //! Invariants/assumptions: retry only updates workers in terminal failure states and the coordinator re-evaluates them on the next run.
 
 use crate::commands::run::parallel::state::{

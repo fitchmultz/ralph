@@ -1,12 +1,19 @@
 //! Config mutation helpers for integration tests.
 //!
+//! Purpose:
+//! - Config mutation helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Rewrite project config fixtures for runner, CI gate, and parallel-mode scenarios.
 //! - Keep config mutation logic centralized so tests do not hand-edit JSON repeatedly.
 //! - Apply trust-gated project-command setup when tests introduce local binaries.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Repo initialization or fake command creation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Config helpers assume `ralph init` or equivalent created `.ralph/config.jsonc`.

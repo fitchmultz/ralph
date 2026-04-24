@@ -1,11 +1,20 @@
 //! AGENTS.md validation helpers.
 //!
+//! Purpose:
+//! - AGENTS.md validation helpers.
+//!
 //! Responsibilities:
 //! - Validate required and recommended sections for AGENTS.md content.
 //! - Report missing sections and placeholder outdated-section state.
 //!
 //! Not handled here:
 //! - File loading or update merges.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::markdown::extract_section_titles;
 use super::types::{ContextValidateOptions, ValidateReport};

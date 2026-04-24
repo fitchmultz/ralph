@@ -1,11 +1,17 @@
 /**
  WorkspaceManagerCLIOverrideTests
 
+ Purpose:
+ - Validate workspace-manager CLI override adoption rejects insecure or invalid URL-driven overrides.
+
  Responsibilities:
  - Validate workspace-manager CLI override adoption rejects insecure or invalid URL-driven overrides.
 
  Does not handle:
  - Runner-configuration loading or retargeting behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests assert current hard-cutover policy: URL-driven CLI overrides are not adopted.

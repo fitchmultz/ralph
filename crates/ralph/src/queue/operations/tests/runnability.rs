@@ -1,12 +1,19 @@
 //! Unit tests for runnability analysis.
 //!
+//! Purpose:
+//! - Unit tests for runnability analysis.
+//!
 //! Responsibilities:
 //! - Test the runnability report generation and reasoning.
 //! - Verify correct identification of blockers (deps, schedule, status).
 //!
-//! Does not handle:
+//! Non-scope:
 //! - End-to-end CLI invocation (`ralph queue explain`, `ralph run --dry-run`).
 //! - Queue persistence/locking or runner execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Timestamps in tests are RFC3339 and treated as UTC.

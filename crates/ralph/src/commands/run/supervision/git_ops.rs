@@ -1,5 +1,8 @@
 //! Git operations for post-run supervision.
 //!
+//! Purpose:
+//! - Git operations for post-run supervision.
+//!
 //! Responsibilities:
 //! - Finalize git state: commit changes and push if configured.
 //! - Validate LFS configuration and warn about issues.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue file operations (see queue_ops.rs).
 //! - CI gate execution (see ci.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Git repo is initialized and accessible.

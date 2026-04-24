@@ -1,5 +1,8 @@
 //! Runner binary detection utilities.
 //!
+//! Purpose:
+//! - Runner binary detection utilities.
+//!
 //! Responsibilities:
 //! - Check if runner binaries are installed and accessible.
 //! - Extract version strings from runner binaries.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Capability data (see capabilities.rs).
 //! - CLI output formatting.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Context;
 

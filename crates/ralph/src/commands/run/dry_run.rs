@@ -1,5 +1,8 @@
 //! Dry-run selection for `ralph run one --dry-run` and `ralph run loop --dry-run`.
 //!
+//! Purpose:
+//! - Dry-run selection for `ralph run one --dry-run` and `ralph run loop --dry-run`.
+//!
 //! Responsibilities:
 //! - Perform task selection without acquiring queue lock or modifying files.
 //! - Explain why tasks are blocked using runnability reports.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual task execution (see `run_one`).
 //! - Queue lock management (see `queue_lock`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dry-run mode must not modify queue/done files or start runner sessions.

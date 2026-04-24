@@ -1,5 +1,8 @@
 //! Runner capabilities reporting.
 //!
+//! Purpose:
+//! - Runner capabilities reporting.
+//!
 //! Responsibilities:
 //! - Aggregate capability data from multiple sources.
 //! - Format output as text or JSON.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Binary detection (see detection.rs).
 //! - CLI argument parsing (see cli/runner.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use serde::Serialize;
 
@@ -215,7 +224,6 @@ pub fn handle_capabilities(runner_str: &str, format: RunnerFormat) -> anyhow::Re
         .parse()
         .map_err(|_| anyhow::anyhow!("unknown runner: {}", runner_str))?;
 
-    // Get binary name from config (use defaults for now)
     let bin_name = get_bin_name(&runner);
 
     let report = get_runner_capabilities(&runner, &bin_name);

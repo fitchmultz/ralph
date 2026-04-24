@@ -1,6 +1,9 @@
 /**
  VisualEffectView
 
+ Purpose:
+ - Provide an NSViewRepresentable wrapper for NSVisualEffectView to enable
+
  Responsibilities:
  - Provide an NSViewRepresentable wrapper for NSVisualEffectView to enable
    native macOS glass morphism effects in SwiftUI.
@@ -10,6 +13,9 @@
  Does not handle:
  - Animation or transitions (handled by SwiftUI)
  - Color tinting beyond vibrancy (use SwiftUI modifiers)
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Must be used within a macOS app (NSVisualEffectView is AppKit)

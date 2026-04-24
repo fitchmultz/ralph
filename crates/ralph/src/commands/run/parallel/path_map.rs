@@ -1,5 +1,8 @@
 //! Path mapping utilities for parallel workspace operations.
 //!
+//! Purpose:
+//! - Path mapping utilities for parallel workspace operations.
+//!
 //! Responsibilities:
 //! - Map resolved paths from the original repo into workspace clones.
 //! - Provide path traversal protection for security.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - File I/O operations (see `sync.rs` for copying).
 //! - Config resolution (see `crate::config`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Resolved paths are expected to be under the repo root.

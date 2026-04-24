@@ -1,15 +1,22 @@
 //! Batch task filtering and ID resolution.
 //!
+//! Purpose:
+//! - Batch task filtering and ID resolution.
+//!
 //! Responsibilities:
 //! - Filter tasks by tags, status, priority, scope, and age.
 //! - Resolve task IDs from explicit lists or tag filters.
 //! - Parse "older than" specifications into RFC3339 cutoffs.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Actual task mutations (see update.rs, delete.rs, etc.).
 //! - Display/output formatting (see display.rs).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Tag filtering is case-insensitive and OR-based (any tag matches).
 //! - Status/priority/scope filters use OR logic within each filter type.
 

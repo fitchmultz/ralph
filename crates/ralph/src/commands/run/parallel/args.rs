@@ -1,5 +1,8 @@
 //! CLI argument builders for parallel worker subprocesses.
 //!
+//! Purpose:
+//! - CLI argument builders for parallel worker subprocesses.
+//!
 //! Responsibilities:
 //! - Convert override configurations into CLI argument vectors.
 //! - Map enum values to their CLI string representations.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Worker process management (see `super::worker`).
 //! - State synchronization (see `super::sync`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Argument names match the CLI definition in `crate::cli`.

@@ -1,10 +1,17 @@
 //! Lock unit tests.
 //!
+//! Purpose:
+//! - Lock unit tests.
+//!
 //! Responsibilities:
 //! - Cover split lock helpers that are easiest to exercise without integration harnesses.
 //!
 //! Not handled here:
 //! - Multi-process integration coverage in `crates/ralph/tests/`.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Current-process PID should be observable on supported platforms.

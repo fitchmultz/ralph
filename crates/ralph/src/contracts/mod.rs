@@ -1,5 +1,8 @@
 //! Contracts module for Ralph configuration and queue/task JSON structures.
 //!
+//! Purpose:
+//! - Contracts module for Ralph configuration and queue/task JSON structures.
+//!
 //! Responsibilities:
 //! - Own the canonical data models for config, queue, and task contracts.
 //! - Re-export the public contract types for crate-wide access.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue persistence and IO (see `crate::queue`).
 //! - CLI argument parsing or command behavior (see `crate::cli`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Public contract types remain stable and are re-exported from this module.

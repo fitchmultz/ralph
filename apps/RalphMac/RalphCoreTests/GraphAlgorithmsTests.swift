@@ -1,6 +1,9 @@
 /**
  GraphAlgorithmsTests
 
+ Purpose:
+ - Validate cycle detection algorithm correctness.
+
  Responsibilities:
  - Validate cycle detection algorithm correctness.
  - Test various graph topologies (acyclic, simple cycle, nested cycles, self-loops).
@@ -9,6 +12,9 @@
  Does not handle:
  - UI integration (covered by UI tests).
  - Performance testing (covered by performance tests).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Test graphs are representative of real dependency structures.

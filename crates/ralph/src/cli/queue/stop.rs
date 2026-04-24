@@ -1,11 +1,18 @@
 //! Queue stop subcommand.
 //!
+//! Purpose:
+//! - Queue stop subcommand.
+//!
 //! Responsibilities:
 //! - Create a stop signal file to request graceful termination of a running loop.
 //!
 //! Not handled here:
 //! - Signal detection in the run loop (see `crate::commands::run`).
 //! - Signal cleanup (handled by the run loop after detection).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The stop signal is a file-based flag, not a process signal.

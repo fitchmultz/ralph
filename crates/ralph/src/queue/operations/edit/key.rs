@@ -1,14 +1,21 @@
 //! Task edit key definitions.
 //!
+//! Purpose:
+//! - Task edit key definitions.
+//!
 //! Responsibilities:
 //! - Define the `TaskEditKey` enum representing editable task fields.
 //! - Provide string parsing and formatting for task edit keys.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Actual task editing logic (see `apply.rs` and `preview.rs`).
 //! - Input validation beyond key parsing.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - TaskEditKey variants map 1:1 with Task struct fields.
 //! - String representations use snake_case for consistency.
 

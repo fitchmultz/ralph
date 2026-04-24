@@ -1,10 +1,17 @@
 //! Tests for `crate::cli::run`.
 //!
+//! Purpose:
+//! - Tests for `crate::cli::run`.
+//!
 //! Responsibilities:
 //! - Verify help text and clap parsing for run-related command surfaces.
 //!
 //! Not handled here:
 //! - Runtime execution behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests exercise the public CLI parser rather than internal helpers.

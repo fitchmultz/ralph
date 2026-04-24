@@ -1,5 +1,8 @@
 //! Continue session support for supervision.
 //!
+//! Purpose:
+//! - Continue session support for supervision.
+//!
 //! Responsibilities:
 //! - Define ContinueSession struct for resuming runner sessions.
 //! - Define CiContinueContext for CI gate resume callbacks.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - CI gate logic (see ci.rs).
 //! - Queue operations (see queue_ops.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Continue prefers same-session resume when a session id is available.

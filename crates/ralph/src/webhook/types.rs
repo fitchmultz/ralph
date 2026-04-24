@@ -1,5 +1,8 @@
 //! Webhook type definitions.
 //!
+//! Purpose:
+//! - Webhook type definitions.
+//!
 //! Responsibilities:
 //! - Define webhook event types, payloads, and context structures.
 //! - Provide resolved configuration types.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Delivery logic (see `super::worker`).
 //! - Notification convenience functions (see `super::notifications`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

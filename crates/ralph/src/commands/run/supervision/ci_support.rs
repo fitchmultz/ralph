@@ -1,5 +1,8 @@
 //! CI gate support types and compliance-message helpers.
 //!
+//! Purpose:
+//! - CI gate support types and compliance-message helpers.
+//!
 //! Responsibilities:
 //! - Define CI result and failure types shared by supervision and tests.
 //! - Build operator-facing compliance messages from captured CI output.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Executing CI commands.
 //! - Continue-session retry control flow.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - CI failures retain stdout/stderr for later compliance messaging.

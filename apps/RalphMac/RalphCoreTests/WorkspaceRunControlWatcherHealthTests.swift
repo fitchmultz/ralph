@@ -1,11 +1,17 @@
 /**
  WorkspaceRunControlWatcherHealthTests
 
+ Purpose:
+ - Validate queue watcher health is reflected in workspace operational summaries.
+
  Responsibilities:
  - Validate queue watcher health is reflected in workspace operational summaries.
 
  Does not handle:
  - Run invocation, blocking/resume state, parallel status, or loop/cancel behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests construct in-memory workspaces without mock CLI fixtures.

@@ -1,7 +1,18 @@
 //! Shared prompt blocks for multi-iteration refinement behavior.
 //!
+//! Purpose:
+//! - Shared prompt blocks for multi-iteration refinement behavior.
+//!
 //! Responsibilities: define static prompt sections reused across multi-iteration flows.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: prompt loading, template rendering, or queue/task mutations.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: text blocks are consumed verbatim and remain aligned with phase rules.
 
 pub(crate) const ITERATION_CONTEXT_REFINEMENT: &str = r#"

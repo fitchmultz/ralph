@@ -1,12 +1,19 @@
 //! Canonical error message constructors.
 //!
+//! Purpose:
+//! - Canonical error message constructors.
+//!
 //! Responsibilities:
 //! - Provide helper functions for all "task not found" error scenarios
 //! - Ensure consistent formatting and actionable hints
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Error types (use anyhow/thiserror in consuming modules)
 //! - I18N (messages are English-only)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All task ID parameters are non-empty trimmed strings

@@ -1,5 +1,8 @@
 //! Run command test hub.
 //!
+//! Purpose:
+//! - Run command test hub.
+//!
 //! Responsibilities:
 //! - Organize run-command unit tests by behavior area.
 //! - Re-export shared fixtures, builders, and logger helpers for sibling suites.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Individual test scenarios, which live in adjacent modules.
 //! - Production run orchestration logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - This module stays a thin hub; shared helpers live in focused companion files.

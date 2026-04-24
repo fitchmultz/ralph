@@ -1,5 +1,8 @@
 //! CLI arguments for runner management commands.
 //!
+//! Purpose:
+//! - CLI arguments for runner management commands.
+//!
 //! Responsibilities:
 //! - Define RunnerArgs and RunnerCommand enums for Clap.
 //! - Delegate command execution to commands/runner/ module.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Capability data retrieval (see commands/runner/capabilities.rs).
 //! - Binary detection logic (see commands/runner/detection.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};

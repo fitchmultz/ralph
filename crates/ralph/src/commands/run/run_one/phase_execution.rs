@@ -1,5 +1,8 @@
 //! Phase execution for run-one.
 //!
+//! Purpose:
+//! - Phase execution for run-one.
+//!
 //! Responsibilities:
 //! - Execute iteration phases based on phase count (1, 2, or 3 phases).
 //! - Build phase invocations with common fields populated.
@@ -9,6 +12,10 @@
 //! - Context preparation (see context.rs).
 //! - Task setup (see execution_setup.rs).
 //! - Webhook notifications beyond phase-level wrappers (see webhooks.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Phase count is validated to be 1, 2, or 3 before execution.

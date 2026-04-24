@@ -1,15 +1,22 @@
 //! Input parsing helpers for task editing.
 //!
+//! Purpose:
+//! - Input parsing helpers for task editing.
+//!
 //! Responsibilities:
 //! - Parse status strings into TaskStatus values.
 //! - Parse list inputs (comma or newline separated) into `Vec<String>`.
 //! - Parse and normalize RFC3339 timestamp inputs.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Full task validation (see `validate` module).
 //! - Custom field parsing (see `validate::parse_custom_fields_with_context`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Input strings may contain whitespace that needs trimming.
 //! - RFC3339 timestamps must be in UTC.
 

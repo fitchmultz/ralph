@@ -1,11 +1,20 @@
 //! Webhook notification convenience functions.
 //!
+//! Purpose:
+//! - Webhook notification convenience functions.
+//!
 //! Responsibilities:
 //! - Provide convenience functions for sending common webhook notifications.
 //!
 //! Not handled here:
 //! - Type definitions (see `super::types`).
 //! - Worker/delivery logic (see `super::worker`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::WebhookConfig;
 

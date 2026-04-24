@@ -1,5 +1,8 @@
 //! Graph algorithms over `DependencyGraph`.
 //!
+//! Purpose:
+//! - Graph algorithms over `DependencyGraph`.
+//!
 //! Responsibilities:
 //! - Topological sort (Kahn's algorithm) with cycle detection.
 //! - Critical path discovery (longest dependency chain) for DAGs.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Graph construction (see `build`).
 //! - Traversal utilities intended for UI exploration (see `traversal`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Normal operation is DAG; cycle detection is still supported for robustness.

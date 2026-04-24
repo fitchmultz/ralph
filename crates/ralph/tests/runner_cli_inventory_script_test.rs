@@ -1,5 +1,14 @@
 //! Integration tests for `scripts/runner_cli_inventory.sh`.
 //!
+//! Purpose:
+//! - Integration tests for `scripts/runner_cli_inventory.sh`.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Responsible for verifying that the inventory script produces the expected output
 //! directory structure and exit codes when runner binaries are present or missing.
 //!
@@ -7,7 +16,11 @@
 //! - Verify the real runner CLIs' flags or semantics (that is Phase 2 manual review)
 //! - Require any real runner binaries to be installed
 //!
-//! Assumptions / invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Tests run on a Unix-like environment that can execute bash scripts
 //! - Fake runner binaries on PATH are sufficient to validate behavior
 

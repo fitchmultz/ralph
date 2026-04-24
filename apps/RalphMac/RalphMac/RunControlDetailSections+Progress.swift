@@ -1,6 +1,9 @@
 /**
  RunControlDetailSections+Progress
 
+ Purpose:
+ - Render Run Control phase progress and next-task targeting cards.
+
  Responsibilities:
  - Render Run Control phase progress and next-task targeting cards.
  - Keep queue-preview selection UI isolated from safety/history/configuration sections.
@@ -8,6 +11,12 @@
  Does not handle:
  - Execution-control button actions.
  - History or safety-card rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

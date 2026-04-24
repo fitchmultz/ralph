@@ -1,12 +1,19 @@
 //! Runner-handling tests for runutil.
 //!
+//! Purpose:
+//! - Runner-handling tests for runutil.
+//!
 //! Responsibilities:
 //! - Exercise interrupt, timeout, revert, and output-stream handling with stub backends.
 //! - Verify abort reasons and safeguard file behavior for handled runner failures.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Revert prompt parsing details.
 //! - Queue validation error classification.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Stub backends avoid real runner binaries.

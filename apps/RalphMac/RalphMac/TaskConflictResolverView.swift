@@ -1,6 +1,9 @@
 /**
  TaskConflictResolverView
 
+ Purpose:
+ - Display a structured comparison of local vs external task changes.
+
  Responsibilities:
  - Display a structured comparison of local vs external task changes.
  - Let users choose a winner for each conflicted field and preview that decision in-place.
@@ -10,6 +13,9 @@
  - Optimistic-lock detection timing.
  - Error-recovery flows or diagnostics tooling.
  - Persisting the merged task.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Both tasks refer to the same task ID.

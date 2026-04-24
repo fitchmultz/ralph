@@ -1,11 +1,18 @@
 //! Integration tests for `ralph queue import` undo behavior.
 //!
+//! Purpose:
+//! - Integration tests for `ralph queue import` undo behavior.
+//!
 //! Responsibilities:
 //! - Verify no snapshot is created when import validation fails.
 //! - Verify snapshot IS created when import succeeds.
 //!
 //! Not handled here:
 //! - Unit tests for import parsing (see crates/ralph/src/cli/queue/import.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp directories outside the repo.

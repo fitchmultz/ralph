@@ -1,12 +1,21 @@
 //! Persistence helpers for integration remediation state.
 //!
+//! Purpose:
+//! - Persistence helpers for integration remediation state.
+//!
 //! Responsibilities:
 //! - Read/write blocked-push marker files.
 //! - Persist remediation handoff packets for later operator recovery.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Deciding when a task is blocked.
 //! - Compliance evaluation or prompt rendering.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

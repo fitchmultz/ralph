@@ -1,12 +1,19 @@
 //! Task queue task-level operations.
 //!
+//! Purpose:
+//! - Task queue task-level operations.
+//!
 //! Responsibilities:
 //! - Mutate or query tasks within queue files (complete tasks, set statuses/fields, find tasks, delete tasks, sort by priority).
 //! - Provide typed domain errors for queue query operations to enable stable test assertions.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persisting queue data or managing locks (load/save/locks/repair live in `crate::queue`).
 //! - Task-level validation beyond runnability checks (see `validate` module for schema-level validation).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue operations are called with fully loaded `QueueFile` values.

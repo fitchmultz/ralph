@@ -1,5 +1,8 @@
 //! Timeout-tick handling for the watch loop.
 //!
+//! Purpose:
+//! - Timeout-tick handling for the watch loop.
+//!
 //! Responsibilities:
 //! - Decide when pending files have aged past the debounce window.
 //! - Trigger pending-file processing during idle receive timeouts.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Immediate filesystem-event ingestion.
 //! - File watcher setup.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Timeout ticks are the fallback path when no new notify events arrive.

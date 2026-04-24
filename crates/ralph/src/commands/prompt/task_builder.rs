@@ -1,5 +1,8 @@
 //! Task-builder prompt preview builder.
 //!
+//! Purpose:
+//! - Task-builder prompt preview builder.
+//!
 //! Responsibilities:
 //! - Build task-builder prompt previews using production rendering helpers.
 //! - Validate request input and optional explain headers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Worker or scan prompt preview logic.
 //! - Template management commands.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task-builder previews require a non-empty request.

@@ -1,11 +1,21 @@
 //! Tests for supervising-process detection from lock metadata.
 //!
+//! Purpose:
+//! - Tests for supervising-process detection from lock metadata.
+//!
 //! Responsibilities:
 //! - Ensure supervising labels are detected from lock owner metadata.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
 //!
 //! Not covered here:
 //! - Lock acquisition semantics (see `lock_test.rs` and `task_lock_coexistence_test.rs`).
 //! - CLI workflows that create or clear locks.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Lock owner file is a simple key/value text file.

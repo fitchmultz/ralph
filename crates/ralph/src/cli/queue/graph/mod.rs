@@ -1,5 +1,8 @@
 //! `ralph queue graph` subcommand facade.
 //!
+//! Purpose:
+//! - `ralph queue graph` subcommand facade.
+//!
 //! Responsibilities:
 //! - Define CLI arguments for graph rendering.
 //! - Load validated queue data and dispatch to format-specific renderers.
@@ -9,6 +12,10 @@
 //! - Dependency graph construction (see `crate::queue::graph`).
 //! - Format-specific rendering details (see sibling renderer modules).
 //! - Queue file mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are already validated before rendering.

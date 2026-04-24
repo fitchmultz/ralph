@@ -1,6 +1,9 @@
 /**
  WorkspaceDiagnosticsServiceTests
 
+ Purpose:
+ - Verify queue-lock diagnostics consume structured machine unlock inspection documents.
+
  Responsibilities:
  - Verify queue-lock diagnostics consume structured machine unlock inspection documents.
  - Guard against regressions back to human-text parsing for queue-lock state.
@@ -8,6 +11,9 @@
  Does not handle:
  - Queue unlock mutation flows.
  - Doctor report rendering beyond the exercised snapshot path.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLI scripts emit only the commands required by each scenario.

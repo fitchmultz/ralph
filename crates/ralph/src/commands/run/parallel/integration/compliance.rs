@@ -1,12 +1,21 @@
 //! Deterministic integration compliance checks.
 //!
+//! Purpose:
+//! - Deterministic integration compliance checks.
+//!
 //! Responsibilities:
 //! - Validate merge conflict, queue/done, task archival, CI, and push-sync invariants.
 //! - Collapse validation output into one compliance summary.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Prompt generation.
 //! - Retry orchestration or persistence side effects.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
+//! - Compliance checks report deterministic booleans without mutating queues.
 
 use anyhow::{Context, Result, bail};
 use std::path::Path;

@@ -1,4 +1,9 @@
 # Ralph Runners System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 Purpose: Comprehensive documentation for Ralph's AI runner orchestration system, including supported runners, configuration, and extension mechanisms.
 

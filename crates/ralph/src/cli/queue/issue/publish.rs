@@ -1,5 +1,8 @@
 //! GitHub issue create/update workflow for `ralph queue issue`.
 //!
+//! Purpose:
+//! - GitHub issue create/update workflow for `ralph queue issue`.
+//!
 //! Responsibilities:
 //! - Render task issue payloads and compute sync hashes.
 //! - Create or update GitHub issues through the shared git/gh helpers.
@@ -9,6 +12,10 @@
 //! - Queue lock acquisition or save orchestration.
 //! - Dry-run output formatting.
 //! - Bulk selection/filter parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The caller passes a mutable queue loaded from the active repo.

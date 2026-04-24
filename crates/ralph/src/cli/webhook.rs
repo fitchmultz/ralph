@@ -1,13 +1,22 @@
 //! Webhook CLI commands.
 //!
+//! Purpose:
+//! - Webhook CLI commands.
+//!
 //! Responsibilities:
 //! - Provide `ralph webhook test` command for testing webhook configuration.
 //! - Provide `ralph webhook status` for diagnostics snapshots.
 //! - Provide `ralph webhook replay` for explicit bounded failure replay.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Webhook configuration management (use config files).
 //! - Direct HTTP delivery internals (delegated to `crate::webhook`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};

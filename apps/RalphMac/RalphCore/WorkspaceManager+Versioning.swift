@@ -1,6 +1,9 @@
 /**
  WorkspaceManager+Versioning
 
+ Purpose:
+ - Probe the bundled CLI version and validate compatibility with the app.
+
  Responsibilities:
  - Probe the bundled CLI version and validate compatibility with the app.
  - Cache successful version checks to reduce startup subprocess churn.
@@ -9,6 +12,9 @@
  Does not handle:
  - Workspace lifecycle or restoration.
  - Scene routing.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Only compatible version checks are cached.

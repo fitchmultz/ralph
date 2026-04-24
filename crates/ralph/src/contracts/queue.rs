@@ -1,11 +1,18 @@
 //! Queue file contracts for Ralph.
 //!
+//! Purpose:
+//! - Queue file contracts for Ralph.
+//!
 //! Responsibilities:
 //! - Define the queue file payload structure and defaults.
 //!
 //! Not handled here:
 //! - Queue persistence or scheduling logic (see `crate::queue`).
 //! - Task field definitions (see `super::task`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `version` is the queue schema version.

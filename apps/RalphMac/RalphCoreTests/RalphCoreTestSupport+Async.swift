@@ -1,6 +1,9 @@
 /**
  RalphCoreTestSupport+Async
 
+ Purpose:
+ - Provide timeout-bounded async wait helpers for RalphCore tests.
+
  Responsibilities:
  - Provide timeout-bounded async wait helpers for RalphCore tests.
  - Centralize readiness checks so individual tests avoid ad hoc sleeps.
@@ -8,6 +11,9 @@
  Does not handle:
  - Filesystem fixture creation.
  - Production concurrency behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Wait helpers always perform a final condition evaluation before failing.

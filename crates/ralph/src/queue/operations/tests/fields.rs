@@ -1,14 +1,21 @@
 //! Tests for `fields.rs` operations.
 //!
+//! Purpose:
+//! - Tests for `fields.rs` operations.
+//!
 //! Responsibilities:
 //! - Validate custom field mutation behavior and error context.
 //! - Ensure timestamps and custom field values update as expected.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue persistence, CLI parsing, or multi-field edits.
 //! - Validation of non-custom task fields.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Task helper functions return minimal valid tasks.
 //! - Custom field keys are interpreted literally without normalization.
 

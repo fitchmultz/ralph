@@ -1,12 +1,21 @@
 //! Integration retry loop orchestration.
 //!
+//! Purpose:
+//! - Integration retry loop orchestration.
+//!
 //! Responsibilities:
 //! - Drive continue-session retries for parallel integration.
 //! - Persist retry artifacts when attempts fail or become blocked.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Type definitions or prompt formatting internals.
 //! - Queue/done or CI validation details.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use std::time::Duration;

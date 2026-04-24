@@ -1,10 +1,17 @@
 //! Long-help text for `ralph run`.
 //!
+//! Purpose:
+//! - Long-help text for `ralph run`.
+//!
 //! Responsibilities:
 //! - Centralize verbose clap help text separately from clap type definitions.
 //!
 //! Not handled here:
 //! - CLI argument parsing or dispatch.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Help strings stay as `'static` constants for clap attributes.

@@ -1,4 +1,9 @@
 # Configuration
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 ![Configuration Layers](assets/images/2026-03-10-12-00-08-config-layers.png)
 

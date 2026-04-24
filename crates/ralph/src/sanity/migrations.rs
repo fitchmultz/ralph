@@ -1,5 +1,8 @@
 //! Config migration handling for sanity checks.
 //!
+//! Purpose:
+//! - Config migration handling for sanity checks.
+//!
 //! Responsibilities:
 //! - Check for pending config migrations
 //! - Prompt user or auto-apply migrations based on options
@@ -9,6 +12,10 @@
 //! - README updates (see readme.rs)
 //! - Unknown key detection (see unknown_keys.rs)
 //! - Migration definitions (see migration/ module)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Migrations require user confirmation unless --auto-fix is set

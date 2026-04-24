@@ -1,5 +1,8 @@
 //! Gitignore management for Ralph initialization.
 //!
+//! Purpose:
+//! - Gitignore management for Ralph initialization.
+//!
 //! Responsibilities:
 //! - Ensure `.ralph/workspaces/` is in `.gitignore` to prevent dirty repo issues.
 //! - Ensure `.ralph/logs/` is in `.gitignore` to prevent committing unredacted debug logs.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Reading or parsing existing `.gitignore` patterns (only simple line-based checks).
 //! - Global gitignore configuration (only repo-local `.gitignore`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Updates are additive only (never removes entries).

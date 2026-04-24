@@ -1,5 +1,8 @@
 //! `ralph task ...` command group: Clap types and handler facade.
 //!
+//! Purpose:
+//! - `ralph task ...` command group: Clap types and handler facade.
+//!
 //! Responsibilities:
 //! - Re-export task argument types from the focused `args` tree.
 //! - Wire task subcommand modules into a small facade surface.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue persistence and locking semantics (see `crate::queue` and `crate::lock`).
 //! - Task execution or runner behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Configuration is resolved from the current working directory in `handle.rs`.

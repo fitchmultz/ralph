@@ -1,5 +1,8 @@
 //! Session persistence and recovery facade.
 //!
+//! Purpose:
+//! - Session persistence and recovery facade.
+//!
 //! Responsibilities:
 //! - Re-export session persistence, validation, recovery UI, decision modeling, and progress helpers.
 //! - Keep the public `crate::session::*` surface stable while implementation stays split.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue/run-loop orchestration.
 //! - Session state schema definitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Persistence, validation, recovery prompts, decision shaping, and progress mutation remain separate.

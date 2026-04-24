@@ -1,5 +1,8 @@
 //! Agent runner defaults configuration.
 //!
+//! Purpose:
+//! - Agent runner defaults configuration.
+//!
 //! Responsibilities:
 //! - Define AgentConfig struct and merge behavior for runner defaults.
 //! - Model CI gate execution using explicit argv settings.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Runner-specific configuration (see `crate::contracts::runner`).
 //! - Actual runner invocation (see `crate::runner` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::config::{
     GitPublishMode, GitRevertMode, NotificationConfig, PhaseOverrides, RunnerRetryConfig,

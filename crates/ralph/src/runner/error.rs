@@ -1,15 +1,22 @@
 //! Runner error surface and contextual constructors.
 //!
+//! Purpose:
+//! - Runner error surface and contextual constructors.
+//!
 //! Responsibilities:
 //! - Define `RunnerError`, the matchable error type for runner orchestration.
 //! - Provide helpers to construct contextual `RunnerError::Other` values.
 //! - Classify failures as retryable vs non-retryable vs requires-user-input.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Runner/model validation (see `runner/model.rs`).
 //! - Command assembly and process execution (see `runner/execution/*`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Any user-visible stdout/stderr stored in errors must be redacted via `RedactedString`
 //!   (or redacted at display time by downstream formatting).
 
@@ -183,7 +190,8 @@ impl RunnerError {
                 RunnerFailureClass::RequiresUserInput(UserInputReason::MissingBinary)
             }
             RunnerError::SpawnFailed { .. } => {
-                // Usually deterministic; keep non-retryable for now.
+                // Spawn failures are treated as invocation problems unless a narrower
+                // runner-specific classifier proves they are transient.
                 RunnerFailureClass::NonRetryable(NonRetryableReason::InvalidInvocation)
             }
             RunnerError::Interrupted => {

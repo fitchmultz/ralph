@@ -1,5 +1,8 @@
 //! Task decomposition prompt loading and rendering.
 //!
+//! Purpose:
+//! - Task decomposition prompt loading and rendering.
+//!
 //! Responsibilities:
 //! - Load the task decomposition prompt template.
 //! - Render source context and planner limits into a strict JSON-planning prompt.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue mutation or task materialization.
 //! - Runner invocation or planner output parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Rendered prompts must resolve all required placeholders.

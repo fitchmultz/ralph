@@ -1,12 +1,18 @@
 /**
  ANSIParserBasicTests
 
+ Purpose:
+ - Validate baseline text parsing, text attributes, reset behavior, and segment merging.
+
  Responsibilities:
  - Validate baseline text parsing, text attributes, reset behavior, and segment merging.
 
  Does not handle:
  - Extended color modes or control-sequence stripping.
  - Stream-state carryover and malformed-sequence recovery.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests operate on a fresh Workspace from ANSIParserTestCase.

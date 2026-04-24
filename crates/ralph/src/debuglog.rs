@@ -1,9 +1,24 @@
 //! Debug logging for raw, unredacted supervisor and runner output.
 //!
+//! Purpose:
+//! - Debug logging for raw, unredacted supervisor and runner output.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Features:
 //! - Automatic log rotation when file size exceeds 10MB
 //! - Keeps 3 backup files (debug.log.1, debug.log.2, debug.log.3)
 //! - Thread-safe writes via Mutex
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::fs::{self, OpenOptions};

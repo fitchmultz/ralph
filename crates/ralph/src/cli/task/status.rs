@@ -1,5 +1,8 @@
 //! Task status command handlers for `ralph task` subcommands.
 //!
+//! Purpose:
+//! - Task status command handlers for `ralph task` subcommands.
+//!
 //! Responsibilities:
 //! - Handle `ready` command (promote draft to todo).
 //! - Handle `status` command (update task status).
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Batch status operations (see `batch.rs`).
 //! - Task building or editing (see `build.rs`, `edit.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Terminal statuses (done, rejected) archive tasks to the done archive file.

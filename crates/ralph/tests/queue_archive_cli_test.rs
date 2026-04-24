@@ -1,5 +1,8 @@
 //! Integration tests for `ralph queue archive`.
 //!
+//! Purpose:
+//! - Integration tests for `ralph queue archive`.
+//!
 //! Responsibilities:
 //! - Verify terminal tasks (done/rejected) move from queue → done archive.
 //! - Verify no-op behavior when there are no terminal tasks.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Unit testing of archive internals (covered by module/unit tests).
 //! - Exhaustive logging format assertions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `seed_ralph_dir()` creates a usable `.ralph/` structure for fixture setup.

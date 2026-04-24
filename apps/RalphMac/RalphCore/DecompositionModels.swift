@@ -1,6 +1,9 @@
 /**
  DecompositionModels
 
+ Purpose:
+ - Mirror the stable JSON payloads emitted by `ralph machine task decompose`.
+
  Responsibilities:
  - Mirror the stable JSON payloads emitted by `ralph machine task decompose`.
  - Provide app-side request models for previewing and writing task decompositions.
@@ -9,6 +12,9 @@
  Does not handle:
  - CLI process execution or retry behavior.
  - Local decomposition logic or queue mutation.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - JSON decoding must stay aligned with the Rust CLI contract.

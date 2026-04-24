@@ -1,5 +1,8 @@
 //! Shared builders for supervision runtime tests.
 //!
+//! Purpose:
+//! - Shared builders for supervision runtime tests.
+//!
 //! Responsibilities:
 //! - Build queue fixtures and resolved config state for supervision tests.
 //! - Provide canonical `ContinueSession` setup helpers for runner-specific regressions.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Scenario assertions or behavior-specific orchestration.
 //! - Integration-test subprocess helpers outside supervision unit coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Helper configs disable unrelated features unless a scenario opts in.

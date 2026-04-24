@@ -1,7 +1,18 @@
 //! Merge conflict prompt loading and rendering.
 //!
+//! Purpose:
+//! - Merge conflict prompt loading and rendering.
+//!
 //! Responsibilities: load the merge conflict template and render the conflicted file list.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: running conflict resolution or invoking runners (see `commands::run::parallel`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: required placeholders exist and conflict file list is non-empty.
 
 use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};

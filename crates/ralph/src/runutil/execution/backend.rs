@@ -1,5 +1,8 @@
 //! Runner execution backend types and utility hooks.
 //!
+//! Purpose:
+//! - Runner execution backend types and utility hooks.
+//!
 //! Responsibilities:
 //! - Define the invocation/config types for runner execution orchestration.
 //! - Provide the real backend implementation that delegates to `crate::runner`.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Retry/continue-session policy.
 //! - Main error-handling state machine.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Output capture remains bounded.

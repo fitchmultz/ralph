@@ -1,5 +1,8 @@
 //! Revert-mode-focused post-run supervision scenarios.
 //!
+//! Purpose:
+//! - Revert-mode-focused post-run supervision scenarios.
+//!
 //! Responsibilities:
 //! - Validate CI-failure revert behavior before queue mutation occurs.
 //! - Exercise runtime prompt handling when supervision asks whether to keep dirty changes.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Queue-op defensive inconsistency helpers (covered in `queue_ops.rs` unit tests).
 //! - Publish-mode success paths once supervision completes.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::support::{resolved_for_repo, write_queue};
 use crate::commands::run::supervision::{PushPolicy, post_run_supervise};

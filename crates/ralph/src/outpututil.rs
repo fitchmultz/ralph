@@ -1,5 +1,8 @@
 //! Output formatting helpers for Ralph CLI and GUI surfaces.
 //!
+//! Purpose:
+//! - Output formatting helpers for Ralph CLI and GUI surfaces.
+//!
 //! Responsibilities:
 //! - Format task IDs, titles, and fields for display.
 //! - Provide styled output for status, priority, and other task fields.
@@ -10,6 +13,10 @@
 //! - ETA formatting (see `crate::eta_calculator::format_eta`).
 //! - Actual rendering to the terminal (see `crate::output::theme`).
 //! - Task serialization for JSON export (see `crate::contracts`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Truncation preserves unicode character boundaries (uses char iteration).

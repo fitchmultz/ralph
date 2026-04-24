@@ -1,5 +1,8 @@
 //! Planner prompt execution and response parsing for task decomposition.
 //!
+//! Purpose:
+//! - Planner prompt execution and response parsing for task decomposition.
+//!
 //! Responsibilities:
 //! - Load the decomposition prompt template and invoke the configured runner.
 //! - Resolve source/attach metadata into preview inputs before planner execution.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue mutation or undo snapshot creation.
 //! - Tree normalization internals or task materialization helpers.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Planner output must contain a final JSON object matching the decomposition schema.

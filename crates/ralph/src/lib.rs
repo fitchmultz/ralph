@@ -1,5 +1,8 @@
 //! Ralph library surface.
 //!
+//! Purpose:
+//! - Ralph library surface.
+//!
 //! Responsibilities:
 //! - Expose internal modules for tests and CLI integration.
 //! - Provide a stable entrypoint for crate-wide utilities.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CLI argument parsing (see `crate::cli`).
 //! - Runner execution or queue persistence details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Modules remain internal-first; public exports are intentional.

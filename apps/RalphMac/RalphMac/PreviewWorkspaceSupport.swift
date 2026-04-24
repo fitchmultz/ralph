@@ -1,6 +1,9 @@
 /**
  PreviewWorkspaceSupport
 
+ Purpose:
+ - Provide one portable workspace fixture source for SwiftUI previews.
+
  Responsibilities:
  - Provide one portable workspace fixture source for SwiftUI previews.
  - Eliminate hardcoded `/tmp` preview paths so preview surfaces stay portable across environments.

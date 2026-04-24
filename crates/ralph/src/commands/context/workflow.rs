@@ -1,5 +1,8 @@
 //! AGENTS.md command workflows.
 //!
+//! Purpose:
+//! - AGENTS.md command workflows.
+//!
 //! Responsibilities:
 //! - Implement init, update, and validate command behavior.
 //! - Coordinate detection, wizard prompting, rendering, merging, and persistence.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - CLI parsing.
 //! - Low-level markdown section parsing details.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::detect::{detect_project_type, detected_type_to_hint, hint_to_detected, is_tty};
 use super::markdown::parse_markdown_sections;

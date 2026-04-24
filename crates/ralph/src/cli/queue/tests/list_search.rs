@@ -1,5 +1,8 @@
 //! Tests for list, search, explain, next, and aging commands.
 //!
+//! Purpose:
+//! - Tests for list, search, explain, next, and aging commands.
+//!
 //! Responsibilities:
 //! - Test list/search command handlers and validation.
 //! - Test explain and next command behavior.
@@ -8,6 +11,12 @@
 //! Not handled here:
 //! - Import/export operations (see import.rs and export.rs).
 //! - Issue publishing (see issue.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::{base_list_args, resolved_for_dir, write_queue};
 use crate::cli::Cli;

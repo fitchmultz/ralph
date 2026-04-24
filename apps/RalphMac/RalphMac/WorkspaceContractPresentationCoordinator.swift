@@ -1,6 +1,9 @@
 /**
  WorkspaceContractPresentationCoordinator
 
+ Purpose:
+ - Capture active workspace presentation diagnostics for noninteractive macOS contract runs.
+
  Responsibilities:
  - Capture active workspace presentation diagnostics for noninteractive macOS contract runs.
  - Expose machine-readable workspace/window snapshots to in-process contract runners.
@@ -10,6 +13,9 @@
  - UI-test accessibility probing.
  - Persistent workspace or window restoration.
  - Routing decisions or contract orchestration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Normal app behavior must not depend on contract diagnostics being enabled.

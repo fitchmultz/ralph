@@ -1,10 +1,17 @@
 //! Prompt digest helpers.
 //!
+//! Purpose:
+//! - Prompt digest helpers.
+//!
 //! Responsibilities:
 //! - Compute stable cryptographic digests for normalized prompt content.
 //!
 //! Not handled here:
 //! - Version-file persistence or sync decisions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Trailing whitespace is ignored before hashing.

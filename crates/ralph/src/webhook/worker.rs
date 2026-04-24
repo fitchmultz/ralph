@@ -1,5 +1,8 @@
 //! Webhook worker facade.
 //!
+//! Purpose:
+//! - Webhook worker facade.
+//!
 //! Responsibilities:
 //! - Re-export webhook runtime initialization, enqueue, and delivery helpers.
 //! - Keep dispatcher orchestration, request delivery, and enqueue policy logic split by concern.
@@ -8,6 +11,10 @@
 //! - Webhook payload/config types (see `super::types`).
 //! - Diagnostics persistence and replay selection (see `super::diagnostics`).
 //! - Notification convenience functions (see `super::notifications`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Public and crate-visible re-exports preserve the existing worker API surface.

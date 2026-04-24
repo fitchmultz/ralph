@@ -1,12 +1,22 @@
 //! Integration tests for `ralph queue next --with-eta`.
 //!
+//! Purpose:
+//! - Integration tests for `ralph queue next --with-eta`.
+//!
 //! Responsibilities:
 //! - Validate `--with-eta` output for both runnable tasks and the "no runnable task" case.
 //! - Validate column behavior when combined with `--with-title`.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - Deep validation of ETA math (unit tests cover calculation details).
 //! - Full runner/model resolution matrix (these tests focus on the config-default path).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Seeded execution history produces a stable human ETA (e.g., `3m 30s` for 210s).

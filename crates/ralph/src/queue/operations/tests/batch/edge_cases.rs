@@ -1,14 +1,21 @@
 //! Batch mutation edge-case regression coverage.
 //!
+//! Purpose:
+//! - Batch mutation edge-case regression coverage.
+//!
 //! Responsibilities:
 //! - Cover success, atomic-failure, continue-on-error, and timestamp-validation paths.
 //! - Exercise batch status, field, and edit mutation flows end-to-end.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Helper-only tag filtering and result-summary behavior.
 //! - Queue persistence or higher-level command orchestration.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Tests reuse the parent module's shared fixtures and imports via `super::*`.
 //! - Invalid timestamps must fail without silently normalizing input.
 

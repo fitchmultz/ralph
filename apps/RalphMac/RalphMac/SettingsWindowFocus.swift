@@ -1,6 +1,9 @@
 /**
  SettingsWindowFocus
 
+ Purpose:
+ - Keep the Settings window off AppKit's default text-field focus path.
+
  Responsibilities:
  - Keep the Settings window off AppKit's default text-field focus path.
  - Expose an accessibility diagnostics probe for deterministic contract tests.
@@ -9,6 +12,12 @@
  Does not handle:
  - Window creation.
  - Settings snapshot persistence.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import AppKit

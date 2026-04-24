@@ -1,11 +1,18 @@
 //! Capacity counters for the parallel run loop.
 //!
+//! Purpose:
+//! - Capacity counters for the parallel run loop.
+//!
 //! Responsibilities:
 //! - Decide whether more tasks may start given `--max-tasks` and in-flight guard counts.
 //!
 //! Not handled here:
 //! - Task selection or queue locking.
 //! - Persisted worker history (state file is not authoritative for active capacity).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - In-flight worker count comes from the cleanup guard, not from `ParallelStateFile` alone.

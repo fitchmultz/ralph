@@ -1,8 +1,20 @@
 //! Unit tests for config resolution, merging, and path behavior.
 //!
+//! Purpose:
+//! - Unit tests for config resolution, merging, and path behavior.
+//!
 //! Responsibilities:
 //! - Provide shared fixtures for config integration-style unit tests.
 //! - Delegate path, validation, merge, and JSONC behavior to focused modules.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use ralph::config;
 use ralph::contracts::{

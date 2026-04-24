@@ -1,5 +1,8 @@
 //! Queue import merge helpers.
 //!
+//! Purpose:
+//! - Queue import merge helpers.
+//!
 //! Responsibilities:
 //! - Apply duplicate handling policy for imported tasks.
 //! - Reserve fresh task IDs for missing or renamed tasks.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Parsing raw input payloads.
 //! - Queue validation or undo snapshot creation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Existing queue and done files are already loaded and validated.

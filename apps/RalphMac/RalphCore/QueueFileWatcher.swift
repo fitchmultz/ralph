@@ -1,6 +1,9 @@
 /**
  QueueFileWatcher
 
+ Purpose:
+ - Monitor `.ralph/queue.jsonc`, `.ralph/done.jsonc`, and `.ralph/config.jsonc` for external changes using FSEvents.
+
  Responsibilities:
  - Monitor `.ralph/queue.jsonc`, `.ralph/done.jsonc`, and `.ralph/config.jsonc` for external changes using FSEvents.
  - Emit typed watcher health and file-change events through a single async event stream.
@@ -10,6 +13,9 @@
  - Parsing or interpreting queue contents.
  - Main-actor UI updates.
  - Workspace retry/recovery policy beyond watcher startup retries.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Call `start()` before consuming live file-change events.

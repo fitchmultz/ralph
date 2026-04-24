@@ -1,6 +1,9 @@
 /**
  KanbanColumnView
 
+ Purpose:
+ - Display a single Kanban column for a specific status.
+
  Responsibilities:
  - Display a single Kanban column for a specific status.
  - Show column header with task count badge.
@@ -10,6 +13,9 @@
  Does not handle:
  - Actual status change execution (delegates to workspace).
  - Cross-column drag visualization (handled by SwiftUI).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Status is one of RalphTaskStatus cases.

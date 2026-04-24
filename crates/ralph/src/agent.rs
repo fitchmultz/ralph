@@ -1,11 +1,18 @@
 //! Agent argument resolution and configuration (public compatibility surface).
 //!
+//! Purpose:
+//! - Agent argument resolution and configuration (public compatibility surface).
+//!
 //! Responsibilities:
 //! - Provide the stable `crate::agent::*` API used across the crate.
 //! - Re-export the actual implementation, which lives under `src/agent/`.
 //!
 //! Not handled here:
 //! - Any parsing, validation, or resolution logic (see `src/agent/*.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All public items previously available via `crate::agent::*` remain available

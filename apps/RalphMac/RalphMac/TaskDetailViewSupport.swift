@@ -1,6 +1,9 @@
 /**
  TaskDetailViewSupport
 
+ Purpose:
+ - Provide shared display helpers used by `TaskDetailView` for status/priority colors and metadata formatting.
+
  Responsibilities:
  - Provide shared display helpers used by `TaskDetailView` for status/priority colors and metadata formatting.
  - Host reusable action-bar/alert view modifiers to keep `TaskDetailView` focused on core form layout and editing logic.
@@ -8,6 +11,9 @@
  Does not handle:
  - Task field editing logic or persistence (handled in `TaskDetailView` + `Workspace`).
  - Conflict resolution UI internals (delegated to `TaskConflictResolverView`).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Intended for use only with `TaskDetailView` in the RalphMac app target.

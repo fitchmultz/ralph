@@ -1,5 +1,8 @@
 //! Release/public-readiness/build integration contract tests.
 //!
+//! Purpose:
+//! - Release/public-readiness/build integration contract tests.
+//!
 //! Responsibilities:
 //! - Guard shared contracts between Xcode, shell scripts, and the Makefile.
 //! - Ensure public-readiness and bundling logic stays centralized.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - End-to-end release execution.
 //! - Credentialed crates.io or GitHub interactions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Contract files live at stable repo-relative paths.

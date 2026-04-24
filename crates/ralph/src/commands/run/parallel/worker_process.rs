@@ -1,15 +1,22 @@
 //! Worker subprocess lifecycle helpers.
 //!
+//! Purpose:
+//! - Worker subprocess lifecycle helpers.
+//!
 //! Responsibilities:
 //! - Spawn worker subprocesses in isolated workspaces.
 //! - Emit explicit worker-exit events instead of requiring orchestrators to poll children.
 //! - Terminate workers gracefully and wait for monitor confirmation during cleanup.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task selection.
 //! - Parallel orchestration loop state transitions.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Worker commands create isolated process groups on unix.
 //! - Each worker has exactly one monitor thread that owns `Child::wait()`.
 

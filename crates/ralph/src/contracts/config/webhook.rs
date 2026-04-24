@@ -1,5 +1,8 @@
 //! Webhook configuration for HTTP task event notifications.
 //!
+//! Purpose:
+//! - Webhook configuration for HTTP task event notifications.
+//!
 //! Responsibilities:
 //! - Define webhook config structs and backpressure policy enum.
 //! - Provide merge behavior and event filtering.
@@ -7,6 +10,12 @@
 //!
 //! Not handled here:
 //! - Actual webhook delivery (see `crate::webhook` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Context, bail};
 use schemars::JsonSchema;

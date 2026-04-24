@@ -1,6 +1,9 @@
 /**
  RunControlDetailSections+Safety
 
+ Purpose:
+ - Render the Run Control safety-status card and its supporting row views.
+
  Responsibilities:
  - Render the Run Control safety-status card and its supporting row views.
  - Keep safety-contract messaging isolated from task/progress/history sections.
@@ -8,6 +11,12 @@
  Does not handle:
  - Task execution controls.
  - History or progress rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

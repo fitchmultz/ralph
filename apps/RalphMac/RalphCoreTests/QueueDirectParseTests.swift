@@ -1,6 +1,9 @@
 /**
  QueueDirectParseTests
 
+ Purpose:
+ - Validate direct queue file parsing for file-watcher-triggered refreshes.
+
  Responsibilities:
  - Validate direct queue file parsing for file-watcher-triggered refreshes.
  - Ensure RalphTaskQueueDocument correctly decodes valid queue files.
@@ -8,6 +11,9 @@
 
  Does not handle:
  - Testing the CLI subprocess path (covered by integration tests).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests use in-memory JSON data matching real queue file schemas.

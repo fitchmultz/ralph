@@ -1,5 +1,8 @@
 //! Scan prompt preview builder.
 //!
+//! Purpose:
+//! - Scan prompt preview builder.
+//!
 //! Responsibilities:
 //! - Build scan prompt previews using production scan rendering.
 //! - Add optional explain headers describing selected sources and flags.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Worker or task-builder prompt construction.
 //! - Template management operations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Scan prompt rendering uses the configured scan prompt version.

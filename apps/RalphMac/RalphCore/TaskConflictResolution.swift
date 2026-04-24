@@ -1,6 +1,9 @@
 /**
  TaskConflictResolution
 
+ Purpose:
+ - Define the canonical task-conflict fields and their display metadata.
+
  Responsibilities:
  - Define the canonical task-conflict fields and their display metadata.
  - Build testable field/section presentation models for conflict-resolution UI.
@@ -10,6 +13,9 @@
  - Optimistic-lock detection timing (see `Workspace+ConflictDetection.swift`).
  - SwiftUI view state storage or sheet presentation.
  - Persisting resolved tasks.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Local and external tasks refer to the same task identity.

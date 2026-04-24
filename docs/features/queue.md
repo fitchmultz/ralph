@@ -1,4 +1,9 @@
 # Ralph Queue System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 The queue is the source of truth for active work in Ralph. It manages tasks through their lifecycle, from creation to completion, while providing validation, dependency tracking, and workflow orchestration.
 

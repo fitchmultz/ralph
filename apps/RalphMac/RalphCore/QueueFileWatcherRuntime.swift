@@ -1,6 +1,9 @@
 /**
  QueueFileWatcherRuntime
 
+ Purpose:
+ - Host the private FSEvents runtime for `QueueFileWatcher`.
+
  Responsibilities:
  - Host the private FSEvents runtime for `QueueFileWatcher`.
  - Track file signatures, debounce file batches, and manage startup retry state.
@@ -9,6 +12,9 @@
  Does not handle:
  - Queue parsing or workspace-level remediation policy.
  - Main-actor UI publication.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Only `QueueFileWatcher` should own this runtime actor.

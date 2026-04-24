@@ -1,10 +1,17 @@
 //! Focused config-validation tests.
 //!
+//! Purpose:
+//! - Focused config-validation tests.
+//!
 //! Responsibilities:
 //! - Cover queue threshold, git-ref, and internal validation helpers housed in this module tree.
 //!
 //! Not handled here:
 //! - Cross-module config resolution tests defined in `config/tests.rs`.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - These tests exercise the split validators directly.

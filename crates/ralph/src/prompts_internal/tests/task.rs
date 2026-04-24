@@ -1,7 +1,18 @@
 //! Task builder and updater prompt tests.
 //!
+//! Purpose:
+//! - Task builder and updater prompt tests.
+//!
 //! Responsibilities: validate task builder and updater prompt rendering and loading.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: worker prompts, scan prompts, or phase-specific rendering.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: embedded defaults mention next-id command; temp directories are writable.
 
 use super::*;

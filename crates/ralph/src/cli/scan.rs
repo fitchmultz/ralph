@@ -1,5 +1,8 @@
 //! `ralph scan` command: Clap types and handler.
 //!
+//! Purpose:
+//! - `ralph scan` command: Clap types and handler.
+//!
 //! Responsibilities:
 //! - Define clap arguments for scan commands.
 //! - Dispatch scan execution with resolved runner overrides.
@@ -8,6 +11,10 @@
 //! - Queue storage and task persistence.
 //! - Runner implementation details or model execution.
 //! - Config precedence rules beyond loading the current repo config.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Configuration is resolved from the current working directory.

@@ -1,5 +1,8 @@
 //! List-format rendering for `queue graph`.
 //!
+//! Purpose:
+//! - List-format rendering for `queue graph`.
+//!
 //! Responsibilities:
 //! - Render focused and full flat-list graph views.
 //! - Group full-graph output by status for quick scanning.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Graph construction or relationship traversal internals.
 //! - Tree, DOT, or JSON rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Status sections render in a fixed order.

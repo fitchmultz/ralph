@@ -1,5 +1,8 @@
 //! Tests for GitHub PR helpers.
 //!
+//! Purpose:
+//! - Tests for GitHub PR helpers.
+//!
 //! Responsibilities:
 //! - Cover URL parsing, status/lifecycle derivation, and gh preflight behavior.
 //! - Lock in fallback behavior for older `gh pr view` JSON field support.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - End-to-end integration with a live GitHub repository.
 //! - Managed subprocess behavior already covered elsewhere.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests simulate `gh` responses via injected closures instead of spawning `gh`.

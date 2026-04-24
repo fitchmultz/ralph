@@ -1,5 +1,8 @@
 //! Top-level routing for `ralph machine`.
 //!
+//! Purpose:
+//! - Top-level routing for `ralph machine`.
+//!
 //! Responsibilities:
 //! - Dispatch machine subcommands to focused handlers.
 //! - Keep schema/config/system/doctor branches centralized and thin.
@@ -9,6 +12,10 @@
 //! - Machine queue/task/run business logic.
 //! - Machine contract type definitions.
 //! - Human-facing CLI rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine routing never emits prose on stdout.

@@ -1,5 +1,8 @@
 //! Plugin-based runner execution orchestration.
 //!
+//! Purpose:
+//! - Plugin-based runner execution orchestration.
+//!
 //! Responsibilities:
 //! - Dispatch execution to RunnerPlugin trait implementations.
 //! - Unify built-in and external plugin execution paths.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Concrete runner logic (handled by RunnerPlugin implementations).
 //! - Response parsing details (handled by ResponseParser implementations).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - PluginExecutor must be created once and reused for consistent behavior.

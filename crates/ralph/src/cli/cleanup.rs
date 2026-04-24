@@ -1,10 +1,17 @@
 //! Cleanup command CLI arguments.
 //!
+//! Purpose:
+//! - Cleanup command CLI arguments.
+//!
 //! Responsibilities:
 //! - Define CLI arguments for the `ralph cleanup` command.
 //!
 //! Not handled here:
 //! - Actual cleanup logic (see `crate::commands::cleanup`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Arguments are validated by Clap before being passed to the handler.

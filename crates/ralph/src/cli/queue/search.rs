@@ -1,5 +1,8 @@
 //! Queue search subcommand.
 //!
+//! Purpose:
+//! - Queue search subcommand.
+//!
 //! Responsibilities:
 //! - Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
 //! - Support regex, fuzzy, and case-sensitive matching modes.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Task listing without content search (see `list.rs`).
 //! - Task creation, modification, or deletion.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are loaded and validated before searching.

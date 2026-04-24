@@ -1,6 +1,9 @@
 /**
  ConnectionStatusViews
 
+ Purpose:
+ - Display workspace operational-health indicators for CLI, watcher, and persistence state.
+
  Responsibilities:
  - Display workspace operational-health indicators for CLI, watcher, and persistence state.
  - Provide inline banner when the workspace has degraded or failed runtime health.
@@ -9,6 +12,9 @@
  Does not handle:
  - Health repair logic (delegated to parent via closures).
  - Computing operational-health summaries (handled by RalphCore).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Summary and issue lists are passed in from RalphCore.

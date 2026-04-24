@@ -1,7 +1,18 @@
 //! Task builder prompt loading and rendering.
 //!
+//! Purpose:
+//! - Task builder prompt loading and rendering.
+//!
 //! Responsibilities: load the task builder template and render user request, tags, and scope.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: task creation, queue mutations, or phase-specific prompt composition.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: required placeholders exist and user request is non-empty.
 
 use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};

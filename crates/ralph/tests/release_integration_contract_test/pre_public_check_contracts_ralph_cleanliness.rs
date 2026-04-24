@@ -1,7 +1,19 @@
 //! `pre-public-check.sh` contract coverage (`.ralph` cleanliness and symlink cases).
 //!
+//! Purpose:
+//! - `pre-public-check.sh` contract coverage (`.ralph` cleanliness and symlink cases).
+//!
 //! Responsibilities:
 //! - Allowlisted `.ralph` path checks, trust-file siblings, and symlinked allowlisted files.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::Command;
 

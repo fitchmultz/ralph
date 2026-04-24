@@ -1,6 +1,9 @@
 /**
  AppSettings+Container
 
+ Purpose:
+ - Provide preview and workspace/no-workspace container shells for the Settings scene.
+
  Responsibilities:
  - Provide preview and workspace/no-workspace container shells for the Settings scene.
  - Keep scene-content indirection out of the root settings view file.
@@ -8,6 +11,12 @@
  Does not handle:
  - Settings tab layouts.
  - Settings window diagnostics or focus management.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

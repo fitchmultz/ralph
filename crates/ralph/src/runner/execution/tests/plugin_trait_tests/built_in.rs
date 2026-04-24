@@ -1,14 +1,21 @@
 //! Built-in plugin metadata regression coverage.
 //!
+//! Purpose:
+//! - Built-in plugin metadata regression coverage.
+//!
 //! Responsibilities:
 //! - Verify built-in plugin identity, metadata, resume support, and session rules.
 //! - Lock down invariants shared across the built-in runner catalog.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Command-building argument coverage.
 //! - Response parsing or executor dispatch behavior.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Built-in plugin ordering stays stable across the seven supported runners.
 //! - Kimi alone requires managed session IDs among built-ins.
 

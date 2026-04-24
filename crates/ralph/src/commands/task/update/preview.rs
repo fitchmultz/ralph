@@ -1,5 +1,8 @@
 //! Dry-run preview helpers for task updates.
 //!
+//! Purpose:
+//! - Dry-run preview helpers for task updates.
+//!
 //! Responsibilities:
 //! - Load the current task state for preview mode.
 //! - Render the runner prompt that would be used for a task update.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue locking, backup creation, or restore-on-failure behavior.
 //! - Actual runner execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview mode must not modify repo state.

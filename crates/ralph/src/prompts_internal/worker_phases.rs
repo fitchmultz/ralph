@@ -1,9 +1,20 @@
 //! Worker phase prompt loading and rendering.
 //!
+//! Purpose:
+//! - Worker phase prompt loading and rendering.
+//!
 //! Responsibilities: load phase-specific worker templates, render multi-phase content, and inject
-//! RepoPrompt instructions when configured.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!   RepoPrompt instructions when configured.
+//!
 //! Not handled: base worker prompt rendering, checklist content generation, or queue/task
 //! persistence.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: phase templates include expected placeholders and rendering inputs are
 //! pre-trimmed by callers.
 

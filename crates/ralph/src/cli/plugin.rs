@@ -1,10 +1,17 @@
 //! Plugin CLI surface.
 //!
+//! Purpose:
+//! - Plugin CLI surface.
+//!
 //! Responsibilities:
 //! - Define Clap args for plugin management.
 //!
 //! Not handled here:
 //! - Filesystem operations (see `crate::commands::plugin`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `install` copies a plugin directory containing `plugin.json` into the chosen scope.

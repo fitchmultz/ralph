@@ -1,8 +1,20 @@
 //! Dry-run presenters for `ralph task batch`.
 //!
+//! Purpose:
+//! - Dry-run presenters for `ralph task batch`.
+//!
 //! Responsibilities:
 //! - Provide stable preview output for each batch operation.
 //! - Keep the main batch handler free of formatting noise.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::TaskStatus;
 

@@ -1,5 +1,8 @@
 //! Task scheduling command handler for `ralph task schedule` subcommand.
 //!
+//! Purpose:
+//! - Task scheduling command handler for `ralph task schedule` subcommand.
+//!
 //! Responsibilities:
 //! - Handle `schedule` command (set scheduled start time).
 //! - Parse relative time expressions.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Task building or status changes (see `build.rs`, `status.rs`).
 //! - Batch operations (see `batch.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Supports RFC3339 timestamps and relative time expressions.

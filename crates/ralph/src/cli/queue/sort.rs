@@ -1,5 +1,8 @@
 //! Queue sort subcommand.
 //!
+//! Purpose:
+//! - Queue sort subcommand.
+//!
 //! Responsibilities:
 //! - Reorder tasks in .ralph/queue.jsonc by priority.
 //! - Support dry-run mode to preview the new order.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Time-based or complex sorting (use `ralph queue list --sort-by` for that).
 //! - Sorting by arbitrary fields (intentionally limited to prevent footguns).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Only supports priority sorting to avoid dangerous queue reordering.

@@ -1,5 +1,8 @@
 //! Machine-command error classification and JSON stderr emission.
 //!
+//! Purpose:
+//! - Machine-command error classification and JSON stderr emission.
+//!
 //! Responsibilities:
 //! - Convert machine command failures into stable, versioned error documents.
 //! - Keep app-facing recovery/error codes centralized on the CLI side.
@@ -9,6 +12,10 @@
 //! - Machine command routing or success-document emission.
 //! - Human CLI error rendering.
 //! - App-side recovery presentation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine command failures must emit JSON on stderr instead of prose.

@@ -1,4 +1,9 @@
 # Quick Start Guide
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Get Ralph running in a repository in a few minutes.
 

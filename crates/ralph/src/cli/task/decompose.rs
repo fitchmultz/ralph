@@ -1,5 +1,8 @@
 //! Task decomposition command handler for `ralph task decompose`.
 //!
+//! Purpose:
+//! - Task decomposition command handler for `ralph task decompose`.
+//!
 //! Responsibilities:
 //! - Read source text from CLI args or stdin.
 //! - Resolve runner overrides and delegate planning/materialization to command helpers.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Planner prompt rendering or runner execution details.
 //! - Queue mutation internals.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview is always shown before any optional write summary.

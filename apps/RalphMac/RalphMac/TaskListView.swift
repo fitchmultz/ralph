@@ -1,6 +1,9 @@
 /**
  TaskListView
 
+ Purpose:
+ - Display a rich, sortable, filterable list of tasks from the Ralph queue.
+
  Responsibilities:
  - Display a rich, sortable, filterable list of tasks from the Ralph queue.
  - Show task metadata with visual indicators (status badges, priority dots, tag chips).
@@ -12,6 +15,9 @@
  - Task editing (see TaskDetailView - now shown in detail column).
  - Task creation (see TaskCreationView).
  - Direct CLI execution (delegates to Workspace).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected via @ObservedObject.

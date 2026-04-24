@@ -1,12 +1,18 @@
 /**
  WindowStateRoutingTests
 
+ Purpose:
+ - Validate scene routing, focused/effective workspace selection, and launch-time app-default cleanup.
+
  Responsibilities:
  - Validate scene routing, focused/effective workspace selection, and launch-time app-default cleanup.
 
  Does not handle:
  - WindowState model encoding or raw persistence helpers.
  - Restoration claim selection and startup-placeholder identity helpers.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Window routing actions are registered against the shared WorkspaceManager test instance.

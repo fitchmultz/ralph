@@ -1,5 +1,8 @@
 //! Test runner helpers for simulating CLI binaries.
 //!
+//! Purpose:
+//! - Test runner helpers for simulating CLI binaries.
+//!
 //! Responsibilities:
 //! - Create executable fake runner binaries for tests that need runner output.
 //! - Ensure deterministic setup of test runner scripts under a temp directory.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Test orchestration or assertions (handled by individual tests).
 //! - Cross-platform runner command semantics beyond basic executable creation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers provide valid script content compatible with the current platform shell.

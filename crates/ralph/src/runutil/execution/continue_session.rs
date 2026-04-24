@@ -1,5 +1,8 @@
 //! Continue-session policy helpers for runner execution.
 //!
+//! Purpose:
+//! - Continue-session policy helpers for runner execution.
+//!
 //! Responsibilities:
 //! - Select a resume session ID.
 //! - Centralize known-invalid continue-session fallback classification.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Retry policy.
 //! - Error shaping after runner failures.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Fresh continue fallbacks stay conservative and runner-specific.

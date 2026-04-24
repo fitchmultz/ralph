@@ -1,14 +1,21 @@
 //! Unified builder for runner commands.
 //!
+//! Purpose:
+//! - Unified builder for runner commands.
+//!
 //! Responsibilities:
 //! - Build `Command` instances with runner-specific arguments and temp resources.
 //! - Manage temporary prompt files and stdin payloads for runners.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Executing commands or streaming output (see process module).
 //! - Validating high-level runner configuration (handled by caller).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers keep temp guards alive until command execution completes.
 //! - Provided binaries and working directories are valid and accessible.
 

@@ -1,5 +1,8 @@
 //! Task scanning command that inspects repo state and updates the queue.
 //!
+//! Purpose:
+//! - Task scanning command that inspects repo state and updates the queue.
+//!
 //! Responsibilities:
 //! - Validate queue state before/after scanning and persist updated tasks.
 //! - Render scan prompts with repo context and dispatch runner execution.
@@ -9,6 +12,10 @@
 //! - CLI parsing or interactive UI wiring.
 //! - Runner process implementation details or output parsing.
 //! - Queue schema definitions or config persistence.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue/done files are the source of truth for task ordering and status.

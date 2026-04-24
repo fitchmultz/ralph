@@ -1,4 +1,9 @@
 # RalphMac Settings Window Investigation
+Status: Archived
+Owner: Maintainers
+Source of truth: historical snapshot; current guidance lives in linked active docs
+Parent: [Ralph Documentation](../index.md)
+
 
 Date: 2026-03-13
 

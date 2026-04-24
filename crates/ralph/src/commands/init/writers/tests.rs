@@ -1,5 +1,8 @@
 //! Regression coverage for initialization file writers.
 //!
+//! Purpose:
+//! - Regression coverage for initialization file writers.
+//!
 //! Responsibilities:
 //! - Verify queue/done/config writer behavior for create, validate, and force-overwrite flows.
 //! - Verify wizard answers seed queue/config output as expected.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Interactive initialization UX.
 //! - README creation or migration checks.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Existing files stay untouched when validation succeeds without `--force`.

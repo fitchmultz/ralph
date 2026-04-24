@@ -1,11 +1,18 @@
 //! Watch event-loop regression tests.
 //!
+//! Purpose:
+//! - Watch event-loop regression tests.
+//!
 //! Responsibilities:
 //! - Cover loop shutdown, poison handling, timeout behavior, and event ingestion.
 //! - Provide shared watch-loop fixtures for local unit tests.
 //!
 //! Not handled here:
 //! - End-to-end watcher setup through `notify::RecommendedWatcher`.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests preserve the watch-loop debounce semantics used in production.

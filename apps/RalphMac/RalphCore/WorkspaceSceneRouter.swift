@@ -1,6 +1,9 @@
 /**
  WorkspaceSceneRouter
 
+ Purpose:
+ - Own scene-routing registrations for windows and workspace views.
+
  Responsibilities:
  - Own scene-routing registrations for windows and workspace views.
  - Resolve which window should reveal or host a workspace route.
@@ -10,6 +13,9 @@
  - Workspace lifecycle creation or restoration.
  - SwiftUI view composition.
  - Persisting window state directly.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - All mutations happen on the main actor.

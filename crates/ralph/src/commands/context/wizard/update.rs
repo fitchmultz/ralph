@@ -1,5 +1,8 @@
 //! Update-wizard flow for AGENTS.md section edits.
 //!
+//! Purpose:
+//! - Update-wizard flow for AGENTS.md section edits.
+//!
 //! Responsibilities:
 //! - Let users choose existing sections to update.
 //! - Collect replacement content for selected sections.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Markdown parsing or merge logic.
 //! - Writing merged content back to disk.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Selected section indices were validated by the prompter.

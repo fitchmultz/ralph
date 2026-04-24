@@ -1,6 +1,9 @@
 /**
  ANSIParserColorTests
 
+ Purpose:
+ - Validate standard, bright, indexed, true-color, and background ANSI color handling.
+
  Responsibilities:
  - Validate standard, bright, indexed, true-color, and background ANSI color handling.
  - Cover ANSIColor utility semantics used by the UI layer.
@@ -8,6 +11,9 @@
  Does not handle:
  - Control-sequence stripping or incremental stream parsing.
  - Malformed-sequence recovery.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Background colors are parsed for stability but not persisted in ANSISegment foreground state.

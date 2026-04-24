@@ -1,4 +1,9 @@
 # Ralph Roadmap
+Status: Active
+Owner: Maintainers
+Source of truth: this document for active roadmap sequencing
+Parent: [Ralph Documentation](index.md)
+
 
 Last updated: 2026-04-01
 

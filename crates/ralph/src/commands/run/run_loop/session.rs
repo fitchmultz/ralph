@@ -1,5 +1,8 @@
 //! Session recovery helpers for the sequential run loop.
 //!
+//! Purpose:
+//! - Session recovery helpers for the sequential run loop.
+//!
 //! Responsibilities:
 //! - Resolve whether the loop should resume a prior task session.
 //! - Centralize operator-facing resume/fresh/refusal decisions before task selection.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue waiting or task execution.
 //! - Session progress persistence after task execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Session timeout uses configured hours (defaulting to the shared constant).

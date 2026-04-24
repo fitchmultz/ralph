@@ -1,5 +1,8 @@
 //! Shell completion script generation for Ralph CLI.
 //!
+//! Purpose:
+//! - Shell completion script generation for Ralph CLI.
+//!
 //! Responsibilities:
 //! - Generate shell completion scripts for supported shells (bash, zsh, fish, PowerShell, Elvish).
 //! - Provide a CLI command to output completion scripts to stdout.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Installation of completion scripts to system directories (user responsibility).
 //! - Runtime shell detection or automatic configuration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Completion scripts are generated using clap_complete and written to stdout.

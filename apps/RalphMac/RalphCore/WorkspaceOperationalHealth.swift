@@ -1,6 +1,9 @@
 /**
  WorkspaceOperationalHealth
 
+ Purpose:
+ - Define the shared operational-health model used across workspace runtime, diagnostics, and UI.
+
  Responsibilities:
  - Define the shared operational-health model used across workspace runtime, diagnostics, and UI.
  - Normalize watcher, CLI, persistence, and crash-reporting failures into one issue format.
@@ -10,6 +13,9 @@
  - Executing health checks or watcher retries.
  - SwiftUI presentation details.
  - Persisting operational-health state.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Operational issues are append-only snapshots and should be replaced wholesale on recompute.

@@ -1,5 +1,8 @@
 //! Configuration validation facade.
 //!
+//! Purpose:
+//! - Configuration validation facade.
+//!
 //! Responsibilities:
 //! - Coordinate focused validators for queue, trust, CI gate, agent, and git-ref rules.
 //! - Re-export the config validation API used throughout the crate.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Config loading or layer resolution.
 //! - Queue file validation or prompt management.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Config version remains pinned to `1`.

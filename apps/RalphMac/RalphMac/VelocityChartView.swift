@@ -1,9 +1,21 @@
 /**
  VelocityChartView
 
+ Purpose:
+ - Render a bar chart showing tasks completed per day.
+
  Responsibilities:
  - Render a bar chart showing tasks completed per day.
  - Uses SwiftUI Charts BarMark for visualization.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

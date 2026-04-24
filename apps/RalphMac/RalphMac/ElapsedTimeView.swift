@@ -1,6 +1,9 @@
 /**
  ElapsedTimeView
 
+ Purpose:
+ - Display elapsed time since a given start date
+
  Responsibilities:
  - Display elapsed time since a given start date
  - Update every second while running
@@ -9,6 +12,9 @@
  Does not handle:
  - Time tracking logic (uses provided start time)
  - Timer management beyond display updates
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - startTime is a valid Date in the past

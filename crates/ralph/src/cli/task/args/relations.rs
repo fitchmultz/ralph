@@ -1,11 +1,18 @@
 //! CLI arguments for task relationship commands.
 //!
+//! Purpose:
+//! - CLI arguments for task relationship commands.
+//!
 //! Responsibilities:
 //! - Define Args structs for clone, split, children, parent, relate, blocks, and mark-duplicate commands.
 //! - Define TaskRelationFormat enum for output formatting.
 //!
 //! Not handled here:
 //! - Command execution (see clone, split, children, parent, and relations handlers).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap.

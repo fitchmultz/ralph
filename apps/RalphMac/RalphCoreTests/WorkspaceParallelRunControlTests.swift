@@ -1,12 +1,18 @@
 /**
  WorkspaceParallelRunControlTests
 
+ Purpose:
+ - Validate parallel-status CLI loading, decode failures, run-control display helpers,
+
  Responsibilities:
  - Validate parallel-status CLI loading, decode failures, run-control display helpers,
    repository refresh interactions, and retarget clearing for parallel run-control state.
 
  Does not handle:
  - Primary `runNextTask` invocation, loop/cancel, or queue watcher operational surfacing.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs intentionally implement only the command paths exercised by each scenario.

@@ -1,295 +1,120 @@
-# RalphMac - AI Task Queue GUI
+# RalphMac Agent Guide
 
-## Project Overview
+<!-- AGENTS ONLY: app-scoped guidance. Repo-wide rules live in ../AGENTS.md. -->
 
-RalphMac is a native macOS SwiftUI application that provides a graphical interface for the `ralph` CLI tool. The `ralph` CLI is a Rust-based task queue management system for AI agent workflows. This GUI wraps the CLI to provide visual task management, analytics, and execution control.
+Status: Active
+Owner: Maintainers
+Source of truth: this file for app-scoped guidance only; `../AGENTS.md` for
+repo-wide rules.
+Parent: `../AGENTS.md`
 
-**Key Features:**
-- Multi-window, multi-tab workspace interface with native macOS tab bar integration
-- Task queue visualization (List, Kanban board, and Dependency graph views)
-- Real-time task execution with Run Control panel
-- Analytics dashboard with productivity metrics, burndown charts, and velocity tracking
-- Advanced CLI command runner with auto-generated UI from CLI spec
-- File watching for external queue changes
+RalphMac is the native SwiftUI app for Ralph. It must stay a thin, user-friendly
+surface over the Rust CLI and versioned `ralph machine ...` JSON contracts.
 
-## Project Structure
+## Canonical App Rules
 
-```
-RalphMac/
-├── RalphMac.xcodeproj/        # Xcode project configuration
-├── RalphMac/                   # Main macOS app target
-│   ├── RalphMacApp.swift       # App entry point (@main)
-│   ├── WindowView.swift        # Window/tab management
-│   ├── WorkspaceView.swift     # Main 3-column UI layout
-│   ├── NavigationViewModel.swift  # Sidebar navigation state
-│   ├── VisualEffectView.swift  # macOS glass morphism effects
-│   ├── Info.plist              # Bundle configuration
-│   └── Assets.xcassets/        # App icons and assets
-│   └── [View files...]         # Task, Kanban, Graph, Analytics views
-├── RalphCore/                  # Framework target (core business logic)
-│   ├── RalphCLIClient.swift    # Subprocess spawning and streaming
-│   ├── RalphCLIExecutableLocator.swift  # Bundle executable resolution
-│   ├── RalphModels.swift       # Codable models for CLI JSON output
-│   ├── GraphModels.swift       # Dependency graph data models
-│   ├── AnalyticsModels.swift   # Analytics data models
-│   ├── Workspace.swift         # Per-project workspace state & operations
-│   ├── WorkspaceManager.swift  # Global workspace lifecycle management
-│   ├── WindowState.swift       # Window restoration state
-│   └── QueueFileWatcher.swift  # FSEvents file watching
-└── RalphCoreTests/             # Unit and integration tests
-    ├── RalphCLIClientTests.swift   # CLI client unit tests
-    ├── RalphModelsTests.swift      # Model decoding tests
-    └── RalphE2ESmokeTests.swift    # End-to-end smoke tests
-```
+- Use `../AGENTS.md` for repository-wide CI, release, source-of-truth, cutover,
+  and documentation rules. Do not duplicate those rules here.
+- Native app workflows must use versioned machine contracts or shared JSON
+  command outputs. Do not parse human CLI output.
+- The Advanced Runner is diagnostic/debug tooling only. A CLI command is not
+  app-parity-complete just because it can be run there.
+- App-side task editing should use the canonical task mutation path rather than
+  field-by-field shellouts.
+- App behavior must preserve CLI parity while improving UX: guided inputs,
+  visible state, previews where supported, progress, success/error states,
+  recovery actions, keyboard access, and clear labels.
+- If a CLI feature changes, update the machine contract, RalphCore decoding,
+  native SwiftUI surface, tests, and docs together or record the explicit block
+  in the parity registry (`../crates/ralph/src/cli/app_parity.rs`).
 
-## Technology Stack
+## Security Boundaries
 
-- **Language:** Swift 5.9+
-- **UI Framework:** SwiftUI with AppKit integration (NSVisualEffectView)
-- **Build System:** Xcode project (`.xcodeproj`)
-- **Reactive Programming:** Combine framework
-- **File System:** FSEvents (CoreServices) for file watching
-- **Process Management:** Foundation.Process for CLI execution
-- **Persistence:** UserDefaults for state, JSON for CLI communication
+- RalphMac may execute only the validated Ralph CLI path selected by the app or
+  user. Do not add alternate executable discovery paths, shell-string execution,
+  or GUI-controlled arbitrary command launch surfaces.
+- Workspace access is user-selected and workspace-scoped. Do not broaden file
+  reads/writes outside the active workspace except for documented Ralph config,
+  cache, or app-support locations.
+- The GUI does not make direct network calls for Ralph workflows. Networked
+  behavior must stay behind the CLI/machine contract or a documented app system
+  service with explicit owner approval.
+- Keep destructive or trust-changing operations visible and confirmed in the UI;
+  do not add hidden bypasses around CLI trust, config, or queue safeguards.
 
-## Build and Run
+## Canonical Build and Test Entry Points
 
-### Prerequisites
+Derived summary; `../docs/guides/ci-strategy.md` is the validation source of
+truth. Use Make targets from the repository root. They wrap Xcode with the
+required bundling, locks, derived-data policy, and deterministic smoke tests.
 
-- macOS 14.0+ (Sonoma)
-- Xcode 15.0+
-- The `ralph` CLI binary must be available (bundled during build)
-
-### Build Commands
-
-```bash
-# Open in Xcode
-open RalphMac/RalphMac.xcodeproj
-
-# Or build from command line
-xcodebuild -project RalphMac/RalphMac.xcodeproj -scheme RalphMac -configuration Debug build
-
-# Build RalphCore framework
-xcodebuild -project RalphMac/RalphMac.xcodeproj -scheme RalphCore -configuration Debug build
-
-# Run tests
-xcodebuild -project RalphMac/RalphMac.xcodeproj -scheme RalphCoreTests -destination 'platform=macOS' test
-```
-
-### Bundling the Ralph CLI
-
-The GUI expects a `ralph` executable in the app bundle at `Contents/MacOS/ralph`. Xcode and Makefile flows must both use `scripts/ralph-cli-bundle.sh` as the single bundling/build entrypoint. During development, the executable can be located via:
-
-1. **Bundled binary:** Placed next to the app executable in the bundle
-2. **Environment variable:** `RALPH_BIN_PATH` for testing/development
-3. **Shared bundling script:** `scripts/ralph-cli-bundle.sh --configuration Debug|Release --print-path`
-
-## Code Style Guidelines
-
-### File Header Documentation
-
-Every Swift file must include a documentation header with these sections:
-
-```swift
-/**
- FileName
-
- Responsibilities:
- - List what this file/module does
-
- Does not handle:
- - List what is explicitly out of scope
-
- Invariants/assumptions callers must respect:
- - List important assumptions and constraints
- */
-```
-
-### Architecture Patterns
-
-- **MVVM:** Views use `@StateObject` or `@ObservedObject` with ViewModels
-- **Observable Pattern:** Core classes extend `ObservableObject` with `@Published` properties
-- **Singleton Pattern:** `WorkspaceManager.shared` for global workspace coordination
-- **Dependency Injection:** CLI client is injected into Workspaces
-- **MainActor:** UI-updating classes are marked `@MainActor`
-
-### Naming Conventions
-
-- **Files:** PascalCase matching the primary type (`RalphModels.swift`)
-- **Types:** PascalCase (`RalphCLIClient`, `WorkspaceManager`)
-- **Functions/Variables:** camelCase (`loadTasks()`, `workingDirectoryURL`)
-- **Constants:** Use descriptive names, not ALL_CAPS
-- **Notification Names:** `static let newWorkspaceTabRequested = Notification.Name("newWorkspaceTabRequested")`
-
-### Access Control
-
-- Use `public` explicitly for framework exports (RalphCore)
-- Use `internal` (default) for app-private code
-- Use `private` for implementation details
-- Use `public import` for framework imports
-
-## Testing Strategy
-
-### Test Organization
-
-| Test File | Purpose |
-|-----------|---------|
-| `RalphCLIClientTests.swift` | Unit tests for subprocess spawning, streaming, cancellation |
-| `RalphModelsTests.swift` | JSON decoding/encoding, forward compatibility |
-| `RalphE2ESmokeTests.swift` | End-to-end workflow with real ralph binary |
-
-### Running Tests
-
-```bash
-# Run all tests in Xcode
-Cmd+U
-
-# Run from command line
-xcodebuild -project RalphMac/RalphMac.xcodeproj -scheme RalphCoreTests test
-
-# With specific environment (for E2E tests)
-RALPH_BIN_PATH=/path/to/ralph xcodebuild -project RalphMac/RalphMac.xcodeproj -scheme RalphCoreTests test
-```
-
-### UI Testing (RalphMacUITests)
-
-UI tests are **excluded by default** in CI because they take over the mouse and keyboard, making your computer unusable during test execution.
-
-```bash
-# Run tests excluding UI tests (default)
-make macos-test
-
-# Build/sign UI bundles once for a local debugging session
-make macos-ui-build-for-testing
-
-# Re-run UI tests without rebuilding/signing again
-make macos-ui-retest
-RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUITests/test_createNewTask_viaQuickCreate make macos-ui-retest
-
-# Run tests including UI tests end-to-end (interactive - will take over mouse/keyboard)
-make macos-test-ui
-
-# Or toggle via environment variable
-RALPH_UI_TESTS=1 make macos-test   # Include UI tests (headed/interactive)
-RALPH_UI_TESTS=0 make macos-test   # Skip UI tests (default)
-```
-
-**Warning:** UI tests (`RALPH_UI_TESTS=1` or `make macos-ui-retest`) will move your mouse cursor and send keyboard events. Do not use your computer while UI tests are running.
-
-### E2E Test Behavior
-
-E2E tests look for the `ralph` binary in this order:
-1. `RALPH_BIN_PATH` environment variable
-2. `target/debug/ralph` relative to repo root
-3. Auto-build with `cargo build -p ralph-agent-loop` if not found
-
-Tests create temporary directories that are cleaned up after each test.
-
-### Mock CLI Fixtures
-
-- Workspace/WorkspaceManager tests that use mock CLI scripts should implement both `--version`/`version` and `--no-color config show --format json` when the workspace may auto-load version or runner configuration. Missing either path creates noisy async logger output that can mask real failures.
-
-## Module Responsibilities
-
-### RalphCore Framework
-
-| File | Purpose |
+| Need | Command |
 |------|---------|
-| `RalphCLIClient.swift` | Process spawning, stdout/stderr streaming, async/await API |
-| `RalphModels.swift` | CLI spec parsing, task models, argument building |
-| `GraphModels.swift` | Dependency graph data structures |
-| `AnalyticsModels.swift` | Productivity, velocity, burndown data models |
-| `Workspace.swift` | Per-project state, CLI operations, task management |
-| `WorkspaceManager.swift` | Global workspace lifecycle, window restoration |
-| `QueueFileWatcher.swift` | FSEvents-based file watching for queue changes |
+| Required app ship gate | `make macos-ci` |
+| Routed local gate | `make agent-ci` |
+| Build app | `make macos-build` |
+| Non-UI app tests | `make macos-test` |
+| Build UI-test bundles once | `make macos-ui-build-for-testing` |
+| Re-run UI tests | `make macos-ui-retest` |
+| Capture headed UI artifacts | `make macos-test-ui-artifacts` |
+| Clean UI artifacts | `make macos-ui-artifacts-clean` |
 
-### RalphMac App
+`scripts/ralph-cli-bundle.sh` is the only CLI bundling/build entrypoint for
+Makefile, Xcode, and release consumers. Do not add standalone Cargo fallback
+logic inside Xcode project settings or app-specific scripts.
 
-| File | Purpose |
-|------|---------|
-| `RalphMacApp.swift` | App entry, menu commands, window configuration |
-| `WindowView.swift` | Tab-based window management |
-| `WorkspaceView.swift` | 3-column NavigationSplitView layout |
-| `NavigationViewModel.swift` | Sidebar section state, view modes |
-| `VisualEffectView.swift` | Glass morphism effects, custom button styles |
+## App Architecture Boundaries
 
-## Key Design Patterns
+- `RalphMacApp.swift` stays a thin shell. Menu commands live in
+  `RalphMacCommands.swift`, URL routing in `RalphMacApp+URLRouting.swift`,
+  bootstrap helpers in `RalphMacApp+Support.swift`, window root composition in
+  `WindowViewContainer.swift`, and UI-test window policy in
+  `WorkspaceWindowAnchor.swift`.
+- `Workspace.swift` is a `@MainActor` facade over domain owners and focused
+  `Workspace+...` files. Do not re-accumulate runner, persistence, task
+  mutation, recovery, or queue refresh logic in the root type.
+- `RalphCLIClient.swift` owns the core subprocess API only. Retry helpers,
+  recovery classification, health probing, and process lifecycle ownership live
+  in their dedicated companion files.
+- `RalphModels.swift` is a facade only. Keep CLI spec models, generic JSON
+  values, argument-building helpers, and task-domain models in dedicated
+  RalphCore files.
+- Task list/detail views should stay orchestration-focused. Put reusable
+  sections in `TaskListSections.swift` / `TaskDetailSections.swift` and dense
+  transient state in dedicated state owners.
 
-### Workspace Isolation
+## App State and Communication
 
-Each project/workspace has:
-- Independent working directory
-- Isolated CLI execution context
-- Separate task list and state
-- Per-workspace file watching
+- Active-window navigation/task commands flow through focused scene values
+  (`WorkspaceUIActions` / `WorkspaceWindowActions`).
+- Unfocused menu, URL, and app lifecycle surfaces route through
+  `WorkspaceSceneRouter`.
+- Do not reintroduce process-wide `NotificationCenter` broadcasts for focused
+  workspace actions.
+- Queue file watcher refreshes and CLI queue JSON decoding use
+  `WorkspaceQueueSnapshotLoader`; publish only final state on the main actor.
+- Operational visibility flows through `WorkspaceOperationalHealth` so watcher,
+  persistence, crash-report, and CLI health share one severity model.
+- Workspace identity persistence uses a single `.snapshot` payload per
+  workspace through `WorkspaceStateStore`; persistence failures must surface as
+  `PersistenceIssue`.
 
-### CLI Integration
+## Testing Conventions
 
-The GUI communicates with the CLI via:
-1. **JSON output:** `--format json` for structured data
-2. **CLI spec introspection:** `ralph __cli-spec --format json` for command discovery
-3. **Streaming output:** Real-time stdout/stderr via AsyncStream
-4. **Exit status:** RalphCLIExitStatus with code and termination reason
+- Use `RalphCoreTestSupport` for temp workspaces, readiness polling, and cleanup
+  assertions.
+- SwiftUI previews that need workspace URLs derive them from
+  `PreviewWorkspaceSupport`.
+- UI tests must not write into the production app defaults domain. `--uitesting`
+  launches use the dedicated test suite.
+- Normal UI-test launches should keep one visible workspace window; multiwindow
+  tests should keep two. Avoid widths below the split-view practical minimum.
+- UI screenshot capture is opt-in through `RALPH_UI_SCREENSHOTS=1` or
+  `RALPH_UI_SCREENSHOT_MODE`.
 
-### State Persistence
+## File Headers and Style
 
-- **Window state:** Restored via `WindowState` Codable + UserDefaults
-- **Workspace state:** Per-workspace UserDefaults with namespaced keys (`com.mitchfultz.ralph.workspace.{id}.{field}`)
-- **Recent directories:** Stored per-workspace, validated on load
-
-### Notification System
-
-Cross-view communication uses NotificationCenter:
-- `newWorkspaceTabRequested`, `closeActiveTabRequested` - Tab management
-- `showSidebarSection`, `toggleSidebar` - Navigation
-- `showTaskCreation`, `toggleTaskViewMode` - Task UI
-- `queueFilesExternallyChanged` - File watcher events
-
-## Security Considerations
-
-1. **Executable Validation:** `RalphCLIClient` verifies executable exists and is executable
-2. **Sandboxing:** App uses standard macOS sandbox (configured in entitlements)
-3. **File Access:** Working directories are user-selected via NSOpenPanel
-4. **No Network:** No direct network calls from GUI; all network through CLI subprocess
-
-## Common Tasks
-
-### Adding a New View
-
-1. Create Swift file in `RalphMac/RalphMac/`
-2. Add to `project.pbxproj` (or let Xcode handle it)
-3. Follow header documentation template
-4. Use `GlassButtonStyle` for buttons
-5. Use `VisualEffectView` for backgrounds
-
-### Adding a New Model
-
-1. Add to appropriate file in `RalphCore/` (or create new)
-2. Make it `Codable, Sendable, Equatable` for JSON and thread safety
-3. Use `RalphJSONValue` for forward-compatible JSON fields
-4. Add unit tests in `RalphCoreTests/`
-
-### Adding CLI Command Support
-
-1. Ensure CLI outputs JSON with `--format json`
-2. Create corresponding model in RalphCore
-3. Add method to `Workspace` for the operation
-4. Wire up UI in appropriate View
-
-## Debugging Tips
-
-- **CLI not found:** Check `RalphCLIExecutableLocator.bundledRalphExecutableURL()` and build phase
-- **No task updates:** Check `QueueFileWatcher` is started and FSEvents working
-- **JSON decoding errors:** Verify CLI output format matches model expectations
-- **SwiftUI preview crashes:** Previews may not work with Process/Bundle lookups
-
-## Dependencies
-
-The project has **no external package dependencies**. All functionality uses:
-- Swift Standard Library
-- Foundation
-- SwiftUI
-- Combine
-- AppKit (for NSVisualEffectView, NSOpenPanel)
-- CoreServices (for FSEvents)
-- XCTest (for testing)
+Every Swift file starts with a purpose header covering responsibilities,
+non-scope, and invariants/assumptions. Keep access control minimal and explicit:
+use `private` for implementation details, internal by default, and `public` only
+for real RalphCore framework exports.

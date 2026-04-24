@@ -1,5 +1,8 @@
 //! Top-level Clap argument definitions for `ralph`.
 //!
+//! Purpose:
+//! - Top-level Clap argument definitions for `ralph`.
+//!
 //! Responsibilities:
 //! - Define the root `Cli` parser and the top-level command enum.
 //! - Keep top-level command documentation and long-help text together.
@@ -9,6 +12,10 @@
 //! - Command execution logic.
 //! - Shared queue/list helper functions.
 //! - Parse-regression tests.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Subcommands validate their own inputs and config dependencies.

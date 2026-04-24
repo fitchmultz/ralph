@@ -1,5 +1,8 @@
 //! Stats report entrypoint orchestration.
 //!
+//! Purpose:
+//! - Stats report entrypoint orchestration.
+//!
 //! Responsibilities:
 //! - Attach optional execution-history ETA data to stats reports.
 //! - Dispatch fully-built reports to text or JSON rendering.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Stats metric calculation.
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `build_stats_report` returns a complete report shape before ETA decoration.

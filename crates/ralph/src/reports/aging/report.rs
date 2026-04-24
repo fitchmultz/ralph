@@ -1,5 +1,8 @@
 //! Aging report aggregation helpers.
 //!
+//! Purpose:
+//! - Aging report aggregation helpers.
+//!
 //! Responsibilities:
 //! - Build the structured aging report from computed bucket assignments.
 //! - Sort tasks within buckets and omit low-signal fresh details from text rendering.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Per-task bucket computation.
 //! - Text rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Buckets are emitted in severity order: rotten, stale, warning, fresh, unknown.

@@ -1,5 +1,8 @@
 //! Operator-facing resume decision model and session-resolution helpers.
 //!
+//! Purpose:
+//! - Operator-facing resume decision model and session-resolution helpers.
+//!
 //! Responsibilities:
 //! - Convert low-level session validation into explicit resume/fresh/refusal decisions.
 //! - Preserve machine-readable decision state for CLI/app surfaces.
@@ -9,6 +12,10 @@
 //! - Session persistence IO details.
 //! - Queue/task execution.
 //! - Continue-session runner resumption.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Timed-out sessions always require explicit confirmation.

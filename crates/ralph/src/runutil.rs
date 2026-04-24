@@ -1,11 +1,18 @@
 //! Shared helpers for runner invocations with consistent error handling.
 //!
+//! Purpose:
+//! - Shared helpers for runner invocations with consistent error handling.
+//!
 //! Responsibilities:
 //! - Provide a single "runutil" surface for runner execution helpers and revert/abort utilities.
 //! - Re-export cohesive submodules so call sites keep using `crate::runutil::{...}`.
 //!
 //! Not handled here:
 //! - Prompt template rendering, queue/task persistence, or runner selection logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Submodules remain cohesive (execution vs revert vs abort vs ci-gate vs retry).

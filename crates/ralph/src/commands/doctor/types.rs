@@ -1,5 +1,8 @@
 //! Types for doctor checks and reports.
 //!
+//! Purpose:
+//! - Types for doctor checks and reports.
+//!
 //! Responsibilities:
 //! - Define severity levels, check results, and report structures.
 //! - Carry canonical blocking-state diagnostics alongside doctor results.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual check implementations (see submodules).
 //! - Output formatting (see output.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - CheckResult factories are pure functions with no side effects.

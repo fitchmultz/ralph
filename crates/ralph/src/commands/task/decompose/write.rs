@@ -1,5 +1,8 @@
 //! Queue-write orchestration for task decomposition.
 //!
+//! Purpose:
+//! - Queue-write orchestration for task decomposition.
+//!
 //! Responsibilities:
 //! - Re-validate queue state under lock before persisting decomposition output.
 //! - Enforce child-policy semantics and create undo snapshots for durable writes.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Planner execution, prompt rendering, or response parsing.
 //! - Tree normalization algorithms or low-level helper implementations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Writes must fail fast when preview blockers remain unresolved.

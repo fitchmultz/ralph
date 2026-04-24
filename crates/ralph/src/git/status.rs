@@ -1,5 +1,14 @@
 //! Git status and porcelain parsing operations.
 //!
+//! Purpose:
+//! - Git status and porcelain parsing operations.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! This module provides functions for parsing git status output, tracking path
 //! snapshots, and ensuring files remain unchanged during operations.
 //!
@@ -11,6 +20,9 @@
 //! - Commit operations (see git/commit.rs)
 //! - LFS validation (see git/lfs.rs)
 //! - Repository cleanliness enforcement (see git/clean.rs)
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 
 use crate::git::error::{GitError, git_output};
 use anyhow::{Context, Result, anyhow, bail};

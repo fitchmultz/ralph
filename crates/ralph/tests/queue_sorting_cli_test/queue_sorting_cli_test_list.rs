@@ -1,11 +1,18 @@
 //! `queue list` ordering coverage for sorting fields.
 //!
+//! Purpose:
+//! - `queue list` ordering coverage for sorting fields.
+//!
 //! Responsibilities:
 //! - Verify list ordering across priority, timestamps, status, title, and missing-value tie breaks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persistent queue mutation via `queue sort`.
 //! - Dry-run reporting behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Returned IDs are read from tab-separated CLI output.

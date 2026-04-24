@@ -1,5 +1,8 @@
 //! Configuration contracts for Ralph.
 //!
+//! Purpose:
+//! - Configuration contracts for Ralph.
+//!
 //! Responsibilities:
 //! - Define config structs/enums and their merge behavior.
 //! - Provide defaults and schema helpers for configuration serialization.
@@ -9,6 +12,10 @@
 //! - Queue/task contract definitions (see `super::queue` and `super::task`).
 //! - Runner definitions (see `super::runner`).
 //! - Model definitions (see `super::model`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Config merge is leaf-wise: `Some` values override, `None` does not.

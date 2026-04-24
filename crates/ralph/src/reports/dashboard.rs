@@ -1,5 +1,8 @@
 //! Aggregated dashboard report for analytics UI.
 //!
+//! Purpose:
+//! - Aggregated dashboard report for analytics UI.
+//!
 //! Responsibilities:
 //! - Combine all analytics sections into a single response for GUI clients.
 //! - Provide per-section status envelopes for partial failure handling.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CLI argument parsing (see cli/queue/dashboard.rs).
 //! - Individual section computation (delegates to reports/stats, reports/burndown, etc.).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are validated before reporting.

@@ -1,5 +1,8 @@
 //! JSONC parsing utilities for Ralph.
 //!
+//! Purpose:
+//! - JSONC parsing utilities for Ralph.
+//!
 //! Responsibilities:
 //! - Provide JSONC (JSON with Comments) parsing with comment support.
 //! - Maintain backward compatibility with standard JSON.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - File I/O (callers read/write file contents).
 //! - Round-tripping comments (comments are stripped on rewrite).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Input is valid UTF-8.

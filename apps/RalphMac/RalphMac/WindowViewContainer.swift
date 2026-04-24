@@ -1,6 +1,9 @@
 /**
  WindowViewContainer
 
+ Purpose:
+ - Resolve per-scene window state and bootstrap workspace health for new windows.
+
  Responsibilities:
  - Resolve per-scene window state and bootstrap workspace health for new windows.
  - Coordinate UI-testing window creation and noninteractive macOS contract bootstrap policy through dedicated services.
@@ -8,6 +11,9 @@
  Does not handle:
  - The main window layout itself.
  - URL routing.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Each scene claims at most one persisted `WindowState`.

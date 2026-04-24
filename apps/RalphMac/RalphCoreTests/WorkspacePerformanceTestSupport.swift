@@ -1,12 +1,18 @@
 /**
  WorkspacePerformanceTestSupport
 
+ Purpose:
+ - Keep expensive fixture-generation and wait helpers centralized across workspace-focused test files.
+
  Responsibilities:
  - Keep expensive fixture-generation and wait helpers centralized across workspace-focused test files.
 
  Does not handle:
  - Owning a per-test workspace instance.
  - Defining regression assertions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Helpers remain thin delegates over the canonical RalphCore test-support utilities.

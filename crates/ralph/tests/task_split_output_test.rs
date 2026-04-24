@@ -1,7 +1,22 @@
 //! Integration test for task split output ID accuracy.
 //!
+//! Purpose:
+//! - Integration test for task split output ID accuracy.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Verifies that the printed child task IDs match the actual inserted IDs,
 //! even when higher IDs already exist in the queue.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Context, Result};
 use ralph::contracts::{QueueFile, Task, TaskPriority, TaskStatus};

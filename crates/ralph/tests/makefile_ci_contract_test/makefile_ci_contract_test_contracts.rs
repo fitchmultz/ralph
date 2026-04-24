@@ -1,5 +1,8 @@
 //! Repository-wide CI contract assertions.
 //!
+//! Purpose:
+//! - Repository-wide CI contract assertions.
+//!
 //! Responsibilities:
 //! - Verify canonical CI, fast CI, and macOS dependency sequences in the repo Makefile.
 //! - Verify contributor docs and release help stay synchronized with canonical contracts.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Inline parser fixture coverage.
 //! - Clean-target smoke behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Assertions read the repo's tracked Makefile and docs from disk.

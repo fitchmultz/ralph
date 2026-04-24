@@ -1,5 +1,8 @@
 //! Queue repair subcommand.
 //!
+//! Purpose:
+//! - Queue repair subcommand.
+//!
 //! Responsibilities:
 //! - Preview or apply recoverable queue normalization.
 //! - Ensure mutating repairs are undoable.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Arbitrary manual queue surgery.
 //! - Non-queue recovery workflows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `--dry-run` is read-only.

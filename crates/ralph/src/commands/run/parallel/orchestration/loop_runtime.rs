@@ -1,5 +1,8 @@
 //! Parallel run-loop control state machine.
 //!
+//! Purpose:
+//! - Parallel run-loop control state machine.
+//!
 //! Responsibilities:
 //! - Drive worker spawn, worker-finish handling, idle-exit checks, and bounded control waiting.
 //! - Keep the active-loop decisions separate from bootstrap and shutdown concerns.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Preflight validation.
 //! - Final notification/webhook logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Worker child completion is event-driven through `ParallelCleanupGuard`.

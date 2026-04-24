@@ -1,8 +1,20 @@
 //! Tests for AGENTS.md context command behavior, grouped by concern.
 //!
+//! Purpose:
+//! - Tests for AGENTS.md context command behavior, grouped by concern.
+//!
 //! Responsibilities:
 //! - Provide shared fixtures for detection, init, update, and validation tests.
 //! - Keep the production context facade free of large inline scenario blocks.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::detect::detect_project_type;
 use super::markdown::{extract_section_titles, parse_markdown_sections};

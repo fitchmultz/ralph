@@ -1,5 +1,8 @@
 //! Execution-history regression tests.
 //!
+//! Purpose:
+//! - Execution-history regression tests.
+//!
 //! Responsibilities:
 //! - Verify execution-history persistence and pruning behavior.
 //! - Verify weighted-average and timestamp-parsing helpers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - ETA rendering.
 //! - Real runner execution flows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests use temp directories for isolated cache persistence.

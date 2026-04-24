@@ -1,5 +1,8 @@
 //! Command orchestration for `ralph queue issue`.
 //!
+//! Purpose:
+//! - Command orchestration for `ralph queue issue`.
+//!
 //! Responsibilities:
 //! - Route single-task and bulk GitHub issue publish commands.
 //! - Keep execute-mode queue mutation fenced behind queue locks.
@@ -9,6 +12,10 @@
 //! - Clap type definitions.
 //! - GitHub issue payload mutation internals.
 //! - Low-level output formatting details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue validation/save only happens after successful execute-mode mutations.

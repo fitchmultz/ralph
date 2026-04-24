@@ -1,5 +1,8 @@
 //! Migration CLI command for checking and applying config/file migrations.
 //!
+//! Purpose:
+//! - Migration CLI command for checking and applying config/file migrations.
+//!
 //! Responsibilities:
 //! - Provide CLI interface for migration operations (check, list, apply).
 //! - Display migration status to users in a readable format.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Migration implementation logic (see `crate::migration`).
 //! - Migration history persistence (see `crate::migration::history`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Requires a valid Ralph project (with .ralph directory).

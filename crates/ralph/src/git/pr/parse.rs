@@ -1,5 +1,8 @@
 //! Parsing and status derivation for GitHub PR helpers.
 //!
+//! Purpose:
+//! - Parsing and status derivation for GitHub PR helpers.
+//!
 //! Responsibilities:
 //! - Decode `gh` JSON payloads into typed PR models.
 //! - Convert raw view payloads into merge/lifecycle summaries.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Running `gh` commands.
 //! - Command construction for create/merge/view operations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing lifecycle state is treated as `UNKNOWN`.

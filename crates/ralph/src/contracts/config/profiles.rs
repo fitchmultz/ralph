@@ -1,5 +1,8 @@
 //! Canonical built-in profile definitions for Ralph configuration.
 //!
+//! Purpose:
+//! - Canonical built-in profile definitions for Ralph configuration.
+//!
 //! Responsibilities:
 //! - Define the reserved built-in profiles shipped with Ralph.
 //! - Provide helpers for resolving and validating reserved profile names.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - User-configured profile loading or merging.
 //! - CLI rendering of profile lists.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Built-in profiles are the single source of truth for `safe` and `power-user`.

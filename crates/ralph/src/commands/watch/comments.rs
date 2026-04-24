@@ -1,5 +1,8 @@
 //! Comment detection for the watch command.
 //!
+//! Purpose:
+//! - Comment detection for the watch command.
+//!
 //! Responsibilities:
 //! - Build regex patterns for detecting TODO/FIXME/HACK/XXX comments.
 //! - Detect comments in source files.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - File watching (see `event_loop/mod.rs`).
 //! - Task creation from comments (see `tasks.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Comment regex is case-insensitive.

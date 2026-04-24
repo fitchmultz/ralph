@@ -1,5 +1,8 @@
 //! Queue-op unit coverage for post-run supervision.
 //!
+//! Purpose:
+//! - Queue-op unit coverage for post-run supervision.
+//!
 //! Responsibilities:
 //! - Validate queue maintenance helpers, mutation planning, and dirty-repo revert behavior.
 //! - Keep `queue_ops.rs` focused on production logic while test fixtures live here.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - End-to-end post-run orchestration (covered in `runtime_tests/`).
 //! - CI continue-session escalation behavior.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::*;
 use crate::contracts::{

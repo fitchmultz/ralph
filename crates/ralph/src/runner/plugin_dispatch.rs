@@ -1,14 +1,21 @@
 //! External plugin runner dispatch helpers.
 //!
+//! Purpose:
+//! - External plugin runner dispatch helpers.
+//!
 //! Responsibilities:
 //! - Resolve plugin runner enablement, binary paths, and config blobs.
 //! - Execute plugin prompt/resume operations through the shared plugin protocol.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Built-in runner execution (see `invoke.rs`).
 //! - Plugin manifest discovery (see `crate::plugins`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Plugin IDs are already parsed from `Runner::Plugin`.
 
 use crate::contracts::Model;

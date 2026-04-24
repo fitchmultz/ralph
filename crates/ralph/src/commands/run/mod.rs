@@ -1,5 +1,8 @@
 //! Run command entrypoints and module wiring.
 //!
+//! Purpose:
+//! - Run command entrypoints and module wiring.
+//!
 //! Responsibilities:
 //! - Define the public `commands::run` API used by CLI and UI clients.
 //! - Re-export stable types used across the crate (e.g., `PhaseType`).
@@ -11,6 +14,10 @@
 //! - Phase execution internals (see `phases`).
 //! - Queue lock management (see `queue_lock`).
 //! - Dry-run UX (see `dry_run`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Public entrypoint signatures must remain stable for CLI and interactive flows.

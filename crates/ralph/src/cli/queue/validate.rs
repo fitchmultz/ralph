@@ -1,5 +1,8 @@
 //! Queue validation subcommand.
 //!
+//! Purpose:
+//! - Queue validation subcommand.
+//!
 //! Responsibilities:
 //! - Inspect whether Ralph can safely continue from the current queue state.
 //! - Keep the command read-only while providing continuation guidance.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue mutation or repair writes.
 //! - Task-level edits.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Validation remains read-only.

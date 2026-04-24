@@ -1,5 +1,8 @@
 //! Git subprocess helpers for workspace setup.
 //!
+//! Purpose:
+//! - Git subprocess helpers for workspace setup.
+//!
 //! Responsibilities:
 //! - Resolve fetch/push origin URLs from the source repository.
 //! - Clone, retarget, fetch, checkout, reset, and inspect git state for workspaces.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Workspace path policy.
 //! - High-level workspace lifecycle orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `git_output` is the canonical subprocess surface for these operations.

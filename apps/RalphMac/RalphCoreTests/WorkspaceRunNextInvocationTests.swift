@@ -1,11 +1,17 @@
 /**
  WorkspaceRunNextInvocationTests
 
+ Purpose:
+ - Validate `runNextTask` CLI argument selection and streamed machine-run output.
+
  Responsibilities:
  - Validate `runNextTask` CLI argument selection and streamed machine-run output.
 
  Does not handle:
  - Resume or blocking-state application, parallel status, loop/cancel, or watcher health.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs intentionally implement only the command paths exercised by each scenario.

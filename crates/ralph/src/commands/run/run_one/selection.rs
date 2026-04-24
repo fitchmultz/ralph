@@ -1,5 +1,8 @@
 //! Task selection for run-one.
 //!
+//! Purpose:
+//! - Task selection for run-one.
+//!
 //! Responsibilities:
 //! - Select a task for execution from the queue.
 //! - Handle target task ID and resume task ID.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Context preparation (see context.rs).
 //! - Task setup (see execution_setup.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are already loaded and validated before selection.

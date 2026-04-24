@@ -1,5 +1,8 @@
 //! Stale-lock policy.
 //!
+//! Purpose:
+//! - Stale-lock policy.
+//!
 //! Responsibilities:
 //! - Inspect existing lock directories for owner readability and stale ownership.
 //! - Format actionable lock contention error messages.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Lock directory cleanup or owner-file writes.
 //! - PID liveness implementation details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - A lock is automatically stale only when owner metadata exists and the

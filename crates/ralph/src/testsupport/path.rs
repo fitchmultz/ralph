@@ -1,12 +1,22 @@
 //! PATH mutation guard + helpers for tests.
 //!
+//! Purpose:
+//! - PATH mutation guard + helpers for tests.
+//!
 //! Responsibilities:
 //! - Prevent concurrent `PATH` mutations across tests.
 //! - Provide scoped PATH prepend helpers that always restore.
 //! - Provide portable absolute-path fixtures for tests.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - Production PATH manipulation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - PATH is restored even if the closure returns error.

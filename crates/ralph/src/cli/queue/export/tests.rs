@@ -1,5 +1,8 @@
 //! Focused tests for queue export filtering and rendering helpers.
 //!
+//! Purpose:
+//! - Focused tests for queue export filtering and rendering helpers.
+//!
 //! Responsibilities:
 //! - Cover export renderer output contracts and date parsing behavior.
 //! - Keep formatter regression tests out of production modules.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Command-level clap/help tests (see `cli/queue/tests/export.rs`).
 //! - Broader queue command integration tests.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Test tasks remain deterministic and self-contained.

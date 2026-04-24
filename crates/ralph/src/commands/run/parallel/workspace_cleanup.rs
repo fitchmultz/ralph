@@ -1,5 +1,8 @@
 //! Shared workspace cleanup helpers for parallel execution.
 //!
+//! Purpose:
+//! - Shared workspace cleanup helpers for parallel execution.
+//!
 //! Responsibilities:
 //! - Provide a single best-effort workspace removal function used by orchestration,
 //!   cleanup guard, and state initialization.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Worker spawning or lifecycle (see `super::worker`).
 //! - State persistence (see `super::state`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Cleanup is always best-effort: failures are logged as warnings and do not propagate.

@@ -1,5 +1,8 @@
 //! Merge template fields with user-provided options.
 //!
+//! Purpose:
+//! - Merge template fields with user-provided options.
+//!
 //! Responsibilities:
 //! - Merge template tags and scope with user hints.
 //! - Format template context for inclusion in task builder prompts.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Template loading (see `loader.rs`).
 //! - Task creation or queue operations (see `crate::commands::task`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Template fields are merged as defaults; user hints take precedence or append.

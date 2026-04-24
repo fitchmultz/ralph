@@ -1,11 +1,20 @@
 //! Queue/archive-focused post-run supervision scenarios.
 //!
+//! Purpose:
+//! - Queue/archive-focused post-run supervision scenarios.
+//!
 //! Responsibilities:
 //! - Validate queue-to-done archival, dirty-repo finalization, and terminal-task handling.
 //!
 //! Not handled here:
 //! - CI gate retry/failure sequencing.
 //! - Upstream push behavior variants.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::support::{make_task, resolved_for_repo, write_queue, write_queue_tasks};
 use crate::commands::run::supervision::{PushPolicy, post_run_supervise};

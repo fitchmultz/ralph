@@ -1,5 +1,8 @@
 //! Color option handling for CLI.
 //!
+//! Purpose:
+//! - Color option handling for CLI.
+//!
 //! Responsibilities:
 //! - Define the ColorArg type for CLI argument parsing.
 //! - Provide color initialization and global state management.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - App-specific color handling (handled outside the CLI).
 //! - Direct color output (see outpututil.rs and output/theme.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/Assumptions:
 //! - NO_COLOR environment variable takes precedence over CLI flags.

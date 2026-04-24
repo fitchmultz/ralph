@@ -1,13 +1,20 @@
 //! Bookkeeping path sync tests for parallel workspace state synchronization.
 //!
+//! Purpose:
+//! - Bookkeeping path sync tests for parallel workspace state synchronization.
+//!
 //! Responsibilities:
 //! - Verify custom queue/done paths are mapped into worker workspaces.
 //! - Verify missing bookkeeping files remain a no-op when allowed.
 //! - Verify `.jsonc` migration seeding behavior for uncommitted local config states.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - `.ralph` runtime-tree traversal coverage.
 //! - Gitignored allowlist filtering rules.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Test names and assertions match the prior flat suite exactly.

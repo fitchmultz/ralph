@@ -1,6 +1,9 @@
 /**
  GraphModels
 
+ Purpose:
+ - Define Codable models for parsing `ralph machine queue graph` output.
+
  Responsibilities:
  - Define Codable models for parsing `ralph machine queue graph` output.
  - Represent graph nodes, edges, critical paths, and summary statistics.
@@ -8,6 +11,12 @@
  Does not handle:
  - Graph layout computation (handled by DependencyGraphView).
  - Direct CLI calls (handled by Workspace).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 public import Foundation

@@ -1,5 +1,8 @@
 //! PID liveness detection.
 //!
+//! Purpose:
+//! - PID liveness detection.
+//!
 //! Responsibilities:
 //! - Provide tri-state PID liveness helpers.
 //! - Encapsulate platform-specific process existence checks.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Lock acquisition or cleanup policy.
 //! - Owner metadata parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Indeterminate liveness is treated conservatively by callers.

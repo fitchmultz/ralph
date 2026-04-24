@@ -1,5 +1,8 @@
 //! CLI arguments for task mutation transactions.
 //!
+//! Purpose:
+//! - CLI arguments for task mutation transactions.
+//!
 //! Responsibilities:
 //! - Define args for structured task mutation requests.
 //! - Expose human vs JSON formatting for continuation-first mutation output.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - JSON parsing or queue mutation execution.
 //! - Legacy single-field edit arguments.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Input is a JSON document that matches `TaskMutationRequest`.

@@ -1,5 +1,8 @@
 //! Session file persistence helpers.
 //!
+//! Purpose:
+//! - Session file persistence helpers.
+//!
 //! Responsibilities:
 //! - Read, write, clear, and locate `.ralph/cache/session.jsonc`.
 //! - Resolve git HEAD metadata used by session tracking.
@@ -8,6 +11,10 @@
 //! - Session validation logic.
 //! - Interactive recovery prompts.
 //! - Loop-progress mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Session files are written atomically.

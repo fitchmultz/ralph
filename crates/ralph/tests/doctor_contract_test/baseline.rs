@@ -1,11 +1,18 @@
 //! Baseline doctor contract tests.
 //!
+//! Purpose:
+//! - Baseline doctor contract tests.
+//!
 //! Responsibilities:
 //! - Verify core success, warning, and missing-queue doctor outcomes.
 //! - Keep git-only and seeded-repo setup paths explicit for failure locality.
 //!
 //! Not handled here:
 //! - JSON-format specifics or auto-fix behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing-queue coverage intentionally uses a git-only repo with no seeded `.ralph/` files.

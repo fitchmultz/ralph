@@ -1,11 +1,18 @@
 //! Burndown report implementation.
 //!
+//! Purpose:
+//! - Burndown report implementation.
+//!
 //! Responsibilities:
 //! - Generate burndown chart of remaining tasks over time.
 //!
 //! Not handled here:
 //! - Output formatting (see shared.rs).
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are validated before reporting.

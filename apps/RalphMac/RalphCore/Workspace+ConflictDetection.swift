@@ -1,5 +1,8 @@
 //! Workspace+ConflictDetection
 //!
+//! Purpose:
+//! - Diff task snapshots to identify added, removed, and changed tasks.
+//!
 //! Responsibilities:
 //! - Diff task snapshots to identify added, removed, and changed tasks.
 //! - Detect optimistic-locking conflicts from updated-at timestamps.
@@ -10,11 +13,14 @@
 //! - Queue file watching or notifications.
 //! - Task presentation or sorting.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Task IDs are unique within a snapshot.
 //! - Timestamp conflict checks are best-effort and require the original timestamp.
 //! - Field diffing compares app-visible task fields only.
-
+//!
 public import Foundation
 
 public extension Workspace {

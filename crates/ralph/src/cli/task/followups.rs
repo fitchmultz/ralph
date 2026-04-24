@@ -1,5 +1,8 @@
 //! Handler for `ralph task followups ...` commands.
 //!
+//! Purpose:
+//! - Handler for `ralph task followups ...` commands.
+//!
 //! Responsibilities:
 //! - Lock queue state before applying proposal-backed queue growth.
 //! - Delegate validation/materialization to queue operations.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Proposal schema semantics beyond CLI option mapping.
 //! - Worker prompt guidance or parallel integration orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Successful non-dry-run applies create undo before saving queue changes.

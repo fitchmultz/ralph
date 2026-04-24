@@ -1,7 +1,22 @@
 //! Unit tests for queue task operations (split by operation module).
 //!
+//! Purpose:
+//! - Unit tests for queue task operations (split by operation module).
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! This module provides shared fixtures and shared imports, and delegates
 //! to per-operation test modules in this directory.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 pub(crate) use super::*;
 pub(crate) use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};

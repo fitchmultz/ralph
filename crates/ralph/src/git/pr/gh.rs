@@ -1,5 +1,8 @@
 //! GitHub CLI execution helpers for PR operations.
 //!
+//! Purpose:
+//! - GitHub CLI execution helpers for PR operations.
+//!
 //! Responsibilities:
 //! - Run `gh` preflight checks and repo metadata lookups.
 //! - Centralize PR-view command execution.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Higher-level PR create/merge workflows.
 //! - Rendering or logging beyond managed-command diagnostics.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Repo-scoped commands run from the target repository unless explicitly isolated elsewhere.

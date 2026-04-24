@@ -1,5 +1,8 @@
 //! Task selection and date filtering for queue export.
 //!
+//! Purpose:
+//! - Task selection and date filtering for queue export.
+//!
 //! Responsibilities:
 //! - Parse export date filters into comparable timestamps.
 //! - Apply archive, status, tag, scope, ID, and created-at filters to queue tasks.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue loading and warning emission.
 //! - Output rendering for any export format.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Date filters compare against `created_at`.

@@ -1,5 +1,8 @@
 //! CLI arguments for task batch operations.
 //!
+//! Purpose:
+//! - CLI arguments for task batch operations.
+//!
 //! Responsibilities:
 //! - Define BatchSelectArgs for task selection and filtering.
 //! - Define BatchOperation enum and all batch operation argument structs.
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - Command execution (see batch handler).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap flattening.

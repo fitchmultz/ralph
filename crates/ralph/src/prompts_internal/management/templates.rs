@@ -1,5 +1,8 @@
 //! Prompt template inventory helpers.
 //!
+//! Purpose:
+//! - Prompt template inventory helpers.
+//!
 //! Responsibilities:
 //! - Enumerate prompt template IDs, names, and descriptions.
 //! - Resolve embedded defaults and local override presence.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Export/sync state tracking.
 //! - Diff generation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Template file names remain stable across exports and sync.

@@ -1,5 +1,8 @@
 //! Makefile routing and macOS gate contract tests.
 //!
+//! Purpose:
+//! - Makefile routing and macOS gate contract tests.
+//!
 //! Responsibilities:
 //! - Verify agent-ci routing and surface-classifier delegation.
 //! - Verify macOS targets depend on preflight and isolate DerivedData state.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Canonical CI step sequence equality.
 //! - Inline parser fixtures or clean-target smoke tests.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Routing contracts are asserted against the repo Makefile block text.

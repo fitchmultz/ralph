@@ -1,5 +1,8 @@
 //! Integration test hub for Makefile CI contracts.
 //!
+//! Purpose:
+//! - Integration test hub for Makefile CI contracts.
+//!
 //! Responsibilities:
 //! - Group Makefile CI contract coverage by parsing, routing, docs, and cleanup behavior.
 //! - Keep canonical CI constants and Makefile parsers in adjacent suite-local support.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Running the full CI gate itself.
 //! - Production Makefile implementation outside contract assertions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Canonical CI step constants live in the support module only.

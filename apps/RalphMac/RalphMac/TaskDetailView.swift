@@ -1,6 +1,9 @@
 /**
  TaskDetailView
 
+ Purpose:
+ - Display a comprehensive form for viewing and editing all task fields.
+
  Responsibilities:
  - Display a comprehensive form for viewing and editing all task fields.
  - Support inline editing with proper form controls (pickers, text editors, tag editors).
@@ -12,6 +15,9 @@
  - Batch operations on multiple tasks.
  - Navigation or dismissal (handled by parent NavigationSplitView).
  - Execution overrides UI (delegated to TaskExecutionOverridesSection).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Task is passed in and copied to @State for editing.

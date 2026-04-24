@@ -1,12 +1,18 @@
 /**
  WorkspaceTaskMutationAgentTests
 
+ Purpose:
+ - Validate task-mutation payload generation for shared field encoders and agent override edits.
+
  Responsibilities:
  - Validate task-mutation payload generation for shared field encoders and agent override edits.
  - Cover multi-field diffs plus add, clear, and semantic-noop override scenarios.
 
  Does not handle:
  - Run-control streaming or runner-configuration refresh.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs log argv and payload bodies so assertions inspect serialized mutation requests.

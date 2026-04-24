@@ -1,6 +1,9 @@
 /**
  CommandPaletteCommand
  
+ Purpose:
+ - Define a single command available in the command palette.
+
  Responsibilities:
  - Define a single command available in the command palette.
  - Store metadata: title, shortcut, category, action identifier.
@@ -9,6 +12,12 @@
  Does not handle:
  - Command execution (handled by CommandPaletteViewModel).
  - UI rendering (handled by CommandPaletteView).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

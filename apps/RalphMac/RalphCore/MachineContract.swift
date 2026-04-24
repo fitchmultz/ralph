@@ -1,27 +1,25 @@
-//
-//  MachineContract.swift
-//  RalphMac
-//
-//  Purpose:
-//  - Centralize machine-document version gates and shared decode entry points.
-//
-//  Responsibilities:
-//  - Fail fast when RalphMac sees unsupported machine document versions.
-//  - Provide reusable decoding helpers for versioned machine payloads.
-//  - Keep contract validation out of feature-specific loading code.
-//
-//  Scope:
-//  - Machine documents only; not CLI execution, queue mutation, or UI rendering.
-//
-//  Usage:
-//  - Call `requireVersion(_:expected:document:operation:)` before consuming a
-//    versioned machine document.
-//  - Use the typed `decode...` helpers for direct CLI JSON payloads.
-//
-//  Invariants/Assumptions:
-//  - Versioned machine documents always include a top-level `version` field.
-//  - Unsupported versions are treated as contract failures, not soft warnings.
-//
+/**
+ MachineContract
+
+ Purpose:
+ - Centralize RalphMac validation for versioned machine JSON documents emitted by the CLI.
+
+ Responsibilities:
+ - Define the machine document versions this app revision understands.
+ - Fail fast when decoded CLI payloads use unsupported versions.
+ - Provide shared decode helpers for direct machine JSON responses.
+
+ Scope:
+ - Machine contract validation only; CLI execution, queue mutation, and UI rendering live elsewhere.
+
+ Usage:
+ - Call `requireVersion(_:expected:document:operation:)` before consuming nested machine payloads.
+ - Use `decode(_:from:operation:)` for top-level versioned machine documents.
+
+ Invariants/Assumptions:
+ - Every versioned machine document has a top-level `version` field.
+ - Unsupported versions are surfaced as recovery errors instead of being treated as warnings.
+ */
 
 import Foundation
 

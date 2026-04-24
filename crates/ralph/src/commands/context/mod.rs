@@ -1,5 +1,8 @@
 //! Project context (AGENTS.md) generation and management.
 //!
+//! Purpose:
+//! - Project context (AGENTS.md) generation and management.
+//!
 //! Responsibilities:
 //! - Generate initial AGENTS.md from project type detection.
 //! - Update AGENTS.md with new learnings.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - CLI argument parsing (see `cli::context`).
 //! - Interactive prompts (see `wizard` module).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Templates are embedded at compile time.

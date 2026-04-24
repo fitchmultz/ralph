@@ -1,12 +1,19 @@
 //! Event-subscription filtering coverage for webhook integration tests.
 //!
+//! Purpose:
+//! - Event-subscription filtering coverage for webhook integration tests.
+//!
 //! Responsibilities:
 //! - Verify event filtering suppresses unsubscribed task and loop events.
 //! - Keep request-matching logic focused on subscription behavior.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Retry or backpressure delivery semantics.
 //! - Detailed payload-shape assertions for delivered events.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Tests use unique task IDs and repo roots to distinguish matching requests from worker noise.

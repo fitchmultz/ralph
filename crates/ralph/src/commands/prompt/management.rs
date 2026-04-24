@@ -1,5 +1,8 @@
 //! Prompt template management commands.
 //!
+//! Purpose:
+//! - Prompt template management commands.
+//!
 //! Responsibilities:
 //! - List, show, export, sync, and diff prompt templates.
 //! - Delegate actual template inventory/storage work to `prompts_internal::management`.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Worker/scan/task-builder preview rendering.
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Export/sync operations target `.ralph/prompts/`.

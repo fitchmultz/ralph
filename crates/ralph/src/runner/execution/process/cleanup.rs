@@ -1,14 +1,21 @@
 //! Cleanup helpers for runner process execution.
 //!
+//! Purpose:
+//! - Cleanup helpers for runner process execution.
+//!
 //! Responsibilities:
 //! - Clear active process-group tracking on exit.
 //! - Join stdout/stderr reader threads so stream buffers are complete before use.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Process waiting or signal escalation.
 //! - Runner output parsing.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Cleanup is idempotent.
 //! - Drop must never panic.
 

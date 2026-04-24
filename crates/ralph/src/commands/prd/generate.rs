@@ -1,5 +1,8 @@
 //! PRD task generation.
 //!
+//! Purpose:
+//! - PRD task generation.
+//!
 //! Responsibilities:
 //! - Turn parsed PRD structures into single-task or multi-task queue entries.
 //! - Apply common tags, dependency chaining, and request/body construction.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Markdown parsing.
 //! - Queue load/save orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Generated task IDs come from queue-aware helpers.

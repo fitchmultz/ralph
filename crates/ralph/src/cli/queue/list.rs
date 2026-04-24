@@ -1,5 +1,8 @@
 //! Queue list subcommand.
 //!
+//! Purpose:
+//! - Queue list subcommand.
+//!
 //! Responsibilities:
 //! - List tasks from queue and done archive with various filters.
 //! - Support status, tag, scope, dependency, and scheduled time filters.
@@ -11,6 +14,10 @@
 //! - Content-based search (see `search.rs`).
 //! - Complex reporting or aggregation (see `reports` module).
 //! - Real-time progress tracking (handled by external UI clients).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are loaded and validated before filtering.

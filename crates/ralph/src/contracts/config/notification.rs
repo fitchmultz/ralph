@@ -1,10 +1,19 @@
 //! Desktop notification configuration.
 //!
+//! Purpose:
+//! - Desktop notification configuration.
+//!
 //! Responsibilities:
 //! - Define notification config struct and merge behavior.
 //!
 //! Not handled here:
 //! - Actual notification delivery (see platform-specific notification modules).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

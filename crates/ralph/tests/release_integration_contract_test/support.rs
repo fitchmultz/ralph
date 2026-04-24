@@ -1,8 +1,20 @@
 //! Shared helpers for the release integration contract test suite.
 //!
+//! Purpose:
+//! - Shared helpers for the release integration contract test suite.
+//!
 //! Responsibilities:
 //! - Resolve the repo root from the test binary location.
 //! - Copy tracked fixtures and run shell/git helpers used across contract tests.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

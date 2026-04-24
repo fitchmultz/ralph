@@ -1,5 +1,8 @@
 //! Queue export command facade and orchestration.
 //!
+//! Purpose:
+//! - Queue export command facade and orchestration.
+//!
 //! Responsibilities:
 //! - Re-export the queue export argument type and shared rendering helpers.
 //! - Route queue export requests through focused filtering and rendering modules.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue mutation or task modification (see `crate::queue::operations`).
 //! - Complex reporting/aggregation logic beyond export shaping.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Export behavior remains deterministic for the same queue state and flags.

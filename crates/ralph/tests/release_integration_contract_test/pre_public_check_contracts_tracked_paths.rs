@@ -1,7 +1,19 @@
 //! `pre-public-check.sh` contract coverage (exact paths and local-only artifacts).
 //!
+//! Purpose:
+//! - `pre-public-check.sh` contract coverage (exact paths and local-only artifacts).
+//!
 //! Responsibilities:
 //! - Virtualenv, target, pytest cache, `.DS_Store`, and related tracked-path rejections.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::Command;
 

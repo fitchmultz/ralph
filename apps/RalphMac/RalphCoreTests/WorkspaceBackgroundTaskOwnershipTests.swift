@@ -1,6 +1,9 @@
 /**
  WorkspaceBackgroundTaskOwnershipTests
 
+ Purpose:
+ - Validate manager-owned workspace bootstrap tasks cancel on close.
+
  Responsibilities:
  - Validate manager-owned workspace bootstrap tasks cancel on close.
  - Validate workspace-owned health-check and runner-launch tasks cancel on shutdown and retarget.
@@ -9,6 +12,9 @@
  Does not handle:
  - Queue watcher low-level retry behavior.
  - UI-scene routing or window-placement assertions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs cooperate with SIGINT/SIGTERM cancellation and expose only the exercised command paths.

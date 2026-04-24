@@ -1,5 +1,8 @@
 //! Migration registry containing all defined migrations.
 //!
+//! Purpose:
+//! - Migration registry containing all defined migrations.
+//!
 //! Responsibilities:
 //! - Define the static list of all migrations in chronological order.
 //! - Provide a central place to register new migrations.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Migration execution logic (see `super::mod.rs`).
 //! - Individual migration implementations (see `config_migrations/`, `file_migrations/`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Migrations are ordered chronologically (oldest first).

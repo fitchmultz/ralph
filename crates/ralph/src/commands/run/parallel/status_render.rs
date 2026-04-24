@@ -1,8 +1,13 @@
 //! Purpose: human-readable rendering for parallel status output.
+//!
 //! Responsibilities: render the table-style view and group worker records by lifecycle.
+//!
 //! Scope: operator-facing console output only.
+//!
 //! Usage: called from `parallel_ops::status::parallel_status`.
+//!
 //! Not handled here: CLI dispatch, worker inspection aggregation, or retry mutation flow.
+//!
 //! Invariants/assumptions: rendering is read-only and output remains stable enough for human operators.
 
 use super::status_support::{

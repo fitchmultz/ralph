@@ -1,8 +1,20 @@
 //! Mutation handlers for non-status batch task operations.
 //!
+//! Purpose:
+//! - Mutation handlers for non-status batch task operations.
+//!
 //! Responsibilities:
 //! - Execute each batch mutation against shared queue operation helpers.
 //! - Keep per-operation persistence and dry-run output localized.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::cli::task::args::{TaskBatchArgs, TaskEditFieldArg};
 use crate::cli::task::batch::{context::BatchContext, dry_run};

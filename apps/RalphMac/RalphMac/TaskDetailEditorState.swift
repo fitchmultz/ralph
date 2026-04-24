@@ -1,6 +1,9 @@
 /**
  TaskDetailEditorState
 
+ Purpose:
+ - Own mutable editing state for `TaskDetailView`, including draft/baseline tracking.
+
  Responsibilities:
  - Own mutable editing state for `TaskDetailView`, including draft/baseline tracking.
  - Coordinate save, conflict, and refresh handling against `Workspace`.
@@ -9,6 +12,9 @@
  Does not handle:
  - Rendering the task detail form.
  - Defining workspace persistence behavior beyond invoking existing APIs.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - The state object is main-actor confined because it mutates SwiftUI-observed properties.

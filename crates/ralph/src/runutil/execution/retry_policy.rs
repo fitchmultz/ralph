@@ -1,11 +1,18 @@
 //! Retry admission helpers for runner execution.
 //!
+//! Purpose:
+//! - Retry admission helpers for runner execution.
+//!
 //! Responsibilities:
 //! - Decide whether a transient runner failure is safe to retry with the current repo state.
 //!
 //! Not handled here:
 //! - Backoff scheduling.
 //! - Continue-session flows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Retry is skipped if repo cleanliness cannot be established reliably.

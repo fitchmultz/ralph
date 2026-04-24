@@ -1,4 +1,20 @@
 //! Unit tests for contracts defaults and config types.
+//!
+//! Purpose:
+//! - Unit tests for contracts defaults and config types.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use ralph::contracts::{
     ClaudePermissionMode, Config, GitPublishMode, Model, ProjectType, ReasoningEffort, Runner,

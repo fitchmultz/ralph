@@ -1,5 +1,8 @@
 //! Regression tests for parallel cleanup guard resource teardown.
 //!
+//! Purpose:
+//! - Regression tests for parallel cleanup guard resource teardown.
+//!
 //! Responsibilities:
 //! - Verify cleanup kills workers and persists terminal state correctly.
 //! - Ensure Drop-triggered cleanup and disarm semantics stay intact.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Parallel worker execution logic.
 //! - State-file schema serialization details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Cleanup remains idempotent and best-effort.

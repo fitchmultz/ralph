@@ -1,4 +1,9 @@
 # Ralph Parallel Execution (Experimental Direct-Push Mode)
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 ![Parallel Direct Push](../assets/images/2026-03-10-12-15-29-parallel-direct-push.png)
 

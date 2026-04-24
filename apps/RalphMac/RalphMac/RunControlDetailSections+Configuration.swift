@@ -1,6 +1,9 @@
 /**
  RunControlDetailSections+Configuration
 
+ Purpose:
+ - Render runner-configuration and execution-control cards for Run Control.
+
  Responsibilities:
  - Render runner-configuration and execution-control cards for Run Control.
  - Keep execution actions and status presentation out of progress/history/safety sections.
@@ -9,6 +12,12 @@
  Does not handle:
  - Task-summary cards.
  - Queue-preview selection or phase-progress rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

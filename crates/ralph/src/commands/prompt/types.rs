@@ -1,5 +1,8 @@
 //! Shared prompt preview option types.
 //!
+//! Purpose:
+//! - Shared prompt preview option types.
+//!
 //! Responsibilities:
 //! - Define preview modes and option structs shared across prompt helpers.
 //! - Keep reusable public types separate from management and rendering code.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Prompt construction logic.
 //! - CLI parsing and config resolution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Worker prompt previews simulate runtime behavior closely.

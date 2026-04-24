@@ -1,5 +1,8 @@
 //! Runner binary contract tests for doctor.
 //!
+//! Purpose:
+//! - Runner binary contract tests for doctor.
+//!
 //! Responsibilities:
 //! - Verify doctor reports missing or invalid runner binaries clearly.
 //! - Exercise runner probe fallbacks for alternate version/help flags.
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - Doctor JSON formatting or repo-hygiene checks.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Repo-config runner overrides use trusted seeded fixtures.

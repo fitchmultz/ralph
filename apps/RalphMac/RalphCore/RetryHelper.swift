@@ -1,6 +1,9 @@
 /**
  RetryHelper
 
+ Purpose:
+ - Provide configurable retry logic with exponential backoff for transient failures.
+
  Responsibilities:
  - Provide configurable retry logic with exponential backoff for transient failures.
  - Apply jitter to prevent thundering herd in multi-instance scenarios.
@@ -9,6 +12,9 @@
  Does not handle:
  - UI progress indication (callers handle user-visible feedback).
  - Infinite retries (max attempts is always enforced).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Operations must be idempotent or safe to repeat.

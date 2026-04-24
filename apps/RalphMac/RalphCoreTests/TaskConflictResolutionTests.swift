@@ -1,10 +1,22 @@
 /**
  TaskConflictResolutionTests
 
+ Purpose:
+ - Verify conflict field grouping and initial selections for merge UI.
+
  Responsibilities:
  - Verify conflict field grouping and initial selections for merge UI.
  - Protect merge application logic after moving it out of SwiftUI.
  - Ensure agent override conflicts stay part of the shared model.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

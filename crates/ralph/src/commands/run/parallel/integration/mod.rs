@@ -1,5 +1,8 @@
 //! Worker integration loop for direct-push parallel mode.
 //!
+//! Purpose:
+//! - Worker integration loop for direct-push parallel mode.
+//!
 //! Responsibilities:
 //! - Expose the integration-loop entrypoints used by parallel workers.
 //! - Split integration concerns into configuration, persistence, compliance, prompting,
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Phase execution itself (see `run_one` phase modules).
 //! - Worker spawning/orchestration (see `worker.rs` and `orchestration.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Called after the worker has completed its configured phases.

@@ -1,11 +1,18 @@
 //! Workspace-root gitignore preflight for parallel runs.
 //!
+//! Purpose:
+//! - Workspace-root gitignore preflight for parallel runs.
+//!
 //! Responsibilities:
 //! - Ensure `parallel.workspace_root` is ignored by git when it lives inside the repo, so clone workspaces do not dirty the working tree.
 //!
 //! Not handled here:
 //! - Run-loop bootstrap or queue validation (see `orchestration/preflight.rs`).
 //! - Creating workspace directories.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `repo_root` and `workspace_root` are absolute or normalized paths Ralph already resolved.

@@ -1,5 +1,8 @@
 //! Clean-target smoke coverage for Makefile contracts.
 //!
+//! Purpose:
+//! - Clean-target smoke coverage for Makefile contracts.
+//!
 //! Responsibilities:
 //! - Verify `make clean` removes temp/runtime artifacts.
 //! - Verify `make clean` preserves user-owned Ralph data.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - CI dependency-sequence parsing.
 //! - Documentation and routing contracts.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The temp workspace copies only the Makefile under test.

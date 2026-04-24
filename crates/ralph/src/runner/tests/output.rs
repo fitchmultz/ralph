@@ -1,4 +1,20 @@
 //! Runner output formatting tests.
+//!
+//! Purpose:
+//! - Runner output formatting tests.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::runner::{OutputStream, RunnerOutput};
 use std::process::ExitStatus;

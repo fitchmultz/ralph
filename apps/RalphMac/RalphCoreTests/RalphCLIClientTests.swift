@@ -1,6 +1,9 @@
 /**
  RalphCLIClientTests
 
+ Purpose:
+ - Validate `RalphCLIClient` subprocess behavior in isolation.
+
  Responsibilities:
  - Validate `RalphCLIClient` subprocess behavior in isolation.
  - Cover success, non-zero exit, stdout/stderr streaming, working directory configuration, and cancellation.
@@ -8,6 +11,9 @@
  Does not handle:
  - Ralph-specific command semantics (covered by E2E smoke tests).
  - UI rendering or SwiftUI integration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests run on macOS with `/bin/sh` and `/bin/echo` available.

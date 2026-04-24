@@ -1,5 +1,8 @@
 //! Filesystem-event handling for the watch loop.
 //!
+//! Purpose:
+//! - Filesystem-event handling for the watch loop.
+//!
 //! Responsibilities:
 //! - Filter incoming notify events down to relevant watched paths.
 //! - Update pending-file state and debounce bookkeeping.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Timeout-based pending-file draining.
 //! - File watcher setup.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Relevant paths are already scoped by watch options.

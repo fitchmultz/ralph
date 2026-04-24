@@ -1,5 +1,8 @@
 //! README file version management for Ralph initialization.
 //!
+//! Purpose:
+//! - README file version management for Ralph initialization.
+//!
 //! Responsibilities:
 //! - Track README template versions via embedded version markers.
 //! - Detect outdated README files and support updates.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue/config file creation (see `super::writers`).
 //! - Prompt content validation (handled by `crate::prompts`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - README_VERSION is incremented when template changes.

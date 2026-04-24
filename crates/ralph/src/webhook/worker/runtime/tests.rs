@@ -1,3 +1,23 @@
+//! Webhook worker runtime tests.
+//!
+//! Purpose:
+//! - Webhook worker runtime tests.
+//!
+//! Responsibilities:
+//! - Verify dispatcher startup failure handling for thread-spawn and handshake failures.
+//! - Ensure failed startup disables webhook delivery for the current runtime state.
+//!
+//! Not handled here:
+//! - HTTP delivery behavior or retry scheduling.
+//! - Webhook configuration parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/assumptions:
+//! - Tests reset global dispatcher state before and after failure-path checks.
+
 use super::reset_dispatcher_for_tests;
 use super::state::dispatcher_for_config_with_spawner;
 use super::types::ThreadSpawner;

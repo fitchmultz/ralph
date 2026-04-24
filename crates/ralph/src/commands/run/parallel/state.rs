@@ -1,5 +1,8 @@
 //! Parallel run state persistence for crash recovery.
 //!
+//! Purpose:
+//! - Parallel run state persistence for crash recovery.
+//!
 //! Responsibilities:
 //! - Define the parallel state file format and helpers for direct-push mode.
 //! - Persist and reload state for in-flight workers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Worker orchestration or process management (see `parallel/mod.rs`).
 //! - Integration loop logic (see `worker.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - State file lives at `.ralph/cache/parallel/state.json`.

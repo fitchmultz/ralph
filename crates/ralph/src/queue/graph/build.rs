@@ -1,5 +1,8 @@
 //! Graph construction from queue files.
 //!
+//! Purpose:
+//! - Graph construction from queue files.
+//!
 //! Responsibilities:
 //! - Build a `DependencyGraph` from the active queue and optional done queue.
 //! - Normalize task IDs for graph keys using `trim()`.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Validating DAG-ness / cycle detection (algorithms can detect; queue validation is elsewhere).
 //! - Algorithms (see `algorithms`) and traversal helpers (see `traversal`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task IDs are unique across active+done (enforced elsewhere).

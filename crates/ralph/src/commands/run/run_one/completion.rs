@@ -1,5 +1,8 @@
 //! Run completion handling.
 //!
+//! Purpose:
+//! - Run completion handling.
+//!
 //! Responsibilities:
 //! - Handle run completion (success or failure).
 //! - Record execution history for CLI runs.
@@ -9,6 +12,10 @@
 //! - Context preparation (see context.rs).
 //! - Phase execution (see phase_execution.rs).
 //! - Webhook notifications (see webhooks.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Execution timings are only recorded for non-parallel worker runs.

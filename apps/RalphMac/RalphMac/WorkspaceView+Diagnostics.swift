@@ -1,6 +1,9 @@
 /**
  WorkspaceView+Diagnostics
 
+ Purpose:
+ - Render workspace state probes used by noninteractive UI contract tests.
+
  Responsibilities:
  - Render workspace state probes used by noninteractive UI contract tests.
  - Provide the shared empty-detail placeholder used by workspace sections.
@@ -8,6 +11,12 @@
  Does not handle:
  - Command routing.
  - Task detail editing.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

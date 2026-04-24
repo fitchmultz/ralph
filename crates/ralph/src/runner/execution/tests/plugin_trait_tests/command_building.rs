@@ -1,14 +1,21 @@
 //! Plugin command-building regression coverage.
 //!
+//! Purpose:
+//! - Plugin command-building regression coverage.
+//!
 //! Responsibilities:
 //! - Verify runner-specific run/resume argv construction for built-in plugins.
 //! - Lock down approval, sandbox, session, and phase-aware command flags.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Response parsing or executor metadata behavior.
 //! - Subprocess integration beyond command assembly.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Tests reuse parent helper contexts to model CLI defaults.
 //! - Command assertions focus on stable argv semantics instead of arg ordering beyond required flags.
 

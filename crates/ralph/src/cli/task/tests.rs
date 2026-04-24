@@ -1,8 +1,20 @@
 //! Task CLI parsing and help tests grouped by command surface.
 //!
+//! Purpose:
+//! - Task CLI parsing and help tests grouped by command surface.
+//!
 //! Responsibilities:
 //! - Cover representative parsing/help regressions for the task command facade.
 //! - Keep the production facade free of large inline clap scenario blocks.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use clap::{CommandFactory, Parser};
 

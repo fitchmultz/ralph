@@ -1,6 +1,9 @@
 /**
  BulkActionsView
 
+ Purpose:
+ - Display bulk action options (status change, priority change, tag modification)
+
  Responsibilities:
  - Display bulk action options (status change, priority change, tag modification)
  - Show operation count confirmation
@@ -9,6 +12,9 @@
  Does not handle:
  - Direct CLI execution (delegates to Workspace)
  - Selection management (managed by parent view)
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - selectedTaskIDs must be non-empty before presenting

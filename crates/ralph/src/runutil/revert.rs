@@ -1,5 +1,8 @@
 //! Git revert prompting and application helpers.
 //!
+//! Purpose:
+//! - Git revert prompting and application helpers.
+//!
 //! Responsibilities:
 //! - Apply `GitRevertMode` policies (Enabled/Disabled/Ask).
 //! - Provide prompt context/types for interactive clients (CLI prompts, GUI wrappers).
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - Runner execution or abort classification.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `apply_git_revert_mode*` never mutates repo state unless mode=Enabled or user chooses Revert.

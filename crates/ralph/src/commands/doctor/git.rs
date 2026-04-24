@@ -1,5 +1,8 @@
 //! Git health checks for the doctor command.
 //!
+//! Purpose:
+//! - Git health checks for the doctor command.
+//!
 //! Responsibilities:
 //! - Verify git binary is available and executable
 //! - Check repository validity and upstream configuration
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Git operations that modify state
 //! - Runner configuration checks
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All checks are read-only and non-destructive

@@ -1,4 +1,9 @@
 # Ralph's Phase System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 Purpose: Document Ralph's multi-phase execution workflow for AI agent task processing.
 

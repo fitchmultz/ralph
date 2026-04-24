@@ -1,9 +1,24 @@
 //! Small logging helpers for the outer supervisor (`commands::run`).
 //!
+//! Purpose:
+//! - Small logging helpers for the outer supervisor (`commands::run`).
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Goal: consistent, human-readable lifecycle logs for supervisor scopes:
 //! - `"<scope>: start"`
 //! - `"<scope>: end"`
 //! - `"<scope>: error: <message>"`
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 

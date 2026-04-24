@@ -1,5 +1,8 @@
 //! Task editing command handlers for `ralph task` subcommands.
 //!
+//! Purpose:
+//! - Task editing command handlers for `ralph task` subcommands.
+//!
 //! Responsibilities:
 //! - Handle `field` command (set custom fields).
 //! - Handle `edit` command (edit any task field).
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Batch edit operations (see `batch.rs`).
 //! - Task building or status changes (see `build.rs`, `status.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Edit operations validate field values before applying.

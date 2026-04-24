@@ -1,5 +1,8 @@
 //! Plugin scaffold generation.
 //!
+//! Purpose:
+//! - Plugin scaffold generation.
+//!
 //! Responsibilities:
 //! - Validate `ralph plugin init` inputs.
 //! - Build scaffold manifests and write optional runner/processor stubs.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin discovery/listing or uninstall workflows.
 //! - CLI parsing or command dispatch.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty capability flags default to scaffolding both runner and processor stubs.

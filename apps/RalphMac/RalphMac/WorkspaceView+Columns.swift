@@ -1,6 +1,9 @@
 /**
  WorkspaceView+Columns
 
+ Purpose:
+ - Render workspace sidebar, content, detail, and footer column composition.
+
  Responsibilities:
  - Render workspace sidebar, content, detail, and footer column composition.
  - Keep section routing and queue-detail presentation out of the root workspace shell.
@@ -8,6 +11,12 @@
  Does not handle:
  - Command wiring.
  - Error-recovery or task-mutation actions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

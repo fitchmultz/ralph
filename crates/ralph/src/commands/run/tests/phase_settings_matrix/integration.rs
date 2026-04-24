@@ -1,5 +1,8 @@
 //! Integration-style coverage for per-phase settings resolution.
 //!
+//! Purpose:
+//! - Integration-style coverage for per-phase settings resolution.
+//!
 //! Responsibilities:
 //! - Exercise mixed runner/model/effort combinations across all phases.
 //! - Verify config-phase defaults and CLI phase overrides together.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Narrow precedence-unit scenarios.
 //! - Dedicated validation-error assertions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Complex matrices preserve phase-local runner/model behavior.

@@ -1,6 +1,9 @@
 /**
  WorkspacePerformanceTestCase
 
+ Purpose:
+ - Provide shared setup and synthetic task generators for split workspace regression suites.
+
  Responsibilities:
  - Provide shared setup and synthetic task generators for split workspace regression suites.
  - Keep a fresh main-actor workspace available for performance-oriented tests.
@@ -8,6 +11,9 @@
  Does not handle:
  - Defining the individual regression assertions themselves.
  - Mock CLI fixture factories beyond the shared workspace shell.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Subclasses may assume `workspace` starts fresh for each test.

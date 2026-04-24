@@ -1,12 +1,18 @@
 /**
  RalphModelsTests
 
+ Purpose:
+ - Validate decoding/encoding of the forward-compatible JSON model types.
+
  Responsibilities:
  - Validate decoding/encoding of the forward-compatible JSON model types.
  - Ensure `RalphCLISpec` can decode arbitrary JSON emitted by a future machine CLI-spec document.
 
  Does not handle:
  - Validating the *meaning* of any particular CLI spec schema.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - JSON fixtures used in tests are representative enough to catch regressions in generic decoding.

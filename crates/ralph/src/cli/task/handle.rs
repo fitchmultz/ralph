@@ -1,5 +1,8 @@
 //! Task CLI routing.
 //!
+//! Purpose:
+//! - Task CLI routing.
+//!
 //! Responsibilities:
 //! - Resolve config and dispatch `ralph task` subcommands to their handlers.
 //! - Keep the task facade focused on re-exports and module wiring.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Clap argument definitions.
 //! - Queue persistence internals.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Config resolution always uses the current working directory.

@@ -1,5 +1,8 @@
 //! Parallel-worker bookkeeping restore regressions.
 //!
+//! Purpose:
+//! - Parallel-worker bookkeeping restore regressions.
+//!
 //! Responsibilities:
 //! - Verify worker post-run supervision restores queue/done/productivity bookkeeping files.
 //! - Exercise worker-specific failure handling, CI diagnostics, and publish behavior.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Regular post-run supervision commit/push behavior.
 //! - Continue-session resume flows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The test repo snapshots queue, done, and productivity files before dirtying them.

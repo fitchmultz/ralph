@@ -1,11 +1,20 @@
 //! Formatting helpers for CI gate messages and logs.
 //!
+//! Purpose:
+//! - Formatting helpers for CI gate messages and logs.
+//!
 //! Responsibilities:
 //! - Format detected CI patterns into actionable guidance.
 //! - Produce concise CI output snippets for logs and continue messages.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - CI command execution or retry policy.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::ci_patterns::DetectedErrorPattern;
 

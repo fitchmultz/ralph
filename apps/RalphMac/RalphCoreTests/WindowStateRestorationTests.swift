@@ -1,6 +1,9 @@
 /**
  WindowStateRestorationTests
 
+ Purpose:
+ - Validate window restoration fallback behavior, claim selection, and workspace identity helpers.
+
  Responsibilities:
  - Validate window restoration fallback behavior, claim selection, and workspace identity helpers.
  - Cover startup-placeholder semantics used during URL-routing bootstrap.
@@ -8,6 +11,9 @@
  Does not handle:
  - Scene routing dispatch across windows.
  - App-default pruning and frame cleanup.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Each test uses disposable workspaces from the shared WindowStateTestCase helpers.

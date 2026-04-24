@@ -1,5 +1,8 @@
 //! Refactoring task generation for `ralph task refactor` subcommand.
 //!
+//! Purpose:
+//! - Refactoring task generation for `ralph task refactor` subcommand.
+//!
 //! Responsibilities:
 //! - Handle `refactor` and `build-refactor` commands.
 //! - Scan repository for large files exceeding threshold.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Task building from natural language (see `build.rs`).
 //! - Template-based task creation (see `template.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Threshold defaults to 1000 LOC per AGENTS.md guidelines.

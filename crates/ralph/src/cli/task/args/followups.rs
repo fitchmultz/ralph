@@ -1,5 +1,8 @@
 //! CLI arguments for task follow-up proposal application.
 //!
+//! Purpose:
+//! - CLI arguments for task follow-up proposal application.
+//!
 //! Responsibilities:
 //! - Define nested `ralph task followups ...` subcommands.
 //! - Expose text vs JSON output selection for apply reports.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Proposal parsing, queue mutation, or persistence.
 //! - Runner prompt guidance for when proposals should be created.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Missing `--input` means `.ralph/cache/followups/<TASK_ID>.json`.

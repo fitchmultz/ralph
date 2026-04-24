@@ -1,5 +1,8 @@
 //! Repo-local execution trust loading.
 //!
+//! Purpose:
+//! - Repo-local execution trust loading.
+//!
 //! Responsibilities:
 //! - Define the local trust file contract for execution-sensitive project settings.
 //! - Load `.ralph/trust.jsonc` files with JSONC support.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Main config layering or schema generation (see `crate::contracts::config`).
 //! - CI command validation or execution (see `crate::config::validation` and `crate::runutil`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Trust is local-only and must not be committed to version control.

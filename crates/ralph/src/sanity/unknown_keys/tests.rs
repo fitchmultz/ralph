@@ -1,5 +1,8 @@
 //! Regression tests for unknown-config-key detection and repair helpers.
 //!
+//! Purpose:
+//! - Regression tests for unknown-config-key detection and repair helpers.
+//!
 //! Responsibilities:
 //! - Cover schema key extraction and unknown-key detection.
 //! - Verify prompt/action parsing and config-file mutation edge cases.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Broader sanity-check orchestration.
 //! - Config migration flows outside unknown-key handling.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Unknown keys are reported in dot notation.

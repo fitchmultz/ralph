@@ -1,6 +1,9 @@
 /**
  ErrorRecoveryView
 
+ Purpose:
+ - Render recovery guidance and category-specific actions for workspace failures.
+
  Responsibilities:
  - Render recovery guidance and category-specific actions for workspace failures.
  - Trigger diagnostics, queue-recovery previews, and log loading through shared services.
@@ -10,6 +13,9 @@
  - Error classification.
  - Workspace mutation retry implementations.
  - Conflict-resolution flows.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - The supplied `RecoveryError` is already classified.

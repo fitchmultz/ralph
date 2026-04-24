@@ -1,5 +1,8 @@
 //! Manual temp file cleanup command.
 //!
+//! Purpose:
+//! - Manual temp file cleanup command.
+//!
 //! Responsibilities:
 //! - Provide on-demand cleanup of ralph temporary files.
 //! - Support dry-run mode for safe preview of cleanup actions.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Automatic cleanup (see main.rs startup cleanup and fsutil cleanup triggers).
 //! - Tutorial sandbox cleanup (--keep-sandbox is intentional persistence).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Cleanup is best-effort and logs warnings on individual file errors.

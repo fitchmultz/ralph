@@ -1,5 +1,8 @@
 //! Productivity stats tracking for task completions, streaks, and velocity metrics.
 //!
+//! Purpose:
+//! - Productivity stats tracking for task completions, streaks, and velocity metrics.
+//!
 //! Responsibilities:
 //! - Track daily task completions and calculate streaks
 //! - Record milestone achievements (10, 50, 100, etc.)
@@ -10,6 +13,10 @@
 //! - Queue/task management (see `crate::queue`)
 //! - Notification delivery (see `crate::notification`)
 //! - Celebration rendering (see `crate::celebrations`)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Stats file is JSON with schema version for migrations

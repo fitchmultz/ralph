@@ -1,12 +1,19 @@
 //! Webhook diagnostics and replay tests.
 //!
+//! Purpose:
+//! - Webhook diagnostics and replay tests.
+//!
 //! Responsibilities:
 //! - Verify diagnostics snapshots, failure-store retention, and replay accounting.
 //! - Assert replay selection and dry-run semantics.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Dispatcher worker-pool concurrency behavior.
 //! - Payload serialization or config parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Tests use fixed failure records via shared support helpers.

@@ -1,5 +1,8 @@
 //! Unknown config key detection and handling.
 //!
+//! Purpose:
+//! - Unknown config key detection and handling.
+//!
 //! Responsibilities:
 //! - Detect unknown keys in config files (project and global)
 //! - Prompt user for action (remove/keep/rename) or auto-remove
@@ -10,6 +13,10 @@
 //! - README updates (see readme.rs)
 //! - Config migrations (see migrations.rs)
 //! - Schema definition (see contracts/)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Unknown keys are detected by comparing against schemars-generated schema

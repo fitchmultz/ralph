@@ -1,12 +1,21 @@
 //! Prompt assembly for parallel integration retries.
 //!
+//! Purpose:
+//! - Prompt assembly for parallel integration retries.
+//!
 //! Responsibilities:
 //! - Build the mandatory integration continuation prompt.
 //! - Summarize compliance failures into a compact retry reason.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Running the continuation session.
 //! - Reading or writing integration markers.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::path::Path;
 

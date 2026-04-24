@@ -1,5 +1,8 @@
 //! Stats report assembly helpers.
 //!
+//! Purpose:
+//! - Stats report assembly helpers.
+//!
 //! Responsibilities:
 //! - Compose the full `StatsReport` from filtered tasks and focused helpers.
 //! - Keep top-level stats facade free of metric-construction details.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Text or JSON rendering.
 //! - Execution-history ETA lookup.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue inputs are already validated.

@@ -1,16 +1,23 @@
 //! Queue mutation workflows for cloning, splitting, and shared task reshaping.
 //!
+//! Purpose:
+//! - Queue mutation workflows for cloning, splitting, and shared task reshaping.
+//!
 //! Responsibilities:
 //! - Clone existing tasks into new queue entries with fresh IDs and timestamps.
 //! - Split a parent task into rejected-source plus child-task outputs.
 //! - Re-export shared queue mutation helpers from `mutation/helpers.rs`.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue persistence, locking, or repair flows.
 //! - Batch orchestration around clone/split operations.
 //! - Schema validation beyond targeted queue-set checks before clone/split.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Caller-provided timestamps are already normalized RFC3339 UTC strings.
 //! - Queue and done IDs remain unique across the validated queue set.
 //! - Split children always clear dependency edges inherited from the source task.

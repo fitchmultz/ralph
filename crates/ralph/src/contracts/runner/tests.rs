@@ -1,5 +1,8 @@
 //! Regression tests for runner contract parsing and serde behavior.
 //!
+//! Purpose:
+//! - Regression tests for runner contract parsing and serde behavior.
+//!
 //! Responsibilities:
 //! - Validate string token parsing for built-in and plugin runners.
 //! - Cover normalized CLI enum parsing.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Runner execution behavior.
 //! - Plugin registry or command dispatch.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `Runner` serializes as a single string token.

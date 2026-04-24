@@ -1,5 +1,8 @@
 //! Makefile parser and extraction contract tests.
 //!
+//! Purpose:
+//! - Makefile parser and extraction contract tests.
+//!
 //! Responsibilities:
 //! - Cover suite-local Makefile parsing helpers on inline fixtures.
 //! - Verify CI alias expansion and multiline dependency parsing.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Real-repo CI sequence parity.
 //! - Routing or release-help assertions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Inline fixtures intentionally represent supported Makefile shapes.

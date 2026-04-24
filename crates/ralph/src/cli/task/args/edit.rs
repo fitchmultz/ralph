@@ -1,10 +1,17 @@
 //! CLI arguments for task edit commands.
 //!
+//! Purpose:
+//! - CLI arguments for task edit commands.
+//!
 //! Responsibilities:
 //! - Define Args structs for field, edit, and update commands.
 //!
 //! Not handled here:
 //! - Command execution (see edit handler).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap.

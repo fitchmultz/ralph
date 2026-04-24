@@ -1,5 +1,8 @@
 //! `ralph tutorial` command: Clap types and handler.
 //!
+//! Purpose:
+//! - `ralph tutorial` command: Clap types and handler.
+//!
 //! Responsibilities:
 //! - Parse CLI arguments for the tutorial command.
 //! - Determine interactive vs non-interactive mode.
@@ -8,6 +11,12 @@
 //! Not handled here:
 //! - Actual tutorial phase logic (see `crate::commands::tutorial`).
 //! - Sandbox creation (see `crate::commands::tutorial::sandbox`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use clap::Args;

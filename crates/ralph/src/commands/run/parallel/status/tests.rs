@@ -1,14 +1,21 @@
 //! Parallel status document regression coverage.
 //!
+//! Purpose:
+//! - Parallel status document regression coverage.
+//!
 //! Responsibilities:
 //! - Verify status guidance reflects retained artifacts, retryable outcomes, and cleanup drift.
 //! - Exercise the document builder without invoking CLI rendering.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Table output formatting.
 //! - Worker orchestration or state persistence semantics beyond the status contract.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Retained blocked artifacts should surface operator-facing recovery text.
 //! - Terminal cleanup drift should remain non-blocking but visible.
 

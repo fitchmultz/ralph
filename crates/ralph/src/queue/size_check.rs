@@ -1,5 +1,8 @@
 //! Queue file size checking and warning generation.
 //!
+//! Purpose:
+//! - Queue file size checking and warning generation.
+//!
 //! Responsibilities:
 //! - Check if queue file exceeds size or task count thresholds.
 //! - Generate user-friendly warning messages with remediation suggestions.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Configuration loading (passed in by caller).
 //! - Actual queue operations (archive/prune) - only suggestions.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::constants::limits::{
     DEFAULT_SIZE_WARNING_THRESHOLD_KB, DEFAULT_TASK_COUNT_WARNING_THRESHOLD,

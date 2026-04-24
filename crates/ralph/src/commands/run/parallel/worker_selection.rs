@@ -1,12 +1,21 @@
 //! Task selection helpers for parallel workers.
 //!
+//! Purpose:
+//! - Task selection helpers for parallel workers.
+//!
 //! Responsibilities:
 //! - Select the next runnable task while the queue lock is held.
 //! - Compute the exclusion set for in-flight, attempted, and blocked workers.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Worker subprocess creation or shutdown.
 //! - Persisting parallel worker state.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::commands::run::parallel::state;
 use crate::commands::run::selection::select_run_one_task_index_excluding;

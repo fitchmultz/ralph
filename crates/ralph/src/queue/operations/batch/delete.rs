@@ -1,14 +1,21 @@
 //! Batch delete and archive operations for tasks.
 //!
+//! Purpose:
+//! - Batch delete and archive operations for tasks.
+//!
 //! Responsibilities:
 //! - Batch delete multiple tasks from the queue.
 //! - Batch archive terminal tasks (Done/Rejected) from active queue to done.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task filtering/selection (see filters.rs).
 //! - Task updates or field modifications (see update.rs).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Archive only works on terminal tasks (Done or Rejected status).
 //! - Delete permanently removes tasks without archival.
 

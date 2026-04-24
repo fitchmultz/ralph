@@ -1,5 +1,8 @@
 //! WorkspaceTaskPresentation
 //!
+//! Purpose:
+//! - Build filtered and sorted task snapshots for workspace views.
+//!
 //! Responsibilities:
 //! - Build filtered and sorted task snapshots for workspace views.
 //! - Provide deterministic, strict task ordering for both ascending and descending sorts.
@@ -10,11 +13,14 @@
 //! - UI rendering or SwiftUI selection state.
 //! - Runner execution and analytics loading.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - The snapshot is derived from the workspace's current task/filter/sort state.
 //! - Ordering is deterministic even when primary sort keys tie.
 //! - Grouped tasks preserve the same order as the flat filtered list.
-
+//!
 import Foundation
 
 public struct WorkspaceTaskPresentation: Sendable {

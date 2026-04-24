@@ -1,15 +1,22 @@
 //! Batch operation validation and bookkeeping helpers.
 //!
+//! Purpose:
+//! - Batch operation validation and bookkeeping helpers.
+//!
 //! Responsibilities:
 //! - Collect and summarize per-task batch operation results.
 //! - Normalize task ID lists before batch execution.
 //! - Validate that referenced task IDs exist in the active queue.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Applying batch mutations (handled by sibling batch modules).
 //! - CLI argument parsing or result rendering.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Task IDs are trimmed before deduplication and existence checks.
 //! - Collector counts must stay synchronized with recorded results.
 //! - Validation is performed against an already loaded `QueueFile`.

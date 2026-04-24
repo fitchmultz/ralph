@@ -1,5 +1,8 @@
 //! Init-wizard flow for AGENTS.md generation.
 //!
+//! Purpose:
+//! - Init-wizard flow for AGENTS.md generation.
+//!
 //! Responsibilities:
 //! - Collect project type, output-path, and command customization hints.
 //! - Return a structured init result for the workflow layer.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Writing generated files.
 //! - Rendering AGENTS.md templates.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Prompt order remains stable for scripted tests.

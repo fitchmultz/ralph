@@ -1,5 +1,8 @@
 //! Task template command handlers for `ralph task template` subcommand.
 //!
+//! Purpose:
+//! - Task template command handlers for `ralph task template` subcommand.
+//!
 //! Responsibilities:
 //! - Handle `template list` command.
 //! - Handle `template show` command.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Interactive template selection (see `build.rs`).
 //! - Task building without templates (see `build.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Templates can be built-in or custom (from .ralph/templates/).

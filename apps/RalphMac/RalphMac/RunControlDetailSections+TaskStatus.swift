@@ -1,6 +1,9 @@
 /**
  RunControlDetailSections+TaskStatus
 
+ Purpose:
+ - Render current-task, last-run, and idle-state cards for the Run Control detail column.
+
  Responsibilities:
  - Render current-task, last-run, and idle-state cards for the Run Control detail column.
  - Keep execution-summary presentation isolated from progress/configuration sections.
@@ -8,6 +11,12 @@
  Does not handle:
  - Run-control buttons or queue-target selection.
  - Safety-status rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

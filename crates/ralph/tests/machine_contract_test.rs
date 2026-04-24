@@ -1,13 +1,20 @@
 //! Integration tests for the `ralph machine` contract surface.
 //!
+//! Purpose:
+//! - Integration tests for the `ralph machine` contract surface.
+//!
 //! Responsibilities:
 //! - Verify the app-facing machine commands return stable JSON documents.
 //! - Exercise queue read, task create, and task mutate through the public machine API.
 //! - Keep machine-surface regressions isolated from human CLI snapshot tests.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Exhaustive coverage for every human CLI command.
 //! - macOS app decoding behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Tests execute against the built `ralph` binary from Cargo.

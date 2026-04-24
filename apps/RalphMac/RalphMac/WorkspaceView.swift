@@ -1,6 +1,9 @@
 /**
  WorkspaceView
 
+ Purpose:
+ - Display the Ralph UI using a modern three-column NavigationSplitView layout.
+
  Responsibilities:
  - Display the Ralph UI using a modern three-column NavigationSplitView layout.
  - Left sidebar: Navigation sections (Queue, Quick Actions, Run Control, Advanced Runner, Analytics).
@@ -13,6 +16,9 @@
  - Cross-workspace operations.
  - Direct navigation state persistence (see NavigationViewModel).
  - Section-specific UI details (delegated to `WorkspaceView+...` companion files and section views).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected via @ObservedObject.

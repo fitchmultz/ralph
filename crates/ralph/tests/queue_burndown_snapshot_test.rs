@@ -1,11 +1,18 @@
 //! Snapshot tests for `ralph queue burndown` text output.
 //!
+//! Purpose:
+//! - Snapshot tests for `ralph queue burndown` text output.
+//!
 //! Responsibilities:
 //! - Lock in the human-readable burndown text format.
 //! - Avoid snapshot churn from unstable date strings (filters replace dates).
 //!
 //! Not handled here:
 //! - JSON output schema assertions (covered by existing tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Output contains date keys (`YYYY-MM-DD`) which must be filtered for stable snapshots.

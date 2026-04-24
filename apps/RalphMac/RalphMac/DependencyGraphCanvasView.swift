@@ -1,6 +1,9 @@
 /**
  DependencyGraphCanvasView
 
+ Purpose:
+ - Render the visual dependency graph canvas, overlays, and viewport controls.
+
  Responsibilities:
  - Render the visual dependency graph canvas, overlays, and viewport controls.
  - Manage canvas-local pan and zoom state for graph navigation.
@@ -8,6 +11,9 @@
  Does not handle:
  - Graph layout simulation or presentation assembly.
  - Accessibility list rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Node positions are supplied by `DependencyGraphViewModel`.

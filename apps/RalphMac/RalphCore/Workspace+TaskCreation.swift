@@ -1,6 +1,9 @@
 /**
  Workspace+TaskCreation
 
+ Purpose:
+ - Create new tasks through the machine task-create contract.
+
  Responsibilities:
  - Create new tasks through the machine task-create contract.
  - Build AI-generated tasks through the machine task-build contract.
@@ -11,6 +14,9 @@
  - Editing existing tasks.
  - Bulk task mutations or optimistic-lock enforcement.
  - Queue refresh notifications outside post-create reloads.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - The workspace must have a configured CLI client before task creation runs.

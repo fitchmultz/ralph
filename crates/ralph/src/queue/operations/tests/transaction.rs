@@ -1,9 +1,21 @@
 //! Tests for structured task mutation transactions.
 //!
+//! Purpose:
+//! - Tests for structured task mutation transactions.
+//!
 //! Responsibilities:
 //! - Validate atomic multi-field edits across one or more tasks.
 //! - Verify optimistic-lock conflicts leave the queue unchanged.
 //! - Ensure status-to-doing mutations preserve started_at semantics through the transaction path.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::*;
 use crate::queue::operations::{

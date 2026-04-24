@@ -1,5 +1,8 @@
 //! Handler for `ralph task children` subcommand.
 //!
+//! Purpose:
+//! - Handler for `ralph task children` subcommand.
+//!
 //! Responsibilities:
 //! - List child tasks where parent_id matches the given task ID.
 //! - Support recursive listing with tree rendering.
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - Queue mutation (this is a read-only command).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task existence is validated before processing.

@@ -1,5 +1,8 @@
 //! Celebration animations and feedback for task completions.
 //!
+//! Purpose:
+//! - Celebration animations and feedback for task completions.
+//!
 //! Responsibilities:
 //! - Render celebration animations for CLI
 //! - Check terminal capabilities (is_terminal, color support)
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Stats persistence (see `crate::productivity`)
 //! - Notification delivery (see `crate::notification`)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Celebrations are subtle and professional, not flashy

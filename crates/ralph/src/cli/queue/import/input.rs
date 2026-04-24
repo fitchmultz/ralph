@@ -1,5 +1,8 @@
 //! Queue import input loading helpers.
 //!
+//! Purpose:
+//! - Queue import input loading helpers.
+//!
 //! Responsibilities:
 //! - Read queue import payloads from stdin or a file path.
 //! - Keep filesystem and stdin behavior consistent across formats.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Parsing imported task payloads.
 //! - Queue mutation or validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `-` always means stdin.

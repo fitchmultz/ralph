@@ -1,15 +1,22 @@
 //! Wait-state management for runner subprocesses.
 //!
+//! Purpose:
+//! - Wait-state management for runner subprocesses.
+//!
 //! Responsibilities:
 //! - Adapt the shared child wait state machine to runner subprocess semantics.
 //! - Route soft and hard interrupts through the active runner process group when available.
 //! - Preserve runner-specific timeout and Ctrl-C error mapping for callers.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Spawning the subprocess or wiring stdout/stderr readers.
 //! - Output buffer management.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Unix child processes run in isolated process groups.
 //! - Timeout-triggered termination still takes precedence over Ctrl-C-triggered termination.
 

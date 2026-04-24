@@ -1,14 +1,21 @@
 //! Queue next subcommand.
 //!
+//! Purpose:
+//! - Queue next subcommand.
+//!
 //! Responsibilities:
 //! - Print the next runnable task ID (or ID+title with --with-title).
 //! - Provide explanation of why no task is runnable with --explain.
 //! - Optionally display ETA estimate from execution history with --with-eta.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task execution (see `crate::commands::run`).
 //! - Queue mutations.
 //! - Real-time progress tracking (handled by external UI clients).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - When no runnable task exists, prints next available ID (for script compatibility).

@@ -1,5 +1,8 @@
 //! Stats report implementation.
 //!
+//! Purpose:
+//! - Stats report implementation.
+//!
 //! Responsibilities:
 //! - Assemble queue statistics from validated queue and done files.
 //! - Coordinate summary, time-tracking, breakdown, ETA, and rendering helpers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - CLI argument parsing.
 //! - Queue persistence or mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue inputs are already validated.

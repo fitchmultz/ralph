@@ -1,5 +1,8 @@
 //! Clap CLI introspection utilities for emitting a deterministic CLI spec JSON contract.
 //!
+//! Purpose:
+//! - Clap CLI introspection utilities for emitting a deterministic CLI spec JSON contract.
+//!
 //! Responsibilities:
 //! - Convert an in-memory `clap::Command` (including hidden/internal commands and args) into the
 //!   versioned `CliSpec` contract model.
@@ -9,6 +12,10 @@
 //! - Adding a user-facing CLI command that prints the spec (it is currently exposed only as the
 //!   hidden/internal `ralph __cli-spec` command).
 //! - File IO, stdout/stderr printing, or schema generation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The caller provides the fully constructed clap command (e.g. `Cli::command()`).

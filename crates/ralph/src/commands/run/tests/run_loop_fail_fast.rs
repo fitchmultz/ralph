@@ -1,5 +1,8 @@
 //! Sequential run-loop fail-fast regression tests.
 //!
+//! Purpose:
+//! - Sequential run-loop fail-fast regression tests.
+//!
 //! Responsibilities:
 //! - Prove the sequential run loop aborts immediately after a task execution failure.
 //! - Prevent hot-loop retries that continuously reselect the same broken task.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Parallel run-loop behavior.
 //! - Root-cause validation for why a specific task failed.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `max_tasks = 0` still means unbounded execution for successful runs.

@@ -1,5 +1,8 @@
 //! Queue parent hierarchy validation.
 //!
+//! Purpose:
+//! - Queue parent hierarchy validation.
+//!
 //! Responsibilities:
 //! - Validate `parent_id` references and emit non-blocking orphan/self-parent warnings.
 //! - Reject multi-node parent cycles.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Dependency or relationship fields outside `parent_id`.
 //! - Parent repair or mutation flows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty or whitespace-only parent IDs are treated as unset.

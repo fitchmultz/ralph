@@ -1,5 +1,8 @@
 //! Processor-hook temp-file IO helpers.
 //!
+//! Purpose:
+//! - Processor-hook temp-file IO helpers.
+//!
 //! Responsibilities:
 //! - Materialize task/prompt/stdout payloads into temp files.
 //! - Read back modified payloads from hook temp files.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Hook dispatch or subprocess execution.
 //! - Plugin discovery and enable policy.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Hook payload files remain UTF-8 text.

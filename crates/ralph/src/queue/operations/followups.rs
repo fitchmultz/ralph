@@ -99,6 +99,14 @@ pub fn apply_default_followups_if_present(
     resolved: &Resolved,
     task_id: &str,
 ) -> Result<Option<FollowupApplyReport>> {
+    apply_default_followups_if_present_with_removal(resolved, task_id, true)
+}
+
+pub fn apply_default_followups_if_present_with_removal(
+    resolved: &Resolved,
+    task_id: &str,
+    remove_proposal: bool,
+) -> Result<Option<FollowupApplyReport>> {
     let path = default_followups_path(&resolved.repo_root, task_id);
     if !path.exists() {
         return Ok(None);
@@ -111,10 +119,14 @@ pub fn apply_default_followups_if_present(
             input_path: Some(path.as_path()),
             dry_run: false,
             create_undo: false,
-            remove_proposal: true,
+            remove_proposal,
         },
     )
     .map(Some)
+}
+
+pub fn remove_default_followups_proposal_if_present(repo_root: &Path, task_id: &str) -> Result<()> {
+    remove_applied_proposal(&default_followups_path(repo_root, task_id))
 }
 
 pub fn apply_followups_file(
@@ -237,16 +249,14 @@ pub fn apply_followups_in_memory(
     }
 
     let insert_at = queue::suggest_new_task_insert_index(active);
-    let warnings = if dry_run {
-        let mut preview = active.clone();
-        preview.tasks.splice(insert_at..insert_at, tasks);
+    let mut preview = active.clone();
+    preview.tasks.splice(insert_at..insert_at, tasks);
+    let warnings =
         queue::validate_queue_set(&preview, done, id_prefix, id_width, max_dependency_depth)
-            .context("validate queue after applying follow-up proposal")?
-    } else {
-        active.tasks.splice(insert_at..insert_at, tasks);
-        queue::validate_queue_set(active, done, id_prefix, id_width, max_dependency_depth)
-            .context("validate queue after applying follow-up proposal")?
-    };
+            .context("validate queue after applying follow-up proposal")?;
+    if !dry_run {
+        *active = preview;
+    }
     queue::log_warnings(&warnings);
 
     Ok(FollowupApplyReport {

@@ -1,5 +1,8 @@
 //! Ralph CLI entrypoint and command routing.
 //!
+//! Purpose:
+//! - Ralph CLI entrypoint and command routing.
+//!
 //! Responsibilities:
 //! - Load environment defaults, parse CLI args, and dispatch to command handlers.
 //! - Initialize logging/redaction and apply CLI-level behavior toggles.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CLI flag definitions (see `crate::cli`).
 //! - Queue persistence, prompt rendering, or runner execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - CLI arguments are normalized before Clap parsing.

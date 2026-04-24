@@ -1,15 +1,22 @@
 //! Queue mutation helper utilities.
 //!
+//! Purpose:
+//! - Queue mutation helper utilities.
+//!
 //! Responsibilities:
 //! - Provide shared queue-level helper mutations used by task creation, scan, and import flows.
 //! - Backfill missing task fields and terminal timestamps in loaded queue data.
 //! - Reposition, sort, and inspect tasks without changing clone/split semantics.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Cloning or splitting tasks (handled by the parent `mutation` module).
 //! - Queue validation, persistence, or lock management.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Task IDs are trimmed before comparisons and set membership checks.
 //! - Helpers operate on in-memory `QueueFile` values only.
 //! - `distribute_plan_items` preserves item order within each child bucket.

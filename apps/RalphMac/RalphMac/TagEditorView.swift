@@ -1,6 +1,9 @@
 /**
  TagEditorView
 
+ Purpose:
+ - Display tags as removable chips.
+
  Responsibilities:
  - Display tags as removable chips.
  - Allow adding new tags via text input.
@@ -9,6 +12,12 @@
  Does not handle:
  - Tag validation against a predefined list.
  - Tag suggestions/autocomplete.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

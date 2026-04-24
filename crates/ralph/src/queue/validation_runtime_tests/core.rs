@@ -1,5 +1,8 @@
 //! Core queue validation runtime tests.
 //!
+//! Purpose:
+//! - Core queue validation runtime tests.
+//!
 //! Responsibilities:
 //! - Cover queue item required fields and per-task validation rules.
 //! - Cover queue/done archive cross-file validation behavior.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Dependency-chain warning behavior.
 //! - Relationship or parent validation semantics.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - These tests exercise `validate_queue` and `validate_queue_set` directly.

@@ -1,7 +1,18 @@
 //! Code review, iteration, and completion checklist tests.
 //!
+//! Purpose:
+//! - Code review, iteration, and completion checklist tests.
+//!
 //! Responsibilities: validate code review prompt rendering and checklist loading.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: worker prompts, phase rendering, or variable expansion.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: embedded defaults contain expected markers; overrides take precedence.
 
 use super::*;

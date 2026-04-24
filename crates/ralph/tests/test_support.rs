@@ -1,13 +1,20 @@
 //! Shared helpers for integration tests.
 //!
+//! Purpose:
+//! - Shared helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Re-export reusable integration-test support helpers from focused submodules.
 //! - Keep the root helper surface small while preserving the historical `test_support::*` API.
 //! - Allow integration-test crates to opt into only the helpers they need.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Defining scenario-specific fixtures or assertions for individual tests.
 //! - Hiding flaky synchronization; readiness logic lives in explicit helper modules.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Each integration test compiles as its own crate, so not every re-export is used everywhere.

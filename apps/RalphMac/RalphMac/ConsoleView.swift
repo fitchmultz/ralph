@@ -1,6 +1,9 @@
 /**
  ConsoleView
 
+ Purpose:
+ - Display console output from workspace with styling.
+
  Responsibilities:
  - Display console output from workspace with styling.
  - Show error messages if present.
@@ -9,6 +12,9 @@
  Does not handle:
  - CLI execution or output buffering (handled by Workspace).
  - ANSI color parsing (handled by RunControlConsoleView).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected via @ObservedObject.

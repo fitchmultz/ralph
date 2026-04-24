@@ -1,5 +1,8 @@
 //! `ralph queue issue` subcommand facade.
 //!
+//! Purpose:
+//! - `ralph queue issue` subcommand facade.
+//!
 //! Responsibilities:
 //! - Define the stable module boundary for GitHub issue publishing commands.
 //! - Re-export clap argument types used by the queue CLI surface.
@@ -9,6 +12,10 @@
 //! - GitHub CLI process execution details.
 //! - Queue export markdown rendering.
 //! - Queue test coverage outside this subcommand's helpers.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue mutation only happens while the queue lock is held.

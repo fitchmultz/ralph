@@ -1,5 +1,8 @@
 //! Path filtering and pattern matching for the watch command.
 //!
+//! Purpose:
+//! - Path filtering and pattern matching for the watch command.
+//!
 //! Responsibilities:
 //! - Filter file paths from watch events based on patterns and ignore rules.
 //! - Match filenames against glob patterns using globset.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - File watching or event handling (see `event_loop/mod.rs`).
 //! - Comment detection (see `comments.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Directories are always skipped.

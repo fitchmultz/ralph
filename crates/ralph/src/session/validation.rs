@@ -1,5 +1,8 @@
 //! Session validation and classification helpers.
 //!
+//! Purpose:
+//! - Session validation and classification helpers.
+//!
 //! Responsibilities:
 //! - Validate persisted sessions against queue state and timeout policy.
 //! - Return explicit recovery classifications for callers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Session persistence.
 //! - Interactive recovery prompts.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Sessions are resumable only when the task still exists and is `Doing`.

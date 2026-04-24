@@ -1,5 +1,8 @@
 //! Dependency validation runtime tests.
 //!
+//! Purpose:
+//! - Dependency validation runtime tests.
+//!
 //! Responsibilities:
 //! - Cover dependency warning semantics and chain-depth limits.
 //! - Verify rejected/done dependency handling across queue and done sets.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Core required-field validation.
 //! - `blocks`, `relates_to`, `duplicates`, or parent validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dependency warnings do not escalate to validation errors in these cases.

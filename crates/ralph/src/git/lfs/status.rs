@@ -1,10 +1,17 @@
 //! Git LFS status parsing.
 //!
+//! Purpose:
+//! - Git LFS status parsing.
+//!
 //! Responsibilities:
 //! - Run `git lfs status` and parse staged/unstaged LFS health data.
 //!
 //! Not handled here:
 //! - Filter validation or pointer file inspection.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Known "LFS unavailable" failures return an empty summary.

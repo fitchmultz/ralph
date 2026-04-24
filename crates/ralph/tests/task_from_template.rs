@@ -1,5 +1,8 @@
 //! Integration tests for `ralph task from template` command.
 //!
+//! Purpose:
+//! - Integration tests for `ralph task from template` command.
+//!
 //! Responsibilities:
 //! - Test CLI argument validation and dry-run mode.
 //! - Verify error handling for invalid templates.
@@ -9,6 +12,10 @@
 //! - Full task creation flow (requires AI runner, see unit tests).
 //! - Template loading logic (see `template::loader` tests).
 //! - Variable substitution details (see `template::variables` tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp directories.

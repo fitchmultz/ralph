@@ -1,5 +1,8 @@
 //! Queue dependency graph validation.
 //!
+//! Purpose:
+//! - Queue dependency graph validation.
+//!
 //! Responsibilities:
 //! - Validate `depends_on` relationships and build the dependency graph.
 //! - Detect dependency cycles, depth-limit warnings, and blocked dependency chains.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Non-dependency relationship fields (`blocks`, `relates_to`, `duplicates`).
 //! - Parent hierarchy validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All task lookups are resolved through `TaskCatalog`.

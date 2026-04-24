@@ -1,11 +1,18 @@
 //! Test support helpers for queue search tests.
 //!
+//! Purpose:
+//! - Test support helpers for queue search tests.
+//!
 //! Responsibilities:
 //! - Provide shared task builder helpers for unit tests
 //!
 //! Not handled here:
 //! - Production code (this is test-only)
 //! - Complex test scenarios (handled in individual test modules)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All tasks have minimal valid defaults

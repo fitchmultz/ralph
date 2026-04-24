@@ -1,11 +1,18 @@
 //! Field iteration helpers for task searching.
 //!
+//! Purpose:
+//! - Field iteration helpers for task searching.
+//!
 //! Responsibilities:
 //! - Provide a callback-based helper to iterate over all searchable text fields
 //!
 //! Not handled here:
 //! - Actual matching logic (handled by substring and fuzzy modules)
 //! - Field filtering or selection
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All text fields are visited exactly once per task

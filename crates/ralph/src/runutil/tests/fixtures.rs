@@ -1,12 +1,19 @@
 //! Shared runutil test fixtures.
 //!
+//! Purpose:
+//! - Shared runutil test fixtures.
+//!
 //! Responsibilities:
 //! - Provide temp git repo helpers reused across runutil test modules.
 //! - Provide backend doubles and invocation/message builders for runner handling tests.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Assertions for specific revert or validation behaviors.
 //! - Real subprocess-backed runner execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Test repos are initialized with deterministic git identity.

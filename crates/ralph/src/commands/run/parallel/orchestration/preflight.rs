@@ -1,5 +1,8 @@
 //! Parallel run-loop preflight and bootstrap.
 //!
+//! Purpose:
+//! - Parallel run-loop preflight and bootstrap.
+//!
 //! Responsibilities:
 //! - Validate repo/workspace prerequisites.
 //! - Initialize persisted parallel state, cleanup guard ownership, and loop webhook context.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - The active worker orchestration loop.
 //! - Final shutdown behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Called after queue-lock acquisition.

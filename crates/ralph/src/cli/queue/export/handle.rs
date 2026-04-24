@@ -1,5 +1,8 @@
 //! Queue export command execution orchestration.
 //!
+//! Purpose:
+//! - Queue export command execution orchestration.
+//!
 //! Responsibilities:
 //! - Validate export flags and coordinate queue loading, filtering, rendering, and output.
 //! - Emit queue size warnings before exporting when requested.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Argument definitions.
 //! - Format-specific rendering internals.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `--include-archive` and `--only-archive` remain mutually exclusive.

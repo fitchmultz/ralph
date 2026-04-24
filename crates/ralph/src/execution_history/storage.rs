@@ -1,5 +1,8 @@
 //! Execution-history persistence helpers.
 //!
+//! Purpose:
+//! - Execution-history persistence helpers.
+//!
 //! Responsibilities:
 //! - Load and save execution-history cache files.
 //! - Append completed executions and prune old entries.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Weighted-average calculations.
 //! - ETA presentation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - History persists at `.ralph/cache/execution_history.json`.

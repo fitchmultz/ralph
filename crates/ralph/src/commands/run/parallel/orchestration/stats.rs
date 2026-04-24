@@ -1,5 +1,8 @@
 //! Parallel run statistics aggregation.
 //!
+//! Purpose:
+//! - Parallel run statistics aggregation.
+//!
 //! Responsibilities:
 //! - Track attempted, succeeded, and failed worker counts for one parallel run.
 //! - Provide a small, intention-revealing API instead of threading raw counters through helpers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Worker state persistence.
 //! - Notification or webhook delivery.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Each finished worker records exactly one terminal outcome.

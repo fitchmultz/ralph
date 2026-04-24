@@ -1,4 +1,20 @@
 //! Per-phase settings wiring tests (RQ-0496).
+//!
+//! Purpose:
+//! - Per-phase settings wiring tests (RQ-0496).
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::{test_config_agent, test_overrides_with_phases};
 use crate::agent::AgentOverrides;

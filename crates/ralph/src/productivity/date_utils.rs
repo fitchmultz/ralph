@@ -1,11 +1,18 @@
 //! Date key utilities for productivity tracking.
 //!
+//! Purpose:
+//! - Date key utilities for productivity tracking.
+//!
 //! Responsibilities:
 //! - Parse and format date keys (YYYY-MM-DD format).
 //! - Calculate date offsets and previous/next days.
 //!
 //! Not handled here:
 //! - Persistence or business logic (see other modules).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Date keys are always in YYYY-MM-DD format.

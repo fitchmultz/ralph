@@ -1,14 +1,21 @@
 //! Runner stream regression test hub.
 //!
+//! Purpose:
+//! - Runner stream regression test hub.
+//!
 //! Responsibilities:
 //! - Share stream-test imports across display and reader-focused coverage.
 //! - Keep the root test file small while delegating behavior groups to companion files.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Non-stream execution tests owned by sibling runner test modules.
 //! - Production stream orchestration beyond the units exercised below.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Child modules use `super::*` for the shared stream helpers and imports below.
 //! - Spawn helpers remain visible to this test module via the parent `stream` unit.
 

@@ -1,8 +1,19 @@
 //! Worker prompt loading and rendering.
 //!
+//! Purpose:
+//! - Worker prompt loading and rendering.
+//!
 //! Responsibilities: load the base worker template and render task-scoped instructions with
-//! project guidance.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!   project guidance.
+//!
 //! Not handled: phase-specific prompts, checklist prompts, or RepoPrompt block assembly.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: task IDs are non-empty when rendering and templates use `{{...}}` tokens.
 
 use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};

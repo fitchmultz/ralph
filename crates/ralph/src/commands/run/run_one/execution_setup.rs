@@ -1,5 +1,8 @@
 //! Task execution setup.
 //!
+//! Purpose:
+//! - Task execution setup.
+//!
 //! Responsibilities:
 //! - Setup for task execution after a task has been selected.
 //! - Resolve phase count, iteration settings, phase matrix.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Context preparation (see context.rs).
 //! - Phase execution (see phase_execution.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task has already been selected before calling setup.

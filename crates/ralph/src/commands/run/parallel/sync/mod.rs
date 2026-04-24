@@ -1,5 +1,8 @@
 //! State synchronization and git helpers for parallel workers.
 //!
+//! Purpose:
+//! - State synchronization and git helpers for parallel workers.
+//!
 //! Responsibilities:
 //! - Sync repo-local runtime state into worker workspaces.
 //! - Commit changes on worker failure when diagnostics are needed.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Worker lifecycle (see `super::worker`).
 //! - Coordinator orchestration (see `super::orchestration`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Worker queue/done paths are seeded from coordinator resolved paths.

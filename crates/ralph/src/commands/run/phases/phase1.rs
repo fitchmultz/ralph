@@ -1,11 +1,18 @@
 //! Phase 1 (planning) execution.
 //!
+//! Purpose:
+//! - Phase 1 (planning) execution.
+//!
 //! Responsibilities:
 //! - Execute Phase 1 planning runner pass and enforce plan-only output constraints.
 //!
 //! Not handled here:
 //! - Phase 2/3 execution behavior.
 //! - Queue/task selection and task status transitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Phase 1 may only mutate files under `.ralph/`.

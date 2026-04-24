@@ -1,5 +1,8 @@
 //! Full-config validation orchestration.
 //!
+//! Purpose:
+//! - Full-config validation orchestration.
+//!
 //! Responsibilities:
 //! - Validate top-level config version and cross-domain settings.
 //! - Delegate queue, agent, CI gate, and profile checks to focused validators.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Config loading/merging.
 //! - Queue file contents or lock state.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Parallel workspace roots must be normalized paths.

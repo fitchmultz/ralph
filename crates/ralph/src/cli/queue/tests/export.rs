@@ -1,5 +1,8 @@
 //! Tests for export command.
 //!
+//! Purpose:
+//! - Tests for export command.
+//!
 //! Responsibilities:
 //! - Test export command handlers and validation.
 //! - Test export format and help text.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Import operations (see import.rs).
 //! - List/search operations (see list_search.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::{base_export_args, resolved_for_dir};
 use crate::cli::Cli;

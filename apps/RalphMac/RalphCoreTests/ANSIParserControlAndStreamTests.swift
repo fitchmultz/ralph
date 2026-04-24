@@ -1,12 +1,18 @@
 /**
  ANSIParserControlAndStreamTests
 
+ Purpose:
+ - Validate control-sequence stripping and incremental stream parsing behavior.
+
  Responsibilities:
  - Validate control-sequence stripping and incremental stream parsing behavior.
 
  Does not handle:
  - Extended color decoding or ANSIColor utilities.
  - Malformed-sequence recovery beyond streaming semantics.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Incremental stream parsing must preserve ANSI state while remaining phase-neutral.

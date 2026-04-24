@@ -1,8 +1,20 @@
 //! Integration tests for queue stats, history, and burndown report output.
 //!
+//! Purpose:
+//! - Integration tests for queue stats, history, and burndown report output.
+//!
 //! Responsibilities:
 //! - Provide shared CLI helpers for queue-report contract suites.
 //! - Delegate summary, burndown, ETA, and breakdown coverage to focused modules.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Context, Result};
 use ralph::timeutil;

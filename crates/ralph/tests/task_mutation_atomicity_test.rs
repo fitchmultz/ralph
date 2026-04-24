@@ -1,9 +1,21 @@
 //! Integration tests for structured task mutation transactions.
 //!
+//! Purpose:
+//! - Integration tests for structured task mutation transactions.
+//!
 //! Responsibilities:
 //! - Verify multi-field task mutations apply atomically through the CLI.
 //! - Ensure optimistic-lock conflicts do not partially persist queue changes.
 //! - Validate bulk status-to-doing updates set `started_at` through the shared mutation path.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 mod test_support;
 

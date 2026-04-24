@@ -1,5 +1,8 @@
 //! Model-default and effort-handling coverage for per-phase settings resolution.
 //!
+//! Purpose:
+//! - Model-default and effort-handling coverage for per-phase settings resolution.
+//!
 //! Responsibilities:
 //! - Verify runner-specific model defaulting behavior.
 //! - Assert reasoning-effort handling for Codex and non-Codex phases.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Override-precedence ordering.
 //! - Execution-mode warning coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Runner changes without explicit models must fall back to that runner's default model.

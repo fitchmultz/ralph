@@ -1,5 +1,8 @@
 //! Shared helpers for machine command handlers.
 //!
+//! Purpose:
+//! - Shared helpers for machine command handlers.
+//!
 //! Responsibilities:
 //! - Build shared machine documents reused across handlers.
 //! - Centralize queue-path and config-safety shaping for machine responses.
@@ -10,6 +13,10 @@
 //! - Clap argument definitions.
 //! - JSON stdout/stderr emission.
 //! - Queue/task/run command routing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine config documents remain versioned through `crate::contracts` constants.

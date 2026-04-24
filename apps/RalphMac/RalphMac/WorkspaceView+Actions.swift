@@ -1,6 +1,9 @@
 /**
  WorkspaceView+Actions
 
+ Purpose:
+ - Execute workspace-scoped retry, repair, navigation, and task-presentation actions.
+
  Responsibilities:
  - Execute workspace-scoped retry, repair, navigation, and task-presentation actions.
  - Reset navigation-local UI state during repository retargets.
@@ -8,6 +11,12 @@
  Does not handle:
  - Sheet composition.
  - Accessibility probe rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

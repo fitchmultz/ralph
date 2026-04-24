@@ -1,12 +1,22 @@
 //! Tests for directory lock helpers.
 //!
+//! Purpose:
+//! - Tests for directory lock helpers.
+//!
 //! Responsibilities:
 //! - Validate lock acquisition, ownership metadata, and cleanup semantics.
 //! - Validate shared lock behavior and error reporting.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not covered here:
 //! - Temp directory helpers or atomic writes (see `fsutil_test.rs`).
 //! - CLI-level queue workflows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run on local filesystem with temp directories.

@@ -1,5 +1,8 @@
 //! Queue loader entrypoints for plain reads and parse repair.
 //!
+//! Purpose:
+//! - Queue loader entrypoints for plain reads and parse repair.
+//!
 //! Responsibilities:
 //! - Load queue files with plain JSONC parsing or in-memory parse repair.
 //! - Coordinate queue/done loading for read-only validation flows.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Timestamp normalization details (see `queue::repair`).
 //! - Validation rule definitions (see `queue::validation`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Read-only flows never write queue or done files.

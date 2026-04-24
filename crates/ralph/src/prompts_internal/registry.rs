@@ -1,9 +1,20 @@
 //! Prompt template registry and metadata.
 //!
+//! Purpose:
+//! - Prompt template registry and metadata.
+//!
 //! Responsibilities: centralize prompt template metadata (paths, embedded defaults, required
-//! placeholders, flags) and provide a shared loader using the standard fallback behavior.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!   placeholders, flags) and provide a shared loader using the standard fallback behavior.
+//!
 //! Not handled: prompt rendering/variable expansion or prompt-specific placeholder replacement
 //! beyond required placeholder checks.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: templates live under `.ralph/prompts/`, embedded defaults are compile-time
 //! `include_str!` values, and required placeholder tokens include braces (e.g., `{{TASK_ID}}`).
 

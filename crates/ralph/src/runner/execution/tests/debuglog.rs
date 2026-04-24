@@ -1,4 +1,20 @@
 //! Debug log tests for runner stream readers.
+//!
+//! Purpose:
+//! - Debug log tests for runner stream readers.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::stream::{StreamSink, spawn_reader};
 use crate::debuglog::{enable, reset_for_tests, test_lock};

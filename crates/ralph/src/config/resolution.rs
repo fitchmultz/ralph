@@ -1,5 +1,8 @@
 //! Configuration resolution for Ralph.
 //!
+//! Purpose:
+//! - Configuration resolution for Ralph.
+//!
 //! Responsibilities:
 //! - Resolve configuration from multiple layers: global, project, and defaults.
 //! - Discover repository root via `.ralph/` directory or `.git/`.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Config file loading/parsing (see `super::layer`).
 //! - Config validation (see `super::validation`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Config layers are applied in order: defaults, global, project (later overrides earlier).

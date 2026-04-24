@@ -1,5 +1,8 @@
 //! Queue next-id subcommand.
 //!
+//! Purpose:
+//! - Queue next-id subcommand.
+//!
 //! Responsibilities:
 //! - Generate one or more sequential task IDs based on current queue state.
 //! - Validate count bounds (1..=MAX_COUNT) to prevent abuse.
@@ -9,6 +12,10 @@
 //! - Queue modification (this is a read-only operation).
 //! - ID reservation (IDs are generated but not claimed; callers must create tasks promptly).
 //! - Full queue validation (duplicates are warned but don't block ID generation).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Count must be between 1 and MAX_COUNT (100) inclusive.

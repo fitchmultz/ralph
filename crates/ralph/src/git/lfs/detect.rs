@@ -1,5 +1,8 @@
 //! Git LFS detection helpers.
 //!
+//! Purpose:
+//! - Git LFS detection helpers.
+//!
 //! Responsibilities:
 //! - Detect whether a repository is configured for Git LFS.
 //! - List LFS-tracked files via `git lfs ls-files`.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Filter validation or pointer parsing.
 //! - Aggregate health reporting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Known "LFS not installed" failures return empty results instead of errors.

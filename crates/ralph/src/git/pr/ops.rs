@@ -1,5 +1,8 @@
 //! High-level PR workflows.
 //!
+//! Purpose:
+//! - High-level PR workflows.
+//!
 //! Responsibilities:
 //! - Build and execute `gh` commands for create/merge/status operations.
 //! - Map CLI output into crate-facing PR models.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Shared `gh` execution plumbing.
 //! - Raw JSON parsing and lifecycle derivation details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty PR titles are rejected before invoking `gh`.

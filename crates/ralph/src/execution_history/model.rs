@@ -1,5 +1,8 @@
 //! Execution-history data models.
 //!
+//! Purpose:
+//! - Execution-history data models.
+//!
 //! Responsibilities:
 //! - Define persisted execution-history structs.
 //! - Provide schema-version defaulting for new histories.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Disk IO.
 //! - Weighted-average calculations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `ExecutionHistory::default()` always uses the current schema version.

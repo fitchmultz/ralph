@@ -1,6 +1,9 @@
 /**
  SettingsService
 
+ Purpose:
+ - Provide the shared Settings-window entrypoint used by supported command surfaces.
+
  Responsibilities:
  - Provide the shared Settings-window entrypoint used by supported command surfaces.
  - Route all Settings opens through one coordinator so workspace context and diagnostics stay unified.
@@ -8,6 +11,12 @@
  Does not handle:
  - Settings UI content.
  - Settings state persistence.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import AppKit

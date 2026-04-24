@@ -1,5 +1,8 @@
 //! Run-one orchestration entrypoints.
 //!
+//! Purpose:
+//! - Run-one orchestration entrypoints.
+//!
 //! Responsibilities:
 //! - Provide public entrypoints (`run_one*`) used by the CLI and interactive flows.
 //! - Own lock-acquisition policy for run-one execution.
@@ -9,6 +12,10 @@
 //! - Run loop orchestration (see `run_loop`).
 //! - Queue selection helper primitives (see `selection`).
 //! - Phase execution details (see `phases`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `run_one_with_id_locked` is called only when the queue lock is already held by the caller.

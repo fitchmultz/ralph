@@ -1,11 +1,20 @@
 //! Worker lifecycle tests for parallel execution helpers.
 //!
+//! Purpose:
+//! - Worker lifecycle tests for parallel execution helpers.
+//!
 //! Responsibilities:
 //! - Verify worker command construction, task selection, and exclusion rules.
 //! - Keep the heavy scenario coverage out of the production worker facade.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Production worker orchestration logic.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::*;
 use crate::agent::AgentOverrides;

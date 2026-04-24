@@ -1,10 +1,17 @@
 //! Session module tests.
 //!
+//! Purpose:
+//! - Session module tests.
+//!
 //! Responsibilities:
 //! - Verify persistence, validation, progress tracking, and non-interactive recovery behavior.
 //!
 //! Not handled here:
 //! - Full run-loop integration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Time-sensitive validation uses fixed timestamps where practical.

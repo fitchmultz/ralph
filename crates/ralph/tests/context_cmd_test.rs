@@ -1,5 +1,8 @@
 //! Integration test hub for `ralph context` commands.
 //!
+//! Purpose:
+//! - Integration test hub for `ralph context` commands.
+//!
 //! Responsibilities:
 //! - Group CLI integration coverage by `init`, `validate`, and `update` workflows.
 //! - Keep shared repo/bootstrap helpers in adjacent test support only for this suite.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Interactive context wizard testing.
 //! - Template rendering unit tests covered in command-local modules.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp repositories.

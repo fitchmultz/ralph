@@ -1,5 +1,8 @@
 //! Queue deserialization validation tests.
 //!
+//! Purpose:
+//! - Queue deserialization validation tests.
+//!
 //! Responsibilities:
 //! - Verify malformed JSON field types fail with useful diagnostics.
 //! - Verify missing required task fields fail during deserialization.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue graph or relationship validation.
 //! - Queue load/repair read-path semantics.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - These tests assert raw serde errors, not post-deserialization validation.

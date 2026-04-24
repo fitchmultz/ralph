@@ -1,5 +1,8 @@
 //! Shared helpers for `ralph context` integration tests.
 //!
+//! Purpose:
+//! - Shared helpers for `ralph context` integration tests.
+//!
 //! Responsibilities:
 //! - Create isolated Ralph repositories for context command coverage.
 //! - Provide reusable AGENTS.md fixtures for validation and update tests.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Individual command assertions.
 //! - Production context generation logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Repositories are initialized outside the main workspace.

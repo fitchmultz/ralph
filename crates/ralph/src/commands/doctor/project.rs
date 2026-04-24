@@ -1,5 +1,8 @@
 //! Project environment checks for the doctor command.
 //!
+//! Purpose:
+//! - Project environment checks for the doctor command.
+//!
 //! Responsibilities:
 //! - Verify CI-gate prerequisites in the current repository.
 //! - Check `.gitignore` for sensitive log entries.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Build system validation beyond the configured/local CI entrypoint.
 //! - Dependency management.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `.ralph/logs/` should always be gitignored to prevent secret leakage.

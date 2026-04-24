@@ -1,5 +1,8 @@
 //! Interactive tutorial command implementation.
 //!
+//! Purpose:
+//! - Interactive tutorial command implementation.
+//!
 //! Responsibilities:
 //! - Orchestrate tutorial phases in sequence.
 //! - Provide options struct for tutorial configuration.
@@ -8,6 +11,12 @@
 //! Not handled here:
 //! - CLI argument parsing (see cli/tutorial.rs).
 //! - Phase implementations (see phases.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 mod phases;
 mod prompter;

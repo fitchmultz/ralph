@@ -1,6 +1,9 @@
 /**
  GraphPresentation
 
+ Purpose:
+ - Build view-ready graph presentation data from CLI graph payloads and task relationships.
+
  Responsibilities:
  - Build view-ready graph presentation data from CLI graph payloads and task relationships.
  - Produce deterministic initial node placement and cycle metadata for rendering layers.
@@ -8,6 +11,9 @@
  Does not handle:
  - Force-directed simulation.
  - SwiftUI rendering concerns.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Dependency edges come from graph payload dependencies.

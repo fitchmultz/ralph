@@ -1,6 +1,9 @@
 /**
  ConsoleOutputBuffer
 
+ Purpose:
+ - Manage a size-limited rolling buffer for console output text
+
  Responsibilities:
  - Manage a size-limited rolling buffer for console output text
  - Maintain configurable maximum character count with truncation
@@ -11,6 +14,9 @@
  - ANSI parsing or attributed output (see Workspace.parseANSICodes)
  - UI presentation or display logic
  - Persistence of buffer contents across sessions
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - All mutations must occur on MainActor (matches Workspace requirements)

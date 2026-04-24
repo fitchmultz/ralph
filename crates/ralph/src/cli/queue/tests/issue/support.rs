@@ -1,5 +1,8 @@
 //! Shared queue issue test helpers.
 //!
+//! Purpose:
+//! - Shared queue issue test helpers.
+//!
 //! Responsibilities:
 //! - Provide reusable argument builders and command wrappers for issue publish tests.
 //! - Build queue-task fixtures with consistent defaults.
@@ -9,6 +12,10 @@
 //! - Test assertions.
 //! - Fake `gh` executable generation.
 //! - CLI help smoke coverage.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Helpers preserve the prior queue issue test behavior.

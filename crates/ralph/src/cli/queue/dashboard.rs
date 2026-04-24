@@ -1,5 +1,8 @@
 //! Queue dashboard subcommand - aggregated analytics for GUI clients.
 //!
+//! Purpose:
+//! - Queue dashboard subcommand - aggregated analytics for GUI clients.
+//!
 //! Responsibilities:
 //! - Load queue, done, and productivity data once.
 //! - Delegate to reports::dashboard for aggregation.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Report data structures (see reports/dashboard.rs).
 //! - Queue file loading (see crate::queue).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dashboard only supports JSON output (designed for GUI consumption).

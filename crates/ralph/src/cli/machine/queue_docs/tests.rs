@@ -1,14 +1,21 @@
 //! Queue continuation document regression coverage.
 //!
+//! Purpose:
+//! - Queue continuation document regression coverage.
+//!
 //! Responsibilities:
 //! - Verify validate/repair/undo machine documents expose stable continuation guidance.
 //! - Cover representative ready, stalled, and checkpoint-list states.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - CLI routing or JSON printing.
 //! - Queue repair internals beyond the document builder contract.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Ready queues should advertise normal continuation commands.
 //! - Stalled states should surface operator-recovery blocking metadata.
 //! - Undo list documents should reflect whether checkpoints exist.

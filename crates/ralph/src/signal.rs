@@ -1,5 +1,8 @@
 //! Stop signal handling for graceful run loop termination.
 //!
+//! Purpose:
+//! - Stop signal handling for graceful run loop termination.
+//!
 //! Responsibilities:
 //! - Create and manage the stop signal file in the cache directory.
 //! - Provide a simple file-based signaling mechanism for stopping the run loop.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Signal delivery mechanisms (SIGINT, SIGTERM) - see `crate::runner` for that.
 //! - Process-level signal handling or async notification.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The stop signal file path is `.ralph/cache/stop_requested`.

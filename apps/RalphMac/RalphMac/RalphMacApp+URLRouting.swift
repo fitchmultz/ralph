@@ -1,6 +1,9 @@
 /**
  RalphMacApp+URLRouting
 
+ Purpose:
+ - Handle incoming `ralph://open` URLs and route or create workspaces.
+
  Responsibilities:
  - Handle incoming `ralph://open` URLs and route or create workspaces.
  - Reuse bootstrap workspaces when the app launches into a placeholder workspace.
@@ -8,6 +11,9 @@
  Does not handle:
  - Command menu wiring.
  - Window bootstrap mechanics.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Only `ralph://open?workspace=...` URLs are supported.

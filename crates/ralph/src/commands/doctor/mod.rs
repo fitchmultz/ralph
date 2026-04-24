@@ -1,5 +1,8 @@
 //! Doctor checks for Git, queue, and runner configuration health.
 //!
+//! Purpose:
+//! - Doctor checks for Git, queue, and runner configuration health.
+//!
 //! Responsibilities:
 //! - Verify Git environment and repository health.
 //! - Validate queue and done archive files.
@@ -13,6 +16,10 @@
 //! - Complex repairs requiring user input (prompts go to CLI layer).
 //! - Performance benchmarking.
 //! - Network connectivity checks.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All checks are independent; failures in one don't prevent others.

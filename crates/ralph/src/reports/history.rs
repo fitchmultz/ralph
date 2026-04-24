@@ -1,11 +1,18 @@
 //! History report implementation.
 //!
+//! Purpose:
+//! - History report implementation.
+//!
 //! Responsibilities:
 //! - Generate timeline of task creation/completion events by day.
 //!
 //! Not handled here:
 //! - Output formatting (see shared.rs).
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are validated before reporting.

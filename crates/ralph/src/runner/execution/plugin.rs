@@ -1,5 +1,8 @@
 //! Execution helpers for plugin-provided runners.
 //!
+//! Purpose:
+//! - Execution helpers for plugin-provided runners.
+//!
 //! Responsibilities:
 //! - Build commands for plugin runner executables using a stable protocol.
 //! - Pass resolved runner CLI options + plugin config securely (never log raw blobs).
@@ -17,6 +20,12 @@
 //! - `RALPH_PLUGIN_ID`
 //! - `RALPH_PLUGIN_CONFIG_JSON` (opaque; may be empty)
 //! - `RALPH_RUNNER_CLI_JSON` (resolved normalized options)
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::path::Path;
 use std::time::Duration;

@@ -205,6 +205,8 @@ Start here:
 - [Local Smoke Test](docs/guides/local-smoke-test.md)
 - [CLI Reference](docs/cli.md)
 - [Configuration](docs/configuration.md)
+- [Project Operating Constitution](docs/guides/project-operating-constitution.md)
+- [Decisions](docs/decisions.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [CI and Test Strategy](docs/guides/ci-strategy.md)
 - [Public Readiness Checklist](docs/guides/public-readiness.md)

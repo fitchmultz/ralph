@@ -1,5 +1,8 @@
 //! Change-reporting helpers for task updates.
 //!
+//! Purpose:
+//! - Change-reporting helpers for task updates.
+//!
 //! Responsibilities:
 //! - Compare before/after task payloads and log changed fields.
 //! - Report when a task was moved to `done.jsonc` or removed during update.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue loading or validation.
 //! - Runner execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Input JSON snapshots represent the task state before and after a single update.

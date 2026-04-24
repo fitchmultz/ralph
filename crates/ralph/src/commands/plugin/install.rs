@@ -1,5 +1,8 @@
 //! Plugin install and uninstall workflows.
 //!
+//! Purpose:
+//! - Plugin install and uninstall workflows.
+//!
 //! Responsibilities:
 //! - Install plugin directories into the selected scope.
 //! - Uninstall plugin directories after verifying the target looks like a plugin.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin scaffolding for new plugins.
 //! - Plugin discovery listing or executable validation output.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Install sources must be local directories containing `plugin.json`.

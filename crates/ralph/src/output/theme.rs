@@ -1,5 +1,14 @@
 //! Centralized color theme for Ralph CLI.
 //!
+//! Purpose:
+//! - Centralized color theme for Ralph CLI.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Provides semantic color mappings for CLI output (colored crate). Respects NO_COLOR and
 //! `--color` settings via `colored::control`.
 //!
@@ -8,6 +17,12 @@
 //! - Runner output gets distinct colors for different message types.
 //! - Maintain readability on both light and dark terminal backgrounds.
 //! - Avoid "preschool art class" syndrome - colors should guide, not distract.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 /// CLI color helpers using the colored crate.
 ///

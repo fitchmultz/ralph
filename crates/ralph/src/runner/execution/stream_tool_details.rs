@@ -1,11 +1,20 @@
 //! Shared tool-call detail formatting for stream event display.
 //!
+//! Purpose:
+//! - Shared tool-call detail formatting for stream event display.
+//!
 //! Responsibilities:
 //! - Format compact tool-call and command lines across runner event families.
 //! - Normalize and truncate detail payloads for terminal display.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Stream reading or JSON event traversal.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::constants::buffers::TOOL_VALUE_MAX_LEN;
 use crate::outpututil;

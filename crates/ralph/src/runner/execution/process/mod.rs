@@ -1,15 +1,22 @@
 //! Process and streaming orchestration for runner execution.
 //!
+//! Purpose:
+//! - Process and streaming orchestration for runner execution.
+//!
 //! Responsibilities:
 //! - Spawn runner processes, stream stdout/stderr, and capture session output.
 //! - Coordinate Ctrl-C handling and timeout transitions for runner execution.
 //! - Delegate cleanup and wait-state handling to focused helper modules.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Building runner command arguments (see `command` module).
 //! - Rendering JSON events (see `stream_*` modules).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers provide a fully constructed `Command` and validated runner/bin.
 //! - Streaming threads must be joined before buffers are consumed.
 //! - Unix subprocesses execute in isolated process groups so signals can target the full tree.

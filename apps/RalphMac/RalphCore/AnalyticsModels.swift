@@ -1,6 +1,9 @@
 /**
  AnalyticsModels
 
+ Purpose:
+ - Define Codable models for parsing analytics JSON from `ralph productivity` and `ralph queue` commands.
+
  Responsibilities:
  - Define Codable models for parsing analytics JSON from `ralph productivity` and `ralph queue` commands.
  - Model per-section analytics loading state so the UI can distinguish loading, empty, and failed sections.
@@ -9,6 +12,9 @@
  Does not handle:
  - CLI execution (see `Workspace+Analytics.swift`).
  - SwiftUI view composition (see `AnalyticsDashboardView.swift` and `AnalyticsSection.swift`).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - JSON structure matches CLI output with `--format json`.

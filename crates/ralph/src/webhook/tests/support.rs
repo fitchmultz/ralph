@@ -1,12 +1,19 @@
 //! Shared webhook test fixtures.
 //!
+//! Purpose:
+//! - Shared webhook test fixtures.
+//!
 //! Responsibilities:
 //! - Provide reusable sample failure records and default webhook config builders.
 //! - Reset global dispatcher/diagnostics state between serial tests.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Assertions for specific webhook behavior.
 //! - Delivery transport simulation logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Fixture timestamps remain fixed for deterministic assertions.

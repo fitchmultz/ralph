@@ -1,5 +1,8 @@
 //! Prompt export and sync workflows.
 //!
+//! Purpose:
+//! - Prompt export and sync workflows.
+//!
 //! Responsibilities:
 //! - Export prompt templates with version-tracking metadata.
 //! - Classify sync state and generate diffs between overrides and embedded defaults.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Prompt rendering or placeholder expansion.
 //! - Template inventory definitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Existing user-modified files are preserved unless force sync/export is requested.

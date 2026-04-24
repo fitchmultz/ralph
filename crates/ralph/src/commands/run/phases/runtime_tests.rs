@@ -1,8 +1,20 @@
 //! Run phase orchestration tests grouped by behavior.
 //!
+//! Purpose:
+//! - Run phase orchestration tests grouped by behavior.
+//!
 //! Responsibilities:
 //! - Provide shared fixtures for phase orchestration scenario tests.
 //! - Keep phase-specific scenarios in focused submodules.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::phase2::cache_phase2_final_response;
 use super::super::phase3::ensure_phase3_completion;

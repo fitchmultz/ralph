@@ -1,6 +1,9 @@
 /**
  AppSettings+Notifications
 
+ Purpose:
+ - Render notification toggles and explanatory copy for Settings.
+
  Responsibilities:
  - Render notification toggles and explanatory copy for Settings.
  - Keep notification-tab presentation out of the root settings shell.
@@ -8,6 +11,12 @@
  Does not handle:
  - Runner or appearance controls.
  - Notification delivery runtime.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

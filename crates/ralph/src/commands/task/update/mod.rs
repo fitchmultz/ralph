@@ -1,5 +1,8 @@
 //! Task updating orchestration for runner-driven task refreshes.
 //!
+//! Purpose:
+//! - Task updating orchestration for runner-driven task refreshes.
+//!
 //! Responsibilities:
 //! - Expose single-task and update-all entrypoints for `ralph task update`.
 //! - Coordinate dry-run previews, queue locking, backup creation, runner execution, and result reporting.
@@ -9,6 +12,10 @@
 //! - Prompt rendering and runner invocation details.
 //! - Queue backup/restore internals or validation helper implementations.
 //! - Field-diff reporting logic or unit-test fixtures.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Dry-run mode must remain side-effect free with respect to queue/done files.

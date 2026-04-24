@@ -1,12 +1,19 @@
 //! Normalized runner CLI option resolution.
 //!
+//! Purpose:
+//! - Normalized runner CLI option resolution.
+//!
 //! Responsibilities:
 //! - Resolve normalized runner CLI options from (CLI overrides -> task -> config).
 //! - Provide runner-aware derivations needed by command assembly (e.g., Claude permission mode).
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Building runner `Command` arguments (see `cli_spec` / `command` / `runners`).
 //! - Executing runner processes or parsing output (see `process` / `stream`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Ralph execution requires newline-delimited JSON objects; non-stream formats are rejected.

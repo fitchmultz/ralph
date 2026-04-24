@@ -1,5 +1,8 @@
 //! Daemon stop command implementation.
 //!
+//! Purpose:
+//! - Daemon stop command implementation.
+//!
 //! Responsibilities:
 //! - Stop a running Ralph daemon process gracefully.
 //! - Clean up daemon state and lock files after stopping.
@@ -8,6 +11,10 @@
 //! Non-scope:
 //! - Starting or restarting the daemon (handled by start command).
 //! - Windows service management (Unix-only implementation).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Daemon uses a dedicated lock at `.ralph/cache/daemon.lock`.

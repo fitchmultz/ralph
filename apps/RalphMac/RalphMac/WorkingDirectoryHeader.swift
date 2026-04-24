@@ -1,6 +1,9 @@
 /**
  WorkingDirectoryHeader
 
+ Purpose:
+ - Display workspace name and working directory path.
+
  Responsibilities:
  - Display workspace name and working directory path.
  - Provide recents menu and directory chooser button.
@@ -9,6 +12,9 @@
  Does not handle:
  - Directory selection logic (delegated to Workspace).
  - Navigation or routing decisions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected via @ObservedObject.

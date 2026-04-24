@@ -1,5 +1,8 @@
 //! Tree-format rendering for `queue graph`.
 //!
+//! Purpose:
+//! - Tree-format rendering for `queue graph`.
+//!
 //! Responsibilities:
 //! - Render focused and full dependency trees.
 //! - Traverse upstream/downstream relationships for human-readable output.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Graph construction or critical-path computation.
 //! - JSON, DOT, or list rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Relationship traversal only visits tasks present in the graph.

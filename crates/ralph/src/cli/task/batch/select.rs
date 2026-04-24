@@ -1,9 +1,21 @@
 //! Selection helpers for `ralph task batch`.
 //!
+//! Purpose:
+//! - Selection helpers for `ralph task batch`.
+//!
 //! Responsibilities:
 //! - Translate CLI filters into core queue batch filters.
 //! - Resolve target task IDs from explicit IDs or selector filters.
 //! - Enforce non-empty selection for mutating operations.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::cli::task::args::BatchSelectArgs;
 use crate::contracts::QueueFile;

@@ -1,5 +1,8 @@
 //! WorkspaceQueueSnapshotLoader
 //!
+//! Purpose:
+//! - Decode Ralph machine queue-read documents away from the main actor.
+//!
 //! Responsibilities:
 //! - Decode Ralph machine queue-read documents away from the main actor.
 //! - Centralize queue decoding so watcher and manual refresh paths stay consistent.
@@ -9,10 +12,13 @@
 //! - Starting file watchers or deciding when refreshes should run.
 //! - Any task filtering or sorting decisions.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Queue snapshots must match `MachineQueueReadDocument`.
 //! - Results are returned to callers for main-actor publication.
-
+//!
 import Foundation
 
 enum WorkspaceQueueSnapshotLoader {

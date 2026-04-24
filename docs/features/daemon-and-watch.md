@@ -1,4 +1,9 @@
 # Daemon Mode and Watch Mode
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 ![Daemon & Watch Mode](../assets/images/2026-02-07-11-32-24-daemon-watch.png)
 
@@ -470,7 +475,7 @@ Watch mode triggers on file system events that indicate potential changes to sou
 |------|-----------------|
 | TODO | `// TODO: fix error handling` |
 | FIXME | `// FIXME: this is broken` |
-| HACK | `// HACK: temporary workaround` |
+| HACK | `// HACK: isolate flaky watcher path` |
 | XXX | `// XXX: review this before release` |
 
 **Pattern Matching:**

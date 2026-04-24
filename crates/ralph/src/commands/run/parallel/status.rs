@@ -1,8 +1,13 @@
 //! Purpose: parallel status command entrypoint and machine-document builder.
+//!
 //! Responsibilities: handle `ralph run parallel status` output and build machine-readable documents.
+//!
 //! Scope: operator-facing status output only.
+//!
 //! Usage: invoked through `crate::commands::run` re-exports.
+//!
 //! Not handled here: worker inspection summaries (`status_support.rs`) and table rendering (`status_render.rs`).
+//!
 //! Invariants/assumptions: callers resolve the repository from CWD; read paths never mutate parallel state.
 
 use super::status_render::print_status_table;

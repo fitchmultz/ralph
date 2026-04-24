@@ -1,5 +1,8 @@
 //! JSON and stdin/stdout helpers for machine commands.
 //!
+//! Purpose:
+//! - JSON and stdin/stdout helpers for machine commands.
+//!
 //! Responsibilities:
 //! - Read JSON request payloads from files or stdin.
 //! - Emit pretty JSON documents and NDJSON event lines.
@@ -9,6 +12,10 @@
 //! - Machine command routing.
 //! - Queue/task/run business logic.
 //! - Machine contract type definitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine JSON input must be non-empty.

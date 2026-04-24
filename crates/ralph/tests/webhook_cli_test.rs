@@ -1,5 +1,8 @@
 //! Integration tests for `ralph webhook` diagnostics and replay commands.
 //!
+//! Purpose:
+//! - Integration tests for `ralph webhook` diagnostics and replay commands.
+//!
 //! Responsibilities:
 //! - Verify `webhook status --format json` emits parseable diagnostics.
 //! - Verify replay safety guardrails require explicit selectors.
@@ -8,6 +11,10 @@
 //!
 //! Not handled here:
 //! - End-to-end webhook network reliability (covered in webhook delivery integration tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp repos initialized with `ralph init --non-interactive`.

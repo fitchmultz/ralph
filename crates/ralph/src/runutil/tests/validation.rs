@@ -1,12 +1,19 @@
 //! Queue-validation error classification tests for runutil.
 //!
+//! Purpose:
+//! - Queue-validation error classification tests for runutil.
+//!
 //! Responsibilities:
 //! - Verify user-facing validation failures are detected, including through error context layers.
 //! - Guard against false positives for unrelated runtime failures.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Revert-mode behavior.
 //! - Runner backend error handling.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Validation checks are exercised through the public `is_queue_validation_error` surface.

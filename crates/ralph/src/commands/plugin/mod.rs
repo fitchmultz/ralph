@@ -1,5 +1,8 @@
 //! Plugin command facade.
 //!
+//! Purpose:
+//! - Plugin command facade.
+//!
 //! Responsibilities:
 //! - Route plugin subcommands to focused handlers.
 //! - Keep plugin command entrypoints thin and behavior-grouped.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CLI argument parsing (see `crate::cli::plugin`).
 //! - Plugin discovery/registry internals (see `crate::plugins`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Subcommand behavior stays delegated to focused helper modules.

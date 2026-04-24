@@ -1,5 +1,8 @@
 //! Watch task materialization.
 //!
+//! Purpose:
+//! - Watch task materialization.
+//!
 //! Responsibilities:
 //! - Convert detected comments into queue tasks with watch metadata.
 //! - Generate unique task IDs for watch-created tasks.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue reconciliation and duplicate detection.
 //! - File watching orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - New watch tasks always use watch identity version 2 metadata.

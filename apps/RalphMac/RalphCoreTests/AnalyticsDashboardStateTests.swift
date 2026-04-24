@@ -1,10 +1,22 @@
 /**
  AnalyticsDashboardStateTests
 
+ Purpose:
+ - Verify analytics section state renders idle/loading/empty/failed/content correctly.
+
  Responsibilities:
  - Verify analytics section state renders idle/loading/empty/failed/content correctly.
  - Protect stale-data behavior when refreshes fail after a successful load.
  - Ensure empty successful reports do not masquerade as transport failures.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import Foundation

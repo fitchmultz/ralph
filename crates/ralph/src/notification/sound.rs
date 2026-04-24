@@ -1,12 +1,19 @@
 //! Notification sound playback.
 //!
+//! Purpose:
+//! - Notification sound playback.
+//!
 //! Responsibilities:
 //! - Play optional notification sounds with platform-specific implementations.
 //! - Route subprocess-backed playback through managed command helpers.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Notification display or suppression.
 //! - Sound-path configuration resolution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Windows custom sounds remain `.wav`-only through WinMM.

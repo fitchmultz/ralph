@@ -3,6 +3,7 @@
 Ralph is a Rust CLI for running AI agent loops against a structured JSON task queue.
 
 This file provides fast-path guidance for contributors and agents. For deeper architectural detail, start with `docs/index.md` and `CONTRIBUTING.md`.
+Repo-wide source-of-truth, cutover, downstream sync, and validation rules live in `AGENTS.md` and `docs/guides/project-operating-constitution.md`.
 
 ---
 
@@ -296,6 +297,8 @@ The CI runs `check-env-safety` which fails if `.env` is tracked in git.
 
 ## Configuration
 
+Derived summary; `docs/configuration.md` is the configuration source of truth.
+
 Config precedence (highest to lowest):
 
 1. CLI flags
@@ -304,7 +307,7 @@ Config precedence (highest to lowest):
 4. Schema defaults: `schemas/config.schema.json`
 
 See `docs/configuration.md` for key fields (runner/model/phases/RepoPrompt toggles/CI gate settings).
-Runner/model specifics live in `README.md`.
+Runner/model configuration specifics live in `docs/configuration.md`; `README.md` is the product overview and first-workflow entry point.
 
 ---
 
@@ -371,7 +374,7 @@ When making changes, keep docs in sync:
 - **CI gate**: `make agent-ci` MUST pass before claiming completion, committing, or merging
 - **Source docs**: Every new/changed source file MUST have module docs (see [Coding Standards](#coding-standards))
 - **Test coverage**: All new/changed behavior must be covered (success + failure modes)
-- **Feature parity**: When changing user-visible workflows, maintain parity between the CLI and the macOS app (or document divergence)
+- **Feature parity**: When changing user-visible workflows, maintain parity between the CLI and the macOS app; if parity is blocked, record the explicit blocked status in `crates/ralph/src/cli/app_parity.rs` rather than creating unmanaged divergence
 - **CLI help**: User-facing commands/flags MUST have `--help` text with examples (keep `docs/cli.md` in sync)
 - **Secrets**: Never commit or print secrets; redact runner output before copying into `.ralph/queue.jsonc` notes
 

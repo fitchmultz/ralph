@@ -1,5 +1,8 @@
 //! CLI execution timing accumulation for writing execution history.
 //!
+//! Purpose:
+//! - CLI execution timing accumulation for writing execution history.
+//!
 //! Responsibilities:
 //! - Accumulate runner wall-clock durations per execution phase.
 //! - Track and validate that runner/model are consistent across all recorded passes.
@@ -9,6 +12,10 @@
 //! - Running the runner itself or parsing runner output.
 //! - Deciding if a task is actually Done (callers must ensure completion).
 //! - Including CI-gate wall time (only runner wall time is recorded).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - PhaseType::SinglePhase is recorded as ExecutionPhase::Planning (matches ETA phase_count=1).

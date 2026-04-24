@@ -1,6 +1,9 @@
 /**
  WorkspaceTaskDecomposeTests
 
+ Purpose:
+ - Verify Workspace task decomposition uses the CLI JSON contract correctly.
+
  Responsibilities:
  - Verify Workspace task decomposition uses the CLI JSON contract correctly.
  - Exercise preview and write flows against a deterministic mock CLI.
@@ -9,6 +12,9 @@
  Does not handle:
  - SwiftUI presentation flows.
  - Real runner-backed planner execution.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests run against an isolated executable script that emulates the CLI contract.

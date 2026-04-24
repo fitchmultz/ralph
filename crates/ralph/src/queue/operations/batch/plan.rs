@@ -1,15 +1,22 @@
 //! Batch plan manipulation operations.
 //!
+//! Purpose:
+//! - Batch plan manipulation operations.
+//!
 //! Responsibilities:
 //! - Batch append plan items to multiple tasks.
 //! - Batch prepend plan items to multiple tasks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task creation or deletion.
 //! - Task field updates other than plan and updated_at.
 //! - Plan item distribution during task split (see generate.rs).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Both append and prepend update the task's updated_at timestamp.
 //! - Empty plan items lists are rejected before processing.
 

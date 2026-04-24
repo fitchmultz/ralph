@@ -1,5 +1,8 @@
 //! Prompt template management facade.
 //!
+//! Purpose:
+//! - Prompt template management facade.
+//!
 //! Responsibilities:
 //! - Expose prompt export, sync, diff, and version-tracking helpers.
 //! - Centralize stable digest computation and version-file persistence.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Prompt rendering or variable expansion.
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Exported prompts live under `.ralph/prompts/`.

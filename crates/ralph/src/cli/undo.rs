@@ -1,5 +1,8 @@
 //! CLI handler for `ralph undo` command.
 //!
+//! Purpose:
+//! - CLI handler for `ralph undo` command.
+//!
 //! Responsibilities:
 //! - List, preview, or restore continuation checkpoints.
 //! - Keep undo visible as a normal queue continuation workflow.
@@ -8,6 +11,12 @@
 //! Not handled here:
 //! - Core undo logic (see `crate::undo`).
 //! - Queue lock management details beyond invoking the shared machine builders.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::cli::machine::MachineQueueUndoArgs;
 use crate::config;

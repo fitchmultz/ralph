@@ -1,11 +1,18 @@
 //! Drop stale terminal worker records from persisted parallel state.
 //!
+//! Purpose:
+//! - Drop stale terminal worker records from persisted parallel state.
+//!
 //! Responsibilities:
 //! - Remove terminal workers with invalid timestamps or past TTL so capacity bookkeeping does not stall.
 //!
 //! Not handled here:
 //! - Persisting state after pruning (callers save).
 //! - Filesystem cleanup for workspace directories.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Active (non-terminal) workers are never removed here.

@@ -1,6 +1,9 @@
 /**
  AnalyticsSection
 
+ Purpose:
+ - Render the analytics detail column using explicit per-section analytics states.
+
  Responsibilities:
  - Render the analytics detail column using explicit per-section analytics states.
  - Distinguish idle, loading, empty, failed, and content states for productivity summary content.
@@ -10,6 +13,9 @@
  - Data fetching or refresh orchestration.
  - Chart rendering.
  - Queue mutations.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace analytics state is the single source of truth for dashboard/column rendering.

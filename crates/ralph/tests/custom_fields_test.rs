@@ -1,9 +1,24 @@
 //! Integration tests for custom fields functionality.
 //!
+//! Purpose:
+//! - Integration tests for custom fields functionality.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! These tests verify that custom fields:
 //! - Can be set via CLI and persisted to queue.json
 //! - Validate field keys (no whitespace, non-empty)
 //! - Display correctly in queue show output
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::collections::HashMap;
 use std::path::PathBuf;

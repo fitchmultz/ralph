@@ -1,12 +1,18 @@
 /**
  WorkspaceQueueRefreshTests
 
+ Purpose:
+ - Validate workspace queue refresh, analytics refresh, watcher refresh, and retargeting behavior.
+
  Responsibilities:
  - Validate workspace queue refresh, analytics refresh, watcher refresh, and retargeting behavior.
 
  Does not handle:
  - Low-level file-watcher retry behavior.
  - Direct task-creation path coverage.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests initialize isolated temp workspaces and rely on deterministic queue/analytics convergence checks.

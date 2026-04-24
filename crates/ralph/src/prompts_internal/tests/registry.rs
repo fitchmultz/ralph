@@ -1,7 +1,18 @@
 //! Registry mapping and metadata validation tests.
 //!
+//! Purpose:
+//! - Registry mapping and metadata validation tests.
+//!
 //! Responsibilities: validate prompt registry mappings, metadata, and required placeholders.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: prompt rendering, variable expansion, or file loading.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: embedded defaults include known headers and registry metadata matches
 //! prompt asset locations.
 

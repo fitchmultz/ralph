@@ -1,13 +1,22 @@
 //! Tests for task edit operations.
 //!
+//! Purpose:
+//! - Tests for task edit operations.
+//!
 //! Responsibilities:
 //! - Test apply_task_edit and preview_task_edit functionality.
 //! - Verify TaskEditKey formatting and parsing.
 //! - Ensure preview and apply behavior is consistent.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue persistence testing (integration tests).
 //! - Cross-module queue validation (see queue validation tests).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::{TaskEditKey, apply_task_edit, format_field_value, preview_task_edit};
 use crate::contracts::{QueueFile, Task, TaskAgent, TaskPriority, TaskStatus};

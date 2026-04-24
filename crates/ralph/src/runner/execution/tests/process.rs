@@ -1,7 +1,22 @@
 //! Tests for process execution and timeout handling.
 //!
+//! Purpose:
+//! - Tests for process execution and timeout handling.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! These tests verify the timeout race condition fix, state transition logic,
 //! and Ctrl-C handling hardening (cleanup on error paths, pre-run interrupts).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::{Command, Stdio};
 use std::sync::Arc;

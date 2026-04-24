@@ -58,15 +58,18 @@ pub(crate) fn finalize_bookkeeping_and_push(
             );
         }
 
-        if let Err(err) = rebuild_bookkeeping_from_target(resolved, task_id, &config.target_branch)
-        {
-            return failed_attempt(
-                repo_root,
-                resolved,
-                task_id,
-                format!("machine bookkeeping reconciliation failed: {err:#}"),
-            );
-        }
+        let followup_report =
+            match rebuild_bookkeeping_from_target(resolved, task_id, &config.target_branch) {
+                Ok(report) => report,
+                Err(err) => {
+                    return failed_attempt(
+                        repo_root,
+                        resolved,
+                        task_id,
+                        format!("machine bookkeeping reconciliation failed: {err:#}"),
+                    );
+                }
+            };
 
         if let Err(err) = commit_pending_integration_changes(repo_root, task_id) {
             return failed_attempt(
@@ -88,10 +91,17 @@ pub(crate) fn finalize_bookkeeping_and_push(
 
         match git::push_head_to_branch(repo_root, "origin", &config.target_branch) {
             Ok(()) => {
+                let cleanup_error = if followup_report.is_some() {
+                    remove_applied_followup_proposal(resolved, task_id)
+                        .err()
+                        .map(|err| format!("machine follow-up proposal cleanup failed: {err:#}"))
+                } else {
+                    None
+                };
                 return Ok(MachineIntegrationAttempt {
                     compliance,
                     pushed: true,
-                    push_error: None,
+                    push_error: cleanup_error,
                 });
             }
             Err(err) => {
@@ -144,11 +154,11 @@ fn rebase_on_latest_target(repo_root: &Path, target_branch: &str) -> Result<()> 
     Ok(())
 }
 
-fn rebuild_bookkeeping_from_target(
+pub(super) fn rebuild_bookkeeping_from_target(
     resolved: &Resolved,
     task_id: &str,
     target_branch: &str,
-) -> Result<()> {
+) -> Result<Option<queue::FollowupApplyReport>> {
     let repo_root = resolved.repo_root.as_path();
     let remote_ref = format!("origin/{}", target_branch.trim());
 
@@ -156,16 +166,21 @@ fn rebuild_bookkeeping_from_target(
     restore_bookkeeping_path_from_ref(repo_root, &remote_ref, &resolved.done_path, "done")?;
 
     archive_current_task(resolved, task_id)?;
-    if let Some(report) = queue::apply_default_followups_if_present(resolved, task_id)
-        .context("apply parallel worker follow-up proposal")?
-    {
+    let report = queue::apply_default_followups_if_present_with_removal(resolved, task_id, false)
+        .context("apply parallel worker follow-up proposal")?;
+    if let Some(report) = &report {
         log::info!(
             "applied {} follow-up task(s) proposed by {} during machine integration",
             report.created_tasks.len(),
             task_id
         );
     }
-    Ok(())
+    Ok(report)
+}
+
+fn remove_applied_followup_proposal(resolved: &Resolved, task_id: &str) -> Result<()> {
+    queue::remove_default_followups_proposal_if_present(&resolved.repo_root, task_id)
+        .context("remove applied parallel worker follow-up proposal")
 }
 
 fn restore_bookkeeping_path_from_ref(

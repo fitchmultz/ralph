@@ -1,7 +1,22 @@
 //! Phase-specific execution logic for `ralph run`.
 //!
+//! Purpose:
+//! - Phase-specific execution logic for `ralph run`.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! This module isolates multi-phase runner workflows (planning, implementation,
 //! code review) from higher-level orchestration in `crate::commands::run`.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::cell::RefCell;
 

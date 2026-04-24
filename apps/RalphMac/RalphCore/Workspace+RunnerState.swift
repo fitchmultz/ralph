@@ -1,5 +1,8 @@
 //! Workspace+RunnerState
 //!
+//! Purpose:
+//! - Start, cancel, and loop Ralph CLI executions for a workspace.
+//!
 //! Responsibilities:
 //! - Start, cancel, and loop Ralph CLI executions for a workspace.
 //! - Track per-workspace runner lifecycle fields such as active run, phase, history, and resume state.
@@ -11,12 +14,15 @@
 //! - Task filtering, grouping, or other presentation work.
 //! - Task mutation and task creation flows.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Runner state remains window/workspace scoped and must not leak across workspaces.
 //! - Only one active run may execute per workspace.
 //! - Cancellation must target the active subprocess owned by this workspace.
 //! - Runner configuration is resolved by the CLI itself, not reconstructed in-app.
-
+//!
 public import Foundation
 public import Combine
 public import SwiftUI

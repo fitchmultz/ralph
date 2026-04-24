@@ -1,5 +1,8 @@
 //! Task aging report implementation.
 //!
+//! Purpose:
+//! - Task aging report implementation.
+//!
 //! Responsibilities:
 //! - Compute aging buckets and report payloads for queue tasks.
 //! - Keep threshold validation, aging computation, and rendering in focused helpers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Output styling beyond CLI text labels.
 //! - Queue persistence or mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Threshold ordering is strict: warning < stale < rotten.

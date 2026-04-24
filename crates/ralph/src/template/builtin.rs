@@ -1,5 +1,8 @@
 //! Built-in task templates for common patterns.
 //!
+//! Purpose:
+//! - Built-in task templates for common patterns.
+//!
 //! Responsibilities:
 //! - Define embedded JSON templates for standard task types.
 //! - Provide lookup functions for built-in templates by name.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Custom template loading from filesystem (see `loader.rs`).
 //! - Template merging with user options (see `merge.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Template JSON is valid and parses to Task structs.

@@ -1,5 +1,8 @@
 //! CI gate command translation helpers.
 //!
+//! Purpose:
+//! - CI gate command translation helpers.
+//!
 //! Responsibilities:
 //! - Convert structured `agent.ci_gate` config into executable commands.
 //! - Provide one shared execution path for standard and parallel CI checks.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CI failure classification or continue-session logic.
 //! - Config source trust checks (see `crate::config::resolution`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers pass validated `CiGateConfig` values.

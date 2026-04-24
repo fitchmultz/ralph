@@ -1,10 +1,19 @@
 //! Plugin configuration for enable/disable and per-plugin settings.
 //!
+//! Purpose:
+//! - Plugin configuration for enable/disable and per-plugin settings.
+//!
 //! Responsibilities:
 //! - Define plugin config structs and merge behavior for plugin activation.
 //!
 //! Not handled here:
 //! - Plugin loading and execution (see `crate::plugin` module).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

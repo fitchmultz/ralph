@@ -1,6 +1,9 @@
 /**
  ConfigModels
 
+ Purpose:
+ - Provide Codable models for Ralph configuration parsing and serialization.
+
  Responsibilities:
  - Provide Codable models for Ralph configuration parsing and serialization.
  - Mirror the machine-resolved config, error, and path documents used by the app.
@@ -9,6 +12,9 @@
  Does not handle:
  - CLI operations (see RalphCLIClient).
  - Config validation (CLI is source of truth).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - These models are partial; unknown fields are ignored during decoding.

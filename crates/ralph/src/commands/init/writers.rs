@@ -1,5 +1,8 @@
 //! File creation utilities for Ralph initialization.
 //!
+//! Purpose:
+//! - File creation utilities for Ralph initialization.
+//!
 //! Responsibilities:
 //! - Create and write queue.jsonc, done.jsonc, and config.jsonc files.
 //! - Validate existing files when not forcing overwrite.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - README file creation (see `super::readme`).
 //! - Interactive user input (see `super::wizard`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Parent directories are created as needed.

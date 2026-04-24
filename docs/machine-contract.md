@@ -1,4 +1,9 @@
 # Machine Contract
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Ralph exposes a first-class machine API under `ralph machine ...`.
 

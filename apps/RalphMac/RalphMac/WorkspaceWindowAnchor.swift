@@ -1,6 +1,9 @@
 /**
  WorkspaceWindowAnchor
 
+ Purpose:
+ - Apply minimum window geometry and deterministic UI-testing placement.
+
  Responsibilities:
  - Apply minimum window geometry and deterministic UI-testing placement.
  - Enforce UI-testing window-count policy via explicit coordinator state.
@@ -9,6 +12,9 @@
  Does not handle:
  - Workspace scene restoration or selection.
  - Main app command routing.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - UI-testing launches target one window by default and two windows for multiwindow runs.

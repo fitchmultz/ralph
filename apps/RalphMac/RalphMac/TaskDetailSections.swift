@@ -1,6 +1,9 @@
 /**
  TaskDetailSections
 
+ Purpose:
+ - Provide decomposed section views for `TaskDetailView`.
+
  Responsibilities:
  - Provide decomposed section views for `TaskDetailView`.
  - Keep form layout for task basics, content arrays, relationships, and metadata out of the root detail surface.
@@ -9,6 +12,9 @@
  Does not handle:
  - Saving or conflict detection.
  - Root-level alert and action bar orchestration.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Sections expect bindings into a live `TaskDetailEditorState`.

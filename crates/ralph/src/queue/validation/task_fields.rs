@@ -1,5 +1,8 @@
 //! Queue task field validation.
 //!
+//! Purpose:
+//! - Queue task field validation.
+//!
 //! Responsibilities:
 //! - Validate per-task required fields, timestamps, IDs, and agent limits.
 //! - Keep task-level validation separate from graph-level reasoning.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Cross-task relationship validation.
 //! - Queue-set duplicate detection.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Timestamp validation requires RFC3339 UTC values.

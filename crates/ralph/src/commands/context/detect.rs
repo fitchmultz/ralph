@@ -1,5 +1,8 @@
 //! Project type detection and hint conversion helpers.
 //!
+//! Purpose:
+//! - Project type detection and hint conversion helpers.
+//!
 //! Responsibilities:
 //! - Map CLI hints to detected project types and back.
 //! - Infer project type from repo-root file heuristics.
@@ -7,6 +10,12 @@
 //!
 //! Not handled here:
 //! - AGENTS.md rendering or persistence.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::types::DetectedProjectType;
 use crate::cli::context::ProjectTypeHint;

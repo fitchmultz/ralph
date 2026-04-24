@@ -1,5 +1,8 @@
 //! Productivity report builders and display functions.
 //!
+//! Purpose:
+//! - Productivity report builders and display functions.
+//!
 //! Responsibilities:
 //! - Build structured reports from stats data.
 //! - Print formatted reports to stdout.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Calculations and business logic (see `super::calculations`).
 //! - Data persistence (see `super::persistence`).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::contracts::Task;
 

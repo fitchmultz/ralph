@@ -1,6 +1,9 @@
 /**
  KanbanTransientState
 
+ Purpose:
+ - Own transient Kanban board UI state that should not live inline in the view.
+
  Responsibilities:
  - Own transient Kanban board UI state that should not live inline in the view.
  - Coordinate externally-triggered highlight presentation for recently changed tasks.
@@ -8,6 +11,9 @@
  Does not handle:
  - Column rendering, task selection, or status mutations.
  - Task persistence.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Only external queue refresh events should trigger highlight presentation.

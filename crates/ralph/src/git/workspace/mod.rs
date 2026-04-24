@@ -1,5 +1,8 @@
 //! Git workspace helpers for parallel task isolation.
 //!
+//! Purpose:
+//! - Git workspace helpers for parallel task isolation.
+//!
 //! Responsibilities:
 //! - Re-export workspace path, lifecycle, and remote helpers behind a thin facade.
 //! - Keep crate-facing git workspace APIs stable while delegating focused concerns.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Task orchestration, PR workflows, or integration conflict policy.
 //! - Generic filesystem helpers outside workspace lifecycle concerns.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Workspace paths are unique per task ID.

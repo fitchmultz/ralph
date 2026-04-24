@@ -1,5 +1,8 @@
 //! Integration tests for `ralph task show/details` CLI behavior.
 //!
+//! Purpose:
+//! - Integration tests for `ralph task show/details` CLI behavior.
+//!
 //! Responsibilities:
 //! - Validate queue + done lookups for task detail output.
 //! - Confirm the `details` alias resolves to the show handler.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Exhaustive formatting or color output verification.
 //! - UI rendering or runner execution paths.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The Ralph binary is available via CARGO_BIN_EXE_ralph or adjacent to the test binary.

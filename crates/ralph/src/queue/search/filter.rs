@@ -1,5 +1,8 @@
 //! Task filtering by status, tag, and scope.
 //!
+//! Purpose:
+//! - Task filtering by status, tag, and scope.
+//!
 //! Responsibilities:
 //! - Filter tasks by status, tags, and scope with AND across categories
 //! - Support limiting results to N matches
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Text search (see substring.rs and fuzzy.rs)
 //! - Sorting or ordering beyond input order
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty filter lists mean "no filtering" for that category

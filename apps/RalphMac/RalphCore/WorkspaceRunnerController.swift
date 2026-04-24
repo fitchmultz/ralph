@@ -1,8 +1,10 @@
 /**
  WorkspaceRunnerController
 
- Responsibilities:
+ Purpose:
  - Own the live Ralph subprocess lifecycle for one workspace.
+
+ Responsibilities:
  - Load resolved runner configuration for the workspace.
  - Consume machine run-event streams and derive UI state from structured envelopes.
  - Launch one-shot runs and task loops from app controls.
@@ -11,6 +13,10 @@
  - Queue watching or queue decoding.
  - Task filtering or presentation.
  - App-wide CLI bootstrap.
+
+ Usage:
+ - Owned by a `Workspace` and called from Run Control, app commands, and tests.
+ - Keep feature slices in adjacent `WorkspaceRunnerController+...` files.
 
  Invariants/assumptions callers must respect:
  - Only one active CLI run may exist per workspace.

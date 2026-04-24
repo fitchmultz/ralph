@@ -1,6 +1,9 @@
 /**
  SettingsWindowService
 
+ Purpose:
+ - Manage the dedicated Settings window controller and presentation refresh cadence.
+
  Responsibilities:
  - Manage the dedicated Settings window controller and presentation refresh cadence.
  - Install fresh settings-scene content before each reveal.
@@ -9,6 +12,12 @@
  Does not handle:
  - Diagnostics snapshot persistence.
  - Settings tab content rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import AppKit

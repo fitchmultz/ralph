@@ -1,14 +1,21 @@
 //! Basic batch-operation regression coverage.
 //!
+//! Purpose:
+//! - Basic batch-operation regression coverage.
+//!
 //! Responsibilities:
 //! - Cover tag filtering, task-ID collection, resolution, and result helpers.
 //! - Lock down order-preserving deduplication and batch summary behavior.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Mutation-path failure handling for batch edit/status/field commands.
 //! - Queue persistence or CLI integration behavior.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Tests reuse the parent module's shared fixtures and imports via `super::*`.
 //! - Helper-only behavior should stay deterministic for stable batch orchestration.
 

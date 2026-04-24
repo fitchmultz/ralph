@@ -1,7 +1,18 @@
 //! Scan prompt rendering and loading tests.
 //!
+//! Purpose:
+//! - Scan prompt rendering and loading tests.
+//!
 //! Responsibilities: validate scan prompt rendering for different modes and fallback behavior.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: worker prompts, task builder, or phase-specific rendering.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: maintenance mode includes code review guidance; innovation mode includes
 //! feature discovery guidance.
 

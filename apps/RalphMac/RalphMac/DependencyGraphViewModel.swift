@@ -1,6 +1,9 @@
 /**
  DependencyGraphViewModel
 
+ Purpose:
+ - Own dependency-graph presentation state, selection state, and async layout refinement.
+
  Responsibilities:
  - Own dependency-graph presentation state, selection state, and async layout refinement.
  - Translate workspace graph payloads into rendered nodes/edges via RalphCore services.
@@ -8,6 +11,9 @@
  Does not handle:
  - SwiftUI canvas drawing or gesture plumbing.
  - Graph data loading from the CLI.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions:
  - Graph layout work is cancelable and only the latest refresh should publish state.

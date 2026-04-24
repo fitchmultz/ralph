@@ -1,15 +1,22 @@
 //! Runner orchestration for executing tasks across supported CLIs and parsing outputs.
 //!
+//! Purpose:
+//! - Runner orchestration for executing tasks across supported CLIs and parsing outputs.
+//!
 //! Responsibilities:
 //! - Expose the runner orchestration API (`run_prompt`, `resume_session`) and shared types.
 //! - Delegate execution details to `runner/execution/*`.
 //! - Re-export cohesive submodules for errors, models, and settings.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Runner subprocess command assembly (see `runner/execution/*`).
 //! - Queue persistence or task selection.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Runner output is redacted before display/logging where required.
 
 mod error;

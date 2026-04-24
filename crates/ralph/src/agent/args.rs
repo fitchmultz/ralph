@@ -1,5 +1,8 @@
 //! CLI argument structs for agent configuration.
 //!
+//! Purpose:
+//! - CLI argument structs for agent configuration.
+//!
 //! Responsibilities:
 //! - Define CLI argument structs with clap derive macros for agent-related flags.
 //! - Keep fields as raw CLI shapes (Strings, bools, Options).
@@ -8,6 +11,10 @@
 //! - Parsing or validation logic (see `super::parse`).
 //! - Override resolution (see `super::resolve`).
 //! - RepoPrompt flag resolution (see `super::repoprompt`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All structs use `clap::Args` derive for CLI integration.

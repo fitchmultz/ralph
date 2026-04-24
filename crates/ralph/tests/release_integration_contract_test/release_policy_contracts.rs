@@ -1,7 +1,19 @@
 //! Release policy shell contracts (`release_policy.sh` and related scripts).
 //!
+//! Purpose:
+//! - Release policy shell contracts (`release_policy.sh` and related scripts).
+//!
 //! Responsibilities:
 //! - Dirty-path collection/validation and release cleanliness script structure.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use std::process::Command;
 

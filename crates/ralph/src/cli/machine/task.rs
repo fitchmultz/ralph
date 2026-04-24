@@ -1,5 +1,8 @@
 //! Task-oriented machine command handlers.
 //!
+//! Purpose:
+//! - Task-oriented machine command handlers.
+//!
 //! Responsibilities:
 //! - Implement `ralph machine task ...` operations.
 //! - Parse machine task-create/mutate/decompose inputs and emit versioned JSON documents.
@@ -9,6 +12,10 @@
 //! - Queue read/graph/dashboard commands.
 //! - Machine run event streaming.
 //! - Clap argument definitions or top-level routing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Machine task requests stay versioned and JSON-only.
@@ -21,7 +28,7 @@ mod tests;
 
 use std::collections::HashMap;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 
 use crate::agent;
 use crate::cli::machine::args::{MachineTaskArgs, MachineTaskCommand};
@@ -252,25 +259,7 @@ fn create_task(
         bail!("Task title cannot be empty");
     }
 
-    let queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "machine task create", force)?;
-    let active = queue::load_queue(&resolved.queue_path)?;
-    let done = queue::load_queue_or_default(&resolved.done_path)?;
-    let done_ref = done_queue_ref(&done, &resolved.done_path);
-    let predicted_id = queue::next_id_across(
-        &active,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        queue_max_dependency_depth(resolved),
-    )?;
-
     if let Some(template) = &request.template {
-        let _loaded = crate::template::load_template_with_context(
-            template,
-            &resolved.repo_root,
-            request.target.as_deref(),
-            false,
-        )?;
         let options = task_cmd::TaskBuildOptions {
             request: request.title.clone(),
             hint_tags: request.tags.join(","),
@@ -284,23 +273,31 @@ fn create_task(
             output: task_cmd::TaskBuildOutputTarget::Quiet,
             template_hint: Some(template.clone()),
             template_target: request.target.clone(),
-            strict_templates: false,
+            strict_templates: true,
             estimated_minutes: None,
         };
-        drop(queue_lock);
-        task_cmd::build_task(resolved, options)?;
-        let queue_after = queue::load_queue(&resolved.queue_path)?;
-        return queue_after
-            .tasks
-            .into_iter()
-            .find(|task| task.id == predicted_id)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Created template task {} not found after write",
-                    predicted_id
-                )
-            });
+        let created_tasks = task_cmd::build_task_created_tasks(resolved, options)?;
+        return match created_tasks.as_slice() {
+            [task] => Ok(task.clone()),
+            [] => bail!("Template task create completed without creating a task"),
+            tasks => bail!(
+                "Template task create expected one task but created {}",
+                tasks.len()
+            ),
+        };
     }
+
+    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "machine task create", force)?;
+    let active = queue::load_queue(&resolved.queue_path)?;
+    let done = queue::load_queue_or_default(&resolved.done_path)?;
+    let done_ref = done_queue_ref(&done, &resolved.done_path);
+    let predicted_id = queue::next_id_across(
+        &active,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        queue_max_dependency_depth(resolved),
+    )?;
 
     let now = timeutil::now_utc_rfc3339()?;
     let priority = request.priority.parse::<crate::contracts::TaskPriority>()?;

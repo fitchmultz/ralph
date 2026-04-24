@@ -1,11 +1,21 @@
 //! Integration tests for `ralph migrate` commands.
 //!
+//! Purpose:
+//! - Integration tests for `ralph migrate` commands.
+//!
 //! Responsibilities:
 //! - Verify `migrate --list` displays available migrations.
 //! - Verify `migrate status` shows detailed migration status.
 //! - Verify `migrate --apply` with `--force` works without interactive prompts.
 //! - Verify `migrate --check` returns appropriate exit codes.
 //! - Verify `migrate` (no args) shows current status.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The migration `config_key_rename_parallel_worktree_root_2026_02` exists in the registry.

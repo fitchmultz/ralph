@@ -1,4 +1,9 @@
 # Architecture Overview
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](index.md)
+
 
 Purpose: describe Ralph’s components, runtime data flow, trust boundaries, and failure handling model.
 
@@ -137,6 +142,10 @@ sequenceDiagram
   - Recovery: fail fast before merge/rebase; enforce workspace-local restore invariants
 
 ## Key Design Decisions and Trade-offs
+
+Formal project-level decisions live in the canonical
+[Decisions](decisions.md) log. This section summarizes the durable architecture
+trade-offs that are useful while reading the system design.
 
 Local-first JSONC state:
 

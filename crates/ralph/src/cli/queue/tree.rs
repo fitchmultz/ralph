@@ -1,5 +1,8 @@
 //! Handler for `ralph queue tree` subcommand.
 //!
+//! Purpose:
+//! - Handler for `ralph queue tree` subcommand.
+//!
 //! Responsibilities:
 //! - Render an ASCII tree of task hierarchy based on parent_id.
 //! - Support filtering by root task, max depth, and done inclusion.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Queue mutation (this is a read-only command).
 //! - Dependency graph rendering (see `graph.rs` for depends_on).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Output is deterministic (stable ordering).

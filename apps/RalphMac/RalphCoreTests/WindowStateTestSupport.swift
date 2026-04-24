@@ -1,11 +1,17 @@
 /**
  WindowStateTestSupport
 
+ Purpose:
+ - Provide shared setup, teardown, and filesystem/defaults helpers for split window-state suites.
+
  Responsibilities:
  - Provide shared setup, teardown, and filesystem/defaults helpers for split window-state suites.
 
  Does not handle:
  - Defining assertions for specific persistence or routing behaviors.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests must run on the main actor because WorkspaceManager is main-actor isolated.

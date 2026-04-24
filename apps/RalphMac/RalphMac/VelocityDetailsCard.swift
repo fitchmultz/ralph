@@ -1,8 +1,20 @@
 /**
  VelocityDetailsCard
 
+ Purpose:
+ - Show detailed velocity metrics with best day and average.
+
  Responsibilities:
  - Show detailed velocity metrics with best day and average.
+
+ Scope:
+ - Limited to the responsibilities listed above.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import SwiftUI

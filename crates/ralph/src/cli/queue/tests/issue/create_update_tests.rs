@@ -1,5 +1,8 @@
 //! Successful single-task create/update queue issue tests.
 //!
+//! Purpose:
+//! - Successful single-task create/update queue issue tests.
+//!
 //! Responsibilities:
 //! - Verify issue creation persists GitHub metadata and updates timestamps.
 //! - Verify existing issue updates backfill the stored issue number.
@@ -9,6 +12,10 @@
 //! - Publish-many behavior.
 //! - Preview-only coverage.
 //! - Fake `gh` shell-script definitions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All tests in this file are Unix-only because they rely on shell-script shims.

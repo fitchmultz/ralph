@@ -1,6 +1,9 @@
 /**
  WorkspaceErrorRecoveryTests
 
+ Purpose:
+ - Verify workspace queue recovery commands surface machine-command failures clearly.
+
  Responsibilities:
  - Verify workspace queue recovery commands surface machine-command failures clearly.
  - Exercise the shared recovery wrapper against structured and legacy stderr fixtures.
@@ -10,6 +13,9 @@
  - Recovery category classification heuristics.
  - Successful queue repair or undo application flows.
  - SwiftUI error presentation.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Tests run against an isolated mock CLI script rather than the real Ralph binary.

@@ -1,6 +1,9 @@
 /**
  WorkspaceManager+Lifecycle
 
+ Purpose:
+ - Manage workspace creation, duplication, closure, and legacy-state migration.
+
  Responsibilities:
  - Manage workspace creation, duplication, closure, and legacy-state migration.
  - Restore workspace-level persisted directories when rebuilding sessions.
@@ -9,6 +12,9 @@
  Does not handle:
  - Window-state claiming/persistence.
  - CLI version checks.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Restorable workspaces must still exist on disk and contain a Ralph queue file.

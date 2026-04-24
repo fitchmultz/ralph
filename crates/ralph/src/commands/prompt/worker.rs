@@ -1,5 +1,8 @@
 //! Worker prompt preview builder.
 //!
+//! Purpose:
+//! - Worker prompt preview builder.
+//!
 //! Responsibilities:
 //! - Resolve worker preview task selection and iteration settings.
 //! - Build single-phase and phase-specific worker prompt previews.
@@ -9,6 +12,10 @@
 //! - CLI argument parsing.
 //! - Template management commands.
 //! - Actual runner invocation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview rendering mirrors runtime prompt composition as closely as possible.

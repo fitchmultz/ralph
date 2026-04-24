@@ -1,5 +1,8 @@
 //! Session state contract for crash recovery.
 //!
+//! Purpose:
+//! - Session state contract for crash recovery.
+//!
 //! Responsibilities:
 //! - Define the session state schema for run loop recovery.
 //! - Provide serialization/deserialization for session persistence.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Session persistence operations (see crate::session).
 //! - Session validation logic (see crate::session).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Session state is written atomically to prevent corruption.

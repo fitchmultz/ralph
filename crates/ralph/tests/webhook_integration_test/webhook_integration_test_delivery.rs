@@ -1,11 +1,18 @@
 //! Delivery and retry behavior coverage for webhook integration tests.
 //!
+//! Purpose:
+//! - Delivery and retry behavior coverage for webhook integration tests.
+//!
 //! Responsibilities:
 //! - Validate non-blocking enqueue semantics and retry delivery attempts.
 //! - Cover queue backpressure behavior for `DropNew` and `DropOldest`.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Event filtering or payload-shape assertions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Each scenario matches requests by a unique task ID prefix to avoid stale worker traffic.

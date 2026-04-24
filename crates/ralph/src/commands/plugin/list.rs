@@ -1,5 +1,8 @@
 //! Plugin list command rendering.
 //!
+//! Purpose:
+//! - Plugin list command rendering.
+//!
 //! Responsibilities:
 //! - Load discovered plugins from the registry.
 //! - Render plugin inventory in JSON or human-readable text.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin installation, validation, or scaffolding.
 //! - CLI parsing or top-level command dispatch.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Discovery order comes from the registry snapshot.

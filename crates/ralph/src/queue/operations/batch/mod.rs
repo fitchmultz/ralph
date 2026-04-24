@@ -1,17 +1,24 @@
 //! Batch task operations for efficient multi-task updates.
 //!
+//! Purpose:
+//! - Batch task operations for efficient multi-task updates.
+//!
 //! Responsibilities:
 //! - Apply operations to multiple tasks atomically or with partial success.
 //! - Filter tasks by tags, status, priority, scope, and age for batch selection.
 //! - Batch delete, archive, clone, split, and plan operations.
 //! - Provide detailed progress and error reporting.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - CLI argument parsing or user interaction.
 //! - Individual task validation beyond what's in the single-task operations.
 //! - Persistence to disk (callers save the queue after batch operations).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers provide a loaded QueueFile and valid RFC3339 timestamp.
 //! - Tag filtering is case-insensitive and OR-based (any tag matches).
 //! - Status/priority/scope filters use OR logic within each filter type.

@@ -1,15 +1,22 @@
 //! Desktop notification system for task completion and failures.
 //!
+//! Purpose:
+//! - Desktop notification system for task completion and failures.
+//!
 //! Responsibilities:
 //! - Expose the notification configuration and runtime API.
 //! - Coordinate notification delivery, suppression, and optional sound playback.
 //! - Keep platform-specific display and sound logic isolated in focused submodules.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Notification scheduling or queuing (callers trigger explicitly).
 //! - Persistent notification history or logging.
 //! - UI mode detection (callers should suppress if desired).
 //! - Do Not Disturb detection (handled at call site if needed).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Sound playback failures do not fail the notification call.

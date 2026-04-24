@@ -1,5 +1,8 @@
 //! Shared task decomposition data models.
 //!
+//! Purpose:
+//! - Shared task decomposition data models.
+//!
 //! Responsibilities:
 //! - Define the public preview/write types exposed to CLI and machine consumers.
 //! - Hold planner-response parsing structs shared by normalization helpers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Runner invocation, prompt rendering, or queue mutation logic.
 //! - Tree normalization algorithms or task materialization helpers.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Serialized public types remain stable for current CLI and machine output contracts.

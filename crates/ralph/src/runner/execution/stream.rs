@@ -1,15 +1,22 @@
 //! Streaming reader and display helpers for runner output.
 //!
+//! Purpose:
+//! - Streaming reader and display helpers for runner output.
+//!
 //! Responsibilities:
 //! - Define the shared sink abstraction for stdout/stderr streaming.
 //! - Re-export cohesive stream reader, rendering, and event helpers.
 //!
-//! Explicitly does NOT handle:
+//! Non-scope:
 //! - Runner process lifecycle (see `super::command`).
 //! - Output redaction (see `crate::redaction`).
 //! - Debug logging policy outside stream readers.
 //!
-//! Invariants/Assumptions:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Readers preserve valid UTF-8 across read boundaries.
 //! - Invalid or incomplete EOF bytes are decoded lossily.
 //! - JSON parsing remains best-effort; non-JSON lines are passed through.

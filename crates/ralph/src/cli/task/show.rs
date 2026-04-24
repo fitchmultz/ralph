@@ -1,5 +1,8 @@
 //! Task display command handler for `ralph task show` subcommand.
 //!
+//! Purpose:
+//! - Task display command handler for `ralph task show` subcommand.
+//!
 //! Responsibilities:
 //! - Handle `show` and `details` commands.
 //! - Display task information from queue or done archive.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Task building or editing (see `build.rs`, `edit.rs`).
 //! - Queue listing or searching (see `cli/queue/show.rs`, `cli/queue/list.rs`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task is searched in both queue and done archive.

@@ -1,5 +1,8 @@
 //! DOT-format rendering for `queue graph`.
 //!
+//! Purpose:
+//! - DOT-format rendering for `queue graph`.
+//!
 //! Responsibilities:
 //! - Render Graphviz DOT output for focused or full graphs.
 //! - Encode relationship styling for dependency, block, relate, and duplicate edges.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Graph construction or CLI argument parsing.
 //! - Tree, JSON, or list rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Included task IDs are sorted and deduplicated before emission.

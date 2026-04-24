@@ -1,15 +1,22 @@
 //! JSON event normalization and display-line extraction for runner streams.
 //!
+//! Purpose:
+//! - JSON event normalization and display-line extraction for runner streams.
+//!
 //! Responsibilities:
 //! - Correlate tool-use and tool-result events across runner formats.
 //! - Route JSON payloads through focused protocol formatters.
 //! - Preserve compact terminal-friendly display lines for stream rendering.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Reading bytes from subprocess streams.
 //! - Writing output to sinks or handlers.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - JSON values are best-effort and may be partially populated.
 
 mod claude;

@@ -1,4 +1,9 @@
 # Context / AGENTS.md System
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Feature Documentation](README.md)
+
 
 ![Project Context](../assets/images/2026-02-07-11-32-24-context.png)
 

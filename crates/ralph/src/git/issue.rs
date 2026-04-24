@@ -1,5 +1,8 @@
 //! GitHub Issue helpers using the `gh` CLI.
 //!
+//! Purpose:
+//! - GitHub Issue helpers using the `gh` CLI.
+//!
 //! Responsibilities:
 //! - Create and edit GitHub issues for Ralph tasks via `gh issue`.
 //! - Parse issue URLs/numbers from `gh` output for persistence.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue mutation or task persistence.
 //! - Rendering issue bodies from tasks (see `cli::queue::export`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `gh` is installed and authenticated.

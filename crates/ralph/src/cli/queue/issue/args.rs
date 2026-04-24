@@ -1,5 +1,8 @@
 //! Clap argument types for `ralph queue issue`.
 //!
+//! Purpose:
+//! - Clap argument types for `ralph queue issue`.
+//!
 //! Responsibilities:
 //! - Define the single-task and bulk GitHub issue publish CLI surface.
 //! - Keep help text/examples colocated with the issue subcommands.
@@ -9,6 +12,10 @@
 //! - Queue loading or mutation.
 //! - GitHub API/CLI execution.
 //! - Publish workflow validation beyond clap parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Argument defaults preserve existing CLI behavior.

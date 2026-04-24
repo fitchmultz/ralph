@@ -1,11 +1,18 @@
 //! Shared sync filesystem helpers.
 //!
+//! Purpose:
+//! - Shared sync filesystem helpers.
+//!
 //! Responsibilities:
 //! - Provide small, reusable file-copy helpers shared by sync submodules.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Runtime-tree traversal policy.
 //! - Gitignored allowlist decisions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Missing source files are treated as a no-op.

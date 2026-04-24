@@ -1,5 +1,8 @@
 //! Shared helpers for `queue graph` renderers.
 //!
+//! Purpose:
+//! - Shared helpers for `queue graph` renderers.
+//!
 //! Responsibilities:
 //! - Centralize common status, filtering, and ordering logic used by all graph formats.
 //! - Provide deterministic task ordering for human-readable renderers.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Loading queue files or building dependency graphs.
 //! - Format-specific output composition.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Visible task filtering treats Done/Rejected as completed.

@@ -1,12 +1,19 @@
 //! Notification display rendering.
 //!
+//! Purpose:
+//! - Notification display rendering.
+//!
 //! Responsibilities:
 //! - Render task, failure, loop, and watch notifications through `notify-rust` when enabled.
 //! - Keep notification text formatting in one place instead of duplicating it at call sites.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Sound playback.
 //! - Notification suppression or config resolution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Missing `notifications` feature degrades to a debug log and success result.

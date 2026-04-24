@@ -1,5 +1,8 @@
 //! Execution phases and small progress-related contracts.
 //!
+//! Purpose:
+//! - Execution phases and small progress-related contracts.
+//!
 //! Responsibilities:
 //! - Define `ExecutionPhase`, a stable enum used across run history and ETA estimation.
 //! - Provide small, display-oriented helpers (phase name/number/icon) without owning rendering.
@@ -8,6 +11,10 @@
 //! - Rendering progress bars/spinners (CLI or GUI).
 //! - Persisting execution history (see `crate::execution_history`).
 //! - ETA heuristics (see `crate::eta_calculator`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Phase numbering is stable: planning=1, implementation=2, review=3, complete=0.

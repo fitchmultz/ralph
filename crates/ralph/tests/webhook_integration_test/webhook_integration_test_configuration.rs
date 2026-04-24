@@ -1,12 +1,19 @@
 //! Configuration guard coverage for webhook integration tests.
 //!
+//! Purpose:
+//! - Configuration guard coverage for webhook integration tests.
+//!
 //! Responsibilities:
 //! - Verify disabled or incomplete configs do not attempt delivery.
 //! - Keep noop-configuration assertions separate from delivery/payload scenarios.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Retry and backpressure behavior when delivery is enabled.
 //! - Payload-shape assertions for successful requests.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Disabled/no-URL scenarios should remain non-panicking and non-delivering.

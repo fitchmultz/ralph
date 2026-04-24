@@ -1,12 +1,21 @@
 //! Claude-style stream event extraction.
 //!
+//! Purpose:
+//! - Claude-style stream event extraction.
+//!
 //! Responsibilities:
 //! - Render Claude assistant message content, tool use, and terminal error payloads.
 //! - Handle `message_end` tool result formatting.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Codex item streams.
 //! - OpenCode/Cursor/Gemini/Kimi-specific payloads.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::outpututil;
 use serde_json::Value as JsonValue;

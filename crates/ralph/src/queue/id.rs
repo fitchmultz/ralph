@@ -1,5 +1,8 @@
 //! Task ID generation and formatting utilities.
 //!
+//! Purpose:
+//! - Task ID generation and formatting utilities.
+//!
 //! Responsibilities:
 //! - Generate next available task ID across active and done queues.
 //! - Normalize ID prefixes and format IDs with proper zero-padding.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - ID validation (see `queue::validation`).
 //! - Queue persistence or file operations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task IDs follow the pattern: PREFIX-XXXX where X is a digit.

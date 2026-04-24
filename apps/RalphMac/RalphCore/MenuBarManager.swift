@@ -1,6 +1,9 @@
 /**
  MenuBarManager
 
+ Purpose:
+ - Manage the menu bar extra state and preferences.
+
  Responsibilities:
  - Manage the menu bar extra state and preferences.
  - Provide shared state for menu bar visibility toggle.
@@ -9,6 +12,9 @@
  Does not handle:
  - Direct menu rendering (see MenuBarContentView).
  - Window management (delegates to App via notifications).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Must be accessed from MainActor only.

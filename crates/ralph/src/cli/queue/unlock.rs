@@ -1,5 +1,8 @@
 //! Queue unlock subcommand.
 //!
+//! Purpose:
+//! - Queue unlock subcommand.
+//!
 //! Responsibilities:
 //! - Remove the queue lock directory with safety checks.
 //! - Detect active lock holders and require explicit override.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Lock acquisition (see `crate::lock`).
 //! - Queue file validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Confirmation is required in interactive contexts unless --yes is set.

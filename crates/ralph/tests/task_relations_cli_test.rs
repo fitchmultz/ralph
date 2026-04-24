@@ -1,5 +1,8 @@
 //! Integration tests for task relationship commands.
 //!
+//! Purpose:
+//! - Integration tests for task relationship commands.
+//!
 //! Responsibilities:
 //! - Verify `task relate` updates the specified relationship field.
 //! - Verify `task blocks` appends blocked IDs without duplication.
@@ -8,6 +11,10 @@
 //!
 //! Not handled here:
 //! - Bidirectional relationship enforcement (only assert current contract).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue mutations persist to `.ralph/queue.json`.

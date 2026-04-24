@@ -1,5 +1,8 @@
 //! Watch event-loop facade.
 //!
+//! Purpose:
+//! - Watch event-loop facade.
+//!
 //! Responsibilities:
 //! - Run the watch loop until stopped or the event channel disconnects.
 //! - Route filesystem events and timeout ticks to focused helpers.
@@ -9,6 +12,10 @@
 //! - File watcher setup (see `watch/mod.rs`).
 //! - Comment detection or task materialization.
 //! - Event-specific debounce bookkeeping details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The loop exits cleanly on channel disconnect or when `running` becomes false.

@@ -1,5 +1,8 @@
 //! Task decomposition tests.
 //!
+//! Purpose:
+//! - Task decomposition tests.
+//!
 //! Responsibilities:
 //! - Cover planner normalization, attach writes, and replace safety behavior.
 //! - Exercise decomposition-specific edge cases without invoking external runners.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - End-to-end runner execution.
 //! - CLI formatting assertions (covered by CLI tests).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Test queues use local temp directories and repo-scoped `.ralph/*.jsonc` files.

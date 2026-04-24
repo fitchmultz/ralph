@@ -1,5 +1,8 @@
 //! Shared queue CLI enums and conversions.
 //!
+//! Purpose:
+//! - Shared queue CLI enums and conversions.
+//!
 //! Responsibilities:
 //! - Define shared clap enums used by queue/task commands.
 //! - Provide lightweight conversions for report/status types.
@@ -9,6 +12,10 @@
 //! - Command handlers or IO.
 //! - Business logic for queue mutations or reporting.
 //! - Actual ETA calculation logic (see `crate::eta_calculator`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Enum variants map 1:1 with CLI strings.

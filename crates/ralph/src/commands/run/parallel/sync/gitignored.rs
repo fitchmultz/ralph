@@ -1,13 +1,20 @@
 //! Gitignored allowlist syncing for worker workspaces.
 //!
+//! Purpose:
+//! - Gitignored allowlist syncing for worker workspaces.
+//!
 //! Responsibilities:
 //! - Filter ignored repository paths down to the explicit worker allowlist.
 //! - Copy safe ignored files such as `.env*` into worker workspaces.
 //! - Avoid recursive self-copy when workspaces live under the repo root.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - `.ralph` runtime-tree traversal.
 //! - Queue/done bookkeeping path seeding.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Directories and heavyweight cache/build trees are never copied.

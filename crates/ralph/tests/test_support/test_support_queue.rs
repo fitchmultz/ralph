@@ -1,13 +1,20 @@
 //! Queue-centric fixture and assertion helpers for integration tests.
 //!
+//! Purpose:
+//! - Queue-centric fixture and assertion helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Build realistic queue/task fixtures without inline JSON blobs in scenario suites.
 //! - Write queue files and read back stable task ordering assertions.
 //! - Keep queue-list and queue-sort tests focused on behavior instead of serialization boilerplate.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Repo initialization or command execution.
 //! - Queue validation semantics outside fixture construction.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Fixtures target the v1 queue contract.

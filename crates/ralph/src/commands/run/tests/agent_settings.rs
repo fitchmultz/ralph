@@ -1,4 +1,20 @@
 //! Agent settings resolution tests for run command.
+//!
+//! Purpose:
+//! - Agent settings resolution tests for run command.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::{LoggerState, base_task, resolved_with_agent_defaults, take_logs};
 use crate::agent::AgentOverrides;

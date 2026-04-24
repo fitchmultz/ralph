@@ -1,10 +1,17 @@
 //! CLI arguments for task build commands.
 //!
+//! Purpose:
+//! - CLI arguments for task build commands.
+//!
 //! Responsibilities:
 //! - Define Args structs for TaskBuildArgs and TaskBuildRefactorArgs.
 //!
 //! Not handled here:
 //! - Command execution (see build and refactor handlers).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap flattening.

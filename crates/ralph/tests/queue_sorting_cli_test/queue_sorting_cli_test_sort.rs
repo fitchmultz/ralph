@@ -1,12 +1,19 @@
 //! `queue sort` mutation coverage for persistent task ordering.
 //!
+//! Purpose:
+//! - `queue sort` mutation coverage for persistent task ordering.
+//!
 //! Responsibilities:
 //! - Verify `queue sort` rewrites the queue file in the expected order.
 //! - Keep persistent-sort assertions separate from list-only output checks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Dry-run reporting semantics.
 //! - Invalid argument rejection.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Persisted ordering assertions read task IDs from `.ralph/queue.jsonc`.

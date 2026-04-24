@@ -1,5 +1,8 @@
 //! Task decomposition support helpers.
 //!
+//! Purpose:
+//! - Task decomposition support helpers.
+//!
 //! Responsibilities:
 //! - Count planned/generated nodes and dependency edges.
 //! - Materialize planned nodes into durable queue tasks.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Runner invocation or prompt rendering.
 //! - CLI output formatting.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Planner keys are already uniquified among siblings before materialization.

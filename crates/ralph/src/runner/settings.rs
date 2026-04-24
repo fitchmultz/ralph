@@ -1,16 +1,23 @@
 //! Agent settings aggregation and phase-aware resolution.
 //!
+//! Purpose:
+//! - Agent settings aggregation and phase-aware resolution.
+//!
 //! Responsibilities:
 //! - Resolve `AgentSettings` from override/task/config sources.
 //! - Resolve per-phase settings (`PhaseSettingsMatrix`) with precedence rules.
 //! - Produce `ResolutionWarnings` for unused overrides.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Runner execution dispatch (see `runner.rs`).
 //! - Model validation rules implementation (delegated to `runner/model.rs`).
 //! - Runner CLI command assembly/execution (see `runner/execution/*`).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Model validation is enforced before execution.
 //! - Reasoning effort only applies to Codex and is ignored otherwise.
 

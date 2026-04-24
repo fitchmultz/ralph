@@ -1,6 +1,9 @@
 /**
  AppSettings+ModelField
 
+ Purpose:
+ - Host the AppKit-backed model text field used by Settings.
+
  Responsibilities:
  - Host the AppKit-backed model text field used by Settings.
  - Disable writing-tools and text-substitution helpers that interfere with deterministic settings entry.
@@ -8,6 +11,12 @@
  Does not handle:
  - Runner tab layout.
  - Settings persistence logic.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import AppKit

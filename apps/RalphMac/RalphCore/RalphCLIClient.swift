@@ -1,8 +1,10 @@
 /**
  RalphCLIClient
 
- Responsibilities:
+ Purpose:
  - Spawn the bundled `ralph` CLI (or an injected executable) using `Process`.
+
+ Responsibilities:
  - Expose the core streaming and collected-output APIs shared by the app.
  - Enforce subprocess timeout behavior for bounded machine-readable commands.
 
@@ -10,6 +12,10 @@
  - Recovery classification and retry UI state.
  - Health-check orchestration.
  - Detailed process-lifecycle ownership beyond the shared `RalphCLIRun` actor.
+
+ Usage:
+ - Constructed by `Workspace` and test fixtures with a validated executable URL.
+ - Use companion files for retry, recovery, and health-check behavior.
 
  Invariants/assumptions callers must respect:
  - `executableURL` must point to an on-disk, executable file.

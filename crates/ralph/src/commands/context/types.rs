@@ -1,5 +1,8 @@
 //! Shared types for AGENTS.md context commands.
 //!
+//! Purpose:
+//! - Shared types for AGENTS.md context commands.
+//!
 //! Responsibilities:
 //! - Define public option and report structs used by the CLI surface.
 //! - Define detected project type and file initialization state enums.
@@ -7,6 +10,12 @@
 //! Not handled here:
 //! - Command execution logic.
 //! - Template rendering or markdown parsing.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use crate::cli::context::ProjectTypeHint;
 

@@ -1,5 +1,8 @@
 //! Release publish-pipeline runtime contract tests.
 //!
+//! Purpose:
+//! - Release publish-pipeline runtime contract tests.
+//!
 //! Responsibilities:
 //! - Exercise shell helpers in `scripts/lib/release_publish_pipeline.sh` with fake CLIs.
 //! - Guard missing-release probing and crates.io publication probing against false positives.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Real GitHub or crates.io interactions.
 //! - End-to-end release execution.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Bash is available for sourcing the release publish pipeline.

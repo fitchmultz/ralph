@@ -1,5 +1,8 @@
 //! Batch publish execution tests for `ralph queue issue`.
 //!
+//! Purpose:
+//! - Batch publish execution tests for `ralph queue issue`.
+//!
 //! Responsibilities:
 //! - Validate mixed create/update publish-many behavior.
 //! - Verify unchanged tasks skip mutation when sync hashes already match.
@@ -9,6 +12,10 @@
 //! - Single-task publish cases.
 //! - Preview-only behavior checks.
 //! - Fake `gh` script construction details.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All tests in this file are Unix-only because they rely on shell-script shims.

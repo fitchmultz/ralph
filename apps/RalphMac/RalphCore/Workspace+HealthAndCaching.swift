@@ -1,5 +1,8 @@
 //! Workspace+HealthAndCaching
 //!
+//! Purpose:
+//! - Perform workspace-scoped CLI health checks.
+//!
 //! Responsibilities:
 //! - Perform workspace-scoped CLI health checks.
 //! - Persist and load cached tasks for offline viewing.
@@ -10,11 +13,14 @@
 //! - Task mutations.
 //! - Graph or analytics loading.
 //!
+//!
+//! Usage:
+//! - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 //! Invariants/assumptions callers must respect:
 //! - Health checks are main-actor UI operations.
 //! - Cached tasks are stored per workspace ID.
 //! - Offline display prefers cache only when the CLI is unavailable.
-
+//!
 public import Foundation
 public import Combine
 

@@ -1,6 +1,9 @@
 /**
  WindowCommandRouting
 
+ Purpose:
+ - Define shared window command identifiers used by menu and command-palette actions.
+
  Responsibilities:
  - Define shared window command identifiers used by menu and command-palette actions.
  - Define focused-scene action contracts for window-scoped commands.
@@ -10,6 +13,9 @@
  - Command execution logic (implemented by WindowView).
  - Menu command definitions (implemented in RalphMacApp command types).
  - Notification-based broadcast routing.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Focused scene values are optional and only available for the active workspace window.

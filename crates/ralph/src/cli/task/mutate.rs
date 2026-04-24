@@ -1,5 +1,8 @@
 //! Structured task mutation handler for `ralph task mutate`.
 //!
+//! Purpose:
+//! - Structured task mutation handler for `ralph task mutate`.
+//!
 //! Responsibilities:
 //! - Read a JSON task-mutation request from stdin or a file.
 //! - Apply the request atomically through the shared queue transaction helper.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Legacy field-by-field edit UX.
 //! - Terminal archive moves across queue/done files.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Input JSON matches `TaskMutationRequest`.

@@ -1,5 +1,8 @@
 //! Integration tests for `ralph queue prune`.
 //!
+//! Purpose:
+//! - Integration tests for `ralph queue prune`.
+//!
 //! Responsibilities:
 //! - Verify age/status filters remove the intended done tasks.
 //! - Verify `--keep-last` protects most recent completions.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Internal ordering/algorithm unit tests (covered near implementation).
 //! - Snapshot testing of logs (prefer state assertions).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Prune operates only on `.ralph/done.jsonc`.

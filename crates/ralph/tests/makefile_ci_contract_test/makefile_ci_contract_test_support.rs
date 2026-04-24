@@ -1,5 +1,8 @@
 //! Shared helpers for Makefile CI contract tests.
 //!
+//! Purpose:
+//! - Shared helpers for Makefile CI contract tests.
+//!
 //! Responsibilities:
 //! - Define the canonical CI and macOS gate step sequences.
 //! - Parse Makefile target headers, recipes, and semantic CI expansions.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Individual contract assertions.
 //! - Executing the full CI pipeline.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The repo root is two directories above `CARGO_MANIFEST_DIR`.

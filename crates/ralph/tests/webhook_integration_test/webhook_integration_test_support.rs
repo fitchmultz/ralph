@@ -1,13 +1,20 @@
 //! Shared helpers for webhook integration scenarios.
 //!
+//! Purpose:
+//! - Shared helpers for webhook integration scenarios.
+//!
 //! Responsibilities:
 //! - Parse captured HTTP requests and bootstrap the process-global webhook worker once.
 //! - Build canonical local webhook configs for scenario modules.
 //! - Provide stable task/repo identifiers for matching requests in concurrent test environments.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Scenario assertions for retry, filtering, or payload shape.
 //! - Global integration-test helpers already covered by `crate::test_support`.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Matching logic should key on unique task IDs or repo roots to ignore stale worker traffic.

@@ -1,6 +1,9 @@
 /**
  RalphJSONValue
 
+ Purpose:
+ - Provide a forward-compatible JSON value model for CLI payloads and opaque task settings.
+
  Responsibilities:
  - Provide a forward-compatible JSON value model for CLI payloads and opaque task settings.
  - Preserve unknown JSON shapes during decode/encode round trips.
@@ -8,6 +11,9 @@
  Does not handle:
  - CLI schema validation.
  - Task-specific business rules.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Unsupported decoder payloads should fail fast with a type mismatch.

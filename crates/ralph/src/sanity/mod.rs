@@ -1,5 +1,8 @@
 //! Automatic startup health checks with auto-fix and migration prompts.
 //!
+//! Purpose:
+//! - Automatic startup health checks with auto-fix and migration prompts.
+//!
 //! Responsibilities:
 //! - Run lightweight health checks on Ralph startup for key commands.
 //! - Auto-update README.md when embedded template is newer (no prompt).
@@ -12,6 +15,10 @@
 //! - Deep validation (git, runners, queue structure) - that's `ralph doctor`.
 //! - GUI app flows.
 //! - Network connectivity checks.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Sanity checks are fast and lightweight.

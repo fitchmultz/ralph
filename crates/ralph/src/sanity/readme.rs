@@ -1,5 +1,8 @@
 //! README auto-update logic for sanity checks.
 //!
+//! Purpose:
+//! - README auto-update logic for sanity checks.
+//!
 //! Responsibilities:
 //! - Check if README.md is outdated compared to embedded template
 //! - Auto-update README without prompting (automatic operation)
@@ -8,6 +11,10 @@
 //! - User prompts (automatic operation only)
 //! - Migration handling (see migrations.rs)
 //! - Unknown key detection (see unknown_keys.rs)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - README auto-update is always automatic, never prompts user

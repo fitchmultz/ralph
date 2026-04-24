@@ -1,6 +1,9 @@
 /**
  SettingsWindowDiagnostics
 
+ Purpose:
+ - Define settings-window diagnostic snapshots and persistence helpers.
+
  Responsibilities:
  - Define settings-window diagnostic snapshots and persistence helpers.
  - Coordinate prepared-workspace context, visible-window capture, and content diagnostics.
@@ -9,6 +12,12 @@
  Does not handle:
  - AppKit focus management.
  - Settings tab rendering.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import AppKit

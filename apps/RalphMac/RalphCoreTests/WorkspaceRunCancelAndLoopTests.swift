@@ -1,11 +1,17 @@
 /**
  WorkspaceRunCancelAndLoopTests
 
+ Purpose:
+ - Validate active-run cancellation and CLI-owned loop command/control behavior.
+
  Responsibilities:
  - Validate active-run cancellation and CLI-owned loop command/control behavior.
 
  Does not handle:
  - Resume/blocking semantics, parallel status, run-next argument matrix, watcher health.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs intentionally implement only the command paths exercised by each scenario.

@@ -1,11 +1,18 @@
 //! Doctor repo-hygiene auto-fix tests.
 //!
+//! Purpose:
+//! - Doctor repo-hygiene auto-fix tests.
+//!
 //! Responsibilities:
 //! - Verify doctor detects missing `.ralph/logs/` gitignore entries.
 //! - Verify doctor auto-fix repairs repo hygiene issues in place.
 //!
 //! Not handled here:
 //! - Queue or runner-binary diagnostics.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests start from seeded doctor fixtures, then intentionally corrupt `.gitignore`.

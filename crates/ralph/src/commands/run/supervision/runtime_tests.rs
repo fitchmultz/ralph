@@ -1,5 +1,8 @@
 //! Supervision runtime test hub.
 //!
+//! Purpose:
+//! - Supervision runtime test hub.
+//!
 //! Responsibilities:
 //! - Group supervision runtime coverage by resume handling, post-run orchestration, and worker restore flows.
 //! - Keep reusable queue/config/session builders in adjacent test-only support.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Production supervision implementation logic.
 //! - Cross-crate integration scenarios in `crates/ralph/tests/`.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Child modules stay focused on one behavior seam each.

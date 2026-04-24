@@ -1,5 +1,8 @@
 //! Plugin scaffold script templates.
 //!
+//! Purpose:
+//! - Plugin scaffold script templates.
+//!
 //! Responsibilities:
 //! - Hold the shell-script templates emitted by `ralph plugin init`.
 //! - Keep large static template bodies out of command orchestration modules.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Template interpolation or file writing.
 //! - Plugin manifest construction.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Templates remain executable shell scripts with `-h/--help` support.

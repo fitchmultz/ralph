@@ -1,5 +1,8 @@
 //! Post-run supervision orchestration.
 //!
+//! Purpose:
+//! - Post-run supervision orchestration.
+//!
 //! Responsibilities:
 //! - Orchestrate post-run workflow: CI gate, queue updates, git operations, notifications.
 //! - Manage ContinueSession for session resumption.
@@ -11,6 +14,10 @@
 //! - Runner process execution (handled by phases module).
 //! - Continue session implementation (see continue_session.rs).
 //! - Parallel worker supervision details (see parallel_worker.rs).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - post_run_supervise is called after task execution completes.

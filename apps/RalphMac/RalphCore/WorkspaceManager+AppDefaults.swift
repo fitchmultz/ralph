@@ -1,6 +1,9 @@
 /**
  WorkspaceManager+AppDefaults
 
+ Purpose:
+ - Prepare app defaults for normal launches, interactive UI tests, and noninteractive contract runs.
+
  Responsibilities:
  - Prepare app defaults for normal launches, interactive UI tests, and noninteractive contract runs.
  - Encapsulate persisted window-state storage helpers used by WorkspaceManager.
@@ -9,6 +12,9 @@
  Does not handle:
  - Workspace restoration flow.
  - Version compatibility checks.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - UI-testing defaults use a dedicated suite and are reset on launch.

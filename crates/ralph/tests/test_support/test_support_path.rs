@@ -1,12 +1,19 @@
 //! Portable path and environment helpers for integration tests.
 //!
+//! Purpose:
+//! - Portable path and environment helpers for integration tests.
+//!
 //! Responsibilities:
 //! - Resolve temp roots that stay outside repo markers and work across platforms.
 //! - Provide shared locks for process-wide environment mutation and nested parallel-run contention.
 //! - Centralize path derivation used by both Rust and CLI integration fixtures.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue fixtures, command execution, or synchronization primitives beyond shared locks.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions callers must respect:
 //! - Returned portable paths may not exist yet; callers create directories when needed.

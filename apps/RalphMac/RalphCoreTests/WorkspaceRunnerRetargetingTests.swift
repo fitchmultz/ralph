@@ -1,6 +1,9 @@
 /**
  WorkspaceRunnerRetargetingTests
 
+ Purpose:
+ - Validate working-directory retargeting refreshes runner configuration and repository-derived workspace state.
+
  Responsibilities:
  - Validate working-directory retargeting refreshes runner configuration and repository-derived workspace state.
  - Guard against stale async results bleeding across workspace generation changes.
@@ -8,6 +11,9 @@
  Does not handle:
  - Shutdown suppression coverage.
  - Workspace-manager CLI override behavior.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Mock CLIs route behavior from `PWD` and only implement the machine surfaces exercised here.

@@ -1,12 +1,19 @@
 //! Webhook config and payload tests.
 //!
+//! Purpose:
+//! - Webhook config and payload tests.
+//!
 //! Responsibilities:
 //! - Verify event parsing, payload serialization, and config defaults/merging.
 //! - Guard compatibility for queue policy parsing and bounded queue settings.
 //!
-//! Does NOT handle:
+//! Non-scope:
 //! - Diagnostics persistence.
 //! - Worker pool or retry scheduling behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
 //! - Serialization tests assert on stable JSON fragments rather than field ordering.

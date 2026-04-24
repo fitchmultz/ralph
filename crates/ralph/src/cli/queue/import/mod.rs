@@ -1,5 +1,8 @@
 //! Queue import subcommand for importing tasks from CSV, TSV, or JSON.
 //!
+//! Purpose:
+//! - Queue import subcommand for importing tasks from CSV, TSV, or JSON.
+//!
 //! Responsibilities:
 //! - Define the CLI surface for queue import policy and input selection.
 //! - Orchestrate input loading, parsing, normalization, merging, and validation.
@@ -9,6 +12,10 @@
 //! - Export functionality (see `crate::cli::queue::export`).
 //! - GUI-specific import workflows (this is a CLI command).
 //! - Complex schema migration between versions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Always acquire queue lock before mutating queue files.

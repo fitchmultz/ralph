@@ -1,6 +1,9 @@
 /**
  QuickActionsSection
 
+ Purpose:
+ - Provide Quick Actions content column with working directory header and console output.
+
  Responsibilities:
  - Provide Quick Actions content column with working directory header and console output.
  - Provide Quick Actions detail column with commands, status, and controls.
@@ -10,6 +13,9 @@
  - Task queue management (see QueueContent).
  - Advanced command configuration (see AdvancedRunnerSection).
  - Direct CLI execution (delegated to Workspace).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace is injected via @ObservedObject.

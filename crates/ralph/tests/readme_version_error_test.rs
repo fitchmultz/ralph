@@ -1,6 +1,21 @@
 //! Integration test for README version marker error handling.
 //!
+//! Purpose:
+//! - Integration test for README version marker error handling.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Verifies that malformed version markers fail fast with actionable errors.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::Result;
 use ralph::commands::init::{

@@ -1,10 +1,19 @@
 //! Configuration enums for project type, git revert/publish mode, and scan prompt version.
 //!
+//! Purpose:
+//! - Configuration enums for project type, git revert/publish mode, and scan prompt version.
+//!
 //! Responsibilities:
 //! - Define simple enum types used across configuration.
 //!
 //! Not handled here:
 //! - Complex config structs with merge behavior (see other config modules).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

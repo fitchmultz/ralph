@@ -1,12 +1,22 @@
 //! Integration tests for `ralph queue list --with-eta`.
 //!
+//! Purpose:
+//! - Integration tests for `ralph queue list --with-eta`.
+//!
 //! Responsibilities:
 //! - Validate the `--with-eta` column behavior in `--format compact` and `--format long`.
 //! - Assert that `--format json` output shape is unchanged (the flag is intentionally ignored).
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - Deep validation of ETA math (unit tests cover calculation details).
 //! - Full runner/model resolution matrix (these tests focus on the config-default path).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Seeded execution history produces a stable human ETA (e.g., `3m 30s` for 210s).

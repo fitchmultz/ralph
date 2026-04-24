@@ -1,6 +1,9 @@
 /**
  CrashReporter
 
+ Purpose:
+ - Capture uncaught exceptions and crashes in the macOS app.
+
  Responsibilities:
  - Capture uncaught exceptions and crashes in the macOS app.
  - Store crash reports locally for user review and optional export.
@@ -10,6 +13,9 @@
  Does not handle:
  - Automatic upload to external services (user must manually export).
  - Symbolication of stack traces (raw addresses only).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Must be initialized early in app lifecycle (before crashes can occur).

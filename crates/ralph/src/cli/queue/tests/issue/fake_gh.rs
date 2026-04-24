@@ -1,5 +1,8 @@
 //! Unix-only fake `gh` binaries for queue issue tests.
 //!
+//! Purpose:
+//! - Unix-only fake `gh` binaries for queue issue tests.
+//!
 //! Responsibilities:
 //! - Generate executable fake `gh` shims for issue publish tests.
 //! - Simulate auth success/failure and issue create/edit flows without network access.
@@ -9,6 +12,10 @@
 //! - Non-Unix fake CLI support.
 //! - Queue fixture construction or test assertions.
 //! - Production GitHub CLI integration behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers invoke these helpers only from `#[cfg(unix)]` tests.

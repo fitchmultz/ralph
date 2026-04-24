@@ -1,15 +1,22 @@
 //! Task edit helpers shared by CLI and GUI clients.
 //!
+//! Purpose:
+//! - Task edit helpers shared by CLI and GUI clients.
+//!
 //! Responsibilities:
 //! - Apply edits to a single task and update related timestamps.
 //! - Parse and validate edit input (status, priority, custom fields, RFC3339 values).
 //! - Preview changes before applying them.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Persisting queue files or locating tasks outside the provided queue.
 //! - Cross-task dependency resolution beyond status policy checks.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Callers provide a loaded `QueueFile` and a valid RFC3339 `now` value.
 //! - Task IDs are matched after trimming and are case-sensitive.
 

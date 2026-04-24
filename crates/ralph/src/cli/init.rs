@@ -1,5 +1,8 @@
 //! `ralph init` command: Clap types and handler.
 //!
+//! Purpose:
+//! - `ralph init` command: Clap types and handler.
+//!
 //! Responsibilities:
 //! - Parse CLI arguments for the init command.
 //! - Determine interactive vs non-interactive mode based on flags and TTY detection.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Actual file creation logic (see `crate::commands::init`).
 //! - Interactive wizard implementation (see `crate::commands::init`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `--interactive` and `--non-interactive` are mutually exclusive.

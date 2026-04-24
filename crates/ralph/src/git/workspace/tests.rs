@@ -1,5 +1,8 @@
 //! Tests for git workspace helpers.
 //!
+//! Purpose:
+//! - Tests for git workspace helpers.
+//!
 //! Responsibilities:
 //! - Verify workspace path resolution, clone/reset lifecycle, and removal safety.
 //! - Keep regression coverage for origin retargeting and invalid workspace replacement.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Parallel orchestration behavior outside git workspace management.
 //! - PR or branch-push flows.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests use temporary repositories and temp-root derived paths.

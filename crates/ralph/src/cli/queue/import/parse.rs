@@ -1,5 +1,8 @@
 //! Queue import parsing helpers.
 //!
+//! Purpose:
+//! - Queue import parsing helpers.
+//!
 //! Responsibilities:
 //! - Parse JSON, CSV, and TSV payloads into `Task` values.
 //! - Normalize field-level import syntax such as list and custom field columns.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Timestamp backfill or task normalization.
 //! - Duplicate handling and queue mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - CSV/TSV inputs must provide a `title` column.

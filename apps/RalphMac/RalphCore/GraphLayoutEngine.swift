@@ -1,6 +1,9 @@
 /**
  GraphLayoutEngine
 
+ Purpose:
+ - Perform force-directed graph layout independent of SwiftUI views.
+
  Responsibilities:
  - Perform force-directed graph layout independent of SwiftUI views.
  - Apply deterministic physics settings for dependency-heavy task graphs.
@@ -8,6 +11,9 @@
  Does not handle:
  - Graph data fetching or presentation building.
  - Rendering, hit testing, or viewport transforms.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Layout operates on positioned nodes and graph edges already prepared for rendering.

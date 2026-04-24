@@ -1,6 +1,9 @@
 /**
  TaskCreationView
 
+ Purpose:
+ - Provide a modal interface for creating new tasks with or without templates.
+
  Responsibilities:
  - Provide a modal interface for creating new tasks with or without templates.
  - Support template selection from 10 built-in templates with preview cards.
@@ -12,6 +15,9 @@
  - Direct queue file manipulation (delegates to CLI via Workspace).
  - Template editing or custom template creation.
  - Task editing (see TaskDetailView).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Workspace must have a valid CLI client injected.

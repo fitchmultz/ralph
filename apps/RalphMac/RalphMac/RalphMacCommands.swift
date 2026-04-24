@@ -1,12 +1,18 @@
 /**
  RalphMacCommands
 
+ Purpose:
+ - Define app command menus and route them through focused workspace/window actions.
+
  Responsibilities:
  - Define app command menus and route them through focused workspace/window actions.
 
  Does not handle:
  - Workspace scene registration.
  - URL routing or window bootstrap.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Commands that target a workspace require focused workspace UI actions to be registered.

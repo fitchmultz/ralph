@@ -1,5 +1,8 @@
 //! Queue-set validation helpers for loader entrypoints.
 //!
+//! Purpose:
+//! - Queue-set validation helpers for loader entrypoints.
+//!
 //! Responsibilities:
 //! - Validate loaded queue/done state using resolved config settings.
 //! - Preserve the distinction between queue-only and queue+done validation.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue parsing or timestamp repair.
 //! - Filesystem persistence.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers supply already-loaded queue data.

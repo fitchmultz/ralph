@@ -1,11 +1,18 @@
 //! Run abort classification utilities.
 //!
+//! Purpose:
+//! - Run abort classification utilities.
+//!
 //! Responsibilities:
 //! - Provide an error type (`RunAbort`) used to short-circuit the run loop.
 //! - Provide a classifier (`abort_reason`) that detects abort causes in an anyhow chain.
 //!
 //! Not handled here:
 //! - Runner execution, revert prompting, or IO.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - `RunAbort` is always wrapped inside an `anyhow::Error` when propagated.

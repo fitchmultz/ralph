@@ -1,5 +1,8 @@
 //! Shared types for task CLI arguments.
 //!
+//! Purpose:
+//! - Shared types for task CLI arguments.
+//!
 //! Responsibilities:
 //! - Define ValueEnum types for CLI argument parsing (BatchMode, TaskPriorityArg,
 //!   TaskStatusArg, TaskEditFieldArg, and task decomposition enums).
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Args structs with clap derive macros (see specific command modules).
 //! - Command execution logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All types must be Clone where needed for clap.

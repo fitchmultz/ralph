@@ -1,5 +1,8 @@
 //! Queue import normalization helpers.
 //!
+//! Purpose:
+//! - Queue import normalization helpers.
+//!
 //! Responsibilities:
 //! - Trim imported task fields into canonical queue shapes.
 //! - Backfill required timestamps for imported tasks.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Parsing raw import payloads.
 //! - Duplicate handling or queue mutation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Terminal tasks must have `completed_at`.

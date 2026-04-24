@@ -1,4 +1,9 @@
 # Ralph Comprehensive Codebase Audit
+Status: Archived
+Owner: Maintainers
+Source of truth: historical snapshot; current guidance lives in linked active docs
+Parent: [Ralph Documentation](../index.md)
+
 
 **Date:** 2026-03-31
 **Scope:** Full codebase (`crates/ralph/src`, `crates/ralph/tests`, `scripts/`, `Makefile`)

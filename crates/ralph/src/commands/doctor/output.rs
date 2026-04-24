@@ -1,5 +1,8 @@
 //! Output formatting for doctor reports.
 //!
+//! Purpose:
+//! - Output formatting for doctor reports.
+//!
 //! Responsibilities:
 //! - Print doctor reports in human-readable text format.
 //! - Format check results with appropriate severity indicators.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - JSON serialization (handled by serde in types).
 //! - Report generation logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Uses outpututil for consistent formatting.

@@ -1,5 +1,8 @@
 //! Scripted prompt playback for AGENTS.md wizard tests.
 //!
+//! Purpose:
+//! - Scripted prompt playback for AGENTS.md wizard tests.
+//!
 //! Responsibilities:
 //! - Provide deterministic prompt responses for wizard unit tests.
 //! - Validate scripted selections against the prompt option set.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Interactive terminal prompting.
 //! - Wizard init/update flow orchestration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Responses are consumed in-order.

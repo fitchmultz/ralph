@@ -1,13 +1,20 @@
 //! Full runnability report assembly and selection.
 //!
+//! Purpose:
+//! - Full runnability report assembly and selection.
+//!
 //! Responsibilities:
 //! - Build queue-wide runnability reports and summary counts.
 //! - Choose the selected task reported to callers using existing queue semantics.
 //! - Provide the task-level convenience wrapper for detailed runnability checks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Low-level blocker analysis details.
 //! - Queue persistence or locking.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Candidate counting matches `queue next` semantics: Todo plus Draft when enabled.

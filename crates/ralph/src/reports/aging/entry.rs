@@ -1,5 +1,8 @@
 //! Aging report entrypoint orchestration.
 //!
+//! Purpose:
+//! - Aging report entrypoint orchestration.
+//!
 //! Responsibilities:
 //! - Capture the current timestamp for an aging report run.
 //! - Route the built report to text or JSON rendering.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Bucket computation or threshold validation.
 //! - CLI argument parsing.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Aging report assembly is deterministic for a given `now` timestamp.

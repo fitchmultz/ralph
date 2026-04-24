@@ -1,5 +1,8 @@
 //! Dependency graph analysis for task queues.
 //!
+//! Purpose:
+//! - Dependency graph analysis for task queues.
+//!
 //! Responsibilities:
 //! - Provide the `queue::graph` module public API via focused submodules.
 //! - Re-export the minimal set of types/functions consumed by CLI/GUI clients and other crate code.
@@ -8,6 +11,10 @@
 //! - Graph construction (see `build`).
 //! - Algorithms (see `algorithms`).
 //! - Traversal helpers (see `traversal`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The graph represents a DAG in normal operation (cycles are rejected elsewhere).

@@ -1,14 +1,21 @@
 //! Plugin executor regression coverage.
 //!
+//! Purpose:
+//! - Plugin executor regression coverage.
+//!
 //! Responsibilities:
 //! - Verify executor metadata, managed-session rules, and final-response extraction.
 //! - Lock down executor behavior for built-in and external plugin runners.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Built-in command construction or per-line parser unit behavior.
 //! - External plugin runtime execution.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - External plugins default to resume support and self-managed sessions.
 //! - Final-response extraction should prefer the last assistant response in multiline output.
 

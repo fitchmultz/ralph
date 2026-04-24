@@ -1,5 +1,8 @@
 //! Refactor task generation for large files exceeding LOC thresholds.
 //!
+//! Purpose:
+//! - Refactor task generation for large files exceeding LOC thresholds.
+//!
 //! Responsibilities:
 //! - Scan directories for Rust files exceeding LOC thresholds.
 //! - Count lines of code (excluding comments and empty lines).
@@ -12,6 +15,10 @@
 //! - Task updating (see update/mod.rs).
 //! - CLI argument parsing or command routing.
 //! - Non-Rust file scanning.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - LOC counting excludes comments and empty lines for accurate measurement.

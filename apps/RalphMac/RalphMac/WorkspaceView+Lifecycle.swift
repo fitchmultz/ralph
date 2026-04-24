@@ -1,6 +1,9 @@
 /**
  WorkspaceView+Lifecycle
 
+ Purpose:
+ - Register focused command actions and scene-route handlers for a workspace view.
+
  Responsibilities:
  - Register focused command actions and scene-route handlers for a workspace view.
  - Refresh deterministic contract diagnostics when scene-visible workspace state changes.
@@ -8,6 +11,12 @@
  Does not handle:
  - Section rendering.
  - Error-recovery or task-mutation execution.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
+
+ Invariants/Assumptions:
+ - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
 import RalphCore

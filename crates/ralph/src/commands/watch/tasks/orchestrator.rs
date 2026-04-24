@@ -1,5 +1,8 @@
 //! Watch task orchestration.
 //!
+//! Purpose:
+//! - Watch task orchestration.
+//!
 //! Responsibilities:
 //! - Load/save queue state around watch comment processing.
 //! - Coordinate deduplication, metadata upgrades, reconciliation, and notifications.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Comment detection.
 //! - Watch identity parsing internals.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue writes occur only when the watch run changes queue state.

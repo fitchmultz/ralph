@@ -1,14 +1,21 @@
 //! Batch operation regression test hub.
 //!
+//! Purpose:
+//! - Batch operation regression test hub.
+//!
 //! Responsibilities:
 //! - Share batch-operation test imports and fixtures across focused submodules.
 //! - Keep the root test surface small while delegating behavior groups to companion files.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Single-task operation coverage from sibling test modules.
 //! - Queue persistence or broader integration flows.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Shared fixtures from `super` provide standard task construction.
 //! - Batch-operation helpers are imported from the production `batch` module.
 

@@ -1,5 +1,8 @@
 //! `ralph context` command: Clap types and handler.
 //!
+//! Purpose:
+//! - `ralph context` command: Clap types and handler.
+//!
 //! Responsibilities:
 //! - Define CLI arguments for the `context` command group (init, update, validate).
 //! - Provide handler function that delegates to command implementations.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Actual file generation and manipulation (see `commands::context`).
 //! - Project type detection logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Output paths are resolved relative to the repository root.

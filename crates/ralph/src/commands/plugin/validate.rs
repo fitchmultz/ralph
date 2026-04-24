@@ -1,5 +1,8 @@
 //! Plugin validate command.
 //!
+//! Purpose:
+//! - Plugin validate command.
+//!
 //! Responsibilities:
 //! - Re-validate discovered plugin manifests.
 //! - Confirm declared runner/processor executables resolve inside the plugin directory.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin installation, uninstall, or scaffolding.
 //! - Registry enablement decisions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Discovery already performed baseline manifest parsing before this command runs.

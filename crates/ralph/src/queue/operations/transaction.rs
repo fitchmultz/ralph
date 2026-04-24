@@ -1,14 +1,21 @@
 //! Transaction-style task mutation helpers.
 //!
+//! Purpose:
+//! - Transaction-style task mutation helpers.
+//!
 //! Responsibilities:
 //! - Define structured task-mutation requests that can apply multiple field edits atomically.
 //! - Enforce optimistic-lock checks against `updated_at` when requested by callers.
 //! - Reuse existing edit primitives while providing all-or-nothing mutation semantics.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Queue persistence or lock acquisition.
 //! - CLI argument parsing or JSON IO.
 //! - Terminal archive moves across queue/done files.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Requests target tasks in the active queue only.

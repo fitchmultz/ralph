@@ -1,14 +1,21 @@
 //! Stream display filtering regression coverage.
 //!
+//! Purpose:
+//! - Stream display filtering regression coverage.
+//!
 //! Responsibilities:
 //! - Verify display-line extraction across supported runner stream payloads.
 //! - Cover handler fanout for filtered JSON output.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Reader thread buffer limits and EOF behavior.
 //! - Broader execution orchestration outside display formatting.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Display extraction should stay no-op for unknown events.
 //! - Tool result rendering must avoid leaking verbose tool payload bodies.
 

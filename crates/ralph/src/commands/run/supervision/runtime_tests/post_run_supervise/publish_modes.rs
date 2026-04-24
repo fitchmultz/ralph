@@ -1,11 +1,20 @@
 //! Publish-mode-focused post-run supervision scenarios.
 //!
+//! Purpose:
+//! - Publish-mode-focused post-run supervision scenarios.
+//!
 //! Responsibilities:
 //! - Validate commit, push, and no-op publish behavior once post-run mutation decisions are made.
 //!
 //! Not handled here:
 //! - CI-gate retry/error sequencing.
 //! - Queue maintenance repair semantics.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::super::support::{make_task, resolved_for_repo, write_done_tasks, write_queue};
 use crate::commands::run::supervision::{PushPolicy, post_run_supervise};

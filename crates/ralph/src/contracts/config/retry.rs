@@ -1,10 +1,19 @@
 //! Runner retry/backoff configuration for transient failure handling.
 //!
+//! Purpose:
+//! - Runner retry/backoff configuration for transient failure handling.
+//!
 //! Responsibilities:
 //! - Define retry config struct and merge behavior.
 //!
 //! Not handled here:
 //! - Actual retry logic (see runner invocation modules).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

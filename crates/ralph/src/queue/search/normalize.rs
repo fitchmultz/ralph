@@ -1,11 +1,18 @@
 //! String normalization helpers for search and filtering.
 //!
+//! Purpose:
+//! - String normalization helpers for search and filtering.
+//!
 //! Responsibilities:
 //! - Normalize strings for consistent comparison (trim + lowercase)
 //!
 //! Not handled here:
 //! - Regex compilation or pattern matching
 //! - Fuzzy matching normalization (handled by nucleo_matcher)
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All normalized strings are lowercase and trimmed

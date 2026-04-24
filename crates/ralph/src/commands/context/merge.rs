@@ -1,5 +1,8 @@
 //! Markdown section merging utilities for AGENTS.md updates.
 //!
+//! Purpose:
+//! - Markdown section merging utilities for AGENTS.md updates.
+//!
 //! Responsibilities:
 //! - Parse markdown content into structured sections while preserving formatting.
 //! - Merge new content into existing sections, preserving footers and structure.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - File I/O (callers read/write files).
 //! - User interaction (handled by the wizard module).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Sections are defined by `## ` headings.

@@ -1,5 +1,8 @@
 //! Aging threshold configuration helpers.
 //!
+//! Purpose:
+//! - Aging threshold configuration helpers.
+//!
 //! Responsibilities:
 //! - Resolve aging thresholds from queue config with defaults.
 //! - Enforce strict threshold ordering before report computation.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Per-task aging computation.
 //! - Report assembly or rendering.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Threshold ordering must remain `warning < stale < rotten`.

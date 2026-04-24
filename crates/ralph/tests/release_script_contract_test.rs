@@ -1,5 +1,8 @@
 //! Release script contract tests.
 //!
+//! Purpose:
+//! - Release script contract tests.
+//!
 //! Responsibilities:
 //! - Guard release-script transaction invariants that should not regress silently.
 //! - Verify release automation derives GitHub metadata from the current repo.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - End-to-end release execution.
 //! - Credentialed GitHub or crates.io interactions.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - The release script lives at `scripts/release.sh` relative to repo root.

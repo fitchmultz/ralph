@@ -1,5 +1,8 @@
 //! Handler for `ralph task parent` subcommand.
 //!
+//! Purpose:
+//! - Handler for `ralph task parent` subcommand.
+//!
 //! Responsibilities:
 //! - Show a task's parent (based on parent_id).
 //! - Display sibling count (children of the same parent).
@@ -7,6 +10,10 @@
 //!
 //! Not handled here:
 //! - Queue mutation (this is a read-only command).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Task existence is validated before processing.

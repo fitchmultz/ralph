@@ -1,5 +1,8 @@
 //! Watch-task regression tests.
 //!
+//! Purpose:
+//! - Watch-task regression tests.
+//!
 //! Responsibilities:
 //! - Verify watch task creation, upgrade, deduplication, and reconciliation behavior.
 //! - Keep the public watch-task surface covered after modularization.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - File watching or debounce orchestration.
 //! - Comment parsing behavior outside task handling.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests use isolated temp repos and queue files.

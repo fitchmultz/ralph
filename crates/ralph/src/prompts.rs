@@ -1,12 +1,22 @@
 //! Prompt template loading, rendering, and validation utilities.
 //!
+//! Purpose:
+//! - Prompt template loading, rendering, and validation utilities.
+//!
 //! Responsibilities:
 //! - Expose a minimal public prompt API for integration tests and external callers.
 //! - Keep prompt composition and registry details internal to the crate.
 //!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled:
 //! - CLI argument parsing or queue mutation.
 //! - Direct access to prompt registry internals (see `prompts_internal`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Public exports here are intentional and minimal.

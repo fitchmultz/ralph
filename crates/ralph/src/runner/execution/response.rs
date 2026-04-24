@@ -1,7 +1,18 @@
 //! Response extraction helpers for runner output streams.
 //!
+//! Purpose:
+//! - Response extraction helpers for runner output streams.
+//!
 //! Responsibilities: parse streaming runner JSON output and extract final assistant responses.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
 //! Not handled: executing runners, managing processes, or validating runner configurations.
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
 //! Invariants/assumptions: stdout lines are JSON fragments emitted by supported runners.
 
 use std::collections::HashMap;

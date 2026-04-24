@@ -1,4 +1,20 @@
 //! Archive operations for queue tasks.
+//!
+//! Purpose:
+//! - Archive operations for queue tasks.
+//!
+//! Responsibilities:
+//! - Provide focused implementation or regression coverage for this file's owning feature.
+//!
+//! Scope:
+//! - Limited to this file's owning feature boundary.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use super::backfill_terminal_completed_at;
 use crate::contracts::{QueueFile, TaskStatus};

@@ -1,5 +1,8 @@
 //! Regression tests for git porcelain parsing and ignored-path helpers.
 //!
+//! Purpose:
+//! - Regression tests for git porcelain parsing and ignored-path helpers.
+//!
 //! Responsibilities:
 //! - Cover porcelain `-z` parsing edge cases.
 //! - Verify ignored-path detection against a temp repository.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Commit/push behavior.
 //! - Repository cleanliness policy.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Trailing or consecutive NUL fields must not truncate porcelain parsing.

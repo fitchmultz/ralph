@@ -1,5 +1,8 @@
 //! Shared low-level support helpers for run-command tests.
 //!
+//! Purpose:
+//! - Shared low-level support helpers for run-command tests.
+//!
 //! Responsibilities:
 //! - Provide process-state helpers that are awkward to inline in individual suites.
 //! - Keep lock- and PID-oriented probes centralized for reuse.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Task fixtures or config builders.
 //! - Production lock management logic.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Helpers remain deterministic enough for local CI.

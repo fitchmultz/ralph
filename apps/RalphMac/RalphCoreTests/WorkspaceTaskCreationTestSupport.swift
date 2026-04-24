@@ -1,12 +1,18 @@
 /**
  WorkspaceTaskCreationTestSupport
 
+ Purpose:
+ - Centralize CLI/bootstrap and queue-document helpers for workspace task-creation and watcher integration tests.
+
  Responsibilities:
  - Centralize CLI/bootstrap and queue-document helpers for workspace task-creation and watcher integration tests.
 
  Does not handle:
  - Defining task-creation or watcher assertions.
  - UI automation flows.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - A deterministic `ralph` binary is available via `RALPH_BIN_PATH` or the bundled app binary.

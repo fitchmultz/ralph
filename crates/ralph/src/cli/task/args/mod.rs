@@ -1,5 +1,8 @@
 //! CLI argument definitions for `ralph task ...` commands.
 //!
+//! Purpose:
+//! - CLI argument definitions for `ralph task ...` commands.
+//!
 //! Responsibilities:
 //! - Define all `#[derive(Args)]` structs for task subcommands.
 //! - Define all `#[derive(Subcommand)]` enums for command routing.
@@ -9,6 +12,10 @@
 //! Not handled here:
 //! - Command execution logic (see individual handler modules).
 //! - Business logic or queue operations.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - All argument types must be `Clone` where needed for clap flattening.

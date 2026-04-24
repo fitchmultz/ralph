@@ -1,5 +1,8 @@
 //! Agent validation rules.
 //!
+//! Purpose:
+//! - Agent validation rules.
+//!
 //! Responsibilities:
 //! - Validate agent-specific numeric limits and binary path overrides.
 //! - Expose helpers used by trust validation to identify execution-sensitive settings.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Queue thresholds or git ref validation.
 //! - Full config version or parallel workspace rules.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Empty binary-path strings are invalid when provided.

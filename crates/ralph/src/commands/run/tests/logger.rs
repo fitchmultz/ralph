@@ -1,5 +1,8 @@
 //! Shared logging helpers for run-command tests.
 //!
+//! Purpose:
+//! - Shared logging helpers for run-command tests.
+//!
 //! Responsibilities:
 //! - Install a deterministic in-memory logger for tests that assert warnings.
 //! - Provide helpers for draining captured log lines between assertions.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Test fixtures unrelated to log capture.
 //! - Production logging configuration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests may race with a preinstalled logger, so logger installation is best-effort.

@@ -1,5 +1,8 @@
 //! Queue show subcommand.
 //!
+//! Purpose:
+//! - Queue show subcommand.
+//!
 //! Responsibilities:
 //! - Define CLI arguments for displaying a single task.
 //! - Load queue + done data and render a task in JSON or compact form.
@@ -8,6 +11,10 @@
 //! - Queue persistence beyond reading files.
 //! - Validation or mutation beyond reading.
 //! - Any task editing behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Queue files are valid and already validated by the loader.

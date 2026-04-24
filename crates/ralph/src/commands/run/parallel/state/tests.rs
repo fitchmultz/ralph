@@ -1,14 +1,21 @@
 //! Parallel state persistence regression coverage.
 //!
+//! Purpose:
+//! - Parallel state persistence regression coverage.
+//!
 //! Responsibilities:
 //! - Verify schema migration, worker lifecycle helpers, and state-file persistence.
 //! - Keep the direct-push state contract stable while the runtime modules stay split.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Parallel orchestration or worker spawning.
 //! - Integration loop behavior beyond stored state fields.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Legacy schema loads migrate to the current canonical version.
 //! - Unknown fields remain ignorable for forward-compatible reads.
 

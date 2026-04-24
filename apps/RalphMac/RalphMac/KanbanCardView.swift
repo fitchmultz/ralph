@@ -1,6 +1,9 @@
 /**
  KanbanCardView
 
+ Purpose:
+ - Display a task as a card in the Kanban board.
+
  Responsibilities:
  - Display a task as a card in the Kanban board.
  - Show priority, status, tags, and visual indicators.
@@ -10,6 +13,9 @@
  Does not handle:
  - Drop operations (handled by parent column).
  - Status changes directly (delegates to parent).
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Task is non-nil and valid.

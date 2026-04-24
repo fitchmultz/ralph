@@ -1,15 +1,22 @@
 //! Batch update operations for tasks.
 //!
+//! Purpose:
+//! - Batch update operations for tasks.
+//!
 //! Responsibilities:
 //! - Batch set status for multiple tasks.
 //! - Batch set custom fields for multiple tasks.
 //! - Batch apply task edits for multiple tasks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task creation or deletion (see generate.rs and delete.rs).
 //! - Task filtering/selection (see filters.rs).
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - All operations support atomic mode (fail on first error) or continue-on-error mode.
 //! - Task IDs are deduplicated before processing.
 

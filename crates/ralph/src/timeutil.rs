@@ -1,13 +1,20 @@
 //! Time helpers for RFC3339 timestamps with consistent precision.
 //!
+//! Purpose:
+//! - Time helpers for RFC3339 timestamps with consistent precision.
+//!
 //! Responsibilities:
 //! - Parse RFC3339 timestamps for queue/reporting workflows.
 //! - Format timestamps with fixed 9-digit fractional seconds in UTC.
 //! - Provide a testable fallback mechanism for formatting failures.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Parsing non-RFC3339 timestamp formats.
 //! - Guessing or inferring time zones for naive timestamps.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers provide RFC3339 strings when parsing.

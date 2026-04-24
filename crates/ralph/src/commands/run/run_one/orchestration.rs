@@ -1,5 +1,8 @@
 //! Core run-one orchestration.
 //!
+//! Purpose:
+//! - Core run-one orchestration.
+//!
 //! Responsibilities:
 //! - Implement `run_one_impl`: coordinate context preparation, task selection,
 //!   execution setup, explicit resume-state narration, phase execution, and completion handling.
@@ -14,6 +17,10 @@
 //! - Webhook notifications (see `webhooks` submodule).
 //! - Completion handling (see `completion` submodule).
 //! - Task selection (see `selection` submodule).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Callers pass the correct `QueueLockMode` for their context.

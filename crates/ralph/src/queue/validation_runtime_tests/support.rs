@@ -1,5 +1,8 @@
 //! Shared fixtures for queue validation runtime tests.
 //!
+//! Purpose:
+//! - Shared fixtures for queue validation runtime tests.
+//!
 //! Responsibilities:
 //! - Build queue task variants used across validation runtime tests.
 //! - Keep timestamp/default field setup consistent for test readability.
@@ -8,6 +11,10 @@
 //! Not handled here:
 //! - Validation assertions or warning/error matching.
 //! - Production task construction behavior.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Default timestamps are valid RFC3339 UTC values.

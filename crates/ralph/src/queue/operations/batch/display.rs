@@ -1,15 +1,22 @@
 //! Batch operation result display utilities.
 //!
+//! Purpose:
+//! - Batch operation result display utilities.
+//!
 //! Responsibilities:
 //! - Print batch operation results in a user-friendly format.
 //! - Handle both dry-run and actual execution output.
 //! - Display created task IDs for operations that generate tasks.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Actual batch operations (see update.rs, delete.rs, generate.rs, plan.rs).
 //! - Result calculation or aggregation.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Output goes to stdout via println!.
 //! - Dry run output clearly indicates no changes were made.
 

@@ -1,5 +1,8 @@
 //! Testable prompt abstraction for tutorial phases.
 //!
+//! Purpose:
+//! - Testable prompt abstraction for tutorial phases.
+//!
 //! Responsibilities:
 //! - Define prompt operations needed by tutorial phases.
 //! - Provide Dialoguer implementation for interactive use.
@@ -7,6 +10,12 @@
 //!
 //! Not handled here:
 //! - Tutorial phase logic (see phases.rs).
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants/Assumptions:
+//! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
 use anyhow::{Context, Result};
 

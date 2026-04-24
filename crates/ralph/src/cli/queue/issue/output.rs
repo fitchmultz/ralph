@@ -1,5 +1,8 @@
 //! User-facing output and confirmation helpers for `ralph queue issue`.
 //!
+//! Purpose:
+//! - User-facing output and confirmation helpers for `ralph queue issue`.
+//!
 //! Responsibilities:
 //! - Render dry-run previews and bulk publish summaries.
 //! - Prompt for interactive bulk execution confirmation.
@@ -9,6 +12,10 @@
 //! - GitHub issue mutation.
 //! - Queue selection/filter parsing.
 //! - Queue persistence.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Preview output must preserve existing CLI text/contracts.

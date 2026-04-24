@@ -1,12 +1,18 @@
 /**
  ANSIParserEdgeCaseTests
 
+ Purpose:
+ - Validate complex real-world ANSI payloads and malformed-sequence recovery behavior.
+
  Responsibilities:
  - Validate complex real-world ANSI payloads and malformed-sequence recovery behavior.
 
  Does not handle:
  - Baseline color tables or control-sequence stripping.
  - Shared Workspace fixture lifecycle.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Malformed or incomplete ANSI sequences must not crash parsing and should preserve readable output.

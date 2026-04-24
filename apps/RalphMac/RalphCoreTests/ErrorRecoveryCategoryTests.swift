@@ -1,12 +1,18 @@
 /**
  ErrorRecoveryCategoryTests
 
+ Purpose:
+ - Validate recovery categorization, messaging, and suggested actions.
+
  Responsibilities:
  - Validate recovery categorization, messaging, and suggested actions.
  - Cover recovery error formatting and classification behavior.
 
  Does not handle:
  - CLI health probing or workspace offline caching regressions.
+
+ Usage:
+ - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
  - Error fixtures intentionally model representative CLI, filesystem, and parsing failures.

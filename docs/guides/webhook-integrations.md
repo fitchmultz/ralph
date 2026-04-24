@@ -1,4 +1,9 @@
 # Webhook Integration Examples
+Status: Active
+Owner: Maintainers
+Source of truth: this document for its stated scope
+Parent: [Ralph Documentation](../index.md)
+
 
 > Copy-paste ready configurations for Slack, Discord, and GitHub Actions.
 

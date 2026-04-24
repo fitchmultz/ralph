@@ -1,11 +1,18 @@
 //! Clap argument definitions for `ralph run`.
 //!
+//! Purpose:
+//! - Clap argument definitions for `ralph run`.
+//!
 //! Responsibilities:
 //! - Define clap types for `run`, `run one`, `run loop`, `run resume`, and `run parallel`.
 //!
 //! Not handled here:
 //! - Dispatch logic.
 //! - Long-help text authoring.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Clap validation remains colocated with the flags it governs.

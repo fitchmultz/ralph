@@ -1,5 +1,8 @@
 //! Task template system for Ralph.
 //!
+//! Purpose:
+//! - Task template system for Ralph.
+//!
 //! Templates provide pre-filled task fields for common patterns.
 //! Built-in templates are embedded; custom templates can be added to `.ralph/templates/`.
 //!
@@ -12,6 +15,10 @@
 //! Not handled here:
 //! - Template application to task creation (see `crate::commands::task`).
 //! - CLI argument parsing (see `crate::cli::task`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Template names are case-sensitive and must be valid filenames.

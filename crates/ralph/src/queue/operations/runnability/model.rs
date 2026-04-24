@@ -1,13 +1,20 @@
 //! Data models for queue runnability reporting.
 //!
+//! Purpose:
+//! - Data models for queue runnability reporting.
+//!
 //! Responsibilities:
 //! - Define the serialized report, summary, row, and reason shapes.
 //! - Keep JSON field names and report versioning stable.
 //! - Provide shared domain enums for runnability callers and tests.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Task analysis logic.
 //! - Report aggregation or selection.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Types are serialized in `snake_case` for CLI/JSON consumers.

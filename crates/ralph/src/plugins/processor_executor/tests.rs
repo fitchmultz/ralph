@@ -1,5 +1,8 @@
 //! Processor-executor regression tests.
 //!
+//! Purpose:
+//! - Processor-executor regression tests.
+//!
 //! Responsibilities:
 //! - Verify hook filtering, deterministic chaining, and hook payload mutation.
 //! - Verify processor failures surface actionable errors.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Plugin discovery internals beyond the executor contract.
 //! - Queue or runner integration.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests use trusted temp repos with project-local plugins.

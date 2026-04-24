@@ -1,5 +1,8 @@
 //! Interactive session-recovery prompts.
 //!
+//! Purpose:
+//! - Interactive session-recovery prompts.
+//!
 //! Responsibilities:
 //! - Render session recovery prompts for valid and timed-out sessions.
 //! - Short-circuit to safe defaults in non-interactive environments.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - Session persistence.
 //! - Session validation/classification.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Non-interactive mode never resumes automatically.

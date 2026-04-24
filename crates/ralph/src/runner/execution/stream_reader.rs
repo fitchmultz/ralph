@@ -1,13 +1,20 @@
 //! Raw and JSON subprocess reader loops for runner output streams.
 //!
+//! Purpose:
+//! - Raw and JSON subprocess reader loops for runner output streams.
+//!
 //! Responsibilities:
 //! - Read stdout/stderr incrementally from child processes.
 //! - Apply shared buffer truncation rules.
 //! - Parse JSON lines and forward rendered output.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Event formatting internals (see `stream_events`).
 //! - Sink rendering policy (see `stream_render`).
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/Assumptions:
 //! - Child output is read in fixed-size byte chunks; `Utf8ChunkDecoder` keeps trailing

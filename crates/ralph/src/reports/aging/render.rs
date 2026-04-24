@@ -1,5 +1,8 @@
 //! Text rendering helpers for aging reports.
 //!
+//! Purpose:
+//! - Text rendering helpers for aging reports.
+//!
 //! Responsibilities:
 //! - Render the human-readable `ralph queue aging` report.
 //! - Keep presentation separate from bucket computation.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - JSON rendering.
 //! - Aging calculation or threshold validation.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Non-fresh buckets may include task lists; fresh/unknown lists are intentionally compact.

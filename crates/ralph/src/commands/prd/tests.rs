@@ -1,5 +1,8 @@
 //! Tests for PRD parsing and generation seams.
 //!
+//! Purpose:
+//! - Tests for PRD parsing and generation seams.
+//!
 //! Responsibilities:
 //! - Verify PRD markdown parsing and task generation remain stable after modularization.
 //! - Keep seam-level tests adjacent to parser and generator helpers.
@@ -7,6 +10,10 @@
 //! Not handled here:
 //! - CLI command integration.
 //! - Queue persistence workflow tests.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Parser and generator behavior are deterministic for identical input.

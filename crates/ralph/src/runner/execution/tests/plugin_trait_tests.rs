@@ -1,14 +1,21 @@
 //! Plugin trait regression test hub.
 //!
+//! Purpose:
+//! - Plugin trait regression test hub.
+//!
 //! Responsibilities:
 //! - Share plugin-trait test imports and helpers across focused behavior groups.
 //! - Keep the root test file small while preserving existing helper builders.
 //!
-//! Does not handle:
+//! Non-scope:
 //! - Non-plugin execution tests covered by sibling runner test modules.
 //! - Production plugin registration or runtime orchestration logic.
 //!
-//! Assumptions/invariants:
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
+//!
+//! Invariants:
 //! - Child modules use `super::*` to access the shared builders and imports below.
 //! - Helper contexts model the default CLI execution shape used by built-in plugins.
 

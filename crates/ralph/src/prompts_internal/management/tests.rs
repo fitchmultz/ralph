@@ -1,10 +1,17 @@
 //! Prompt management tests.
 //!
+//! Purpose:
+//! - Prompt management tests.
+//!
 //! Responsibilities:
 //! - Cover stable digest computation, schema cutover behavior, and prompt export/sync helpers.
 //!
 //! Not handled here:
 //! - Prompt rendering tests defined elsewhere in `prompts_internal/tests/`.
+//!
+//!
+//! Usage:
+//! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
 //! - Tests use isolated temp directories.
