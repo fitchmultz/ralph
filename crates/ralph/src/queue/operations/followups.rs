@@ -19,7 +19,6 @@
 //! - All `depends_on_keys` references must point at proposal-local keys.
 //! - Source-task provenance uses the existing `request` and `relates_to` task fields.
 
-use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -29,6 +28,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::Resolved;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+use crate::queue::operations::{
+    MaterializeInsertion, MaterializeTaskGraphOptions, MaterializedTaskSpec,
+    apply_materialized_task_graph,
+};
 use crate::{jsonc, queue};
 
 const FOLLOWUPS_VERSION: u8 = 1;
@@ -200,64 +203,36 @@ pub fn apply_followups_in_memory(
     let source_task = find_source_task(active, done, source_task_id)?;
     let source_request = source_task.request.clone();
 
-    let key_to_id = allocate_followup_ids(
+    validate_proposal_tasks(document)?;
+    let specs = materialized_followup_specs(document, source_task_id, source_request)?;
+    let report = apply_materialized_task_graph(
         active,
         done,
-        document,
-        id_prefix,
-        id_width,
-        max_dependency_depth,
-    )?;
-    validate_dependency_keys(document, &key_to_id)?;
-
-    let mut created = Vec::with_capacity(document.tasks.len());
-    let mut tasks = Vec::with_capacity(document.tasks.len());
-    for proposal in &document.tasks {
-        let key = normalize_required(&proposal.key, "follow-up key")?.to_string();
-        let id = key_to_id
-            .get(key.as_str())
-            .cloned()
-            .ok_or_else(|| anyhow!("missing allocated task id for follow-up key {key}"))?;
-        let depends_on = proposal
-            .depends_on_keys
-            .iter()
-            .map(|key| {
-                let normalized = normalize_required(key, "depends_on key")?;
-                key_to_id
-                    .get(normalized)
-                    .cloned()
-                    .ok_or_else(|| anyhow!("unknown follow-up dependency key: {normalized}"))
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        let task = materialize_task(
-            proposal,
-            &key,
-            &id,
-            source_task_id,
-            source_request.clone(),
-            depends_on.clone(),
+        &specs,
+        &MaterializeTaskGraphOptions {
             now_rfc3339,
-        )?;
+            id_prefix,
+            id_width,
+            max_dependency_depth,
+            insertion: MaterializeInsertion::QueueDefaultTop,
+            dry_run,
+        },
+    )?;
+    let mut created = Vec::with_capacity(report.created_tasks.len());
+    for spec in &specs {
+        let key = normalize_required(&spec.local_key, "follow-up key")?.to_string();
+        let task = report
+            .created_tasks
+            .iter()
+            .find(|task| task.id == report.local_key_to_id[&key])
+            .ok_or_else(|| anyhow!("missing materialized follow-up task for key {key}"))?;
         created.push(FollowupCreatedTask {
-            key,
-            task_id: id,
+            key: key.clone(),
+            task_id: task.id.clone(),
             title: task.title.clone(),
-            depends_on,
+            depends_on: task.depends_on.clone(),
         });
-        tasks.push(task);
     }
-
-    let insert_at = queue::suggest_new_task_insert_index(active);
-    let mut preview = active.clone();
-    preview.tasks.splice(insert_at..insert_at, tasks);
-    let warnings =
-        queue::validate_queue_set(&preview, done, id_prefix, id_width, max_dependency_depth)
-            .context("validate queue after applying follow-up proposal")?;
-    if !dry_run {
-        *active = preview;
-    }
-    queue::log_warnings(&warnings);
 
     Ok(FollowupApplyReport {
         version: FOLLOWUPS_VERSION,
@@ -302,37 +277,42 @@ fn validate_document_header<'a>(
     Ok(source_task_id)
 }
 
-fn allocate_followup_ids(
-    active: &QueueFile,
-    done: Option<&QueueFile>,
+fn materialized_followup_specs(
     document: &FollowupProposalDocument,
-    id_prefix: &str,
-    id_width: usize,
-    max_dependency_depth: u8,
-) -> Result<HashMap<String, String>> {
-    validate_proposal_tasks(document)?;
-    let mut key_to_id = HashMap::with_capacity(document.tasks.len());
-    if document.tasks.is_empty() {
-        return Ok(key_to_id);
-    }
-
-    let first_id = queue::next_id_across(active, done, id_prefix, id_width, max_dependency_depth)?;
-    let first_number = id_number(&first_id, id_prefix)?;
-    let prefix = queue::normalize_prefix(id_prefix);
-
-    for (offset, proposal) in document.tasks.iter().enumerate() {
-        let key = normalize_required(&proposal.key, "follow-up key")?.to_string();
-        key_to_id.insert(
-            key,
-            queue::format_id(&prefix, first_number + offset as u32, id_width),
-        );
-    }
-
-    Ok(key_to_id)
+    source_task_id: &str,
+    source_request: Option<String>,
+) -> Result<Vec<MaterializedTaskSpec>> {
+    document
+        .tasks
+        .iter()
+        .map(|proposal| {
+            let key = normalize_required(&proposal.key, "follow-up key")?.to_string();
+            Ok(MaterializedTaskSpec {
+                local_key: key.clone(),
+                title: normalize_required(&proposal.title, "follow-up title")?.to_string(),
+                description: Some(
+                    normalize_required(&proposal.description, "follow-up description")?.to_string(),
+                ),
+                priority: proposal.priority,
+                status: TaskStatus::Todo,
+                tags: proposal.tags.clone(),
+                scope: proposal.scope.clone(),
+                evidence: proposal.evidence.clone(),
+                plan: proposal.plan.clone(),
+                notes: vec![format!("Generated from follow-up proposal key {key}")],
+                request: source_request.clone(),
+                relates_to: vec![source_task_id.to_string()],
+                parent_local_key: None,
+                parent_task_id: None,
+                depends_on_local_keys: proposal.depends_on_keys.clone(),
+                estimated_minutes: None,
+            })
+        })
+        .collect()
 }
 
 fn validate_proposal_tasks(document: &FollowupProposalDocument) -> Result<()> {
-    let mut keys = HashSet::with_capacity(document.tasks.len());
+    let mut keys = std::collections::HashSet::with_capacity(document.tasks.len());
     for proposal in &document.tasks {
         let key = normalize_required(&proposal.key, "follow-up key")?;
         if !keys.insert(key.to_string()) {
@@ -346,65 +326,6 @@ fn validate_proposal_tasks(document: &FollowupProposalDocument) -> Result<()> {
         )?;
     }
     Ok(())
-}
-
-fn validate_dependency_keys(
-    document: &FollowupProposalDocument,
-    key_to_id: &HashMap<String, String>,
-) -> Result<()> {
-    for proposal in &document.tasks {
-        let key = normalize_required(&proposal.key, "follow-up key")?;
-        for dependency in &proposal.depends_on_keys {
-            let dependency = normalize_required(dependency, "depends_on key")?;
-            if dependency == key {
-                bail!("follow-up proposal key {key} depends on itself");
-            }
-            if !key_to_id.contains_key(dependency) {
-                bail!("unknown follow-up dependency key: {dependency}");
-            }
-        }
-    }
-    Ok(())
-}
-
-fn materialize_task(
-    proposal: &FollowupTaskProposal,
-    key: &str,
-    id: &str,
-    source_task_id: &str,
-    source_request: Option<String>,
-    depends_on: Vec<String>,
-    now_rfc3339: &str,
-) -> Result<Task> {
-    Ok(Task {
-        id: id.to_string(),
-        status: TaskStatus::Todo,
-        title: normalize_required(&proposal.title, "follow-up title")?.to_string(),
-        description: Some(
-            normalize_required(&proposal.description, "follow-up description")?.to_string(),
-        ),
-        priority: proposal.priority,
-        tags: proposal.tags.clone(),
-        scope: proposal.scope.clone(),
-        evidence: proposal.evidence.clone(),
-        plan: proposal.plan.clone(),
-        notes: vec![format!("Generated from follow-up proposal key {key}")],
-        request: source_request,
-        agent: None,
-        created_at: Some(now_rfc3339.to_string()),
-        updated_at: Some(now_rfc3339.to_string()),
-        completed_at: None,
-        started_at: None,
-        scheduled_start: None,
-        depends_on,
-        blocks: Vec::new(),
-        relates_to: vec![source_task_id.to_string()],
-        duplicates: None,
-        custom_fields: HashMap::new(),
-        parent_id: None,
-        estimated_minutes: None,
-        actual_minutes: None,
-    })
 }
 
 fn find_source_task<'a>(
@@ -429,18 +350,6 @@ fn find_source_task<'a>(
                 crate::error_messages::task_not_found_in_queue_or_done(source_task_id)
             )
         })
-}
-
-fn id_number(id: &str, id_prefix: &str) -> Result<u32> {
-    let prefix = queue::normalize_prefix(id_prefix);
-    let expected = format!("{prefix}-");
-    let suffix = id
-        .trim()
-        .strip_prefix(expected.as_str())
-        .ok_or_else(|| anyhow!("allocated task id {} does not use prefix {}", id, prefix))?;
-    suffix
-        .parse::<u32>()
-        .with_context(|| format!("parse allocated task id number from {id}"))
 }
 
 fn normalize_required<'a>(value: &'a str, label: &str) -> Result<&'a str> {

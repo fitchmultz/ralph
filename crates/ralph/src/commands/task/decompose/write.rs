@@ -22,14 +22,17 @@
 
 use super::resolve::resolve_effective_parent_for_write;
 use super::support::{
-    allocate_sequential_ids, annotate_parent, created_node_count, descendant_ids_for_parent,
-    done_queue_ref, ensure_subtree_is_replaceable, insertion_index, materialize_children,
-    materialize_node, request_context,
+    annotate_parent, created_node_count, descendant_ids_for_parent, done_queue_ref,
+    materialized_specs_for_preview, request_context,
 };
 use super::types::{
     DecompositionChildPolicy, DecompositionPreview, DecompositionSource, TaskDecomposeWriteResult,
 };
 use crate::contracts::QueueFile;
+use crate::queue::operations::{
+    MaterializeInsertion, MaterializeTaskGraphOptions, apply_materialized_task_graph,
+    ensure_subtree_is_replaceable,
+};
 use crate::{config, queue, timeutil};
 use anyhow::{Context, Result, bail};
 
@@ -71,73 +74,62 @@ pub fn write_task_decomposition(
         bail!("Task decomposition produced no child tasks to write.");
     }
 
-    let ids = allocate_sequential_ids(
-        &active,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-        created_count,
-    )?;
     let now = timeutil::now_utc_rfc3339()?;
     let request_context = request_context(preview);
-    let mut next_id_index = 0usize;
-    let mut created_tasks = materialize_created_tasks(
+    let specs =
+        materialized_specs_for_preview(preview, effective_parent.as_ref(), &request_context);
+    let materialize_insertion = materialize_insertion_strategy(
         preview,
         effective_parent.as_ref(),
-        &ids,
-        &mut next_id_index,
-        &request_context,
-        &now,
+        &existing_descendant_ids,
     )?;
 
-    let root_task_id = match (&preview.source, preview.attach_target.as_ref()) {
-        (DecompositionSource::ExistingTask { .. }, None) => None,
-        _ => created_tasks.first().map(|task| task.id.clone()),
-    };
     let parent_task_id = effective_parent.as_ref().map(|task| task.id.clone());
-    let created_ids = created_tasks
-        .iter()
-        .map(|task| task.id.clone())
-        .collect::<Vec<_>>();
     let replaced_ids = if preview.child_policy == DecompositionChildPolicy::Replace {
         existing_descendant_ids.iter().cloned().collect::<Vec<_>>()
     } else {
         Vec::new()
     };
 
-    let removed_ids = existing_descendant_ids;
-    if !removed_ids.is_empty() && preview.child_policy == DecompositionChildPolicy::Replace {
-        active
-            .tasks
-            .retain(|task| !removed_ids.contains(task.id.as_str()));
-    }
+    let materialized = apply_materialized_task_graph(
+        &mut active,
+        done_ref,
+        &specs,
+        &MaterializeTaskGraphOptions {
+            now_rfc3339: &now,
+            id_prefix: &resolved.id_prefix,
+            id_width: resolved.id_width,
+            max_dependency_depth: max_depth,
+            insertion: materialize_insertion,
+            dry_run: false,
+        },
+    )
+    .context("materialize task decomposition queue updates")?;
 
-    let insert_at = insertion_index(
-        &active,
-        effective_parent.as_ref(),
-        &removed_ids,
-        preview.child_policy,
-    )?;
-
-    if let Some(parent) = effective_parent {
+    if let Some(parent) = effective_parent.as_ref() {
         annotate_parent(
             &mut active,
             &parent.id,
             &preview.source,
             preview.attach_target.as_ref(),
-            &created_tasks,
+            &materialized.created_tasks,
             &now,
         )?;
     }
 
-    for (offset, task) in created_tasks.drain(..).enumerate() {
-        active.tasks.insert(insert_at + offset, task);
-    }
-
-    validate_queue_set(&active, done_ref, resolved, max_depth)
-        .context("validate queue set after task decompose write")?;
     queue::save_queue(&resolved.queue_path, &active)?;
+    let root_task_id = match (&preview.source, preview.attach_target.as_ref()) {
+        (DecompositionSource::ExistingTask { .. }, None) => None,
+        _ => materialized
+            .created_tasks
+            .first()
+            .map(|task| task.id.clone()),
+    };
+    let created_ids = materialized
+        .created_tasks
+        .iter()
+        .map(|task| task.id.clone())
+        .collect::<Vec<_>>();
 
     Ok(TaskDecomposeWriteResult {
         root_task_id,
@@ -195,75 +187,27 @@ fn enforce_child_policy(
     Ok(())
 }
 
-fn materialize_created_tasks(
+fn materialize_insertion_strategy(
     preview: &DecompositionPreview,
     effective_parent: Option<&crate::contracts::Task>,
-    ids: &[String],
-    next_id_index: &mut usize,
-    request_context: &str,
-    now: &str,
-) -> Result<Vec<crate::contracts::Task>> {
-    match (&preview.source, effective_parent) {
-        (DecompositionSource::ExistingTask { .. }, Some(parent))
-            if preview.attach_target.is_none() =>
-        {
-            materialize_children(
-                &preview.plan.root.children,
-                Some(parent.id.as_str()),
-                ids,
-                next_id_index,
-                preview.child_status,
-                request_context,
-                now,
-            )
+    existing_descendant_ids: &std::collections::HashSet<String>,
+) -> Result<MaterializeInsertion> {
+    Ok(match effective_parent {
+        None => MaterializeInsertion::QueueDefaultTop,
+        Some(parent) if preview.child_policy == DecompositionChildPolicy::Replace => {
+            MaterializeInsertion::ReplaceSubtree {
+                parent_task_id: parent.id.clone(),
+                removed_subtree_task_ids: existing_descendant_ids.iter().cloned().collect(),
+            }
         }
-        (_, Some(parent)) => {
-            let root_task = materialize_node(
-                &preview.plan.root,
-                Some(parent.id.as_str()),
-                ids,
-                next_id_index,
-                preview.child_status,
-                request_context,
-                now,
-            )?;
-            let root_id = root_task.id.clone();
-            let mut tasks = vec![root_task];
-            tasks.extend(materialize_children(
-                &preview.plan.root.children,
-                Some(root_id.as_str()),
-                ids,
-                next_id_index,
-                preview.child_status,
-                request_context,
-                now,
-            )?);
-            Ok(tasks)
-        }
-        (_, None) => {
-            let root_task = materialize_node(
-                &preview.plan.root,
-                None,
-                ids,
-                next_id_index,
-                preview.child_status,
-                request_context,
-                now,
-            )?;
-            let root_id = root_task.id.clone();
-            let mut tasks = vec![root_task];
-            tasks.extend(materialize_children(
-                &preview.plan.root.children,
-                Some(root_id.as_str()),
-                ids,
-                next_id_index,
-                preview.child_status,
-                request_context,
-                now,
-            )?);
-            Ok(tasks)
-        }
-    }
+        Some(parent) if existing_descendant_ids.is_empty() => MaterializeInsertion::AfterParent {
+            parent_task_id: parent.id.clone(),
+        },
+        Some(parent) => MaterializeInsertion::AppendUnderParent {
+            parent_task_id: parent.id.clone(),
+            existing_subtree_task_ids: existing_descendant_ids.iter().cloned().collect(),
+        },
+    })
 }
 
 fn undo_snapshot_label(preview: &DecompositionPreview) -> String {

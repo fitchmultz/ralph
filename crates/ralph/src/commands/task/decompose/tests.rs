@@ -226,6 +226,221 @@ fn write_task_decomposition_materializes_sibling_dependencies() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn write_task_decomposition_append_inserts_after_existing_subtree_without_reordering_siblings()
+-> Result<()> {
+    let (_temp, resolved) = test_resolved()?;
+    let parent = test_task("RQ-0001", "Epic", None);
+    let existing_child = test_task("RQ-0002", "Existing child", Some("RQ-0001"));
+    let later_sibling = test_task("RQ-0003", "Later sibling", None);
+    queue::save_queue(
+        &resolved.queue_path,
+        &QueueFile {
+            version: 1,
+            tasks: vec![parent.clone(), existing_child, later_sibling],
+        },
+    )?;
+
+    let preview = DecompositionPreview {
+        source: DecompositionSource::Freeform {
+            request: "Build auth".to_string(),
+        },
+        attach_target: Some(DecompositionAttachTarget {
+            task: Box::new(parent),
+            has_existing_children: true,
+        }),
+        plan: DecompositionPlan {
+            root: planned_node(
+                "auth-root",
+                "Auth root",
+                vec![],
+                vec![planned_node("auth-ui", "Auth UI", vec![], vec![])],
+            ),
+            warnings: vec![],
+            total_nodes: 2,
+            leaf_nodes: 1,
+            dependency_edges: vec![],
+        },
+        write_blockers: vec![],
+        child_status: TaskStatus::Draft,
+        child_policy: DecompositionChildPolicy::Append,
+        with_dependencies: false,
+    };
+
+    write_task_decomposition(&resolved, &preview, false)?;
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    assert_eq!(
+        queue_file
+            .tasks
+            .iter()
+            .map(|task| task.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["RQ-0001", "RQ-0002", "RQ-0004", "RQ-0005", "RQ-0003"]
+    );
+    Ok(())
+}
+
+#[test]
+fn write_task_decomposition_replace_reinserts_new_children_at_removed_subtree_boundary()
+-> Result<()> {
+    let (_temp, resolved) = test_resolved()?;
+    let parent = test_task("RQ-0001", "Epic", None);
+    let existing_child = test_task("RQ-0002", "Existing child", Some("RQ-0001"));
+    let later_sibling = test_task("RQ-0003", "Later sibling", None);
+    queue::save_queue(
+        &resolved.queue_path,
+        &QueueFile {
+            version: 1,
+            tasks: vec![parent.clone(), existing_child, later_sibling],
+        },
+    )?;
+
+    let preview = DecompositionPreview {
+        source: DecompositionSource::ExistingTask {
+            task: Box::new(parent),
+        },
+        attach_target: None,
+        plan: DecompositionPlan {
+            root: planned_node(
+                "epic",
+                "Epic",
+                vec![],
+                vec![planned_node("new-child", "New child", vec![], vec![])],
+            ),
+            warnings: vec![],
+            total_nodes: 2,
+            leaf_nodes: 1,
+            dependency_edges: vec![],
+        },
+        write_blockers: vec![],
+        child_status: TaskStatus::Draft,
+        child_policy: DecompositionChildPolicy::Replace,
+        with_dependencies: false,
+    };
+
+    let result = write_task_decomposition(&resolved, &preview, false)?;
+    assert_eq!(result.replaced_ids, vec!["RQ-0002".to_string()]);
+
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    assert_eq!(
+        queue_file
+            .tasks
+            .iter()
+            .map(|task| task.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["RQ-0001", "RQ-0004", "RQ-0003"]
+    );
+    Ok(())
+}
+
+#[test]
+fn write_task_decomposition_created_tasks_inherit_request_and_timestamps_from_shared_materializer()
+-> Result<()> {
+    let (_temp, resolved) = test_resolved()?;
+    queue::save_queue(&resolved.queue_path, &QueueFile::default())?;
+    let preview = DecompositionPreview {
+        source: DecompositionSource::Freeform {
+            request: "Ship OAuth".to_string(),
+        },
+        attach_target: None,
+        plan: DecompositionPlan {
+            root: planned_node("root", "Ship OAuth", vec![], vec![]),
+            warnings: vec![],
+            total_nodes: 1,
+            leaf_nodes: 1,
+            dependency_edges: vec![],
+        },
+        write_blockers: vec![],
+        child_status: TaskStatus::Draft,
+        child_policy: DecompositionChildPolicy::Fail,
+        with_dependencies: false,
+    };
+
+    write_task_decomposition(&resolved, &preview, false)?;
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let task = &queue_file.tasks[0];
+    assert_eq!(task.request.as_deref(), Some("Ship OAuth"));
+    assert!(task.created_at.is_some());
+    assert_eq!(task.created_at, task.updated_at);
+    Ok(())
+}
+
+#[test]
+fn write_task_decomposition_allows_cross_branch_duplicate_planner_keys() -> Result<()> {
+    let (_temp, resolved) = test_resolved()?;
+    queue::save_queue(&resolved.queue_path, &QueueFile::default())?;
+    let preview = DecompositionPreview {
+        source: DecompositionSource::Freeform {
+            request: "Ship auth".to_string(),
+        },
+        attach_target: None,
+        plan: DecompositionPlan {
+            root: planned_node(
+                "root",
+                "Ship auth",
+                vec![],
+                vec![
+                    planned_node(
+                        "backend",
+                        "Backend",
+                        vec![],
+                        vec![planned_node("tests", "Backend tests", vec![], vec![])],
+                    ),
+                    planned_node(
+                        "frontend",
+                        "Frontend",
+                        vec![],
+                        vec![planned_node("tests", "Frontend tests", vec![], vec![])],
+                    ),
+                ],
+            ),
+            warnings: vec![],
+            total_nodes: 5,
+            leaf_nodes: 2,
+            dependency_edges: vec![],
+        },
+        write_blockers: vec![],
+        child_status: TaskStatus::Draft,
+        child_policy: DecompositionChildPolicy::Fail,
+        with_dependencies: false,
+    };
+
+    let result = write_task_decomposition(&resolved, &preview, false)?;
+    assert_eq!(result.created_ids.len(), 5);
+
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let backend = queue_file
+        .tasks
+        .iter()
+        .find(|task| task.title == "Backend")
+        .expect("backend task");
+    let frontend = queue_file
+        .tasks
+        .iter()
+        .find(|task| task.title == "Frontend")
+        .expect("frontend task");
+    let backend_tests = queue_file
+        .tasks
+        .iter()
+        .find(|task| task.title == "Backend tests")
+        .expect("backend tests task");
+    let frontend_tests = queue_file
+        .tasks
+        .iter()
+        .find(|task| task.title == "Frontend tests")
+        .expect("frontend tests task");
+
+    assert_eq!(
+        backend_tests.parent_id.as_deref(),
+        Some(backend.id.as_str())
+    );
+    assert_eq!(
+        frontend_tests.parent_id.as_deref(),
+        Some(frontend.id.as_str())
+    );
+    Ok(())
+}
+
 fn planned_node(
     key: &str,
     title: &str,

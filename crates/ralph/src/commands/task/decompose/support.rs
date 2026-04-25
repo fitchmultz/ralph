@@ -5,8 +5,8 @@
 //!
 //! Responsibilities:
 //! - Count planned/generated nodes and dependency edges.
-//! - Materialize planned nodes into durable queue tasks.
-//! - Provide shared normalization, queue insertion, and subtree safety helpers.
+//! - Translate decomposition previews into normalized queue materialization specs.
+//! - Provide shared normalization and subtree-navigation helpers.
 //!
 //! Not handled here:
 //! - Runner invocation or prompt rendering.
@@ -17,16 +17,17 @@
 //! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
-//! - Planner keys are already uniquified among siblings before materialization.
+//! - Planner keys are already uniquified before queue materialization.
 //! - Replacement safety checks must run before mutating queue state.
 
 use super::types::{
-    DecompositionAttachTarget, DecompositionChildPolicy, DecompositionPreview, DecompositionSource,
-    DependencyEdgePreview, PlannedNode, SourceKind,
+    DecompositionAttachTarget, DecompositionPreview, DecompositionSource, DependencyEdgePreview,
+    PlannedNode, SourceKind,
 };
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::queue;
-use anyhow::{Context, Result, bail};
+use crate::queue::operations::MaterializedTaskSpec;
+use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet};
 
 pub(super) fn count_nodes(node: &PlannedNode) -> (usize, usize) {
@@ -78,114 +79,6 @@ pub(super) fn created_node_count(preview: &DecompositionPreview) -> usize {
     } else {
         preview.plan.total_nodes
     }
-}
-
-pub(super) fn allocate_sequential_ids(
-    active: &QueueFile,
-    done: Option<&QueueFile>,
-    id_prefix: &str,
-    id_width: usize,
-    max_depth: u8,
-    count: usize,
-) -> Result<Vec<String>> {
-    let first_id = queue::next_id_across(active, done, id_prefix, id_width, max_depth)?;
-    let numeric_start = parse_numeric_id(&first_id, id_prefix)?;
-    let normalized_prefix = queue::normalize_prefix(id_prefix);
-    let mut ids = Vec::with_capacity(count);
-    for offset in 0..count {
-        let increment =
-            u32::try_from(offset).context("task decomposition generated too many tasks")?;
-        ids.push(queue::format_id(
-            &normalized_prefix,
-            numeric_start + increment,
-            id_width,
-        ));
-    }
-    Ok(ids)
-}
-
-pub(super) fn materialize_children(
-    nodes: &[PlannedNode],
-    parent_id: Option<&str>,
-    ids: &[String],
-    next_id_index: &mut usize,
-    status: TaskStatus,
-    request: &str,
-    now: &str,
-) -> Result<Vec<Task>> {
-    let mut direct_tasks = Vec::new();
-    for node in nodes {
-        direct_tasks.push(materialize_node(
-            node,
-            parent_id,
-            ids,
-            next_id_index,
-            status,
-            request,
-            now,
-        )?);
-    }
-
-    let sibling_id_map = nodes
-        .iter()
-        .zip(direct_tasks.iter())
-        .map(|(node, task)| (node.planner_key.clone(), task.id.clone()))
-        .collect::<HashMap<_, _>>();
-
-    for (index, task) in direct_tasks.iter_mut().enumerate() {
-        task.depends_on = nodes[index]
-            .depends_on_keys
-            .iter()
-            .filter_map(|key| sibling_id_map.get(key).cloned())
-            .collect();
-    }
-
-    let mut tasks = Vec::new();
-    for (task, node) in direct_tasks.into_iter().zip(nodes.iter()) {
-        let task_id = task.id.clone();
-        tasks.push(task);
-        let descendants = materialize_children(
-            &node.children,
-            Some(task_id.as_str()),
-            ids,
-            next_id_index,
-            status,
-            request,
-            now,
-        )?;
-        tasks.extend(descendants);
-    }
-    Ok(tasks)
-}
-
-pub(super) fn materialize_node(
-    node: &PlannedNode,
-    parent_id: Option<&str>,
-    ids: &[String],
-    next_id_index: &mut usize,
-    status: TaskStatus,
-    request: &str,
-    now: &str,
-) -> Result<Task> {
-    let id = ids
-        .get(*next_id_index)
-        .cloned()
-        .context("planner/task count mismatch while assigning IDs")?;
-    *next_id_index += 1;
-    Ok(Task {
-        id,
-        status,
-        title: node.title.clone(),
-        description: node.description.clone(),
-        tags: node.tags.clone(),
-        scope: node.scope.clone(),
-        plan: node.plan.clone(),
-        request: Some(request.to_string()),
-        created_at: Some(now.to_string()),
-        updated_at: Some(now.to_string()),
-        parent_id: parent_id.map(|value| value.to_string()),
-        ..Task::default()
-    })
 }
 
 pub(super) fn request_context(preview: &DecompositionPreview) -> String {
@@ -260,6 +153,42 @@ pub(super) fn normalize_key(value: Option<&str>, fallback_title: &str) -> String
     }
 }
 
+pub(super) fn materialized_specs_for_preview(
+    preview: &DecompositionPreview,
+    effective_parent: Option<&Task>,
+    request: &str,
+) -> Vec<MaterializedTaskSpec> {
+    let mut specs = Vec::new();
+    let mut seen_local_keys = HashSet::new();
+    match (&preview.source, effective_parent) {
+        (DecompositionSource::ExistingTask { .. }, Some(parent))
+            if preview.attach_target.is_none() =>
+        {
+            collect_materialized_specs_for_nodes(
+                &preview.plan.root.children,
+                None,
+                Some(parent.id.as_str()),
+                preview.child_status,
+                request,
+                &mut seen_local_keys,
+                &mut specs,
+            );
+        }
+        (_, parent) => {
+            collect_materialized_specs_for_nodes(
+                std::slice::from_ref(&preview.plan.root),
+                None,
+                parent.map(|task| task.id.as_str()),
+                preview.child_status,
+                request,
+                &mut seen_local_keys,
+                &mut specs,
+            );
+        }
+    }
+    specs
+}
+
 pub(super) fn normalize_optional_string(value: Option<String>) -> Option<String> {
     value.and_then(|item| {
         let trimmed = item.trim();
@@ -299,94 +228,6 @@ pub(super) fn descendant_ids_for_parent(
     let mut descendants = HashSet::new();
     collect_descendant_ids(&idx, parent_id, &mut descendants);
     Ok(descendants)
-}
-
-pub(super) fn ensure_subtree_is_replaceable(
-    active: &QueueFile,
-    done: Option<&QueueFile>,
-    removed_ids: &HashSet<String>,
-) -> Result<()> {
-    let mut references = Vec::new();
-    for task in active
-        .tasks
-        .iter()
-        .chain(done.into_iter().flat_map(|queue| queue.tasks.iter()))
-    {
-        if removed_ids.contains(&task.id) {
-            continue;
-        }
-        for dep in &task.depends_on {
-            if removed_ids.contains(dep) {
-                references.push(format!("{} depends_on {}", task.id, dep));
-            }
-        }
-        for blocked in &task.blocks {
-            if removed_ids.contains(blocked) {
-                references.push(format!("{} blocks {}", task.id, blocked));
-            }
-        }
-        for related in &task.relates_to {
-            if removed_ids.contains(related) {
-                references.push(format!("{} relates_to {}", task.id, related));
-            }
-        }
-        if let Some(duplicate_id) = &task.duplicates
-            && removed_ids.contains(duplicate_id)
-        {
-            references.push(format!("{} duplicates {}", task.id, duplicate_id));
-        }
-        if let Some(parent_id) = &task.parent_id
-            && removed_ids.contains(parent_id)
-        {
-            references.push(format!("{} parent_id {}", task.id, parent_id));
-        }
-    }
-    if !references.is_empty() {
-        let sample = references
-            .iter()
-            .take(5)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(", ");
-        bail!(
-            "Cannot replace the existing child subtree because other tasks still reference it: {}{}",
-            sample,
-            if references.len() > 5 {
-                format!(" (and {} more)", references.len() - 5)
-            } else {
-                String::new()
-            }
-        );
-    }
-    Ok(())
-}
-
-pub(super) fn insertion_index(
-    active: &QueueFile,
-    effective_parent: Option<&Task>,
-    replaced_ids: &HashSet<String>,
-    child_policy: DecompositionChildPolicy,
-) -> Result<usize> {
-    match effective_parent {
-        None => Ok(queue::suggest_new_task_insert_index(active)),
-        Some(parent) => {
-            let parent_index = active
-                .tasks
-                .iter()
-                .position(|task| task.id == parent.id)
-                .with_context(|| crate::error_messages::source_task_not_found(&parent.id, false))?;
-            if child_policy == DecompositionChildPolicy::Replace || replaced_ids.is_empty() {
-                return Ok(parent_index + 1);
-            }
-            let mut max_index = parent_index;
-            for (index, task) in active.tasks.iter().enumerate() {
-                if replaced_ids.contains(&task.id) && index > max_index {
-                    max_index = index;
-                }
-            }
-            Ok(max_index + 1)
-        }
-    }
 }
 
 pub(super) fn annotate_parent(
@@ -436,14 +277,6 @@ pub(super) fn annotate_parent(
     Ok(())
 }
 
-fn parse_numeric_id(task_id: &str, id_prefix: &str) -> Result<u32> {
-    task_id
-        .strip_prefix(&format!("{}-", queue::normalize_prefix(id_prefix)))
-        .with_context(|| format!("task ID '{}' did not match prefix {}", task_id, id_prefix))?
-        .parse::<u32>()
-        .with_context(|| format!("task ID '{}' did not contain a numeric suffix", task_id))
-}
-
 fn collect_descendant_ids(
     idx: &queue::hierarchy::HierarchyIndex<'_>,
     parent_id: &str,
@@ -454,4 +287,78 @@ fn collect_descendant_ids(
             collect_descendant_ids(idx, &child.task.id, out);
         }
     }
+}
+
+fn collect_materialized_specs_for_nodes(
+    nodes: &[PlannedNode],
+    parent_local_key: Option<&str>,
+    parent_task_id: Option<&str>,
+    status: TaskStatus,
+    request: &str,
+    seen_local_keys: &mut HashSet<String>,
+    out: &mut Vec<MaterializedTaskSpec>,
+) {
+    let mut sibling_local_keys = HashMap::with_capacity(nodes.len());
+    for node in nodes {
+        let local_key = allocate_materialized_local_key(&node.planner_key, seen_local_keys);
+        sibling_local_keys.insert(node.planner_key.clone(), local_key);
+    }
+
+    for node in nodes {
+        let local_key = sibling_local_keys
+            .get(&node.planner_key)
+            .expect("assigned sibling local key")
+            .clone();
+        out.push(MaterializedTaskSpec {
+            local_key: local_key.clone(),
+            title: node.title.clone(),
+            description: node.description.clone(),
+            priority: Default::default(),
+            status,
+            tags: node.tags.clone(),
+            scope: node.scope.clone(),
+            evidence: Vec::new(),
+            plan: node.plan.clone(),
+            notes: Vec::new(),
+            request: Some(request.to_string()),
+            relates_to: Vec::new(),
+            parent_local_key: parent_local_key.map(|value| value.to_string()),
+            parent_task_id: parent_task_id.map(|value| value.to_string()),
+            depends_on_local_keys: node
+                .depends_on_keys
+                .iter()
+                .map(|dependency_key| {
+                    sibling_local_keys
+                        .get(dependency_key)
+                        .cloned()
+                        .expect("sibling dependency should resolve during normalization")
+                })
+                .collect(),
+            estimated_minutes: None,
+        });
+
+        collect_materialized_specs_for_nodes(
+            &node.children,
+            Some(local_key.as_str()),
+            None,
+            status,
+            request,
+            seen_local_keys,
+            out,
+        );
+    }
+}
+
+fn allocate_materialized_local_key(
+    planner_key: &str,
+    seen_local_keys: &mut HashSet<String>,
+) -> String {
+    let base = planner_key.to_string();
+    let mut candidate = base.clone();
+    let mut suffix = 2usize;
+    while !seen_local_keys.insert(candidate.clone()) {
+        candidate = format!("{base}-{suffix}");
+        suffix += 1;
+    }
+    candidate
 }

@@ -67,6 +67,7 @@ mod batch;
 mod edit;
 mod fields;
 mod followups;
+mod materialize;
 mod mutation;
 mod query;
 mod runnability;

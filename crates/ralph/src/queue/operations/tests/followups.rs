@@ -190,7 +190,7 @@ fn apply_followups_rejects_unknown_dependency_key_before_mutation() {
     )
     .unwrap_err();
 
-    assert!(format!("{err:#}").contains("unknown follow-up dependency key: missing"));
+    assert!(format!("{err:#}").contains("unknown local dependency key: missing"));
     assert_eq!(queue_snapshot(&active), before);
 }
 
@@ -220,6 +220,35 @@ fn apply_followups_rejects_duplicate_keys_before_mutation() {
     .unwrap_err();
 
     assert!(format!("{err:#}").contains("duplicate follow-up proposal key"));
+    assert_eq!(queue_snapshot(&active), before);
+}
+
+#[test]
+fn apply_followups_rejects_self_dependency_before_mutation() {
+    let mut active = QueueFile {
+        version: 1,
+        tasks: vec![task("RQ-0001")],
+    };
+    let before = queue_snapshot(&active);
+    let mut value = proposal_json("RQ-0001");
+    value["tasks"][0]["depends_on_keys"] = serde_json::json!(["docs-hierarchy"]);
+    let proposal = parse_proposal(value);
+
+    let err = apply_followups_in_memory(
+        &mut active,
+        None,
+        &proposal,
+        "RQ-0001",
+        Path::new(".ralph/cache/followups/RQ-0001.json"),
+        "2026-04-23T20:00:00Z",
+        "RQ",
+        4,
+        10,
+        false,
+    )
+    .unwrap_err();
+
+    assert!(format!("{err:#}").contains("task local_key docs-hierarchy depends on itself"));
     assert_eq!(queue_snapshot(&active), before);
 }
 
@@ -278,7 +307,7 @@ fn apply_followups_rejects_queue_validation_failure_before_mutation() {
     )
     .unwrap_err();
 
-    assert!(format!("{err:#}").contains("validate queue after applying follow-up proposal"));
+    assert!(format!("{err:#}").contains("validate queue after materializing tasks"));
     assert_eq!(queue_snapshot(&active), before);
 }
 

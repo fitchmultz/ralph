@@ -29,6 +29,7 @@
 use super::{TaskBuildOptions, resolve_task_build_settings};
 use crate::commands::run::PhaseType;
 use crate::contracts::ProjectType;
+use crate::queue::operations::{CreatedTaskNormalization, normalize_created_tasks};
 use crate::{config, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Context, Result, bail};
 
@@ -235,21 +236,17 @@ fn build_task_impl(
     if !added.is_empty() {
         let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
 
-        // Enforce smart positioning deterministically
-        queue::reposition_new_tasks(&mut after, &added_ids, insert_index);
-
         let now = timeutil::now_utc_rfc3339_or_fallback();
-        let default_request = opts.request.clone();
-        queue::backfill_missing_fields(&mut after, &added_ids, &default_request, &now);
-
-        // Apply estimated_minutes if provided via --estimate flag
-        if let Some(estimated) = opts.estimated_minutes {
-            for task in &mut after.tasks {
-                if added_ids.contains(&task.id) {
-                    task.estimated_minutes = Some(estimated);
-                }
-            }
-        }
+        normalize_created_tasks(
+            &mut after,
+            &added_ids,
+            &CreatedTaskNormalization {
+                insert_at: insert_index,
+                default_request: &opts.request,
+                now_rfc3339: &now,
+                estimated_minutes: opts.estimated_minutes,
+            },
+        );
 
         queue::save_queue(&resolved.queue_path, &after)
             .context("save queue with backfilled fields")?;

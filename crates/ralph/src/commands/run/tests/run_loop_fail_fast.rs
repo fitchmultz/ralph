@@ -22,8 +22,10 @@
 use super::{LoggerState, take_logs};
 use crate::contracts::{AgentConfig, Config, QueueConfig, QueueFile, Runner, TaskStatus};
 use crate::queue;
+use crate::testsupport::{INTERRUPT_TEST_MUTEX, reset_ctrlc_interrupt_flag};
 use std::path::Path;
 use std::process::Command;
+use std::sync::Mutex;
 
 fn git_status_ok(dir: &Path, args: &[&str], description: &str) -> anyhow::Result<()> {
     let _path_guard = crate::testsupport::path::path_lock()
@@ -80,6 +82,10 @@ fn resolved_with_missing_runner(repo_root: std::path::PathBuf) -> crate::config:
 
 #[test]
 fn sequential_run_loop_aborts_after_single_task_failure() -> anyhow::Result<()> {
+    let interrupt_mutex = INTERRUPT_TEST_MUTEX.get_or_init(|| Mutex::new(()));
+    let _interrupt_guard = interrupt_mutex.lock().expect("interrupt mutex");
+    reset_ctrlc_interrupt_flag();
+
     let _ = take_logs();
 
     let temp = tempfile::TempDir::new()?;

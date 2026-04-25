@@ -1,275 +1,48 @@
-//! Task-building and task-updating command helpers (request parsing, runner invocation, and queue updates).
+//! Task command facade and shared task workflow exports.
 //!
 //! Purpose:
-//! - Task-building and task-updating command helpers (request parsing, runner invocation, and queue updates).
+//! - Expose task build, update, decompose, and refactor command entrypoints through a thin facade.
 //!
 //! Responsibilities:
-//! - Shared types and configuration for task operations (build, update, refactor).
-//! - Parse task request inputs from CLI args or stdin.
-//! - Runner settings resolution for task operations.
-//! - JSON field comparison for task updates.
+//! - Declare task submodules and re-export their canonical public/shared surfaces.
+//! - Keep task command module boundaries aligned with the rest of the facade-style command tree.
 //!
-//! Not handled here:
-//! - Actual task building logic (see build.rs).
-//! - Task update logic (see update/mod.rs).
-//! - Refactor task generation and LOC scanning (see refactor.rs).
-//! - CLI argument definitions or command routing.
-//! - Runner process implementation details or output parsing.
-//! - Queue schema definitions or config persistence.
-//!
+//! Non-scope:
+//! - Task build, update, decomposition, or refactor implementation details.
+//! - Request parsing, runner-setting resolution, or diff logic beyond re-exporting shared helpers.
 //!
 //! Usage:
 //! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
-//! - Queue/done files are the source of truth for task ordering and status.
-//! - Runner execution requires stream-json output for parsing.
-//! - Permission/approval defaults come from config unless overridden at CLI.
-
-use crate::contracts::{
-    ClaudePermissionMode, Model, ReasoningEffort, Runner, RunnerCliOptionsPatch,
-};
-use crate::{config, runner};
-use anyhow::{Context, Result, bail};
-use std::io::{IsTerminal, Read};
-use std::path::PathBuf;
+//! - Shared helper exports remain stable for task CLI/machine entrypoints and task submodules.
+//! - Implementation logic lives in companion modules rather than this facade file.
 
 mod build;
 mod decompose;
+mod diff;
 mod refactor;
+mod request;
+mod settings;
+mod types;
 mod update;
 
+pub use build::{build_task, build_task_created_tasks, build_task_without_lock};
 pub use decompose::{
     DecompositionAttachTarget, DecompositionChildPolicy, DecompositionPlan, DecompositionPreview,
     DecompositionSource, PlannedNode, TaskDecomposeOptions, TaskDecomposeWriteResult,
     plan_task_decomposition, write_task_decomposition,
 };
-
-/// Batching mode for grouping related files in build-refactor.
-#[derive(Clone, Copy, Debug)]
-pub enum BatchMode {
-    /// Group files in same directory with similar names (e.g., test files with source).
-    Auto,
-    /// Create individual task per file.
-    Never,
-    /// Group all files in same module/directory.
-    Aggressive,
-}
-
-impl From<crate::cli::task::BatchMode> for BatchMode {
-    fn from(mode: crate::cli::task::BatchMode) -> Self {
-        match mode {
-            crate::cli::task::BatchMode::Auto => BatchMode::Auto,
-            crate::cli::task::BatchMode::Never => BatchMode::Never,
-            crate::cli::task::BatchMode::Aggressive => BatchMode::Aggressive,
-        }
-    }
-}
-
-/// Options for the build-refactor command.
-pub struct TaskBuildRefactorOptions {
-    pub threshold: usize,
-    pub path: Option<PathBuf>,
-    pub dry_run: bool,
-    pub batch: BatchMode,
-    pub extra_tags: String,
-    pub runner_override: Option<Runner>,
-    pub model_override: Option<Model>,
-    pub reasoning_effort_override: Option<ReasoningEffort>,
-    pub runner_cli_overrides: RunnerCliOptionsPatch,
-    pub force: bool,
-    pub repoprompt_tool_injection: bool,
-}
-
-/// Canonical destination for runner output during task build workflows.
-pub enum TaskBuildOutputTarget {
-    /// Stream runner output directly to stdout/stderr for human CLI use.
-    Terminal,
-    /// Suppress direct output so stdout remains reserved for machine JSON.
-    Quiet,
-    /// Deliver output to an app/event handler without writing to stdout/stderr.
-    Handler(runner::OutputHandler),
-}
-
-impl TaskBuildOutputTarget {
-    pub(crate) fn output_handler(&self) -> Option<runner::OutputHandler> {
-        match self {
-            TaskBuildOutputTarget::Terminal | TaskBuildOutputTarget::Quiet => None,
-            TaskBuildOutputTarget::Handler(handler) => Some(handler.clone()),
-        }
-    }
-
-    pub(crate) fn output_stream(&self) -> runner::OutputStream {
-        match self {
-            TaskBuildOutputTarget::Terminal => runner::OutputStream::Terminal,
-            TaskBuildOutputTarget::Quiet | TaskBuildOutputTarget::Handler(_) => {
-                runner::OutputStream::HandlerOnly
-            }
-        }
-    }
-}
-
-// TaskBuildOptions controls runner-driven task creation via .ralph/prompts/task_builder.md.
-pub struct TaskBuildOptions {
-    pub request: String,
-    pub hint_tags: String,
-    pub hint_scope: String,
-    pub runner_override: Option<Runner>,
-    pub model_override: Option<Model>,
-    pub reasoning_effort_override: Option<ReasoningEffort>,
-    pub runner_cli_overrides: RunnerCliOptionsPatch,
-    pub force: bool,
-    pub repoprompt_tool_injection: bool,
-    /// Single source of truth for runner output routing.
-    pub output: TaskBuildOutputTarget,
-    /// Optional template name to use as a base for task fields
-    pub template_hint: Option<String>,
-    /// Optional target path for template variable substitution
-    pub template_target: Option<String>,
-    /// Fail on unknown template variables (default: false, warns only)
-    pub strict_templates: bool,
-    /// Estimated minutes for task completion
-    pub estimated_minutes: Option<u32>,
-}
-
-// TaskUpdateSettings controls runner-driven task updates via .ralph/prompts/task_updater.md.
-pub struct TaskUpdateSettings {
-    pub fields: String,
-    pub runner_override: Option<Runner>,
-    pub model_override: Option<Model>,
-    pub reasoning_effort_override: Option<ReasoningEffort>,
-    pub runner_cli_overrides: RunnerCliOptionsPatch,
-    pub force: bool,
-    pub repoprompt_tool_injection: bool,
-    pub dry_run: bool,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct TaskRunnerSettings {
-    pub(crate) runner: Runner,
-    pub(crate) model: Model,
-    pub(crate) reasoning_effort: Option<ReasoningEffort>,
-    pub(crate) runner_cli: runner::ResolvedRunnerCliOptions,
-    pub(crate) permission_mode: Option<ClaudePermissionMode>,
-}
-
-pub(crate) fn resolve_task_runner_settings(
-    resolved: &config::Resolved,
-    runner_override: Option<Runner>,
-    model_override: Option<Model>,
-    reasoning_effort_override: Option<ReasoningEffort>,
-    runner_cli_overrides: &RunnerCliOptionsPatch,
-) -> Result<TaskRunnerSettings> {
-    let settings = runner::resolve_agent_settings(
-        runner_override,
-        model_override,
-        reasoning_effort_override,
-        runner_cli_overrides,
-        None,
-        &resolved.config.agent,
-    )?;
-
-    Ok(TaskRunnerSettings {
-        runner: settings.runner,
-        model: settings.model,
-        reasoning_effort: settings.reasoning_effort,
-        runner_cli: settings.runner_cli,
-        permission_mode: resolved.config.agent.claude_permission_mode,
-    })
-}
-
-pub(crate) fn resolve_task_build_settings(
-    resolved: &config::Resolved,
-    opts: &TaskBuildOptions,
-) -> Result<TaskRunnerSettings> {
-    resolve_task_runner_settings(
-        resolved,
-        opts.runner_override.clone(),
-        opts.model_override.clone(),
-        opts.reasoning_effort_override,
-        &opts.runner_cli_overrides,
-    )
-}
-
-pub(crate) fn resolve_task_update_settings(
-    resolved: &config::Resolved,
-    settings: &TaskUpdateSettings,
-) -> Result<TaskRunnerSettings> {
-    resolve_task_runner_settings(
-        resolved,
-        settings.runner_override.clone(),
-        settings.model_override.clone(),
-        settings.reasoning_effort_override,
-        &settings.runner_cli_overrides,
-    )
-}
-
-pub fn read_request_from_args_or_reader(
-    args: &[String],
-    stdin_is_terminal: bool,
-    mut reader: impl Read,
-) -> Result<String> {
-    if !args.is_empty() {
-        let joined = args.join(" ");
-        let trimmed = joined.trim();
-        if trimmed.is_empty() {
-            bail!(
-                "Missing request: task requires a request description. Pass arguments or pipe input to the command."
-            );
-        }
-        return Ok(trimmed.to_string());
-    }
-
-    if stdin_is_terminal {
-        bail!(
-            "Missing request: task requires a request description. Pass arguments or pipe input to the command."
-        );
-    }
-
-    let mut buf = String::new();
-    reader.read_to_string(&mut buf).context("read stdin")?;
-    let trimmed = buf.trim();
-    if trimmed.is_empty() {
-        bail!(
-            "Missing request: task requires a request description (pass arguments or pipe input to the command)."
-        );
-    }
-    Ok(trimmed.to_string())
-}
-
-// read_request_from_args_or_stdin joins any positional args, otherwise reads stdin.
-pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
-    let stdin = std::io::stdin();
-    let stdin_is_terminal = stdin.is_terminal();
-    let handle = stdin.lock();
-    read_request_from_args_or_reader(args, stdin_is_terminal, handle)
-}
-
-pub fn compare_task_fields(before: &str, after: &str) -> Result<Vec<String>> {
-    let before_value: serde_json::Value = serde_json::from_str(before)?;
-    let after_value: serde_json::Value = serde_json::from_str(after)?;
-
-    if let (Some(before_obj), Some(after_obj)) = (before_value.as_object(), after_value.as_object())
-    {
-        let mut changed = Vec::new();
-        for (key, after_val) in after_obj {
-            if let Some(before_val) = before_obj.get(key) {
-                if before_val != after_val {
-                    changed.push(key.clone());
-                }
-            } else {
-                changed.push(key.clone());
-            }
-        }
-        Ok(changed)
-    } else {
-        Ok(vec!["task".to_string()])
-    }
-}
-
-// Re-export public functions from submodules
-pub use build::{build_task, build_task_created_tasks, build_task_without_lock};
+pub use diff::compare_task_fields;
 pub use refactor::build_refactor_tasks;
+pub use request::{read_request_from_args_or_reader, read_request_from_args_or_stdin};
+pub(crate) use settings::{
+    resolve_task_build_settings, resolve_task_runner_settings, resolve_task_update_settings,
+};
+pub use types::{
+    BatchMode, TaskBuildOptions, TaskBuildOutputTarget, TaskBuildRefactorOptions,
+    TaskUpdateSettings,
+};
 pub use update::{update_all_tasks, update_task, update_task_without_lock};
 
 #[cfg(test)]

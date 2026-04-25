@@ -20,13 +20,12 @@
 //! - Existing-task decomposition only operates on active, non-terminal tasks.
 //! - Attach targets are restricted to freeform sources and active queue tasks.
 
-use super::support::{
-    descendant_ids_for_parent, ensure_subtree_is_replaceable, looks_like_task_id,
-};
+use super::support::{descendant_ids_for_parent, looks_like_task_id};
 use super::types::{
     DecompositionAttachTarget, DecompositionChildPolicy, DecompositionPreview, DecompositionSource,
 };
 use crate::contracts::{QueueFile, Task, TaskStatus};
+use crate::queue::operations::ensure_subtree_is_replaceable;
 use crate::{config, queue};
 use anyhow::{Context, Result, bail};
 
