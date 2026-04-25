@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.4:xhigh"
+        "model_used": "openai-codex/gpt-5.4:xhigh",
+        "runner_used": "pi"
       }
     },
     {
@@ -241,6 +241,51 @@
       "created_at": "2026-04-25T16:45:55Z",
       "updated_at": "2026-04-25T17:42:27.374520000Z",
       "completed_at": "2026-04-25T17:42:27.374520000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0004",
+      "status": "done",
+      "title": "Consolidate task materialization and slim task command helpers",
+      "description": "The audit found that Ralph currently materializes new queue tasks through multiple overlapping paths. `commands/task/mod.rs` is carrying helper-surface, option, runner-resolution, request-reading, and field-diff responsibilities, while follow-up proposal application and task decomposition each allocate IDs, map dependencies, choose insertion points, stamp timestamps, and validate queue writes independently. This work should establish one canonical task-materialization path, reduce boundary drift in the task command surface, and keep follow-up/decomposition behavior aligned for IDs, dependency remapping, timestamps, insertion order, and validation.",
+      "priority": "high",
+      "tags": [
+        "audit",
+        "architecture",
+        "queue",
+        "task-builder",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/task/mod.rs",
+        "crates/ralph/src/commands/task/decompose/",
+        "crates/ralph/src/queue/operations/followups.rs",
+        "crates/ralph/src/queue/operations/",
+        "cargo test -p ralph-agent-loop task",
+        "cargo test -p ralph-agent-loop queue"
+      ],
+      "evidence": [
+        "User request: \"use the comprehensive codebase audit skill and build tasks stemming from your findings\"",
+        "crates/ralph/src/commands/task/mod.rs:1-27 and 48-205 show the facade carrying helper docs, shared option types, runner-setting resolution, request parsing, and other cross-cutting task command responsibilities.",
+        "crates/ralph/src/queue/operations/followups.rs:132-268 and 305-332 allocate follow-up IDs, materialize tasks, pick insertion points, and validate queue writes.",
+        "crates/ralph/src/commands/task/decompose/support.rs:83-189 and 364-389 separately allocate sequential IDs, materialize tasks, and choose queue insertion positions for decomposition output."
+      ],
+      "plan": [
+        "Map the current task-creation/write flows across task build/update, follow-up proposal apply, and decomposition so the canonical shared responsibilities are explicit.",
+        "Refactor `commands/task/mod.rs` into a thin facade with focused companions for task types, runner-setting resolution, request IO, and field-diff helpers.",
+        "Extract a shared queue-materialization layer that owns sequential ID allocation, dependency remapping, timestamp stamping, insertion strategy, and post-write validation.",
+        "Cut follow-up application and decomposition over to that shared layer without changing their user-facing behavior or queue contract.",
+        "Add or update focused tests that prove equivalent ordering, dependency wiring, and validation behavior across the consolidated paths.",
+        "Run the relevant task/queue Rust test coverage and the canonical local gate needed to prove the refactor preserved behavior."
+      ],
+      "notes": [],
+      "request": "use the comprehensive codebase audit skill and build tasks stemming from your findings",
+      "created_at": "2026-04-25T16:45:55Z",
+      "updated_at": "2026-04-25T17:43:22.994664000Z",
+      "completed_at": "2026-04-25T17:43:22.994664000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
