@@ -1,4 +1,191 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0004",
+      "status": "todo",
+      "title": "Consolidate task materialization and slim task command helpers",
+      "description": "The audit found that Ralph currently materializes new queue tasks through multiple overlapping paths. `commands/task/mod.rs` is carrying helper-surface, option, runner-resolution, request-reading, and field-diff responsibilities, while follow-up proposal application and task decomposition each allocate IDs, map dependencies, choose insertion points, stamp timestamps, and validate queue writes independently. This work should establish one canonical task-materialization path, reduce boundary drift in the task command surface, and keep follow-up/decomposition behavior aligned for IDs, dependency remapping, timestamps, insertion order, and validation.",
+      "priority": "high",
+      "tags": [
+        "audit",
+        "architecture",
+        "queue",
+        "task-builder",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/task/mod.rs",
+        "crates/ralph/src/commands/task/decompose/",
+        "crates/ralph/src/queue/operations/followups.rs",
+        "crates/ralph/src/queue/operations/",
+        "cargo test -p ralph-agent-loop task",
+        "cargo test -p ralph-agent-loop queue"
+      ],
+      "evidence": [
+        "User request: \"use the comprehensive codebase audit skill and build tasks stemming from your findings\"",
+        "crates/ralph/src/commands/task/mod.rs:1-27 and 48-205 show the facade carrying helper docs, shared option types, runner-setting resolution, request parsing, and other cross-cutting task command responsibilities.",
+        "crates/ralph/src/queue/operations/followups.rs:132-268 and 305-332 allocate follow-up IDs, materialize tasks, pick insertion points, and validate queue writes.",
+        "crates/ralph/src/commands/task/decompose/support.rs:83-189 and 364-389 separately allocate sequential IDs, materialize tasks, and choose queue insertion positions for decomposition output."
+      ],
+      "plan": [
+        "Map the current task-creation/write flows across task build/update, follow-up proposal apply, and decomposition so the canonical shared responsibilities are explicit.",
+        "Refactor `commands/task/mod.rs` into a thin facade with focused companions for task types, runner-setting resolution, request IO, and field-diff helpers.",
+        "Extract a shared queue-materialization layer that owns sequential ID allocation, dependency remapping, timestamp stamping, insertion strategy, and post-write validation.",
+        "Cut follow-up application and decomposition over to that shared layer without changing their user-facing behavior or queue contract.",
+        "Add or update focused tests that prove equivalent ordering, dependency wiring, and validation behavior across the consolidated paths.",
+        "Run the relevant task/queue Rust test coverage and the canonical local gate needed to prove the refactor preserved behavior."
+      ],
+      "notes": [],
+      "request": "use the comprehensive codebase audit skill and build tasks stemming from your findings",
+      "created_at": "2026-04-25T16:45:55Z",
+      "updated_at": "2026-04-25T16:45:55Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0005",
+      "status": "todo",
+      "title": "Harden webhook runtime lifecycle and config validation",
+      "description": "The audit found a reliability gap in Ralph's webhook runtime: one dispatcher startup failure disables delivery for the rest of the run, dispatcher teardown does not coordinate worker/scheduler shutdown, and webhook numeric settings are documented with bounds that are not enforced consistently at config-validation time. This task should make webhook startup failures recoverable, shutdown deterministic, and config validation explicit so operators get fast, actionable failures instead of silent runtime drift or permanent disablement.",
+      "priority": "high",
+      "tags": [
+        "audit",
+        "webhook",
+        "reliability",
+        "config",
+        "runtime"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/worker/runtime/state.rs",
+        "crates/ralph/src/webhook/worker/runtime/dispatcher.rs",
+        "crates/ralph/src/webhook/worker/runtime/",
+        "crates/ralph/src/contracts/config/webhook.rs",
+        "crates/ralph/src/config/validation/",
+        "crates/ralph/src/webhook/tests/",
+        "cargo test -p ralph-agent-loop webhook"
+      ],
+      "evidence": [
+        "User request: \"use the comprehensive codebase audit skill and build tasks stemming from your findings\"",
+        "crates/ralph/src/webhook/worker/runtime/state.rs:72-105 permanently short-circuits dispatcher creation once `disabled_reason` is set after a startup failure.",
+        "crates/ralph/src/webhook/worker/runtime/dispatcher.rs:48-121 spawns worker and scheduler threads during startup, while lines 124-131 only log during `Drop` and do not coordinate teardown.",
+        "crates/ralph/src/contracts/config/webhook.rs:119-140 documents numeric bounds for timeout, retries, backoff, queue capacity, and parallel multiplier, but lines 218-237 only validate enablement and URL safety.",
+        "The operability audit also flagged inconsistent runtime handling of webhook settings and late shutdown/noise risk in the retry scheduler path."
+      ],
+      "plan": [
+        "Trace the webhook runtime lifecycle from config resolution through dispatcher build, rebuild, delivery, retry scheduling, and shutdown.",
+        "Replace the current permanent-disable-once behavior with a bounded retry or circuit-breaker approach that preserves diagnostics without killing delivery for the full process lifetime.",
+        "Add explicit shutdown signaling and thread join coordination for dispatcher worker and retry-scheduler threads so rebuilds and exits are deterministic.",
+        "Centralize webhook numeric validation at config-load or run-entry time and remove inconsistent mixtures of documented bounds, silent clamps, and unchecked runtime adoption.",
+        "Add focused runtime and config-validation tests that cover startup failure recovery, teardown behavior, unsafe/out-of-range webhook settings, and redacted operator-facing errors.",
+        "Run the webhook-focused Rust tests and any broader local gate needed to prove the hardened runtime behaves correctly."
+      ],
+      "notes": [],
+      "request": "use the comprehensive codebase audit skill and build tasks stemming from your findings",
+      "created_at": "2026-04-25T16:45:55Z",
+      "updated_at": "2026-04-25T16:45:55Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0006",
+      "status": "todo",
+      "title": "Expand execution and operator contract coverage",
+      "description": "The audit found several high-value orchestration and operator-facing branches that are carrying important behavior with thinner direct coverage than the surrounding happy paths. The highest-signal gaps are the event-driven parallel worker completion path, run-session resume decisions that must preserve preview-vs-execute semantics, doctor's trust/instruction-file blocking surface, CI gate argv-only enforcement parity, and webhook delivery failure-path diagnostics. This task should add regression coverage around those contracts so future runtime changes fail locally before they leak into parallel runs, app integrations, or operator workflows.",
+      "priority": "high",
+      "tags": [
+        "audit",
+        "tests",
+        "coverage",
+        "parallel",
+        "session",
+        "doctor",
+        "ci"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/orchestration/events.rs",
+        "crates/ralph/src/session/decision.rs",
+        "crates/ralph/src/commands/doctor/runner.rs",
+        "crates/ralph/src/config/validation/ci_gate.rs",
+        "crates/ralph/src/runutil/ci_gate.rs",
+        "crates/ralph/src/webhook/worker/delivery.rs",
+        "crates/ralph/src/session/tests.rs",
+        "crates/ralph/tests/doctor_contract_test/",
+        "cargo test -p ralph-agent-loop parallel",
+        "cargo test -p ralph-agent-loop session",
+        "cargo test -p ralph-agent-loop doctor"
+      ],
+      "evidence": [
+        "User request: \"use the comprehensive codebase audit skill and build tasks stemming from your findings\"",
+        "crates/ralph/src/commands/run/parallel/orchestration/events.rs:89-174 owns worker completion, blocked-push retention, workspace cleanup, state persistence, and best-effort branch refresh, but the testing audit found only narrower nearby coverage.",
+        "crates/ralph/src/session/decision.rs:152-164, 244-259, 324-341, and 349-353 contain resume/fresh-session branches whose cache-mutation semantics differ between preview and execute modes.",
+        "The testing audit flagged thinner contract coverage around doctor trust and instruction-file reporting, CI gate shell-launcher parity, and webhook delivery failure paths.",
+        "These are operator-visible contracts whose regressions would affect parallel execution, resume safety, blocking diagnostics, or CI gate enforcement."
+      ],
+      "plan": [
+        "Catalog the highest-risk execution and operator-facing branches that currently rely on indirect or partial coverage.",
+        "Add focused tests for `handle_finished_workers` covering success, blocked-marker retention, plain failure cleanup, state-save failure, and branch-refresh failure.",
+        "Expand session decision coverage for missing-session announcements, timeout confirmation/decline, and preview-vs-execute cache clearing behavior.",
+        "Add doctor and CI gate regression tests that pin down repo-trust enforcement, instruction-file status reporting, and shell-launcher rejection parity across config and runtime surfaces.",
+        "Add webhook delivery failure-path tests for dropped retry scheduling, unsafe/private target rejection, and redacted diagnostics.",
+        "Run the focused Rust test groups plus the canonical local validation entrypoint needed to prove the new regression coverage passes."
+      ],
+      "notes": [],
+      "request": "use the comprehensive codebase audit skill and build tasks stemming from your findings",
+      "created_at": "2026-04-25T16:45:55Z",
+      "updated_at": "2026-04-25T16:45:55Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0007",
+      "status": "todo",
+      "title": "Split oversized machine and release contract suites",
+      "description": "The audit found contract-heavy test files that are carrying too many unrelated scenarios in a single place, which makes failures less local and pushes Ralph away from its own small-file guidance. `machine_contract_test.rs` is already a multi-surface end-to-end suite, and `pre_public_check_contracts_early.rs` has grown to nearly 1,000 lines. This task should reorganize those suites into directory-backed, behavior-grouped modules with shared helpers so contract coverage remains strong while maintenance and review costs come down.",
+      "priority": "medium",
+      "tags": [
+        "audit",
+        "tests",
+        "contracts",
+        "maintainability",
+        "release",
+        "machine"
+      ],
+      "scope": [
+        "crates/ralph/tests/machine_contract_test.rs",
+        "crates/ralph/tests/release_integration_contract_test.rs",
+        "crates/ralph/tests/release_integration_contract_test/",
+        "crates/ralph/tests/test_support/",
+        "cargo test -p ralph-agent-loop machine_contract_test",
+        "cargo test -p ralph-agent-loop release_integration_contract_test"
+      ],
+      "evidence": [
+        "User request: \"use the comprehensive codebase audit skill and build tasks stemming from your findings\"",
+        "crates/ralph/tests/machine_contract_test.rs is 608 lines and already mixes queue, task mutation, recovery, parallel-status, and run-start contract coverage.",
+        "crates/ralph/tests/release_integration_contract_test/pre_public_check_contracts_early.rs is 993 lines, well beyond the repo's preferred small-file target.",
+        "The architecture audit called out `machine_contract_test.rs` as a monolithic contract suite that repeats repo bootstrap, JSON request assembly, command execution, and response assertions."
+      ],
+      "plan": [
+        "Map the current machine-contract and release-contract scenarios into coherent behavior groups with clear ownership boundaries.",
+        "Split `machine_contract_test.rs` into a directory-backed suite organized by command family such as queue, task, recovery, workspace, and parallel/run contracts.",
+        "Split the oversized pre-public-check contract coverage into smaller companion modules with shared fixture/setup helpers instead of one large file.",
+        "Preserve existing assertions and helper reuse while improving failure locality and keeping the root test hubs thin.",
+        "Run the affected contract test suites and the canonical local gate needed to ensure the reorganization did not drop coverage."
+      ],
+      "notes": [],
+      "request": "use the comprehensive codebase audit skill and build tasks stemming from your findings",
+      "created_at": "2026-04-25T16:45:55Z",
+      "updated_at": "2026-04-25T16:45:55Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    }
+  ]
 }
