@@ -357,7 +357,174 @@ pub(crate) fn install_test_transport_for_tests(handler: Option<TestTransportHand
 
 #[cfg(test)]
 mod tests {
+    use super::super::runtime::DeliveryTask;
     use super::*;
+    use crate::contracts::WebhookConfig;
+    use crate::webhook::diagnostics::{
+        diagnostics_snapshot, load_failure_records_for_tests, reset_webhook_metrics_for_tests,
+    };
+    use crate::webhook::types::{
+        ResolvedWebhookConfig, WebhookContext, WebhookMessage, WebhookPayload,
+    };
+    use crossbeam_channel::bounded;
+    use serial_test::serial;
+    use std::sync::Arc;
+
+    fn test_message(
+        repo_root: &std::path::Path,
+        url: &str,
+        retry_count: u32,
+        allow_insecure_http: bool,
+        allow_private_targets: bool,
+    ) -> WebhookMessage {
+        let mut config = WebhookConfig {
+            enabled: Some(true),
+            url: Some(url.to_string()),
+            allow_insecure_http: Some(allow_insecure_http),
+            allow_private_targets: Some(allow_private_targets),
+            timeout_secs: Some(1),
+            retry_count: Some(retry_count),
+            retry_backoff_ms: Some(10),
+            queue_capacity: Some(8),
+            parallel_queue_multiplier: None,
+            queue_policy: Some(crate::contracts::WebhookQueuePolicy::DropNew),
+            secret: None,
+            events: None,
+        };
+        let resolved = ResolvedWebhookConfig::from_config(&config);
+        config.url = None;
+
+        WebhookMessage {
+            payload: WebhookPayload {
+                event: "task_failed".to_string(),
+                timestamp: "2026-04-25T00:00:00Z".to_string(),
+                task_id: Some("RQ-0006".to_string()),
+                task_title: Some("Webhook contract".to_string()),
+                previous_status: None,
+                current_status: None,
+                note: None,
+                context: WebhookContext {
+                    repo_root: Some(repo_root.display().to_string()),
+                    ..WebhookContext::default()
+                },
+            },
+            config: resolved,
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn handle_delivery_task_records_failure_when_retry_scheduler_upgrade_fails() {
+        reset_webhook_metrics_for_tests();
+        install_test_transport_for_tests(Some(Arc::new(|_| anyhow::bail!("simulated failure"))));
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let msg = test_message(
+            repo_root.path(),
+            "https://hooks.example.com/fail",
+            2,
+            false,
+            false,
+        );
+
+        handle_delivery_task(
+            DeliveryTask {
+                msg: msg.clone(),
+                attempt: 0,
+            },
+            &Weak::new(),
+        );
+
+        let snapshot = diagnostics_snapshot(repo_root.path(), &WebhookConfig::default(), 10)
+            .expect("snapshot");
+        let records = load_failure_records_for_tests(repo_root.path()).expect("records");
+        assert_eq!(snapshot.failed_total, 1);
+        assert_eq!(records.len(), 1);
+        assert!(records[0].error.contains("retry scheduler unavailable"));
+    }
+
+    #[test]
+    #[serial]
+    fn handle_delivery_task_records_failure_when_retry_scheduler_send_fails() {
+        reset_webhook_metrics_for_tests();
+        install_test_transport_for_tests(Some(Arc::new(|_| anyhow::bail!("simulated failure"))));
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let msg = test_message(
+            repo_root.path(),
+            "https://hooks.example.com/fail",
+            2,
+            false,
+            false,
+        );
+        let (tx, rx) = bounded(1);
+        drop(rx);
+        let scheduler = Arc::new(tx);
+        let weak = Arc::downgrade(&scheduler);
+
+        handle_delivery_task(
+            DeliveryTask {
+                msg: msg.clone(),
+                attempt: 0,
+            },
+            &weak,
+        );
+
+        let snapshot = diagnostics_snapshot(repo_root.path(), &WebhookConfig::default(), 10)
+            .expect("snapshot");
+        let records = load_failure_records_for_tests(repo_root.path()).expect("records");
+        assert_eq!(snapshot.failed_total, 1);
+        assert_eq!(records.len(), 1);
+        assert!(records[0].error.contains("retry scheduler unavailable"));
+    }
+
+    #[test]
+    #[serial]
+    fn deliver_attempt_rejects_private_targets_without_leaking_secrets() {
+        reset_webhook_metrics_for_tests();
+        install_test_transport_for_tests(None);
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let secret_url = "http://127.0.0.1:9000/hooks/private-token?sig=supersecret";
+        let msg = test_message(repo_root.path(), secret_url, 0, false, false);
+
+        handle_delivery_task(DeliveryTask { msg, attempt: 0 }, &Weak::new());
+
+        let records = load_failure_records_for_tests(repo_root.path()).expect("records");
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].destination.as_deref(),
+            Some("http://127.0.0.1:9000/…")
+        );
+        assert!(!records[0].error.contains("private-token"));
+        assert!(!records[0].error.contains("supersecret"));
+    }
+
+    #[test]
+    #[serial]
+    fn exhausted_delivery_failure_persists_redacted_destination_and_sanitized_error() {
+        reset_webhook_metrics_for_tests();
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        install_test_transport_for_tests(Some(Arc::new(|request| {
+            anyhow::bail!("delivery to {} failed with token supersecret", request.url)
+        })));
+        let msg = test_message(
+            repo_root.path(),
+            "https://user:pass@example.com/hooks/private-token?sig=supersecret",
+            0,
+            false,
+            false,
+        );
+
+        handle_delivery_task(DeliveryTask { msg, attempt: 0 }, &Weak::new());
+
+        let records = load_failure_records_for_tests(repo_root.path()).expect("records");
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].destination.as_deref(),
+            Some("https://example.com/…")
+        );
+        assert!(!records[0].error.contains("private-token"));
+        assert!(!records[0].error.contains("supersecret"));
+        assert!(records[0].error.contains("https://example.com/…"));
+    }
 
     #[test]
     fn retry_delay_uses_exponential_sequence_without_jitter() {

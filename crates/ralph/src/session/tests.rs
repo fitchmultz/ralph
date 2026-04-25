@@ -411,6 +411,107 @@ fn resolve_run_session_decision_marks_stale_session_as_fresh_start() {
 }
 
 #[test]
+fn resolve_run_session_decision_hides_missing_session_when_not_requested() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![],
+    };
+
+    let resolution = resolve_run_session_decision(
+        &cache_dir,
+        &queue,
+        RunSessionDecisionOptions {
+            timeout_hours: Some(24),
+            behavior: ResumeBehavior::AutoResume,
+            non_interactive: true,
+            explicit_task_id: None,
+            announce_missing_session: false,
+            mode: ResumeDecisionMode::Execute,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(resolution.resume_task_id, None);
+    assert!(resolution.decision.is_none());
+}
+
+#[test]
+fn resolve_run_session_decision_preview_stale_session_preserves_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    let session = test_session("RQ-0001");
+    save_session(&cache_dir, &session).unwrap();
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![test_task("RQ-0001", TaskStatus::Done)],
+    };
+
+    let resolution = resolve_run_session_decision(
+        &cache_dir,
+        &queue,
+        RunSessionDecisionOptions {
+            timeout_hours: Some(24),
+            behavior: ResumeBehavior::AutoResume,
+            non_interactive: true,
+            explicit_task_id: None,
+            announce_missing_session: false,
+            mode: ResumeDecisionMode::Preview,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(resolution.resume_task_id, None);
+    assert_eq!(
+        resolution.decision.expect("decision").reason,
+        ResumeReason::SessionStale
+    );
+    assert!(session_exists(&cache_dir));
+}
+
+#[test]
+fn resolve_run_session_decision_timed_out_noninteractive_refusal_keeps_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    let stale_time = time::OffsetDateTime::now_utc() - Duration::hours(72);
+    let session = test_session_with_time("RQ-0001", &timeutil::format_rfc3339(stale_time).unwrap());
+    save_session(&cache_dir, &session).unwrap();
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![test_task("RQ-0001", TaskStatus::Doing)],
+    };
+
+    let resolution = resolve_run_session_decision(
+        &cache_dir,
+        &queue,
+        RunSessionDecisionOptions {
+            timeout_hours: Some(24),
+            behavior: ResumeBehavior::Prompt,
+            non_interactive: true,
+            explicit_task_id: None,
+            announce_missing_session: false,
+            mode: ResumeDecisionMode::Execute,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(resolution.resume_task_id, None);
+    let decision = resolution.decision.expect("decision");
+    assert_eq!(decision.status, ResumeStatus::RefusingToResume);
+    assert_eq!(
+        decision.reason,
+        ResumeReason::SessionTimedOutRequiresConfirmation
+    );
+    assert!(session_exists(&cache_dir));
+}
+
+#[test]
 fn resolve_run_session_decision_refuses_prompt_required_noninteractive_resume() {
     let temp_dir = TempDir::new().unwrap();
     let cache_dir = temp_dir.path().join("cache");

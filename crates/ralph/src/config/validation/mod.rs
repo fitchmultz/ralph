@@ -30,6 +30,7 @@ mod trust;
 mod tests;
 
 pub use agent::{validate_agent_binary_paths, validate_agent_patch};
+pub(crate) use ci_gate::{CiGateArgvIssue, detect_ci_gate_argv_issue};
 pub use config_rules::validate_config;
 pub use git_refs::git_ref_invalid_reason;
 #[cfg(test)]

@@ -262,22 +262,14 @@ pub fn resolve_run_session_decision(
                 }
             }
         }
-        SessionValidationResult::Stale { reason } => {
-            maybe_clear_session(cache_dir, options.mode)?;
-            ResumeResolution {
-                resume_task_id: None,
-                completed_count: 0,
-                decision: Some(ResumeDecision {
-                    status: ResumeStatus::FallingBackToFreshInvocation,
-                    scope: ResumeScope::RunSession,
-                    reason: ResumeReason::SessionStale,
-                    task_id: None,
-                    message: "Resume: starting fresh because the saved session is stale."
-                        .to_string(),
-                    detail: reason,
-                }),
-            }
-        }
+        SessionValidationResult::Stale { reason } => fresh_start_resolution(
+            cache_dir,
+            options.mode,
+            ResumeReason::SessionStale,
+            None,
+            "Resume: starting fresh because the saved session is stale.".to_string(),
+            reason,
+        )?,
         SessionValidationResult::Timeout { hours, session } => {
             if !can_prompt {
                 ResumeResolution {
@@ -321,24 +313,19 @@ pub fn resolve_run_session_decision(
                     }),
                 }
             } else {
-                maybe_clear_session(cache_dir, options.mode)?;
-                ResumeResolution {
-                    resume_task_id: None,
-                    completed_count: 0,
-                    decision: Some(ResumeDecision {
-                        status: ResumeStatus::FallingBackToFreshInvocation,
-                        scope: ResumeScope::RunSession,
-                        reason: ResumeReason::SessionDeclined,
-                        task_id: Some(session.task_id.clone()),
-                        message: format!(
-                            "Resume: starting fresh after declining timed-out session {}.",
-                            session.task_id
-                        ),
-                        detail: format!(
-                            "The saved session is {hours} hour(s) old, above the configured {timeout_threshold}-hour threshold."
-                        ),
-                    }),
-                }
+                fresh_start_resolution(
+                    cache_dir,
+                    options.mode,
+                    ResumeReason::SessionDeclined,
+                    Some(session.task_id.clone()),
+                    format!(
+                        "Resume: starting fresh after declining timed-out session {}.",
+                        session.task_id
+                    ),
+                    format!(
+                        "The saved session is {hours} hour(s) old, above the configured {timeout_threshold}-hour threshold."
+                    ),
+                )?
             }
         }
     };
@@ -351,4 +338,158 @@ fn maybe_clear_session(cache_dir: &Path, mode: ResumeDecisionMode) -> Result<()>
         clear_session(cache_dir)?;
     }
     Ok(())
+}
+
+fn fresh_start_resolution(
+    cache_dir: &Path,
+    mode: ResumeDecisionMode,
+    reason: ResumeReason,
+    task_id: Option<String>,
+    message: String,
+    detail: String,
+) -> Result<ResumeResolution> {
+    maybe_clear_session(cache_dir, mode)?;
+    Ok(ResumeResolution {
+        resume_task_id: None,
+        completed_count: 0,
+        decision: Some(ResumeDecision {
+            status: ResumeStatus::FallingBackToFreshInvocation,
+            scope: ResumeScope::RunSession,
+            reason,
+            task_id,
+            message,
+            detail,
+        }),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{QueueFile, SessionState, Task, TaskPriority, TaskStatus};
+    use crate::session::{save_session, session_exists};
+
+    fn test_task(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
+            status,
+            title: "Test".to_string(),
+            description: None,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: None,
+            updated_at: None,
+            completed_at: None,
+            started_at: None,
+            scheduled_start: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: Default::default(),
+            parent_id: None,
+            estimated_minutes: None,
+            actual_minutes: None,
+        }
+    }
+
+    fn test_session(task_id: &str) -> SessionState {
+        SessionState::new(
+            "test-session-id".to_string(),
+            task_id.to_string(),
+            crate::timeutil::now_utc_rfc3339_or_fallback(),
+            1,
+            crate::contracts::Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn fresh_start_resolution_preview_keeps_session_cache() {
+        let temp_dir = tempfile::TempDir::new().expect("tempdir");
+        let session = test_session("RQ-0001");
+        save_session(temp_dir.path(), &session).expect("save session");
+
+        let resolution = fresh_start_resolution(
+            temp_dir.path(),
+            ResumeDecisionMode::Preview,
+            ResumeReason::SessionDeclined,
+            Some("RQ-0001".to_string()),
+            "preview".to_string(),
+            "detail".to_string(),
+        )
+        .expect("resolution");
+
+        assert!(session_exists(temp_dir.path()));
+        assert_eq!(
+            resolution.decision.expect("decision").reason,
+            ResumeReason::SessionDeclined
+        );
+    }
+
+    #[test]
+    fn fresh_start_resolution_execute_clears_session_cache() {
+        let temp_dir = tempfile::TempDir::new().expect("tempdir");
+        let session = test_session("RQ-0001");
+        save_session(temp_dir.path(), &session).expect("save session");
+
+        fresh_start_resolution(
+            temp_dir.path(),
+            ResumeDecisionMode::Execute,
+            ResumeReason::SessionDeclined,
+            Some("RQ-0001".to_string()),
+            "execute".to_string(),
+            "detail".to_string(),
+        )
+        .expect("resolution");
+
+        assert!(!session_exists(temp_dir.path()));
+    }
+
+    #[test]
+    fn maybe_clear_session_preview_is_noop() {
+        let temp_dir = tempfile::TempDir::new().expect("tempdir");
+        let session = test_session("RQ-0001");
+        save_session(temp_dir.path(), &session).expect("save session");
+
+        maybe_clear_session(temp_dir.path(), ResumeDecisionMode::Preview).expect("clear preview");
+
+        assert!(session_exists(temp_dir.path()));
+    }
+
+    #[test]
+    fn resolve_run_session_decision_announces_missing_session_when_requested() {
+        let temp_dir = tempfile::TempDir::new().expect("tempdir");
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![test_task("RQ-0001", TaskStatus::Todo)],
+        };
+
+        let resolution = resolve_run_session_decision(
+            temp_dir.path(),
+            &queue,
+            RunSessionDecisionOptions {
+                timeout_hours: Some(24),
+                behavior: ResumeBehavior::AutoResume,
+                non_interactive: true,
+                explicit_task_id: None,
+                announce_missing_session: true,
+                mode: ResumeDecisionMode::Execute,
+            },
+        )
+        .expect("resolution");
+
+        let decision = resolution.decision.expect("decision");
+        assert_eq!(decision.status, ResumeStatus::FallingBackToFreshInvocation);
+        assert_eq!(decision.reason, ResumeReason::NoSession);
+    }
 }

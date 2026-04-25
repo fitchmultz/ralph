@@ -151,6 +151,21 @@ fn webhook_drop_new_policy() {
     config.queue_capacity = Some(10);
     config.queue_policy = Some(WebhookQueuePolicy::DropNew);
 
+    webhook::notify_task_created(
+        &format!("{task_id_prefix}-warmup"),
+        "Warmup",
+        &config,
+        "2024-01-01T00:00:00Z",
+    );
+
+    assert!(
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
+            request_count.load(Ordering::SeqCst) >= 1
+        }),
+        "expected warmup webhook delivery before exercising drop_new backpressure"
+    );
+    let warmup_deliveries = request_count.load(Ordering::SeqCst);
+
     for index in 0..20 {
         webhook::notify_task_created(
             &format!("{task_id_prefix}-{index}"),
@@ -162,9 +177,9 @@ fn webhook_drop_new_policy() {
 
     assert!(
         test_support::wait_until(Duration::from_secs(10), Duration::from_millis(50), || {
-            request_count.load(Ordering::SeqCst) >= 1
+            request_count.load(Ordering::SeqCst) > warmup_deliveries
         }),
-        "expected at least one delivered webhook with drop_new policy"
+        "expected at least one post-warmup delivered webhook with drop_new policy"
     );
 }
 

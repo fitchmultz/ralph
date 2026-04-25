@@ -23,6 +23,62 @@
 use super::*;
 
 #[test]
+fn doctor_blocks_untrusted_project_runner_override() -> Result<()> {
+    let dir = setup_doctor_repo()?;
+
+    write_repo_config(
+        dir.path(),
+        r#"{"version":2,"agent":{"runner":"opencode","opencode_bin":"/tmp/fake-opencode"}}"#,
+    )?;
+
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
+
+    assert!(!output.status.success());
+    assert!(combined.contains("execution-sensitive runner override"));
+    assert!(combined.contains("repo is not trusted"));
+    assert!(combined.contains(".ralph/trust.jsonc"));
+    Ok(())
+}
+
+#[test]
+fn doctor_allows_trusted_project_runner_override_to_probe_normally() -> Result<()> {
+    let dir = setup_trusted_doctor_repo()?;
+    let runner_path = test_support::create_fake_runner(
+        dir.path(),
+        "trusted-opencode",
+        r#"#!/bin/bash
+case "$1" in
+  --version|--help) echo "trusted-opencode 1.0.0"; exit 0 ;;
+  *) exit 1 ;;
+esac
+"#,
+    )?;
+
+    write_repo_config(
+        dir.path(),
+        &format!(
+            r#"{{"version":2,"agent":{{"runner":"opencode","opencode_bin":"{}"}}}}"#,
+            runner_path.display()
+        ),
+    )?;
+
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
+
+    assert!(output.status.success(), "doctor output:\n{combined}");
+    assert!(combined.contains("runner binary") && combined.contains("found"));
+    assert!(!combined.contains("project_runner_override_untrusted"));
+    Ok(())
+}
+
+#[test]
 fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
     let dir = setup_trusted_doctor_repo()?;
 
@@ -123,6 +179,73 @@ fn doctor_warns_when_instruction_files_missing() -> Result<()> {
 
     assert!(output.status.success());
     assert!(combined.contains("WARN") && combined.contains("instruction_files"));
+    Ok(())
+}
+
+#[test]
+fn doctor_reports_agents_md_success_when_configured() -> Result<()> {
+    let dir = setup_trusted_doctor_repo()?;
+    let runner_path = test_support::create_fake_runner(
+        dir.path(),
+        "agents-success-runner",
+        r#"#!/bin/bash
+case "$1" in
+  --version|--help) echo "agents-success-runner 1.0.0"; exit 0 ;;
+  *) exit 1 ;;
+esac
+"#,
+    )?;
+    std::fs::write(dir.path().join("AGENTS.md"), "# Repo instructions\n")?;
+    write_repo_config(
+        dir.path(),
+        &format!(
+            r#"{{"version":2,"agent":{{"runner":"opencode","opencode_bin":"{}","instruction_files":["AGENTS.md"]}}}}"#,
+            runner_path.display()
+        ),
+    )?;
+
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
+
+    assert!(output.status.success(), "doctor output:\n{combined}");
+    assert!(combined.contains("AGENTS.md configured and readable"));
+    Ok(())
+}
+
+#[test]
+fn doctor_warns_when_repo_agents_md_exists_but_is_not_configured() -> Result<()> {
+    let dir = setup_trusted_doctor_repo()?;
+    let runner_path = test_support::create_fake_runner(
+        dir.path(),
+        "agents-warning-runner",
+        r#"#!/bin/bash
+case "$1" in
+  --version|--help) echo "agents-warning-runner 1.0.0"; exit 0 ;;
+  *) exit 1 ;;
+esac
+"#,
+    )?;
+    std::fs::write(dir.path().join("AGENTS.md"), "# Repo instructions\n")?;
+    write_repo_config(
+        dir.path(),
+        &format!(
+            r#"{{"version":2,"agent":{{"runner":"opencode","opencode_bin":"{}","instruction_files":["docs/other.md"]}}}}"#,
+            runner_path.display()
+        ),
+    )?;
+    std::fs::create_dir_all(dir.path().join("docs"))?;
+    std::fs::write(dir.path().join("docs/other.md"), "# Other instructions\n")?;
+
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
+
+    assert!(output.status.success(), "doctor output:\n{combined}");
+    assert!(combined.contains("WARN"));
+    assert!(combined.contains("exists at repo root but is not configured"));
     Ok(())
 }
 

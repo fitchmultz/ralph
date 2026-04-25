@@ -22,6 +22,13 @@
 use crate::contracts::CiGateConfig;
 use anyhow::{Result, bail};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CiGateArgvIssue {
+    EmptyArgv,
+    EmptyEntry,
+    ShellLauncher,
+}
+
 pub(crate) fn validate_ci_gate_config(ci_gate: Option<&CiGateConfig>, label: &str) -> Result<()> {
     let Some(ci_gate) = ci_gate else {
         return Ok(());
@@ -38,18 +45,35 @@ pub(crate) fn validate_ci_gate_config(ci_gate: Option<&CiGateConfig>, label: &st
 }
 
 pub(crate) fn validate_ci_gate_argv(argv: &[String], label: &str) -> Result<()> {
-    if argv.is_empty() {
-        bail!("Invalid {label}.ci_gate.argv: at least one argv element is required.");
-    }
-    if argv.iter().any(|arg| arg.is_empty()) {
-        bail!("Invalid {label}.ci_gate.argv: argv entries must not be empty strings.");
-    }
-    if argv_launches_shell(argv) {
-        bail!(
-            "Invalid {label}.ci_gate.argv: shell launcher argv is not supported. Use direct executable argv instead."
-        );
+    if let Some(issue) = detect_ci_gate_argv_issue(argv) {
+        match issue {
+            CiGateArgvIssue::EmptyArgv => {
+                bail!("Invalid {label}.ci_gate.argv: at least one argv element is required.");
+            }
+            CiGateArgvIssue::EmptyEntry => {
+                bail!("Invalid {label}.ci_gate.argv: argv entries must not be empty strings.");
+            }
+            CiGateArgvIssue::ShellLauncher => {
+                bail!(
+                    "Invalid {label}.ci_gate.argv: shell launcher argv is not supported. Use direct executable argv instead."
+                );
+            }
+        }
     }
     Ok(())
+}
+
+pub(crate) fn detect_ci_gate_argv_issue(argv: &[String]) -> Option<CiGateArgvIssue> {
+    if argv.is_empty() {
+        return Some(CiGateArgvIssue::EmptyArgv);
+    }
+    if argv.iter().any(|arg| arg.trim().is_empty()) {
+        return Some(CiGateArgvIssue::EmptyEntry);
+    }
+    if argv_launches_shell(argv) {
+        return Some(CiGateArgvIssue::ShellLauncher);
+    }
+    None
 }
 
 fn argv_launches_shell(argv: &[String]) -> bool {
