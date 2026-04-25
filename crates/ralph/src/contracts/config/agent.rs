@@ -95,7 +95,7 @@ pub struct AgentConfig {
     /// Default model.
     pub model: Option<Model>,
 
-    /// Default reasoning effort (only meaningful for Codex models).
+    /// Default reasoning effort (only meaningful for runners with reasoning controls).
     pub reasoning_effort: Option<ReasoningEffort>,
 
     /// Number of iterations to run for each task (default: 1).

@@ -45,7 +45,7 @@ pub(crate) use model::{
 
 pub(crate) use settings::{
     AgentSettings, PhaseSettingsMatrix, ResolvedPhaseSettings, resolve_agent_settings,
-    resolve_phase_settings_matrix,
+    resolve_phase_settings_matrix, runner_supports_reasoning_effort,
 };
 
 // Prevent clippy --fix from removing this re-export (used by commands/run/tests.rs)

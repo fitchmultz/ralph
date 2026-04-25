@@ -17,7 +17,7 @@
 //!
 //! Invariants/assumptions:
 //! - Iteration count must be >= 1 (validated).
-//! - Follow-up reasoning effort only applies to Codex runner.
+//! - Follow-up reasoning effort only applies to runners with compatible reasoning controls.
 
 use crate::contracts::{AgentConfig, ReasoningEffort, Task};
 use crate::runner;
@@ -61,7 +61,7 @@ pub(crate) fn resolve_iteration_settings(
 }
 
 /// Apply follow-up reasoning effort to settings for subsequent iterations.
-/// Only affects Codex runner; other runners log a warning if configured.
+/// Only affects runners with reasoning-effort support; other runners log a warning if configured.
 pub(crate) fn apply_followup_reasoning_effort(
     base_settings: &runner::AgentSettings,
     followup_reasoning_effort: Option<ReasoningEffort>,
@@ -73,7 +73,7 @@ pub(crate) fn apply_followup_reasoning_effort(
 
     let mut settings = base_settings.clone();
     if let Some(effort) = followup_reasoning_effort {
-        if settings.runner == crate::contracts::Runner::Codex {
+        if runner::runner_supports_reasoning_effort(&settings.runner) {
             settings.reasoning_effort = Some(effort);
         } else {
             log::warn!(

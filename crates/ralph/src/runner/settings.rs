@@ -19,7 +19,7 @@
 //!
 //! Invariants:
 //! - Model validation is enforced before execution.
-//! - Reasoning effort only applies to Codex and is ignored otherwise.
+//! - Reasoning effort only applies to runners that expose compatible reasoning controls.
 
 use anyhow::{Result, anyhow};
 
@@ -65,7 +65,7 @@ pub(crate) fn resolve_agent_settings(
         .or(task_agent.and_then(|a| a.model_effort.as_reasoning_effort()))
         .or(config_agent.reasoning_effort);
 
-    let reasoning_effort = if runner == Runner::Codex {
+    let reasoning_effort = if runner_supports_reasoning_effort(&runner) {
         Some(effort_candidate.unwrap_or_default())
     } else {
         None
@@ -302,7 +302,7 @@ fn resolve_phase_reasoning_effort(
     task_agent: Option<&TaskAgent>,
     config_effort: Option<ReasoningEffort>,
 ) -> Option<ReasoningEffort> {
-    if runner != &Runner::Codex {
+    if !runner_supports_reasoning_effort(runner) {
         return None;
     }
 
@@ -315,4 +315,8 @@ fn resolve_phase_reasoning_effort(
         .unwrap_or_default();
 
     Some(effort)
+}
+
+pub(crate) fn runner_supports_reasoning_effort(runner: &Runner) -> bool {
+    matches!(runner, Runner::Codex | Runner::Pi)
 }

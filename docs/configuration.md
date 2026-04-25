@@ -88,9 +88,9 @@ Supported fields:
 - `runner`: Built-in runner ID (`codex`, `opencode`, `gemini`, `claude`, `cursor`, `kimi`, or `pi`) or plugin runner ID.
 - `model`: default model id (string).
 - `phases`: number of phases (1, 2, or 3).
-- `reasoning_effort`: `low`, `medium`, `high`, `xhigh` (Codex only).
+- `reasoning_effort`: `low`, `medium`, `high`, `xhigh` (Codex and Pi only).
 - `iterations`: number of iterations to run per task (default: 1).
-- `followup_reasoning_effort`: reasoning effort for iterations after the first (Codex only).
+- `followup_reasoning_effort`: reasoning effort for iterations after the first (Codex and Pi only).
 - `repoprompt_plan_required`: inject RepoPrompt planning guidance (favoring `context_builder` when available) during Phase 1.
 - `repoprompt_tool_injection`: inject RepoPrompt tooling guidance into prompts when that environment is enabled.
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
@@ -119,7 +119,7 @@ Supported fields:
 
 Notes:
 - Multi-phase runs (`phases >= 2`) always refresh task fields (`scope,evidence,plan,notes,tags,depends_on`) at the start of Phase 1, then generate the plan in that same Phase 1 runner session. This behavior is built in and not configurable.
-- `followup_reasoning_effort` is ignored for non-Codex runners.
+- `followup_reasoning_effort` is used by Codex and Pi runners and ignored by runners without reasoning-effort support.
 - Breaking change: `reasoning_effort` no longer accepts `minimal`; use `low`, `medium`, `high`, or `xhigh`.
 - Breaking change in `0.3`: config files must use `"version": 2`, `agent.git_publish_mode`, and the built-in reserved profiles `safe` / `power-user`. `git_commit_push_enabled` is removed. Run `ralph migrate --apply` to rewrite legacy configs before retrying app/CLI commands.
 - `make install` updates the CLI and macOS app bundle, but it does not mutate repo-local config files. Older repos still need `ralph migrate --apply` after upgrading to `0.3`.

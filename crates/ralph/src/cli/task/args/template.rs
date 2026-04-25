@@ -86,7 +86,7 @@ pub struct TaskFromTemplateArgs {
     #[arg(long)]
     pub model: Option<String>,
 
-    /// Reasoning effort (Codex only)
+    /// Reasoning effort (Codex and Pi only)
     #[arg(short = 'e', long)]
     pub effort: Option<String>,
 

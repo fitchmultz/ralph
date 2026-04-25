@@ -519,7 +519,7 @@
           ]
         },
         "model_effort": {
-          "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+          "description": "Per-task reasoning effort override for runners with reasoning controls. Default falls back to config.",
           "type": "string",
           "default": "default",
           "enum": [

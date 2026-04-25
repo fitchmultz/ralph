@@ -170,7 +170,7 @@ pub struct TaskAgent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<Model>,
 
-    /// Per-task reasoning effort override for Codex models. Default falls back to config.
+    /// Per-task reasoning effort override for runners with reasoning controls. Default falls back to config.
     #[serde(default, skip_serializing_if = "model_effort_is_default")]
     #[schemars(schema_with = "model_effort_schema")]
     pub model_effort: ModelEffort,

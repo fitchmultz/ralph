@@ -195,6 +195,27 @@ fn resolve_run_agent_settings_effort_defaults_to_medium_for_codex_when_unspecifi
 }
 
 #[test]
+fn resolve_run_agent_settings_effort_applies_to_pi() -> anyhow::Result<()> {
+    let resolved = resolved_with_agent_defaults(
+        Some(Runner::Pi),
+        Some(Model::Custom("openai-codex/gpt-5.5".to_string())),
+        Some(ReasoningEffort::Medium),
+    );
+
+    let task = base_task();
+    let overrides = AgentOverrides::default();
+
+    let settings = crate::commands::run::resolve_run_agent_settings(&resolved, &task, &overrides)?;
+    assert_eq!(settings.runner, Runner::Pi);
+    assert_eq!(
+        settings.model,
+        Model::Custom("openai-codex/gpt-5.5".to_string())
+    );
+    assert_eq!(settings.reasoning_effort, Some(ReasoningEffort::Medium));
+    Ok(())
+}
+
+#[test]
 fn resolve_run_agent_settings_model_effort_default_uses_config() -> anyhow::Result<()> {
     let resolved = resolved_with_agent_defaults(
         Some(Runner::Codex),
@@ -332,7 +353,7 @@ fn resolve_iteration_settings_prefers_task_over_config() -> anyhow::Result<()> {
 }
 
 #[test]
-fn apply_followup_reasoning_effort_overrides_codex_only() {
+fn apply_followup_reasoning_effort_overrides_supported_runners() {
     let base = runner::AgentSettings {
         runner: Runner::Codex,
         model: Model::Gpt53Codex,
@@ -341,6 +362,15 @@ fn apply_followup_reasoning_effort_overrides_codex_only() {
     };
     let updated = apply_followup_reasoning_effort(&base, Some(ReasoningEffort::High), true);
     assert_eq!(updated.reasoning_effort, Some(ReasoningEffort::High));
+
+    let base_pi = runner::AgentSettings {
+        runner: Runner::Pi,
+        model: Model::Custom("openai-codex/gpt-5.5".to_string()),
+        reasoning_effort: Some(ReasoningEffort::Medium),
+        runner_cli: runner::ResolvedRunnerCliOptions::default(),
+    };
+    let updated_pi = apply_followup_reasoning_effort(&base_pi, Some(ReasoningEffort::High), true);
+    assert_eq!(updated_pi.reasoning_effort, Some(ReasoningEffort::High));
 
     let base_non_codex = runner::AgentSettings {
         runner: Runner::Opencode,

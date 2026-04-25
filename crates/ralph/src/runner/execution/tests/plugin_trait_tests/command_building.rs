@@ -358,6 +358,23 @@ fn pi_build_run_command_basic() {
 }
 
 #[test]
+fn pi_build_run_command_with_reasoning_effort() {
+    let plugin = BuiltInRunnerPlugin::Pi;
+    let mut ctx = create_run_context("test prompt", None);
+    ctx.reasoning_effort = Some(ReasoningEffort::Medium);
+
+    let (cmd, _payload, _guards) = plugin.build_run_command(ctx).unwrap();
+
+    let args: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    assert!(args.contains(&"--thinking".to_string()));
+    assert!(args.contains(&"medium".to_string()));
+    assert!(!args.contains(&"-c".to_string()));
+}
+
+#[test]
 fn pi_build_run_command_uses_process_title_wrapper() {
     let plugin = BuiltInRunnerPlugin::Pi;
     let mut fake_pi = tempfile::Builder::new()

@@ -80,7 +80,7 @@ ralph run one \
   --runner-phase1 kimi --model-phase1 kimi-for-coding \
   --runner-phase2 claude --model-phase2 opus
 
-# Different reasoning effort per phase (Codex)
+# Different reasoning effort per phase (Codex or Pi)
 ralph run one --runner codex \
   --effort-phase1 high \
   --effort-phase2 medium \

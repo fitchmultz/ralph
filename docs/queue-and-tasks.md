@@ -57,17 +57,17 @@ Common optional fields:
 Per-task agent overrides:
 - `agent.runner`: Built-in runner ID (`codex`, `opencode`, `gemini`, `claude`, `cursor`, `kimi`, or `pi`) or plugin runner ID.
 - `agent.model`: model id string.
-- `agent.model_effort`: `default`, `low`, `medium`, `high`, `xhigh` (Codex only).
+- `agent.model_effort`: `default`, `low`, `medium`, `high`, `xhigh` (Codex and Pi only).
 - `agent.phases`: number of phases for this task (`1`, `2`, or `3`).
 - `agent.iterations`: number of iterations for this task (default: 1).
-- `agent.followup_reasoning_effort`: reasoning effort for iterations after the first (Codex only).
+- `agent.followup_reasoning_effort`: reasoning effort for iterations after the first (Codex and Pi only).
 - `agent.phase_overrides.phase1|phase2|phase3.runner`: per-phase runner override.
 - `agent.phase_overrides.phase1|phase2|phase3.model`: per-phase model override.
-- `agent.phase_overrides.phase1|phase2|phase3.reasoning_effort`: per-phase reasoning effort override (Codex only).
+- `agent.phase_overrides.phase1|phase2|phase3.reasoning_effort`: per-phase reasoning effort override (Codex and Pi only).
 
 Notes:
 - `agent.model_effort: default` (or omitting the field) uses the configured `agent.reasoning_effort`.
-- `agent.followup_reasoning_effort` is ignored for non-Codex runners.
+- `agent.followup_reasoning_effort` is ignored for runners without reasoning-effort support.
 - Phase resolution precedence is: CLI phase overrides > task phase overrides > config phase overrides > CLI global overrides > task global overrides > config defaults.
 - Breaking change: `agent.reasoning_effort` in task entries is replaced by `agent.model_effort`.
 

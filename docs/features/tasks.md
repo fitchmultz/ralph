@@ -410,7 +410,7 @@ The `agent` field allows overriding global configuration for individual tasks.
 |-------|--------|-------------|
 | `runner` | Built-in runner ID or plugin runner ID | Which AI runner to use |
 | `model` | model identifier string | Specific model version |
-| `model_effort` | `default`, `low`, `medium`, `high`, `xhigh` | Reasoning effort (Codex only) |
+| `model_effort` | `default`, `low`, `medium`, `high`, `xhigh` | Reasoning effort (Codex and Pi only) |
 | `iterations` | integer ≥ 1 | Number of execution iterations |
 | `followup_reasoning_effort` | `low`, `medium`, `high`, `xhigh` | Effort for iterations > 1 |
 
@@ -435,7 +435,7 @@ The `agent` field allows overriding global configuration for individual tasks.
 
 **INTENDED BEHAVIOR:**
 - `agent.model_effort: default` falls back to config's `agent.reasoning_effort`
-- `agent.followup_reasoning_effort` is ignored for non-Codex runners
+- `agent.followup_reasoning_effort` is used by Codex and Pi runners and ignored by runners without reasoning-effort support
 - CLI overrides should merge with config, with CLI taking precedence
 
 **CURRENTLY IMPLEMENTED BEHAVIOR:**

@@ -235,7 +235,7 @@ The `agent` section controls how Ralph executes tasks and interacts with AI runn
 | `model` | `string` | `"gpt-5.4"` | Default model identifier |
 | `phases` | `1 \| 2 \| 3` | `3` | Execution phases: 1=single-pass, 2=plan+implement, 3=plan+implement+review |
 | `iterations` | `number` | `1` | Number of iterations per task (≥1) |
-| `reasoning_effort` | `"low" \| "medium" \| "high" \| "xhigh"` | `"medium"` | Reasoning depth (Codex only) |
+| `reasoning_effort` | `"low" \| "medium" \| "high" \| "xhigh"` | `"medium"` | Reasoning depth (Codex and Pi only) |
 | `followup_reasoning_effort` | `"low" \| "medium" \| "high" \| "xhigh"` | `null` | Reasoning for iterations > 1 |
 
 ### Runner Binary Paths

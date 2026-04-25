@@ -5,7 +5,7 @@
 //!
 //! Responsibilities:
 //! - Verify runner-specific model defaulting behavior.
-//! - Assert reasoning-effort handling for Codex and non-Codex phases.
+//! - Assert reasoning-effort handling for supported and unsupported phases.
 //!
 //! Not handled here:
 //! - Override-precedence ordering.
@@ -17,7 +17,7 @@
 //!
 //! Invariants/assumptions:
 //! - Runner changes without explicit models must fall back to that runner's default model.
-//! - Non-Codex phases ignore reasoning-effort inputs.
+//! - Phases for runners without reasoning controls ignore reasoning-effort inputs.
 
 use super::*;
 
@@ -99,7 +99,23 @@ fn resolve_phase_settings_effort_some_for_codex() {
 }
 
 #[test]
-fn resolve_phase_settings_effort_none_for_non_codex() {
+fn resolve_phase_settings_effort_some_for_pi() {
+    let config_agent = test_config_agent(
+        Some(Runner::Pi),
+        Some(Model::Custom("openai-codex/gpt-5.5".to_string())),
+        None,
+    );
+    let overrides = test_overrides_with_phases(None, None, Some(ReasoningEffort::High), None);
+
+    let (matrix, _warnings) =
+        resolve_phase_settings_matrix(&overrides, &config_agent, None, 3).unwrap();
+
+    assert_eq!(matrix.phase1.reasoning_effort, Some(ReasoningEffort::High));
+    assert_eq!(matrix.phase2.reasoning_effort, Some(ReasoningEffort::High));
+}
+
+#[test]
+fn resolve_phase_settings_effort_none_for_unsupported_runner() {
     let config_agent = test_config_agent(Some(Runner::Opencode), Some(Model::Glm47), None);
     let overrides = test_overrides_with_phases(None, None, Some(ReasoningEffort::High), None);
 

@@ -49,7 +49,7 @@ pub struct RunnerCapabilityReport {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RunnerFeatures {
-    /// Reasoning effort control (Codex only).
+    /// Reasoning effort control.
     pub reasoning_effort: bool,
     /// Sandbox mode control.
     pub sandbox: SandboxSupport,
@@ -184,7 +184,7 @@ pub(crate) fn get_runner_features(runner: &Runner) -> RunnerFeatures {
             approval_modes: vec!["yolo".into()],
         },
         Runner::Pi => RunnerFeatures {
-            reasoning_effort: false,
+            reasoning_effort: true,
             sandbox: SandboxSupport {
                 supported: true,
                 modes: vec!["default".into(), "enabled".into()],
@@ -338,6 +338,13 @@ mod tests {
     #[test]
     fn codex_has_reasoning_effort_support() {
         let features = get_runner_features(&Runner::Codex);
+        assert!(features.reasoning_effort);
+        assert!(!features.plan_mode);
+    }
+
+    #[test]
+    fn pi_has_reasoning_effort_support() {
+        let features = get_runner_features(&Runner::Pi);
         assert!(features.reasoning_effort);
         assert!(!features.plan_mode);
     }

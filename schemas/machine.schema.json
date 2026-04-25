@@ -425,7 +425,7 @@
               }
             ],
             "default": null,
-            "description": "Default reasoning effort (only meaningful for Codex models)."
+            "description": "Default reasoning effort (only meaningful for runners with reasoning controls)."
           },
           "repoprompt_plan_required": {
             "default": null,
@@ -3550,7 +3550,7 @@
           },
           "model_effort": {
             "default": "default",
-            "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+            "description": "Per-task reasoning effort override for runners with reasoning controls. Default falls back to config.",
             "enum": [
               "default",
               "low",
@@ -5963,7 +5963,7 @@
           },
           "model_effort": {
             "default": "default",
-            "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+            "description": "Per-task reasoning effort override for runners with reasoning controls. Default falls back to config.",
             "enum": [
               "default",
               "low",
@@ -6648,7 +6648,7 @@
           },
           "model_effort": {
             "default": "default",
-            "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+            "description": "Per-task reasoning effort override for runners with reasoning controls. Default falls back to config.",
             "enum": [
               "default",
               "low",
@@ -7350,7 +7350,7 @@
               }
             ],
             "default": null,
-            "description": "Default reasoning effort (only meaningful for Codex models)."
+            "description": "Default reasoning effort (only meaningful for runners with reasoning controls)."
           },
           "repoprompt_plan_required": {
             "default": null,
@@ -8885,7 +8885,7 @@
           },
           "model_effort": {
             "default": "default",
-            "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+            "description": "Per-task reasoning effort override for runners with reasoning controls. Default falls back to config.",
             "enum": [
               "default",
               "low",

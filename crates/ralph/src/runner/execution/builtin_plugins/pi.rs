@@ -41,20 +41,31 @@ use super::{apply_analytics_env, extract_text_content};
 /// Pi plugin implementation.
 pub struct PiPlugin;
 
+struct PiCommandRequest<'a> {
+    work_dir: &'a Path,
+    bin: &'a str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: &'a crate::contracts::Model,
+    prompt: &'a str,
+    session_path: Option<&'a Path>,
+    reasoning_effort: Option<crate::contracts::ReasoningEffort>,
+}
+
 impl RunnerPlugin for PiPlugin {
     fn metadata(&self) -> RunnerMetadata {
         super::BuiltInRunnerPlugin::Pi.metadata()
     }
 
     fn build_run_command(&self, ctx: RunContext<'_>) -> Result<PluginCommandParts, RunnerError> {
-        self.build_pi_command(
-            ctx.work_dir,
-            ctx.bin,
-            ctx.runner_cli,
-            &ctx.model,
-            ctx.prompt,
-            None,
-        )
+        self.build_pi_command(PiCommandRequest {
+            work_dir: ctx.work_dir,
+            bin: ctx.bin,
+            runner_cli: ctx.runner_cli,
+            model: &ctx.model,
+            prompt: ctx.prompt,
+            session_path: None,
+            reasoning_effort: ctx.reasoning_effort,
+        })
     }
 
     fn build_resume_command(
@@ -62,14 +73,15 @@ impl RunnerPlugin for PiPlugin {
         ctx: ResumeContext<'_>,
     ) -> Result<PluginCommandParts, RunnerError> {
         let session_path = resolve_pi_session_path(ctx.work_dir, ctx.session_id)?;
-        self.build_pi_command(
-            ctx.work_dir,
-            ctx.bin,
-            ctx.runner_cli,
-            &ctx.model,
-            ctx.message,
-            Some(&session_path),
-        )
+        self.build_pi_command(PiCommandRequest {
+            work_dir: ctx.work_dir,
+            bin: ctx.bin,
+            runner_cli: ctx.runner_cli,
+            model: &ctx.model,
+            prompt: ctx.message,
+            session_path: Some(&session_path),
+            reasoning_effort: ctx.reasoning_effort,
+        })
     }
 
     fn parse_response_line(&self, line: &str, _buffer: &mut String) -> Option<String> {
@@ -83,22 +95,21 @@ impl RunnerPlugin for PiPlugin {
 impl PiPlugin {
     fn build_pi_command(
         &self,
-        work_dir: &Path,
-        bin: &str,
-        runner_cli: ResolvedRunnerCliOptions,
-        model: &crate::contracts::Model,
-        prompt: &str,
-        session_path: Option<&Path>,
+        request: PiCommandRequest<'_>,
     ) -> Result<PluginCommandParts, RunnerError> {
-        let (builder, mut temp_resources) = if let Some(entrypoint) = pi_node_entrypoint(bin) {
-            pi_wrapper_builder(work_dir, bin, &entrypoint)?
-        } else {
-            (RunnerCommandBuilder::new(bin, work_dir), Vec::new())
-        };
-        let builder = apply_analytics_env(builder, &Runner::Pi, model);
-        let builder = apply_pi_options(builder, runner_cli);
+        let (builder, mut temp_resources) =
+            if let Some(entrypoint) = pi_node_entrypoint(request.bin) {
+                pi_wrapper_builder(request.work_dir, request.bin, &entrypoint)?
+            } else {
+                (
+                    RunnerCommandBuilder::new(request.bin, request.work_dir),
+                    Vec::new(),
+                )
+            };
+        let builder = apply_analytics_env(builder, &Runner::Pi, request.model);
+        let builder = apply_pi_options(builder, request.runner_cli);
 
-        let builder = if let Some(path) = session_path {
+        let builder = if let Some(path) = request.session_path {
             builder
                 .arg("--session")
                 .arg(path.to_string_lossy().as_ref())
@@ -107,10 +118,11 @@ impl PiPlugin {
         };
 
         let (cmd, payload, mut builder_resources) = builder
-            .model(model)
+            .model(request.model)
+            .thinking_level(request.reasoning_effort)
             .arg("--mode")
             .arg("json")
-            .arg(prompt)
+            .arg(request.prompt)
             .build();
         temp_resources.append(&mut builder_resources);
         Ok((cmd, payload, temp_resources))

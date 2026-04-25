@@ -117,6 +117,13 @@ impl RunnerCommandBuilder {
         self
     }
 
+    pub fn thinking_level(mut self, effort: Option<ReasoningEffort>) -> Self {
+        if let Some(effort) = effort {
+            self.cmd.arg("--thinking").arg(effort_as_str(effort));
+        }
+        self
+    }
+
     pub fn permission_mode(mut self, mode: Option<ClaudePermissionMode>) -> Self {
         let mode = mode.unwrap_or(ClaudePermissionMode::BypassPermissions);
         self.cmd

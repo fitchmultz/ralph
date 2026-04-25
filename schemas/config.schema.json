@@ -378,7 +378,7 @@
           "default": null
         },
         "reasoning_effort": {
-          "description": "Default reasoning effort (only meaningful for Codex models).",
+          "description": "Default reasoning effort (only meaningful for runners with reasoning controls).",
           "anyOf": [
             {
               "$ref": "#/$defs/ReasoningEffort"

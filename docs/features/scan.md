@@ -162,7 +162,7 @@ ralph scan [OPTIONS] [PROMPT]...
 | `--profile <NAME>` | | Named config profile to apply (e.g., `fast-local`, `deep-review`) |
 | `--runner <RUNNER>` | | Override runner for this scan |
 | `--model <MODEL>` | | Override model for this scan |
-| `--effort <LEVEL>` | `-e` | Reasoning effort: `low`, `medium`, `high`, `xhigh` (Codex only) |
+| `--effort <LEVEL>` | `-e` | Reasoning effort: `low`, `medium`, `high`, `xhigh` (Codex and Pi only) |
 | `--repo-prompt <MODE>` | | RepoPrompt mode: `tools`, `plan`, `off` |
 | `--force` | `-f` | Bypass clean-repo check and stale locks |
 
