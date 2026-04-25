@@ -79,7 +79,7 @@ pub(super) fn base_webhook_config(port: u16) -> WebhookConfig {
         events: None,
         timeout_secs: Some(5),
         retry_count: Some(0),
-        retry_backoff_ms: Some(10),
+        retry_backoff_ms: Some(100),
         queue_capacity: Some(10),
         queue_policy: Some(WebhookQueuePolicy::DropNew),
         ..Default::default()
@@ -109,7 +109,7 @@ pub(super) fn ensure_test_worker_initialized() {
         let mut config = base_webhook_config(port);
         config.timeout_secs = Some(1);
         config.retry_count = Some(1);
-        config.retry_backoff_ms = Some(1);
+        config.retry_backoff_ms = Some(100);
         config.queue_capacity = Some(1000);
 
         webhook::notify_task_created(

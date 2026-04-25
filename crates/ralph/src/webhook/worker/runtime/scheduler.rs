@@ -16,7 +16,7 @@
 //! Invariants/Assumptions:
 //! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
-use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use crossbeam_channel::{Receiver, Sender, select};
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::BinaryHeap;
 use std::sync::Weak;
@@ -51,6 +51,7 @@ impl Ord for RetryQueueEntry {
 pub(super) fn retry_scheduler_loop(
     retry_receiver: Receiver<ScheduledRetry>,
     ready_sender: Weak<Sender<DeliveryTask>>,
+    shutdown_receiver: Receiver<()>,
 ) {
     let mut pending = BinaryHeap::<RetryQueueEntry>::new();
 
@@ -60,31 +61,38 @@ pub(super) fn retry_scheduler_loop(
             .map(|entry| entry.0.ready_at.saturating_duration_since(Instant::now()));
 
         let scheduled = match timeout {
-            Some(duration) => match retry_receiver.recv_timeout(duration) {
-                Ok(task) => Some(task),
-                Err(crossbeam_channel::RecvTimeoutError::Timeout) => None,
-                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
-                    if pending.is_empty() {
+            Some(duration) => {
+                let timeout_receiver = crossbeam_channel::after(duration);
+                select! {
+                    recv(shutdown_receiver) -> _ => {
+                        flush_pending_retries(&mut pending, &ready_sender);
                         break;
                     }
-                    // Inbound retry channel closed (dispatcher rebuild/teardown) while we still have
-                    // timer-delayed retries: `recv_timeout` returns `Disconnected` immediately on every
-                    // call, so we must wait out `ready_at` deadlines here or those retries never enqueue.
-                    let wait = pending
-                        .peek()
-                        .map(|entry| entry.0.ready_at.saturating_duration_since(Instant::now()));
-                    if let Some(delay) = wait
-                        && !delay.is_zero()
-                    {
-                        std::thread::sleep(delay);
-                    }
-                    None
+                    recv(retry_receiver) -> msg => match msg {
+                        Ok(task) => Some(task),
+                        Err(_) => {
+                            flush_pending_retries(&mut pending, &ready_sender);
+                            break;
+                        }
+                    },
+                    recv(timeout_receiver) -> _ => None,
                 }
-            },
-            None => match retry_receiver.recv() {
-                Ok(task) => Some(task),
-                Err(_) => break,
-            },
+            }
+            None => {
+                select! {
+                    recv(shutdown_receiver) -> _ => {
+                        flush_pending_retries(&mut pending, &ready_sender);
+                        break;
+                    }
+                    recv(retry_receiver) -> msg => match msg {
+                        Ok(task) => Some(task),
+                        Err(_) => {
+                            flush_pending_retries(&mut pending, &ready_sender);
+                            break;
+                        }
+                    }
+                }
+            }
         };
 
         if let Some(task) = scheduled {
@@ -130,10 +138,44 @@ pub(super) fn retry_scheduler_loop(
             }
         }
 
-        if pending.is_empty() {
-            match retry_receiver.try_recv() {
-                Err(TryRecvError::Disconnected) => break,
-                Ok(_) | Err(TryRecvError::Empty) => {}
+        if super::types::shutdown_requested(&shutdown_receiver) {
+            flush_pending_retries(&mut pending, &ready_sender);
+            break;
+        }
+    }
+}
+
+fn flush_pending_retries(
+    pending: &mut BinaryHeap<RetryQueueEntry>,
+    ready_sender: &Weak<Sender<DeliveryTask>>,
+) {
+    while let Some(RetryQueueEntry(scheduled)) = pending.pop() {
+        let Some(ready_sender) = ready_sender.upgrade() else {
+            let error = anyhow::anyhow!(
+                "webhook dispatcher shut down before retry requeue drain: ready queue unavailable"
+            );
+            diagnostics::note_delivery_failure(
+                &scheduled.task.msg,
+                &error,
+                scheduled.task.attempt.saturating_add(1),
+            );
+            log::warn!("{error:#}");
+            return;
+        };
+
+        match ready_sender.send(scheduled.task.clone()) {
+            Ok(()) => diagnostics::note_retry_requeue(),
+            Err(send_err) => {
+                let error = anyhow::anyhow!(
+                    "webhook dispatcher shut down before retry requeue drain: {send_err}"
+                );
+                diagnostics::note_delivery_failure(
+                    &scheduled.task.msg,
+                    &error,
+                    scheduled.task.attempt.saturating_add(1),
+                );
+                log::warn!("{error:#}");
+                return;
             }
         }
     }
@@ -142,6 +184,8 @@ pub(super) fn retry_scheduler_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossbeam_channel::unbounded;
+    use std::sync::Arc;
     use std::time::Duration;
 
     use crate::contracts::WebhookConfig;
@@ -180,5 +224,34 @@ mod tests {
         }));
         let first = heap.pop().expect("entry");
         assert_eq!(first.0.task.attempt, 1);
+    }
+
+    #[test]
+    fn scheduler_drains_pending_retries_when_shutdown_begins() {
+        let (ready_sender, ready_receiver) = unbounded::<DeliveryTask>();
+        let (retry_sender, retry_receiver) = unbounded::<ScheduledRetry>();
+        let (shutdown_sender, shutdown_receiver) = unbounded::<()>();
+        let ready_sender = Arc::new(ready_sender);
+
+        let scheduler = std::thread::spawn({
+            let ready_sender = Arc::downgrade(&ready_sender);
+            move || retry_scheduler_loop(retry_receiver, ready_sender, shutdown_receiver)
+        });
+
+        retry_sender
+            .send(ScheduledRetry {
+                ready_at: Instant::now() + Duration::from_secs(60),
+                task: minimal_task(2),
+            })
+            .expect("schedule retry");
+
+        drop(shutdown_sender);
+
+        let drained = ready_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("pending retry should drain immediately");
+        assert_eq!(drained.attempt, 2);
+
+        scheduler.join().expect("scheduler should exit cleanly");
     }
 }

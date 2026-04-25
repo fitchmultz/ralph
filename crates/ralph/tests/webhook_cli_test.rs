@@ -47,7 +47,7 @@ fn write_webhook_config(dir: &std::path::Path) -> Result<()> {
         "allow_private_targets": true,
         "events": ["*"],
         "retry_count": 0,
-        "retry_backoff_ms": 1,
+        "retry_backoff_ms": 100,
         "queue_capacity": 100,
         "queue_policy": "drop_new"
     });

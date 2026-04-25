@@ -19,7 +19,7 @@
 //! - Serialization tests assert on stable JSON fragments rather than field ordering.
 
 use super::super::*;
-use crate::contracts::WebhookConfig;
+use crate::contracts::{WebhookConfig, validate_webhook_settings};
 use crate::webhook::types::{WebhookContext, WebhookPayload};
 use crate::webhook::worker::generate_signature;
 use std::time::Duration;
@@ -363,34 +363,42 @@ fn webhook_config_merge_includes_url_policy_fields() {
 }
 
 #[test]
-fn webhook_queue_capacity_bounds_check() {
+fn webhook_queue_capacity_bounds_are_validated() {
     let low_config = WebhookConfig {
-        queue_capacity: Some(0),
+        queue_capacity: Some(9),
         ..Default::default()
     };
-    let capacity = low_config
-        .queue_capacity
-        .map(|value| value.clamp(1u32, 10000))
-        .unwrap_or(100);
-    assert_eq!(capacity, 1);
+    let low_err = validate_webhook_settings(&low_config).expect_err("low queue capacity");
+    assert!(low_err.to_string().contains("agent.webhook.queue_capacity"));
 
     let high_config = WebhookConfig {
-        queue_capacity: Some(50000),
+        queue_capacity: Some(10_001),
         ..Default::default()
     };
-    let capacity = high_config
-        .queue_capacity
-        .map(|value| value.clamp(1u32, 10000))
-        .unwrap_or(100);
-    assert_eq!(capacity, 10000);
+    let high_err = validate_webhook_settings(&high_config).expect_err("high queue capacity");
+    assert!(
+        high_err
+            .to_string()
+            .contains("agent.webhook.queue_capacity")
+    );
 
     let normal_config = WebhookConfig {
         queue_capacity: Some(500),
         ..Default::default()
     };
-    let capacity = normal_config
-        .queue_capacity
-        .map(|value| value.clamp(1u32, 10000))
-        .unwrap_or(100);
-    assert_eq!(capacity, 500);
+    validate_webhook_settings(&normal_config).unwrap();
+}
+
+#[test]
+fn webhook_numeric_boundaries_are_accepted() {
+    let config = WebhookConfig {
+        timeout_secs: Some(300),
+        retry_count: Some(10),
+        retry_backoff_ms: Some(100),
+        queue_capacity: Some(10_000),
+        parallel_queue_multiplier: Some(10.0),
+        ..Default::default()
+    };
+
+    validate_webhook_settings(&config).unwrap();
 }

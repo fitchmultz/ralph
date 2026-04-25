@@ -16,7 +16,7 @@
 //! - Queue drop metrics/logs are recorded centrally from the policy branch.
 //! - Replay enqueue bypasses event subscription filtering but still respects global enable/url checks.
 
-use crate::contracts::{WebhookConfig, WebhookQueuePolicy, validate_webhook_destination_url};
+use crate::contracts::{WebhookConfig, WebhookQueuePolicy, validate_webhook_settings};
 use crossbeam_channel::{SendTimeoutError, Sender, TrySendError};
 use std::time::Duration;
 
@@ -115,6 +115,15 @@ pub(crate) fn send_webhook_payload_internal(
         return false;
     }
 
+    if let Err(err) = validate_webhook_settings(config) {
+        diagnostics::note_dropped_message();
+        log::warn!(
+            "Webhook config rejected before enqueue for event={}: {err:#}",
+            payload.event
+        );
+        return false;
+    }
+
     let resolved = ResolvedWebhookConfig::from_config(config);
     if !resolved.enabled {
         log::debug!("Webhooks globally disabled; skipping");
@@ -122,25 +131,12 @@ pub(crate) fn send_webhook_payload_internal(
     }
 
     let url = match &resolved.url {
-        Some(url) if !url.trim().is_empty() => url.clone(),
+        Some(url) if !url.trim().is_empty() => url.trim().to_string(),
         _ => {
             log::debug!("Webhook URL not configured; skipping");
             return false;
         }
     };
-
-    if let Err(err) = validate_webhook_destination_url(
-        url.as_str(),
-        resolved.allow_insecure_http,
-        resolved.allow_private_targets,
-    ) {
-        log::warn!(
-            "Webhook URL rejected by safety policy for event={}: {:#}",
-            payload.event,
-            err
-        );
-        return false;
-    }
 
     let Some(dispatcher) = dispatcher_for_config(config) else {
         diagnostics::note_dropped_message();

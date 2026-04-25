@@ -15,8 +15,8 @@
 //! - Runtime settings are rebuilt when the effective mode/config changes.
 //! - Retry scheduling stays off worker threads so failing endpoints do not sleep in place.
 //! - Dispatcher teardown must not leak background threads or retain stale queue channels across rebuilds.
-//! - When the inbound retry channel disconnects during a rebuild, the scheduler still honors pending
-//!   `ready_at` deadlines before exiting so in-flight retries are not dropped.
+//! - Dispatcher shutdown must interrupt worker and scheduler waits promptly instead of sleeping until
+//!   the furthest pending retry deadline.
 
 mod dispatcher;
 mod scheduler;

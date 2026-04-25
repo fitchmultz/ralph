@@ -274,3 +274,39 @@ fn worker_pool_prevents_one_blocked_destination_from_serializing_all_deliveries(
 
     release_tx.send(()).expect("release blocked request");
 }
+
+#[test]
+#[serial]
+fn invalid_numeric_webhook_settings_are_rejected_before_enqueue() {
+    reset_webhook_test_state();
+
+    let deliveries = Arc::new(AtomicUsize::new(0));
+    let deliveries_for_transport = Arc::clone(&deliveries);
+    install_test_transport_for_tests(Some(Arc::new(move |_| {
+        deliveries_for_transport.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    })));
+
+    let invalid_config = WebhookConfig {
+        retry_backoff_ms: Some(99),
+        ..webhook_test_config()
+    };
+
+    let enqueued = crate::webhook::worker::send_webhook_payload_internal(
+        WebhookPayload {
+            event: "task_completed".to_string(),
+            timestamp: "2026-03-07T00:00:00Z".to_string(),
+            task_id: Some("RQ-INVALID".to_string()),
+            task_title: Some("Invalid config".to_string()),
+            previous_status: None,
+            current_status: None,
+            note: None,
+            context: WebhookContext::default(),
+        },
+        &invalid_config,
+        false,
+    );
+
+    assert!(!enqueued);
+    assert_eq!(deliveries.load(Ordering::SeqCst), 0);
+}

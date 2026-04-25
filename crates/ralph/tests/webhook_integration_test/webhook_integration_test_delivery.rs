@@ -148,10 +148,10 @@ fn webhook_drop_new_policy() {
     });
 
     let mut config = base_webhook_config(port);
-    config.queue_capacity = Some(2);
+    config.queue_capacity = Some(10);
     config.queue_policy = Some(WebhookQueuePolicy::DropNew);
 
-    for index in 0..5 {
+    for index in 0..20 {
         webhook::notify_task_created(
             &format!("{task_id_prefix}-{index}"),
             "Test",
@@ -200,10 +200,10 @@ fn webhook_drop_oldest_policy() {
     });
 
     let mut config = base_webhook_config(port);
-    config.queue_capacity = Some(2);
+    config.queue_capacity = Some(10);
     config.queue_policy = Some(WebhookQueuePolicy::DropOldest);
 
-    for index in 0..5 {
+    for index in 0..20 {
         webhook::notify_task_created(
             &format!("{task_id_prefix}-{index}"),
             "Test",

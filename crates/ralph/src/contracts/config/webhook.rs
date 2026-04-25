@@ -217,6 +217,27 @@ impl WebhookConfig {
 
 /// Validate webhook URL when `agent.webhook.enabled` is true (requires non-empty URL and safety rules).
 pub(crate) fn validate_webhook_settings(cfg: &WebhookConfig) -> anyhow::Result<()> {
+    validate_u32_range("agent.webhook.timeout_secs", cfg.timeout_secs, 1, 300)?;
+    validate_u32_range("agent.webhook.retry_count", cfg.retry_count, 0, 10)?;
+    validate_u32_range(
+        "agent.webhook.retry_backoff_ms",
+        cfg.retry_backoff_ms,
+        100,
+        30_000,
+    )?;
+    validate_u32_range(
+        "agent.webhook.queue_capacity",
+        cfg.queue_capacity,
+        10,
+        10_000,
+    )?;
+    validate_f32_range(
+        "agent.webhook.parallel_queue_multiplier",
+        cfg.parallel_queue_multiplier,
+        1.0,
+        10.0,
+    )?;
+
     if !cfg.enabled.unwrap_or(false) {
         return Ok(());
     }
@@ -234,6 +255,24 @@ pub(crate) fn validate_webhook_settings(cfg: &WebhookConfig) -> anyhow::Result<(
         cfg.allow_insecure_http.unwrap_or(false),
         cfg.allow_private_targets.unwrap_or(false),
     )
+}
+
+fn validate_u32_range(field: &str, value: Option<u32>, min: u32, max: u32) -> anyhow::Result<()> {
+    if let Some(value) = value
+        && !(min..=max).contains(&value)
+    {
+        bail!("Invalid {field}: {value}. Expected a value between {min} and {max}.");
+    }
+    Ok(())
+}
+
+fn validate_f32_range(field: &str, value: Option<f32>, min: f32, max: f32) -> anyhow::Result<()> {
+    if let Some(value) = value
+        && (!(min..=max).contains(&value) || !value.is_finite())
+    {
+        bail!("Invalid {field}: {value}. Expected a value between {min} and {max}.");
+    }
+    Ok(())
 }
 
 /// Validate a webhook destination URL for delivery or config-time checks.

@@ -69,7 +69,7 @@ pub(super) fn webhook_test_config() -> WebhookConfig {
         events: Some(vec![WebhookEventSubscription::Wildcard]),
         timeout_secs: Some(1),
         retry_count: Some(0),
-        retry_backoff_ms: Some(1),
+        retry_backoff_ms: Some(100),
         queue_capacity: Some(100),
         parallel_queue_multiplier: None,
         queue_policy: Some(WebhookQueuePolicy::DropNew),

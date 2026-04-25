@@ -22,11 +22,17 @@ use std::sync::{Arc, OnceLock, RwLock};
 use super::types::{DispatcherSettings, RuntimeMode, WebhookDispatcher};
 use crate::webhook::diagnostics;
 
+#[derive(Debug, Default)]
+struct DispatcherStartupState {
+    last_startup_error: Option<String>,
+    consecutive_startup_failures: u32,
+}
+
 #[derive(Debug)]
 struct DispatcherState {
     mode: RuntimeMode,
     dispatcher: Option<Arc<WebhookDispatcher>>,
-    disabled_reason: Option<String>,
+    startup: DispatcherStartupState,
 }
 
 impl Default for DispatcherState {
@@ -34,7 +40,7 @@ impl Default for DispatcherState {
         Self {
             mode: RuntimeMode::Standard,
             dispatcher: None,
-            disabled_reason: None,
+            startup: DispatcherStartupState::default(),
         }
     }
 }
@@ -73,12 +79,8 @@ fn dispatcher_for_config_with_factory(
     config: &WebhookConfig,
     mut build_dispatcher: impl FnMut(DispatcherSettings) -> anyhow::Result<Arc<WebhookDispatcher>>,
 ) -> Option<Arc<WebhookDispatcher>> {
-    with_dispatcher_state_write(|state| {
-        if state.disabled_reason.is_some() {
-            log::debug!("Webhooks disabled for this run after dispatcher startup failure");
-            return None;
-        }
-
+    let mut old_dispatcher = None;
+    let dispatcher = with_dispatcher_state_write(|state| {
         let settings = DispatcherSettings::for_mode(config, &state.mode);
         let needs_rebuild = state
             .dispatcher
@@ -87,22 +89,37 @@ fn dispatcher_for_config_with_factory(
 
         if needs_rebuild {
             match build_dispatcher(settings) {
-                Ok(dispatcher) => state.dispatcher = Some(dispatcher),
+                Ok(dispatcher) => {
+                    old_dispatcher = state.dispatcher.replace(dispatcher);
+                    state.startup = DispatcherStartupState::default();
+                }
                 Err(err) => {
                     let reason = format!("{err:#}");
-                    state.dispatcher = None;
-                    state.disabled_reason = Some(reason.clone());
+                    let should_log = state.startup.last_startup_error.as_deref() != Some(&reason);
+                    state.startup.last_startup_error = Some(reason.clone());
+                    state.startup.consecutive_startup_failures =
+                        state.startup.consecutive_startup_failures.saturating_add(1);
                     diagnostics::set_queue_capacity(0);
-                    log::warn!(
-                        "Webhook delivery disabled for this run: failed to start dispatcher runtime: {reason}"
-                    );
-                    return None;
+                    if should_log {
+                        if state.dispatcher.is_some() {
+                            log::warn!(
+                                "Webhook dispatcher rebuild failed; keeping the previous runtime active until a later rebuild succeeds: {reason}"
+                            );
+                        } else {
+                            log::warn!(
+                                "Webhook dispatcher startup failed; delivery remains unavailable until a later rebuild succeeds: {reason}"
+                            );
+                        }
+                    }
+                    return state.dispatcher.as_ref().cloned();
                 }
             }
         }
 
         state.dispatcher.as_ref().cloned()
-    })
+    });
+    drop(old_dispatcher);
+    dispatcher
 }
 
 /// Initialize the webhook dispatcher with capacity scaled for parallel execution.
@@ -127,10 +144,12 @@ pub(crate) fn current_dispatcher_settings_for_tests(
 
 #[cfg(test)]
 pub(crate) fn reset_dispatcher_for_tests() {
+    let mut old_dispatcher = None;
     with_dispatcher_state_write(|state| {
         state.mode = RuntimeMode::Standard;
-        state.dispatcher = None;
-        state.disabled_reason = None;
+        old_dispatcher = state.dispatcher.take();
+        state.startup = DispatcherStartupState::default();
     });
+    drop(old_dispatcher);
     crate::webhook::worker::delivery::install_test_transport_for_tests(None);
 }
