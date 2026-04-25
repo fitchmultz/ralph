@@ -23,7 +23,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.102"
-clap = { version = "4.6.0", features = ["derive"] }
+clap = { version = "4.6.1", features = ["derive"] }
 clap_complete = "4.6.2"
 csv = "1.4"
 colored = "3"
@@ -43,7 +43,7 @@ thiserror = "2.0.18"
 time = { version = "0.3.47", features = ["formatting", "parsing", "macros"] }
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 atty = "0.2"
-notify-rust = { version = "4.14.0", optional = true }
+notify-rust = { version = "4.16.0", optional = true }
 chrono = { version = "0.4", features = ["serde"] }
 indicatif = { version = "0.18", features = ["rayon"] }
 notify = "8"
@@ -58,7 +58,7 @@ crossbeam-channel = "0.5"
 
 # libc is only used on Unix platforms for process group control and PID liveness detection
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.185"
+libc = "0.2.186"
 signal-hook = "0.4.4"
 
 # windows-sys is used on Windows platforms for PID liveness detection and sound playback
