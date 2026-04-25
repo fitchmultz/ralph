@@ -82,6 +82,7 @@ struct TaskListView: View {
         }
         .background(.clear)
         .task { @MainActor in
+            await Task.yield()
             await workspace.loadTasks()
         }
         .toolbar {

@@ -197,6 +197,8 @@ final class NavigationViewModelTests: RalphCoreTestCase {
         )
         viewModel.selectedSection = .analytics
 
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+
         XCTAssertEqual(viewModel.persistenceIssue?.domain, .navigationState)
         XCTAssertEqual(viewModel.persistenceIssue?.operation, .save)
         XCTAssertEqual(forwardedIssue?.domain, .navigationState)

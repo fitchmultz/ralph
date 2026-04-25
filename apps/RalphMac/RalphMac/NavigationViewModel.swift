@@ -99,17 +99,17 @@ public enum TaskViewMode: String, CaseIterable, Identifiable, Codable {
 @MainActor
 public final class NavigationViewModel: ObservableObject {
     @Published public var selectedSection: SidebarSection = .queue {
-        didSet { persistNavigationState() }
+        didSet { schedulePersistNavigationState() }
     }
     @Published public var selectedTaskID: String? = nil {
-        didSet { persistNavigationState() }
+        didSet { schedulePersistNavigationState() }
     }
     @Published public var selectedTaskIDs: Set<String> = [] {
-        didSet { persistNavigationState() }
+        didSet { schedulePersistNavigationState() }
     }
     @Published public var sidebarVisibility: NavigationSplitViewVisibility = .automatic
     @Published public var taskViewMode: TaskViewMode = .list {
-        didSet { persistNavigationState() }
+        didSet { schedulePersistNavigationState() }
     }
     @Published public private(set) var persistenceIssue: PersistenceIssue?
 
@@ -120,6 +120,8 @@ public final class NavigationViewModel: ObservableObject {
     private let workspaceID: UUID?
     private let store: NavigationStateStore
     private var issueSink: (PersistenceIssue?) -> Void
+    private var persistTask: Task<Void, Never>?
+    private var suppressPersistence = false
 
     public init(
         workspaceID: UUID? = nil,
@@ -130,6 +132,10 @@ public final class NavigationViewModel: ObservableObject {
         self.store = store
         self.issueSink = issueSink
         loadNavigationState()
+    }
+
+    deinit {
+        persistTask?.cancel()
     }
 
     public func clearAllTaskSelections() {
@@ -191,6 +197,16 @@ public final class NavigationViewModel: ObservableObject {
         return navigationStateKey
     }
 
+    private func schedulePersistNavigationState() {
+        guard !suppressPersistence else { return }
+        persistTask?.cancel()
+        persistTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            self?.persistNavigationState()
+        }
+    }
+
     private func persistNavigationState() {
         let state = NavigationState(
             version: navigationStateVersion,
@@ -216,6 +232,9 @@ public final class NavigationViewModel: ObservableObject {
     }
 
     private func loadNavigationState() {
+        suppressPersistence = true
+        defer { suppressPersistence = false }
+
         do {
             guard let state = try store.loadState(forKey: stateKey) else {
                 updatePersistenceIssue(nil)
@@ -247,6 +266,7 @@ public final class NavigationViewModel: ObservableObject {
     }
 
     private func updatePersistenceIssue(_ issue: PersistenceIssue?) {
+        guard persistenceIssue != issue else { return }
         persistenceIssue = issue
         issueSink(issue)
     }

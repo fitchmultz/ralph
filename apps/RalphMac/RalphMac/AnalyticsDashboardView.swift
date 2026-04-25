@@ -45,7 +45,7 @@ struct AnalyticsDashboardView: View {
             case .burndown: return "chart.line.uptrend.xyaxis"
             case .velocity: return "chart.bar"
             case .tags: return "chart.pie"
-            case .history: return "chart.line"
+            case .history: return "chart.line.uptrend.xyaxis"
             }
         }
     }
@@ -75,6 +75,7 @@ struct AnalyticsDashboardView: View {
             }
         }
         .task {
+            await Task.yield()
             guard !workspace.insightsState.analytics.isLoading else { return }
             guard workspace.insightsState.analytics.lastRefreshedAt == nil else { return }
             await refreshAnalytics()
@@ -328,8 +329,11 @@ struct AnalyticsDashboardView: View {
                         .foregroundStyle(.orange)
                         .padding(10)
                 case .loading:
-                    ProgressView()
-                        .scaleEffect(0.7)
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .symbolEffect(.rotate, isActive: true)
+                        .frame(width: 16, height: 16)
                         .padding(10)
                 default:
                     EmptyView()

@@ -27,7 +27,7 @@ extension WorkspaceView {
     @ViewBuilder
     func sidebarColumn() -> some View {
         VStack(spacing: 0) {
-            List(SidebarSection.allCases, selection: $navigation.selectedSection) { section in
+            List(SidebarSection.allCases, selection: sidebarSelectionBinding) { section in
                 Label(section.rawValue, systemImage: section.icon)
                     .tag(section)
                     .accessibilityHint("Navigate to \(section.rawValue)")
@@ -38,6 +38,19 @@ extension WorkspaceView {
             connectionStatusFooter()
         }
         .navigationTitle(navTitle(navigation.selectedSection.rawValue))
+    }
+
+    private var sidebarSelectionBinding: Binding<SidebarSection> {
+        Binding(
+            get: { navigation.selectedSection },
+            set: { section in
+                guard navigation.selectedSection != section else { return }
+                Task { @MainActor in
+                    await Task.yield()
+                    navigation.navigate(to: section)
+                }
+            }
+        )
     }
 
     @ViewBuilder
@@ -134,6 +147,7 @@ extension WorkspaceView {
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .frame(width: 240)
             .help("Switch between List, Kanban, and Graph view (⌘⇧K)")
             .accessibilityLabel("Task view mode")

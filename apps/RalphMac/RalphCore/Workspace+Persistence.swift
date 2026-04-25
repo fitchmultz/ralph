@@ -586,6 +586,7 @@ extension Workspace {
     }
 
     public func updateNavigationPersistenceIssue(_ issue: PersistenceIssue?) {
+        guard diagnosticsState.navigationPersistenceIssue != issue else { return }
         diagnosticsState.navigationPersistenceIssue = issue
         refreshOperationalHealth()
         if let issue {
