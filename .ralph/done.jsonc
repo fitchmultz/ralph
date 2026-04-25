@@ -128,6 +128,76 @@
         "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.4:xhigh"
       }
+    },
+    {
+      "id": "RQ-0003",
+      "status": "done",
+      "title": "Audit Ralph and materialize a remediation queue",
+      "description": "Run a repository-wide maintainability audit using the comprehensive-codebase-audit skill, focusing on Ralph's architecture boundaries, complexity hotspots, testing and verification gaps, and configuration or operability risks. Use repo evidence to identify the highest-value structural findings, then convert those findings into a small set of chunky, dependency-aware follow-up tasks directly in `.ralph/queue.jsonc` through Ralph's normal follow-up proposal flow rather than producing a stand-alone report.",
+      "priority": "medium",
+      "tags": [
+        "audit",
+        "queue-shaping",
+        "technical-debt",
+        "maintenance",
+        "architecture",
+        "operability"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "docs/index.md",
+        "docs/guides/project-operating-constitution.md",
+        "docs/decisions.md",
+        "docs/roadmap.md",
+        "docs/queue-and-tasks.md",
+        "crates/ralph/src/",
+        "crates/ralph/tests/",
+        "apps/RalphMac/",
+        ".ralph/queue.jsonc",
+        ".ralph/cache/followups/RQ-0003.json",
+        "ralph task followups apply --task RQ-0003 --dry-run --format json",
+        "ralph queue validate"
+      ],
+      "evidence": [
+        "User request: \"use the comprehensive codebase audit skill and build tasks stemming from your findings\"",
+        "AGENTS.md identifies Ralph as a Rust CLI with architecture docs in `docs/index.md`, core source in `crates/ralph/src/`, tests in `crates/ralph/tests/`, and a macOS app in `apps/RalphMac/`.",
+        "AGENTS.md says roadmap items should be chunky and dependency-aware, and queue-shaping work should prefer follow-up tasks over tiny fragmented tickets.",
+        "`.ralph/README.md` defines `.ralph/queue.jsonc` as the source of truth for active work.",
+        "`docs/queue-and-tasks.md:114-156` defines the canonical audit/scan follow-up flow via `.ralph/cache/followups/<TASK_ID>.json` plus `ralph task followups apply`, so remediation tasks should be proposed through that path rather than hand-edited into the queue.",
+        "`docs/index.md:20`, `docs/guides/project-operating-constitution.md:79-94`, and `docs/roadmap.md:8-18` currently disagree with lived work: the roadmap is still a 2026-04-01 single-item file-splitting list while the active queue is already driving a broader audit/remediation effort.",
+        "`docs/guides/project-operating-constitution.md:62-63` and `:121` require important decisions to be recorded, but `docs/decisions.md` still contains only the constitution-adoption entry while README documents project-level policy such as safe-default init, app noninteractive runs, and `make agent-ci` as the everyday gate.",
+        "`crates/ralph/src/commands/run/parallel/args.rs:19-20`, `:26-130`, and `:266-340` show parallel worker argv strings duplicated by hand with tests that snapshot literals rather than parser round-tripping against the real CLI.",
+        "`crates/ralph/src/contracts/machine.rs:34-45` centralizes many machine document versions in one file, but coverage in `crates/ralph/tests/machine_contract_test.rs` and adjacent tests is uneven across graph/dashboard/decompose/CLI-spec/run-summary surfaces.",
+        "`crates/ralph/src/commands/task/mod.rs:48-273` and `crates/ralph/src/commands/daemon/mod.rs:71-213` still behave like mixed-responsibility command hubs instead of thin facades, increasing cross-cutting edit risk.",
+        "`apps/RalphMac/RalphCore/MachineContract.swift:26-45`, `apps/RalphMac/RalphCore/Workspace+CLISpec.swift:156-182`, and `apps/RalphMac/RalphCore/RalphCLIArgumentBuilder.swift:31-107` duplicate CLI/app contract and argv rules across multiple app surfaces.",
+        "`apps/RalphMac/RalphMac/RunControlDetailSections+Configuration.swift:57-260` and the remainder of that 618-line file mix view composition, operator-state precedence, diagnostics orchestration, and run actions, while UI coverage remains shallow for those controls."
+      ],
+      "plan": [
+        "Finish the evidence-backed audit across docs, Rust CLI/runtime, integration tests, and RalphMac using the four default categories from the comprehensive-codebase-audit skill.",
+        "Converge the findings into 4-6 chunky remediation themes, with dependency ordering that separates docs-governance cleanup from Rust contract hardening and RalphMac surface decomposition.",
+        "Write `.ralph/cache/followups/RQ-0003.json` in `followups@v1` format with concrete titles, descriptions, scope, evidence, plans, `depends_on_keys`, and independence rationales for each proposed remediation task.",
+        "Dry-run the proposal with `ralph task followups apply --task RQ-0003 --dry-run --format json`, fix any schema/dependency issues, then apply it for real through Ralph's normal queue-growth flow.",
+        "Run `ralph queue validate`, inspect the inserted task ordering/relationships, and update `RQ-0003` notes with any shaping constraints or notable assumptions discovered during proposal/apply."
+      ],
+      "notes": [
+        "Phase 1 planning constraint: do not materialize follow-ups or run queue validation until Phase 2; only refresh this task and write the execution plan.",
+        "Audit evidence already suggests at least three remediation clusters: docs governance/decision-log drift, Rust CLI-machine contract hardening, and RalphMac contract plus view-surface decomposition.",
+        "Phase 3 reviewed and tightened the RQ-0003 follow-up proposal; canonical apply remains blocked by the live supervisor queue lock in this run."
+      ],
+      "request": "use the comprehensive codebase audit skill and build tasks stemming from your findings",
+      "created_at": "2026-04-25T04:58:57Z",
+      "updated_at": "2026-04-25T05:25:27.619871000Z",
+      "completed_at": "2026-04-25T05:25:27.619871000Z",
+      "started_at": "2026-04-25T05:06:28.644961000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "skill": "comprehensive-codebase-audit",
+        "task_kind": "queue_shaping",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
+      }
     }
   ]
 }
