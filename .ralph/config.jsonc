@@ -20,13 +20,13 @@
       },
       "phase2": {
         "runner": "codex",
-        "model": "gpt-5.5",
-        "reasoning_effort": "medium"
+        "model": "gpt-5.3-codex",
+        "reasoning_effort": "xhigh"
       },
       "phase3": {
         "runner": "codex",
-        "model": "gpt-5.5",
-        "reasoning_effort": "medium"
+        "model": "gpt-5.3-codex",
+        "reasoning_effort": "xhigh"
       }
     }
   },
