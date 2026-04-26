@@ -192,6 +192,11 @@
 		C60F88BCD1C166D0A85BCD20 /* WorkspaceView+Lifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1F92AF6B0E855CEA96B886 /* WorkspaceView+Lifecycle.swift */; };
 		C66DB99F2915374BB62733FA /* RalphTaskModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3894EB508C519DFC807F920 /* RalphTaskModels.swift */; };
 		C8C814CBFD20E703003E4A0C /* RunControlDetailSections+Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 574B4931D04D4EE3786A14AD /* RunControlDetailSections+Configuration.swift */; };
+		F4B1C3205D9E5088B2F30001 /* RunControlExecutionControls+LoopWorkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A0B2104C8D4F77A1E20001 /* RunControlExecutionControls+LoopWorkers.swift */; };
+		F4B1C3205D9E5088B2F30002 /* RunControlExecutionControls+Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A0B2104C8D4F77A1E20002 /* RunControlExecutionControls+Status.swift */; };
+		F4B1C3205D9E5088B2F30003 /* RunControlExecutionControls+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A0B2104C8D4F77A1E20003 /* RunControlExecutionControls+Actions.swift */; };
+		F4B1C3205D9E5088B2F30004 /* RunControlExecutionControls+ActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A0B2104C8D4F77A1E20004 /* RunControlExecutionControls+ActionBar.swift */; };
+		F4B1C3205D9E5088B2F30005 /* RunControlExecutionControls+Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A0B2104C8D4F77A1E20005 /* RunControlExecutionControls+Diagnostics.swift */; };
 		CC112233445566778899AABB /* TaskConflictResolverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD112233445566778899AABB /* TaskConflictResolverView.swift */; };
 		CC99AA88BB77DD66EE55FF44 /* ConsoleOutputBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1122AABBCCDDEEFF99887766 /* ConsoleOutputBuffer.swift */; };
 		CD2233445566778899AABBCC /* GraphAlgorithms.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD112233445566778899AABB /* GraphAlgorithms.swift */; };
@@ -355,6 +360,11 @@
 		47BB33D4574BC2AE48AE95A5 /* AnalyticsSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AnalyticsSection.swift; sourceTree = "<group>"; };
 		498242EF7D786E99993EC742 /* TaskListTransientState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListTransientState.swift; sourceTree = "<group>"; };
 		574B4931D04D4EE3786A14AD /* RunControlDetailSections+Configuration.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "RunControlDetailSections+Configuration.swift"; sourceTree = "<group>"; };
+		F3A0B2104C8D4F77A1E20001 /* RunControlExecutionControls+LoopWorkers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "RunControlExecutionControls+LoopWorkers.swift"; sourceTree = "<group>"; };
+		F3A0B2104C8D4F77A1E20002 /* RunControlExecutionControls+Status.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "RunControlExecutionControls+Status.swift"; sourceTree = "<group>"; };
+		F3A0B2104C8D4F77A1E20003 /* RunControlExecutionControls+Actions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "RunControlExecutionControls+Actions.swift"; sourceTree = "<group>"; };
+		F3A0B2104C8D4F77A1E20004 /* RunControlExecutionControls+ActionBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "RunControlExecutionControls+ActionBar.swift"; sourceTree = "<group>"; };
+		F3A0B2104C8D4F77A1E20005 /* RunControlExecutionControls+Diagnostics.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "RunControlExecutionControls+Diagnostics.swift"; sourceTree = "<group>"; };
 		57A3F5A71B329E532B37574E /* WorkspaceCorePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceCorePerformanceTests.swift; sourceTree = "<group>"; };
 		58E8D3607BFD28F72C5E9344 /* CLIHealthCheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIHealthCheckerTests.swift; sourceTree = "<group>"; };
 		58E8D3607BFD28F72C5E9345 /* RalphCoreTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCoreTestSupport.swift; sourceTree = "<group>"; };
@@ -864,6 +874,11 @@
 				72D2DCA20E21A3DD0D8E2D7D /* RunControlDetailSections+TaskStatus.swift */,
 				6EADA6D856197DE8EA5A4932 /* RunControlDetailSections+Progress.swift */,
 				574B4931D04D4EE3786A14AD /* RunControlDetailSections+Configuration.swift */,
+				F3A0B2104C8D4F77A1E20001 /* RunControlExecutionControls+LoopWorkers.swift */,
+				F3A0B2104C8D4F77A1E20002 /* RunControlExecutionControls+Status.swift */,
+				F3A0B2104C8D4F77A1E20003 /* RunControlExecutionControls+Actions.swift */,
+				F3A0B2104C8D4F77A1E20004 /* RunControlExecutionControls+ActionBar.swift */,
+				F3A0B2104C8D4F77A1E20005 /* RunControlExecutionControls+Diagnostics.swift */,
 			);
 			path = RalphMac;
 			sourceTree = "<group>";
@@ -1296,6 +1311,11 @@
 				EA090CD6811F588CD21BBB1B /* RunControlDetailSections+TaskStatus.swift in Sources */,
 				82A19AE1321D7FAFA2D379ED /* RunControlDetailSections+Progress.swift in Sources */,
 				C8C814CBFD20E703003E4A0C /* RunControlDetailSections+Configuration.swift in Sources */,
+				F4B1C3205D9E5088B2F30001 /* RunControlExecutionControls+LoopWorkers.swift in Sources */,
+				F4B1C3205D9E5088B2F30002 /* RunControlExecutionControls+Status.swift in Sources */,
+				F4B1C3205D9E5088B2F30003 /* RunControlExecutionControls+Actions.swift in Sources */,
+				F4B1C3205D9E5088B2F30004 /* RunControlExecutionControls+ActionBar.swift in Sources */,
+				F4B1C3205D9E5088B2F30005 /* RunControlExecutionControls+Diagnostics.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
