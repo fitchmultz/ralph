@@ -169,6 +169,7 @@ fn schema_alignment_machine_bundle_contains_expected_documents() {
         "cli_spec",
         "machine_error",
         "run_event",
+        "run_stop",
         "run_summary",
     ] {
         assert!(

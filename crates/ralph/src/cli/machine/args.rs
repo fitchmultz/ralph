@@ -186,6 +186,7 @@ pub struct MachineRunArgs {
 pub enum MachineRunCommand {
     One(MachineRunOneArgs),
     Loop(MachineRunLoopArgs),
+    Stop(MachineRunStopArgs),
     ParallelStatus,
 }
 
@@ -219,6 +220,12 @@ pub struct MachineRunLoopArgs {
     pub parallel: Option<u8>,
     #[command(flatten)]
     pub agent: agent::RunAgentArgs,
+}
+
+#[derive(Args)]
+pub struct MachineRunStopArgs {
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Args)]

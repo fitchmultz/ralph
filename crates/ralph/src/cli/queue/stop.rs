@@ -27,7 +27,7 @@ use crate::signal;
 pub(crate) fn handle(resolved: &Resolved) -> Result<()> {
     let cache_dir = resolved.repo_root.join(".ralph/cache");
 
-    signal::create_stop_signal(&cache_dir)?;
+    signal::request_stop_signal(&cache_dir)?;
 
     log::info!(
         "Stop signal created. The loop will stop starting new tasks and exit when current in-flight work completes."

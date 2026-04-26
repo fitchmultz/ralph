@@ -269,6 +269,14 @@ pub(crate) fn machine_run_one_resume_command() -> &'static str {
     "ralph machine run one --resume"
 }
 
+pub(crate) fn machine_run_stop_command(dry_run: bool) -> &'static str {
+    if dry_run {
+        "ralph machine run stop --dry-run"
+    } else {
+        "ralph machine run stop"
+    }
+}
+
 pub(crate) fn machine_run_parallel_status_command() -> &'static str {
     "ralph machine run parallel-status"
 }

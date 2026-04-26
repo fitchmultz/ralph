@@ -120,6 +120,51 @@ struct MachineQueueUndoDocument: Decodable, Sendable, Equatable, VersionedMachin
   }
 }
 
+struct MachineRunStopDocument: Decodable, Sendable, Equatable, VersionedMachineDocument {
+  static let expectedVersion = RalphMachineContract.runStopVersion
+  static let documentName = "machine run stop"
+
+  enum Action: String, Decodable, Sendable, Equatable {
+    case wouldCreate = "would_create"
+    case created
+    case alreadyPresent = "already_present"
+  }
+
+  struct Marker: Decodable, Sendable, Equatable {
+    let path: String
+    let existedBefore: Bool
+    let existsAfter: Bool
+
+    enum CodingKeys: String, CodingKey {
+      case path
+      case existedBefore = "existed_before"
+      case existsAfter = "exists_after"
+    }
+  }
+
+  let version: Int
+  let dryRun: Bool
+  let action: Action
+  let paths: MachineQueuePaths
+  let marker: Marker
+  let blocking: WorkspaceRunnerController.MachineBlockingState?
+  let continuation: WorkspaceContinuationSummary
+
+  enum CodingKeys: String, CodingKey {
+    case version
+    case dryRun = "dry_run"
+    case action
+    case paths
+    case marker
+    case blocking
+    case continuation
+  }
+
+  var effectiveBlocking: WorkspaceRunnerController.MachineBlockingState? {
+    blocking ?? continuation.blocking
+  }
+}
+
 struct WorkspaceTaskMutationRequest: Codable, Sendable {
   let version: Int
   let atomic: Bool

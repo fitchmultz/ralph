@@ -48,6 +48,42 @@ final class MachineContractTests: XCTestCase {
         )
     }
 
+    func testDecodeAcceptsMachineRunStopDocument() throws {
+        let data = Data("""
+        {
+          "version": 1,
+          "dry_run": false,
+          "action": "created",
+          "paths": {
+            "repo_root": "/tmp/repo",
+            "queue_path": "/tmp/repo/.ralph/queue.jsonc",
+            "done_path": "/tmp/repo/.ralph/done.jsonc",
+            "project_config_path": "/tmp/repo/.ralph/config.jsonc",
+            "global_config_path": null
+          },
+          "marker": {
+            "path": "/tmp/repo/.ralph/cache/stop_requested",
+            "existed_before": false,
+            "exists_after": true
+          },
+          "blocking": null,
+          "continuation": {
+            "headline": "Stop request recorded.",
+            "detail": "The stop marker is recorded.",
+            "next_steps": []
+          }
+        }
+        """.utf8)
+
+        let document = try RalphMachineContract.decode(
+            MachineRunStopDocument.self,
+            from: data,
+            operation: "machine run stop"
+        )
+        XCTAssertEqual(document.action, .created)
+        XCTAssertEqual(document.marker.existsAfter, true)
+    }
+
     func testDecodeRejectsUnsupportedRunEventVersion() {
         let data = Data("""
         {

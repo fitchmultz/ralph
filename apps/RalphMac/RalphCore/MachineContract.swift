@@ -43,6 +43,7 @@ enum RalphMachineContract {
   public static let cliSpecVersion = 2
   public static let errorVersion = 1
   public static let queueUnlockInspectVersion = 1
+  public static let runStopVersion = 1
 
   public static func requireVersion(
     _ actual: Int,

@@ -72,6 +72,40 @@ final class WorkspaceErrorRecoveryTests: RalphCoreTestCase {
             XCTAssertEqual(error.localizedDescription, "queue repair preview failed")
         }
     }
+
+    func test_stopLoopMachineRequest_prefersStructuredMachineErrorFromStderr() async throws {
+        let document = MachineErrorDocument(
+            version: 1,
+            code: .resourceBusy,
+            message: "Failed to record stop request.",
+            detail: "cache directory is locked",
+            retryable: true
+        )
+        let fixture = try Self.makeMockCLIFixture(stopFailure: .machine(document))
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        workspace = Workspace(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: try RalphCLIClient(executableURL: fixture.scriptURL)
+        )
+        let currentWorkspace = workspace!
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+
+        currentWorkspace.run(arguments: ["--no-color", "machine", "run", "loop", "--resume", "--max-tasks", "0"])
+        let loopStarted = await WorkspacePerformanceTestSupport.waitFor(timeout: 1.0) {
+            currentWorkspace.isRunning
+        }
+        XCTAssertTrue(loopStarted)
+
+        currentWorkspace.stopLoop()
+
+        let surfaced = await WorkspacePerformanceTestSupport.waitFor(timeout: 1.0) {
+            currentWorkspace.runState.errorMessage == document.userFacingDescription
+        }
+        XCTAssertTrue(surfaced)
+        XCTAssertFalse(currentWorkspace.stopAfterCurrent)
+    }
 }
 
 private extension WorkspaceErrorRecoveryTests {
@@ -88,7 +122,8 @@ private extension WorkspaceErrorRecoveryTests {
 
     static func makeMockCLIFixture(
         validateFailure: MockFailure? = nil,
-        repairFailure: MockFailure? = nil
+        repairFailure: MockFailure? = nil,
+        stopFailure: MockFailure? = nil
     ) throws -> MockCLIFixture {
         let queueTasks = [
             RalphMockCLITestSupport.task(
@@ -131,6 +166,11 @@ private extension WorkspaceErrorRecoveryTests {
             in: fixture.rootURL,
             name: "repair-error.txt"
         )
+        let stopFailureURL = try writeFailureFixture(
+            stopFailure,
+            in: fixture.rootURL,
+            name: "stop-error.txt"
+        )
 
         let script = """
         #!/bin/sh
@@ -166,6 +206,20 @@ private extension WorkspaceErrorRecoveryTests {
           echo '{"version":1}'
           exit 0
         fi
+        if [ "$1" = "machine" ] && [ "$2" = "run" ] && [ "$3" = "loop" ]; then
+          echo '{"version":3,"kind":"run_started","task_id":"RQ-0007","phase":null,"message":null,"payload":null}'
+          while :; do
+            sleep 0.1
+          done
+        fi
+        if [ "$1" = "machine" ] && [ "$2" = "run" ] && [ "$3" = "stop" ]; then
+          if [ -n "__STOP_FAILURE_PATH__" ]; then
+            cat "__STOP_FAILURE_PATH__" >&2
+            exit 13
+          fi
+          echo '{"version":1}'
+          exit 0
+        fi
         echo "unsupported command: $*" >&2
         exit 1
         """
@@ -173,6 +227,7 @@ private extension WorkspaceErrorRecoveryTests {
         let resolvedScript = script
             .replacingOccurrences(of: "__VALIDATE_FAILURE_PATH__", with: validateFailureURL?.path ?? "")
             .replacingOccurrences(of: "__REPAIR_FAILURE_PATH__", with: repairFailureURL?.path ?? "")
+            .replacingOccurrences(of: "__STOP_FAILURE_PATH__", with: stopFailureURL?.path ?? "")
 
         let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
             in: fixture.rootURL,

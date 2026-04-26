@@ -109,6 +109,9 @@ The app is a thin client that shells out to the `ralph` binary via `RalphCLIClie
 Practical implications:
 - Native workflows should use versioned `ralph machine ...` JSON contracts or
   shared structured JSON command outputs, not human CLI text.
+- Stop After Current specifically uses `ralph machine run stop`; the app should
+  never infer stop state by streaming or scraping human `ralph queue stop`
+  output.
 - CLI and app should remain behaviorally aligned for core task/run operations.
 - Advanced Runner access does not count as native app parity.
 - Most data and execution issues can be reproduced via CLI commands.

@@ -256,6 +256,130 @@ fn machine_run_loop_parallel_blocked_repo_reports_blocked_summary() -> Result<()
 }
 
 #[test]
+fn machine_run_stop_creates_stop_marker_document() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "run", "stop"]);
+    assert!(
+        status.success(),
+        "machine run stop failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let document: Value = serde_json::from_str(stdout.trim())?;
+    assert_eq!(document["version"], 1);
+    assert_eq!(document["dry_run"], false);
+    assert_eq!(document["action"], "created");
+    assert_eq!(document["marker"]["existed_before"], false);
+    assert_eq!(document["marker"]["exists_after"], true);
+    let actual_path = document["marker"]["path"]
+        .as_str()
+        .context("expected marker path string")?;
+    assert_eq!(
+        std::fs::canonicalize(actual_path)?,
+        std::fs::canonicalize(dir.path().join(".ralph/cache/stop_requested"))?
+    );
+    Ok(())
+}
+
+#[test]
+fn machine_run_stop_reports_already_present_marker() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+    let cache_dir = dir.path().join(".ralph/cache");
+    ralph::signal::create_stop_signal(&cache_dir)?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "run", "stop"]);
+    assert!(
+        status.success(),
+        "machine run stop failed with existing marker\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let document: Value = serde_json::from_str(stdout.trim())?;
+    assert_eq!(document["action"], "already_present");
+    assert_eq!(document["marker"]["existed_before"], true);
+    assert_eq!(document["marker"]["exists_after"], true);
+    Ok(())
+}
+
+#[test]
+fn machine_run_stop_dry_run_previews_marker_without_writing() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "run", "stop", "--dry-run"]);
+    assert!(
+        status.success(),
+        "machine run stop --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let document: Value = serde_json::from_str(stdout.trim())?;
+    assert_eq!(document["dry_run"], true);
+    assert_eq!(document["action"], "would_create");
+    assert_eq!(document["marker"]["existed_before"], false);
+    assert_eq!(document["marker"]["exists_after"], false);
+    assert!(!dir.path().join(".ralph/cache/stop_requested").exists());
+    Ok(())
+}
+
+#[test]
+fn machine_run_stop_uses_runtime_parallel_state_for_guidance() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+    std::fs::write(
+        dir.path().join(".ralph/config.jsonc"),
+        r#"{"version":2,"parallel":{"workers":2}}"#,
+    )
+    .context("write parallel config fixture")?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "run", "stop"]);
+    assert!(
+        status.success(),
+        "machine run stop with configured parallel workers failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let document: Value = serde_json::from_str(stdout.trim())?;
+    assert_eq!(document["action"], "created");
+    assert_eq!(document["blocking"], Value::Null);
+    assert_eq!(
+        document["continuation"]["detail"],
+        "The stop marker is recorded. Ralph should exit after the current task completes."
+    );
+    let next_steps = document["continuation"]["next_steps"]
+        .as_array()
+        .context("expected continuation next_steps array")?;
+    assert!(
+        next_steps
+            .iter()
+            .all(|step| step["command"] != "ralph machine run parallel-status"),
+        "stop guidance should not suggest parallel status without live parallel state"
+    );
+    assert_eq!(
+        next_steps
+            .iter()
+            .find(|step| step["title"] == "Resume run-control inspection")
+            .context("expected loop resume step")?["command"],
+        "ralph machine run loop --resume --max-tasks 0"
+    );
+    Ok(())
+}
+
+#[test]
+fn machine_run_stop_startup_failure_emits_only_machine_error() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+    let cache_dir = dir.path().join(".ralph/cache");
+    std::fs::write(&cache_dir, "not a directory").context("block cache dir creation")?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "run", "stop"]);
+    assert!(!status.success(), "machine run stop unexpectedly succeeded");
+    assert!(
+        stdout.trim().is_empty(),
+        "expected no stdout success document"
+    );
+
+    let machine_error = parse_machine_error_document(&stderr)?;
+    assert_eq!(machine_error["version"], 1);
+    assert_eq!(machine_error["code"], "unknown");
+    Ok(())
+}
+
+#[test]
 fn machine_run_loop_override_startup_failure_emits_only_machine_error() -> Result<()> {
     let dir = setup_ralph_repo()?;
 

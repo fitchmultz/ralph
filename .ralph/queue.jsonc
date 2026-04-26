@@ -2,54 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0011",
-      "status": "todo",
-      "title": "Move Stop After Current onto a machine command",
-      "description": "Replace RalphMac's Stop After Current implementation that shells out to human `ralph queue stop` with a typed machine command and versioned document. Stopping a loop is an operator-critical workflow, so the app should receive structured status, resolved paths, marker state, continuation context, and machine-safe errors instead of parsing or appending raw stdout/stderr.",
-      "priority": "medium",
-      "tags": [
-        "ralphmac",
-        "machine-api",
-        "run-loop",
-        "stop",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/machine/args.rs",
-        "crates/ralph/src/cli/machine/run.rs",
-        "crates/ralph/src/cli/machine/queue.rs",
-        "crates/ralph/src/commands/queue/",
-        "crates/ralph/tests/machine_contract_test/",
-        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
-        "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift",
-        "docs/machine-contract.md",
-        "docs/features/app.md"
-      ],
-      "evidence": [
-        "`apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift` invokes `ralph queue stop` for Stop After Current.",
-        "The app captures raw stdout/stderr and appends warning prose on failure.",
-        "`docs/features/app.md` says native workflows should use machine-readable JSON/structured outputs instead of human CLI text."
-      ],
-      "plan": [
-        "Add a machine command such as `ralph machine run stop` or `ralph machine queue stop` for stop-marker preview/apply behavior.",
-        "Define and document a versioned stop document containing status, resolved queue/done paths, marker action, continuation/blocking context, and machine-safe error details.",
-        "Update RalphMac Stop After Current to consume only the new machine document.",
-        "Remove raw stdout/stderr based stop-state interpretation from the native workflow.",
-        "Add Rust contract tests and Swift tests for created, already-present, and failed stop-marker states."
-      ],
-      "notes": [],
-      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
-      "created_at": "2026-04-26T00:04:48Z",
-      "updated_at": "2026-04-26T00:04:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "source_report": "/tmp/ralph-report.md"
-      }
-    },
-    {
       "id": "RQ-0012",
       "status": "todo",
       "title": "Derive native execution controls from machine capabilities",
@@ -94,8 +46,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
       }
     },
     {
@@ -142,8 +94,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
       }
     },
     {
@@ -233,8 +185,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {

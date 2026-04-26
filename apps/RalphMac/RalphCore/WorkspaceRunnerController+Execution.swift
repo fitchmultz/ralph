@@ -203,32 +203,46 @@ extension WorkspaceRunnerController {
         loopStopSignalTask = Task { @MainActor [weak self, weak workspace] in
             guard let self, let workspace, !Task.isCancelled else { return }
             do {
-                let run = try client.start(
-                    arguments: ["queue", "stop"],
-                    currentDirectoryURL: workingDirectoryURL
+                let collected = try await client.runAndCollect(
+                    arguments: ["--no-color", "machine", "run", "stop"],
+                    currentDirectoryURL: workingDirectoryURL,
+                    timeoutConfiguration: .longRunning
                 )
-                self.appendConsoleText("[ralph] Stop after current requested.\n", workspace: workspace)
-                for await event in run.events {
-                    guard !Task.isCancelled else {
-                        await run.cancel()
-                        return
-                    }
-                    self.appendConsoleText(event.text, workspace: workspace)
-                }
-                let status = await run.waitUntilExit()
-                if status.code != 0 {
-                    self.appendConsoleText(
-                        "[warning] Failed to request loop stop; queue stop exited \(status.code).\n",
-                        workspace: workspace
+
+                guard collected.status.code == 0 else {
+                    throw Workspace.WorkspaceError.cliError(
+                        collected.failureMessage(
+                            fallback: "Failed to request loop stop (exit \(collected.status.code))"
+                        )
                     )
                 }
+
+                let document = try RalphMachineContract.decode(
+                    MachineRunStopDocument.self,
+                    from: Data(collected.stdout.utf8),
+                    operation: "machine run stop"
+                )
+                workspace.updateResolvedPaths(document.paths)
+                if let blocking = document.effectiveBlocking?.asWorkspaceBlockingState() {
+                    workspace.runState.setLiveBlockingState(blocking)
+                }
+                workspace.runState.stopAfterCurrent =
+                    document.action != .wouldCreate || document.marker.existsAfter
+                workspace.runState.errorMessage = nil
+                workspace.diagnosticsState.lastRecoveryError = nil
+                workspace.diagnosticsState.showErrorRecovery = false
             } catch is CancellationError {
                 return
             } catch {
-                self.appendConsoleText(
-                    "[warning] Failed to request loop stop: \(error.localizedDescription)\n",
-                    workspace: workspace
+                let recoveryError = RecoveryError.classify(
+                    error: error,
+                    operation: "request loop stop",
+                    workspaceURL: workingDirectoryURL
                 )
+                workspace.runState.errorMessage = recoveryError.message
+                workspace.diagnosticsState.lastRecoveryError = recoveryError
+                workspace.diagnosticsState.showErrorRecovery = true
+                workspace.runState.stopAfterCurrent = false
             }
             guard self.loopStopSignalTask != nil else { return }
             self.loopStopSignalTask = nil

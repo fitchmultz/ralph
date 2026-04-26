@@ -42,9 +42,10 @@ use crate::contracts::{
     MachineDecomposeDocument, MachineDoctorReportDocument, MachineErrorDocument,
     MachineGraphReadDocument, MachineParallelStatusDocument, MachineQueueReadDocument,
     MachineQueueRepairDocument, MachineQueueUndoDocument, MachineQueueValidateDocument,
-    MachineRunEventEnvelope, MachineRunSummaryDocument, MachineSystemInfoDocument,
-    MachineTaskBuildDocument, MachineTaskBuildRequest, MachineTaskCreateDocument,
-    MachineTaskCreateRequest, MachineTaskMutationDocument, MachineWorkspaceOverviewDocument,
+    MachineRunEventEnvelope, MachineRunStopDocument, MachineRunSummaryDocument,
+    MachineSystemInfoDocument, MachineTaskBuildDocument, MachineTaskBuildRequest,
+    MachineTaskCreateDocument, MachineTaskCreateRequest, MachineTaskMutationDocument,
+    MachineWorkspaceOverviewDocument,
 };
 
 pub fn handle_machine(args: MachineArgs, force: bool) -> Result<()> {
@@ -124,6 +125,7 @@ pub fn handle_machine(args: MachineArgs, force: bool) -> Result<()> {
             "cli_spec": schema_for!(MachineCliSpecDocument),
             "machine_error": schema_for!(MachineErrorDocument),
             "run_event": schema_for!(MachineRunEventEnvelope),
+            "run_stop": schema_for!(MachineRunStopDocument),
             "run_summary": schema_for!(MachineRunSummaryDocument),
         })),
     }

@@ -4812,6 +4812,420 @@
     "title": "MachineRunEventEnvelope",
     "type": "object"
   },
+  "run_stop": {
+    "$defs": {
+      "BlockingReason": {
+        "oneOf": [
+          {
+            "properties": {
+              "include_draft": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "idle",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "include_draft"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "blocked_tasks": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "dependency_blocked",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "blocked_tasks"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "blocked_tasks": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "schedule_blocked",
+                "type": "string"
+              },
+              "next_runnable_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "seconds_until_next_runnable": {
+                "format": "int64",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "blocked_tasks"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "lock_blocked",
+                "type": "string"
+              },
+              "lock_path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "owner": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "owner_pid": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "exit_code": {
+                "format": "int32",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "kind": {
+                "const": "ci_blocked",
+                "type": "string"
+              },
+              "pattern": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "runner_recovery",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "scope": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "scope",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "operator_recovery",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "scope": {
+                "type": "string"
+              },
+              "suggested_command": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "scope",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "dependency_blocked": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "mixed_queue",
+                "type": "string"
+              },
+              "schedule_blocked": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "status_filtered": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "dependency_blocked",
+              "schedule_blocked",
+              "status_filtered"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "BlockingState": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "observed_at": {
+            "description": "When this blocking condition was observed (RFC3339 UTC), for staleness and automation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "$ref": "#/$defs/BlockingReason"
+          },
+          "status": {
+            "$ref": "#/$defs/BlockingStatus"
+          },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "message",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "BlockingStatus": {
+        "enum": [
+          "waiting",
+          "blocked",
+          "stalled"
+        ],
+        "type": "string"
+      },
+      "MachineContinuationAction": {
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "command",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "MachineContinuationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "blocking": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlockingState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "next_steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/MachineContinuationAction"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "headline",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "MachineQueuePaths": {
+        "additionalProperties": false,
+        "properties": {
+          "done_path": {
+            "type": "string"
+          },
+          "global_config_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_config_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queue_path": {
+            "type": "string"
+          },
+          "repo_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_root",
+          "queue_path",
+          "done_path"
+        ],
+        "type": "object"
+      },
+      "MachineRunStopAction": {
+        "enum": [
+          "would_create",
+          "created",
+          "already_present"
+        ],
+        "type": "string"
+      },
+      "MachineRunStopMarker": {
+        "additionalProperties": false,
+        "properties": {
+          "existed_before": {
+            "type": "boolean"
+          },
+          "exists_after": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "existed_before",
+          "exists_after"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "action": {
+        "$ref": "#/$defs/MachineRunStopAction"
+      },
+      "blocking": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BlockingState"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "continuation": {
+        "$ref": "#/$defs/MachineContinuationSummary"
+      },
+      "dry_run": {
+        "type": "boolean"
+      },
+      "marker": {
+        "$ref": "#/$defs/MachineRunStopMarker"
+      },
+      "paths": {
+        "$ref": "#/$defs/MachineQueuePaths"
+      },
+      "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "dry_run",
+      "action",
+      "paths",
+      "marker",
+      "continuation"
+    ],
+    "title": "MachineRunStopDocument",
+    "type": "object"
+  },
   "run_summary": {
     "$defs": {
       "BlockingReason": {

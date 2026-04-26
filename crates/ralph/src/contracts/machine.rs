@@ -51,6 +51,7 @@ pub const MACHINE_PARALLEL_STATUS_VERSION: u32 = 3;
 pub const MACHINE_CLI_SPEC_VERSION: u32 = 2;
 pub const MACHINE_ERROR_VERSION: u32 = 1;
 pub const MACHINE_QUEUE_UNLOCK_INSPECT_VERSION: u32 = 1;
+pub const MACHINE_RUN_STOP_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -386,6 +387,35 @@ pub struct MachineParallelStatusDocument {
     pub continuation: MachineContinuationSummary,
     #[schemars(schema_with = "json_value_schema")]
     pub status: JsonValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MachineRunStopAction {
+    WouldCreate,
+    Created,
+    AlreadyPresent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineRunStopMarker {
+    pub path: String,
+    pub existed_before: bool,
+    pub exists_after: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MachineRunStopDocument {
+    pub version: u32,
+    pub dry_run: bool,
+    pub action: MachineRunStopAction,
+    pub paths: MachineQueuePaths,
+    pub marker: MachineRunStopMarker,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blocking: Option<BlockingState>,
+    pub continuation: MachineContinuationSummary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

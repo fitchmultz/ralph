@@ -35,6 +35,7 @@ This surface exists for the macOS app and any other automation that needs stable
 - `ralph machine task decompose`
 - `ralph machine run one`
 - `ralph machine run loop`
+- `ralph machine run stop`
 - `ralph machine run parallel-status`
 - `ralph machine doctor report`
 - `ralph machine cli-spec`
@@ -162,6 +163,20 @@ Example loop summary for an idle queue:
   }
 }
 ```
+
+### `machine run stop` (`version: 1`)
+
+Stop After Current is a machine-contract workflow under `ralph machine run stop`, not a human `ralph queue stop` parsing path.
+
+The success document includes:
+- `dry_run`
+- `action` (`would_create`, `created`, `already_present`)
+- resolved `paths`
+- `marker` with stop-marker path and before/after state
+- optional top-level `blocking`
+- `continuation`
+
+App and automation clients should decode this document on stdout for successful stop requests and continue using stderr `machine_error` for pre-success failures.
 
 ### `machine queue read`
 

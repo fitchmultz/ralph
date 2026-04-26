@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.4:xhigh"
+        "model_used": "openai-codex/gpt-5.4:xhigh",
+        "runner_used": "pi"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "task_kind": "queue_shaping",
+        "skill": "comprehensive-codebase-audit",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
-        "skill": "comprehensive-codebase-audit"
+        "task_kind": "queue_shaping",
+        "runner_used": "codex"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -540,7 +540,77 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
+        "source_report": "/tmp/ralph-report.md"
+      }
+    },
+    {
+      "id": "RQ-0011",
+      "status": "done",
+      "title": "Move Stop After Current onto a machine command",
+      "description": "Replace RalphMac's Stop After Current implementation that shells out to human `ralph queue stop` with a typed machine command and versioned document. Stopping a loop is an operator-critical workflow, so the app should receive structured status, resolved paths, marker state, continuation context, and machine-safe errors instead of parsing or appending raw stdout/stderr.",
+      "priority": "medium",
+      "tags": [
+        "ralphmac",
+        "machine-api",
+        "machine-contract",
+        "run-loop",
+        "stop",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/machine/args.rs",
+        "crates/ralph/src/cli/machine/common.rs",
+        "crates/ralph/src/cli/machine/handle.rs",
+        "crates/ralph/src/cli/machine/run.rs",
+        "crates/ralph/src/cli/queue/stop.rs",
+        "crates/ralph/src/contracts/machine.rs",
+        "crates/ralph/src/contracts/mod.rs",
+        "crates/ralph/src/signal.rs",
+        "crates/ralph/src/cli/tests.rs",
+        "crates/ralph/tests/machine_contract_test/machine_contract_test_run.rs",
+        "apps/RalphMac/RalphCore/MachineContract.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
+        "apps/RalphMac/RalphCore/WorkspaceTaskMutationModels.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift",
+        "apps/RalphMac/RalphCoreTests/MachineContractTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceErrorRecoveryTests.swift",
+        "docs/machine-contract.md",
+        "docs/features/app.md"
+      ],
+      "evidence": [
+        "`apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift` uses `scheduleLoopStopSignalRequest()` to launch human `ralph queue stop`, pre-prints a success line, streams raw stdout/stderr, and fabricates warning prose on failure.",
+        "`apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift` currently codifies the human-path behavior by asserting that `queue stop` is invoked for Stop After Current.",
+        "`docs/machine-contract.md` groups live operator/run state under `ralph machine run ...`, while `docs/features/app.md` says native workflows should consume versioned machine JSON instead of human CLI text.",
+        "`crates/ralph/src/cli/queue/stop.rs` and `crates/ralph/src/signal.rs` already implement the stop-marker write path, so the machine change should wrap the same stop signal behavior with a typed contract rather than invent a second stop mechanism."
+      ],
+      "plan": [
+        "Add a dedicated `ralph machine run stop` command that reuses the existing stop-marker implementation and returns a versioned success document instead of human CLI output.",
+        "Define a typed stop document in the shared machine contracts with resolved paths, dry-run/apply state if preview is kept, explicit marker action (`created` vs `already_present`), marker metadata, optional blocking, continuation guidance, and existing `machine_error` stderr for pre-success failures.",
+        "Wire the new contract through machine routing, schema exposure, shared command helpers, and CLI parse coverage without changing the underlying stop-marker semantics.",
+        "Update RalphMac Stop After Current to execute only the new machine command, decode the versioned document, update resolved paths and stop state from structured fields, and stop appending/parsing raw stdout/stderr warning prose.",
+        "Add Rust contract tests plus Swift decode/recovery/run-control tests for created, already-present, and failed stop requests, and confirm loop summaries still use the existing `outcome: \"stopped\"` contract."
+      ],
+      "notes": [
+        "Planning decision: prefer `ralph machine run stop` over `ralph machine queue stop` because Stop After Current is a live run-control action and current machine docs group operator/runtime state under `machine run`.",
+        "Phase 2 should reuse the existing file-based stop signal path and `machine_error` failure contract instead of introducing a second stop mechanism or ad hoc error envelope.",
+        "Cut RalphMac Stop After Current over to machine run stop.",
+        "Stop guidance now uses live parallel runtime state instead of config-only inference.",
+        "App stop success preserves existing blocking state unless the stop document supplies a new blocking snapshot.",
+        "Added regression coverage for runtime guidance, schema bundle presence, and Swift blocking-state preservation."
+      ],
+      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
+      "created_at": "2026-04-26T00:04:48Z",
+      "updated_at": "2026-04-26T03:56:53.124834000Z",
+      "completed_at": "2026-04-26T03:56:53.124834000Z",
+      "started_at": "2026-04-26T03:07:39.186447000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "runner_used": "codex",
         "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md"
       }

@@ -219,6 +219,7 @@ ralph machine task mutate --input request.json
 ralph machine run one --resume --id RQ-0001
 ralph machine run loop --resume --max-tasks 5
 ralph machine run loop --resume --max-tasks 0 --parallel 2
+ralph machine run stop
 ralph machine schema
 ```
 

@@ -27,6 +27,19 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StopSignalSnapshot {
+    pub path: PathBuf,
+    pub exists: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StopSignalRequestResult {
+    pub path: PathBuf,
+    pub existed_before: bool,
+    pub exists_after: bool,
+}
+
 /// Content written to the stop signal file (human-readable timestamp).
 fn signal_content() -> String {
     format!(
@@ -38,6 +51,15 @@ fn signal_content() -> String {
 /// Returns the full path to the stop signal file.
 pub fn stop_signal_path(cache_dir: &Path) -> PathBuf {
     cache_dir.join(STOP_SIGNAL_FILE)
+}
+
+/// Capture the current stop-signal state without mutating it.
+pub fn stop_signal_snapshot(cache_dir: &Path) -> StopSignalSnapshot {
+    let path = stop_signal_path(cache_dir);
+    StopSignalSnapshot {
+        exists: path.exists(),
+        path,
+    }
 }
 
 /// Create the stop signal file in the cache directory.
@@ -57,6 +79,18 @@ pub fn create_stop_signal(cache_dir: &Path) -> Result<()> {
 
     log::info!("Stop signal created at {}", path.display());
     Ok(())
+}
+
+/// Create the stop signal and return before/after metadata for machine callers.
+pub fn request_stop_signal(cache_dir: &Path) -> Result<StopSignalRequestResult> {
+    let existed_before = stop_signal_exists(cache_dir);
+    create_stop_signal(cache_dir)?;
+    let after = stop_signal_snapshot(cache_dir);
+    Ok(StopSignalRequestResult {
+        path: after.path,
+        existed_before,
+        exists_after: after.exists,
+    })
 }
 
 /// Check if the stop signal file exists.
@@ -126,6 +160,39 @@ mod tests {
         let path = stop_signal_path(&cache_dir);
         let content = fs::read_to_string(&path)?;
         assert!(content.contains("Stop requested at"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn stop_signal_snapshot_reports_current_state() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        let cache_dir = temp.path().join("cache");
+
+        let before = stop_signal_snapshot(&cache_dir);
+        assert_eq!(before.path, cache_dir.join("stop_requested"));
+        assert!(!before.exists);
+
+        create_stop_signal(&cache_dir)?;
+        let after = stop_signal_snapshot(&cache_dir);
+        assert!(after.exists);
+
+        Ok(())
+    }
+
+    #[test]
+    fn request_stop_signal_reports_before_and_after_state() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        let cache_dir = temp.path().join("cache");
+
+        let created = request_stop_signal(&cache_dir)?;
+        assert!(!created.existed_before);
+        assert!(created.exists_after);
+        assert_eq!(created.path, cache_dir.join("stop_requested"));
+
+        let already_present = request_stop_signal(&cache_dir)?;
+        assert!(already_present.existed_before);
+        assert!(already_present.exists_after);
 
         Ok(())
     }

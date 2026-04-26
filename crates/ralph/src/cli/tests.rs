@@ -177,6 +177,23 @@ fn cli_parses_machine_run_loop_parallel_default_missing_value() {
 }
 
 #[test]
+fn cli_parses_machine_run_stop_dry_run() {
+    let cli = Cli::try_parse_from(["ralph", "machine", "run", "stop", "--dry-run"]).expect("parse");
+    match cli.command {
+        Command::Machine(args) => match args.command {
+            machine::MachineCommand::Run(args) => match args.command {
+                machine::MachineRunCommand::Stop(args) => {
+                    assert!(args.dry_run);
+                }
+                _ => panic!("expected machine run stop command"),
+            },
+            _ => panic!("expected machine run command"),
+        },
+        _ => panic!("expected machine command"),
+    }
+}
+
+#[test]
 fn cli_parses_machine_task_build_input() {
     let cli = Cli::try_parse_from([
         "ralph",
