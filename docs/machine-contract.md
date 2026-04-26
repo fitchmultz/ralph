@@ -17,6 +17,7 @@ This surface exists for the macOS app and any other automation that needs stable
 - Machine run streams emit NDJSON on stdout.
 - Machine run terminal summaries are single-line JSON documents so stream consumers can parse them deterministically.
 - Machine clients should consume structured resume payloads instead of scraping prose from stderr/stdout.
+- Machine clients must decide compatibility fallback paths from structured capability/version signals (for example `machine cli-spec` or versioned machine-error metadata), not from human stderr phrases like `usage:` or `unknown command`.
 
 ## Current Machine Areas
 
@@ -84,6 +85,8 @@ RalphMac and other machine clients should treat these resolved paths as the cano
 Returns a single document that embeds the same payloads as `machine queue read` and `machine config resolve` under `queue` and `config` respectively, so clients can refresh both in one subprocess round-trip.
 
 The embedded `queue.paths` and `config.paths` payloads are the canonical first-load source for app watcher targets, queue access checks, and workspace diagnostics.
+
+Client fallback behavior for older CLIs is capability-driven: attempt `machine workspace overview` first, then only fall back to legacy `machine queue read` + `machine config resolve` when a structured capability probe (`machine cli-spec` command tree) explicitly omits `machine workspace overview`.
 
 ### `machine run` events (`version: 3`)
 

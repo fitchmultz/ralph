@@ -130,6 +130,56 @@ final class RalphModelsTests: RalphCoreTestCase {
         XCTAssertEqual(doc.root.subcommands.first?.name, "queue")
     }
 
+    func test_cliSpecDocument_containsCommandSuffix_matchesNestedMachineWorkspaceOverview() {
+        let overviewCommand = RalphCLICommandSpec(
+            name: "overview",
+            path: ["ralph", "machine", "workspace", "overview"],
+            about: nil,
+            longAbout: nil,
+            afterLongHelp: nil,
+            hidden: false,
+            args: [],
+            subcommands: []
+        )
+        let workspaceCommand = RalphCLICommandSpec(
+            name: "workspace",
+            path: ["ralph", "machine", "workspace"],
+            about: nil,
+            longAbout: nil,
+            afterLongHelp: nil,
+            hidden: false,
+            args: [],
+            subcommands: [overviewCommand]
+        )
+        let machineCommand = RalphCLICommandSpec(
+            name: "machine",
+            path: ["ralph", "machine"],
+            about: nil,
+            longAbout: nil,
+            afterLongHelp: nil,
+            hidden: false,
+            args: [],
+            subcommands: [workspaceCommand]
+        )
+        let document = RalphCLISpecDocument(
+            version: RalphCLISpecDocument.expectedVersion,
+            root: RalphCLICommandSpec(
+                name: "ralph",
+                path: ["ralph"],
+                about: nil,
+                longAbout: nil,
+                afterLongHelp: nil,
+                hidden: false,
+                args: [],
+                subcommands: [machineCommand]
+            )
+        )
+
+        XCTAssertTrue(document.containsCommandSuffix(["machine", "workspace", "overview"]))
+        XCTAssertTrue(document.containsCommandSuffix(["workspace", "overview"]))
+        XCTAssertFalse(document.containsCommandSuffix(["machine", "workspace", "missing"]))
+    }
+
     func test_cliArgumentBuilder_buildsExpectedArgv() throws {
         let command = RalphCLICommandSpec(
             name: "list",

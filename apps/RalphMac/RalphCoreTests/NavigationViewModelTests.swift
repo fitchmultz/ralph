@@ -50,23 +50,23 @@ final class NavigationViewModelTests: RalphCoreTestCase {
     }
 
     @MainActor
-    func test_navigationViewModel_saveAndLoad_roundTrip() throws {
+    func test_navigationViewModel_saveAndLoad_roundTrip() async throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
         viewModel.selectedSection = .quickActions
         viewModel.taskViewMode = .kanban
         viewModel.selectedTaskID = "RQ-0001"
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-
-        let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
-        XCTAssertEqual(loadedViewModel.selectedSection, .quickActions)
-        XCTAssertEqual(loadedViewModel.taskViewMode, .kanban)
-        XCTAssertEqual(loadedViewModel.selectedTaskID, "RQ-0001")
+        await assertEventuallyPersistedState(
+            workspaceID: workspaceID,
+            selectedSection: .quickActions,
+            taskViewMode: .kanban,
+            selectedTaskID: "RQ-0001"
+        )
     }
 
     @MainActor
-    func test_navigationViewModel_differentWorkspaces_haveSeparateState() throws {
+    func test_navigationViewModel_differentWorkspaces_haveSeparateState() async throws {
         let workspace1ID = UUID()
         let workspace2ID = UUID()
 
@@ -80,31 +80,33 @@ final class NavigationViewModelTests: RalphCoreTestCase {
         vm2.taskViewMode = .kanban
         vm2.selectedTaskID = "RQ-0002"
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        await assertEventuallyPersistedState(
+            workspaceID: workspace1ID,
+            selectedSection: .queue,
+            taskViewMode: .list,
+            selectedTaskID: "RQ-0001"
+        )
 
-        let loadedVM1 = NavigationViewModel(workspaceID: workspace1ID)
-        let loadedVM2 = NavigationViewModel(workspaceID: workspace2ID)
-
-        XCTAssertEqual(loadedVM1.selectedSection, .queue)
-        XCTAssertEqual(loadedVM1.taskViewMode, .list)
-        XCTAssertEqual(loadedVM1.selectedTaskID, "RQ-0001")
-
-        XCTAssertEqual(loadedVM2.selectedSection, .quickActions)
-        XCTAssertEqual(loadedVM2.taskViewMode, .kanban)
-        XCTAssertEqual(loadedVM2.selectedTaskID, "RQ-0002")
+        await assertEventuallyPersistedState(
+            workspaceID: workspace2ID,
+            selectedSection: .quickActions,
+            taskViewMode: .kanban,
+            selectedTaskID: "RQ-0002"
+        )
     }
 
     @MainActor
-    func test_navigationViewModel_noWorkspaceID_usesGenericState() throws {
+    func test_navigationViewModel_noWorkspaceID_usesGenericState() async throws {
         let viewModel = NavigationViewModel(workspaceID: nil)
         viewModel.selectedSection = .advancedRunner
         viewModel.taskViewMode = .graph
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-
-        let loadedViewModel = NavigationViewModel(workspaceID: nil)
-        XCTAssertEqual(loadedViewModel.selectedSection, .advancedRunner)
-        XCTAssertEqual(loadedViewModel.taskViewMode, .graph)
+        await assertEventuallyPersistedState(
+            workspaceID: nil,
+            selectedSection: .advancedRunner,
+            taskViewMode: .graph,
+            selectedTaskID: nil
+        )
     }
 
     @MainActor
@@ -144,43 +146,49 @@ final class NavigationViewModelTests: RalphCoreTestCase {
     }
 
     @MainActor
-    func test_navigationViewModel_stateChange_triggersSave() throws {
+    func test_navigationViewModel_stateChange_triggersSave() async throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
         viewModel.selectedSection = .analytics
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-
-        let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
-        XCTAssertEqual(loadedViewModel.selectedSection, .analytics)
+        await assertEventuallyPersistedState(
+            workspaceID: workspaceID,
+            selectedSection: .analytics,
+            taskViewMode: .list,
+            selectedTaskID: nil
+        )
     }
 
     @MainActor
-    func test_navigationViewModel_taskSelectionChange_triggersSave() throws {
+    func test_navigationViewModel_taskSelectionChange_triggersSave() async throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
         viewModel.selectTask("RQ-5678")
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-
-        let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
-        XCTAssertEqual(loadedViewModel.selectedTaskID, "RQ-5678")
+        await assertEventuallyPersistedState(
+            workspaceID: workspaceID,
+            selectedSection: .queue,
+            taskViewMode: .list,
+            selectedTaskID: "RQ-5678"
+        )
     }
 
     @MainActor
-    func test_navigationViewModel_taskViewModeChange_triggersSave() throws {
+    func test_navigationViewModel_taskViewModeChange_triggersSave() async throws {
         let workspaceID = UUID()
         let viewModel = NavigationViewModel(workspaceID: workspaceID)
         viewModel.setTaskViewMode(.graph)
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-
-        let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
-        XCTAssertEqual(loadedViewModel.taskViewMode, .graph)
+        await assertEventuallyPersistedState(
+            workspaceID: workspaceID,
+            selectedSection: .queue,
+            taskViewMode: .graph,
+            selectedTaskID: nil
+        )
     }
 
     @MainActor
-    func test_navigationViewModel_saveFailure_surfacesPersistenceIssue() {
+    func test_navigationViewModel_saveFailure_surfacesPersistenceIssue() async {
         struct ExpectedFailure: Error {}
 
         var forwardedIssue: PersistenceIssue?
@@ -197,7 +205,13 @@ final class NavigationViewModelTests: RalphCoreTestCase {
         )
         viewModel.selectedSection = .analytics
 
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        let surfacedIssue = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
+            viewModel.persistenceIssue?.domain == .navigationState &&
+                viewModel.persistenceIssue?.operation == .save &&
+                forwardedIssue?.domain == .navigationState &&
+                forwardedIssue?.operation == .save
+        }
+        XCTAssertTrue(surfacedIssue)
 
         XCTAssertEqual(viewModel.persistenceIssue?.domain, .navigationState)
         XCTAssertEqual(viewModel.persistenceIssue?.operation, .save)
@@ -254,6 +268,31 @@ final class NavigationViewModelTests: RalphCoreTestCase {
         XCTAssertEqual(viewModel.persistenceIssue?.operation, .load)
         XCTAssertEqual(forwardedIssue?.domain, .navigationState)
         XCTAssertEqual(forwardedIssue?.operation, .load)
+    }
+
+    @MainActor
+    private func assertEventuallyPersistedState(
+        workspaceID: UUID?,
+        selectedSection: SidebarSection,
+        taskViewMode: TaskViewMode,
+        selectedTaskID: String?,
+        timeout: TimeInterval = 2.0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let persisted = await WorkspacePerformanceTestSupport.waitFor(timeout: timeout) {
+            let loadedViewModel = NavigationViewModel(workspaceID: workspaceID)
+            return loadedViewModel.selectedSection == selectedSection &&
+                loadedViewModel.taskViewMode == taskViewMode &&
+                loadedViewModel.selectedTaskID == selectedTaskID
+        }
+
+        XCTAssertTrue(
+            persisted,
+            "Timed out waiting for navigation state persistence (\(workspaceID?.uuidString ?? "global"))",
+            file: file,
+            line: line
+        )
     }
 }
 

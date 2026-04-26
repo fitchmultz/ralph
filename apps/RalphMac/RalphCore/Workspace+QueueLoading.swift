@@ -144,7 +144,11 @@ public extension Workspace {
                 return .failed
             }
 
-            if Self.shouldFallbackToLegacyWorkspaceOverview(for: error) {
+            if await shouldFallbackToLegacyWorkspaceOverview(
+                for: error,
+                client: client,
+                workingDirectoryURL: identityState.workingDirectoryURL
+            ) {
                 return .fallbackToLegacy
             }
 
@@ -257,6 +261,12 @@ public extension Workspace {
 }
 
 extension Workspace {
+    private enum WorkspaceOverviewCapability: Sendable, Equatable {
+        case supported
+        case unsupported
+        case unknown
+    }
+
     func ensureQueueAccessPreflight(
         client: RalphCLIClient,
         retryConfiguration: RetryConfiguration
@@ -303,10 +313,12 @@ extension Workspace {
         """
     }
 
-    nonisolated static func shouldFallbackToLegacyWorkspaceOverview(
-        for error: any Error
-    ) -> Bool {
-        guard case .processError(let exitCode, let stderr) = error as? RetryableError else {
+    private func shouldFallbackToLegacyWorkspaceOverview(
+        for error: any Error,
+        client: RalphCLIClient,
+        workingDirectoryURL: URL
+    ) async -> Bool {
+        guard case .processError(_, let stderr) = error as? RetryableError else {
             return false
         }
         do {
@@ -319,14 +331,47 @@ extension Workspace {
         } catch {
             return false
         }
-        let normalized = stderr.lowercased()
-        let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
-        return normalized.contains("unrecognized subcommand")
-            || normalized.contains("unexpected argument")
-            || normalized.contains("unknown command")
-            || normalized.contains("unexpected args:")
-            || normalized.contains("usage:")
-            || (trimmed.isEmpty && (exitCode == 2 || exitCode == 64))
+
+        let capability = await workspaceOverviewCapability(
+            client: client,
+            workingDirectoryURL: workingDirectoryURL
+        )
+        return capability == .unsupported
+    }
+
+    private func workspaceOverviewCapability(
+        client: RalphCLIClient,
+        workingDirectoryURL: URL
+    ) async -> WorkspaceOverviewCapability {
+        let output: RalphCLIClient.CollectedOutput
+        do {
+            output = try await client.runAndCollect(
+                arguments: ["--no-color", "machine", "cli-spec"],
+                currentDirectoryURL: workingDirectoryURL
+            )
+        } catch {
+            return .unknown
+        }
+
+        guard output.status.code == 0 else {
+            return .unknown
+        }
+
+        do {
+            let document = try RalphMachineContract.decode(
+                MachineCLISpecDocument.self,
+                from: Data(output.stdout.utf8),
+                operation: "machine cli-spec capability probe"
+            )
+            guard document.spec.version == RalphCLISpecDocument.expectedVersion else {
+                return .unknown
+            }
+            return document.spec.containsCommandSuffix(["machine", "workspace", "overview"])
+                ? .supported
+                : .unsupported
+        } catch {
+            return .unknown
+        }
     }
 
     func applyQueueReadDocument(_ snapshot: MachineQueueReadDocument) {

@@ -127,10 +127,54 @@ final class WorkspaceRunnerRetargetingTests: WorkspacePerformanceTestCase {
             phases: 3,
             iterations: 9
         )
+        let overviewAURL = try WorkspaceRunnerConfigurationTestSupport.writeWorkspaceOverviewDocument(
+            in: rootDir,
+            name: "overview-a.json",
+            workspaceURL: workspaceADir,
+            activeTasks: [],
+            model: "model-a",
+            phases: 1,
+            iterations: 1
+        )
+        let overviewBURL = try WorkspaceRunnerConfigurationTestSupport.writeWorkspaceOverviewDocument(
+            in: rootDir,
+            name: "overview-b.json",
+            workspaceURL: workspaceBDir,
+            activeTasks: [],
+            model: "model-b",
+            phases: 2,
+            iterations: 4
+        )
+        let overviewUnknownURL = try WorkspaceRunnerConfigurationTestSupport.writeWorkspaceOverviewDocument(
+            in: rootDir,
+            name: "overview-unknown.json",
+            workspaceURL: rootDir,
+            activeTasks: [],
+            model: "model-unknown",
+            phases: 3,
+            iterations: 9
+        )
 
         let switchScript = """
             #!/bin/sh
-            if [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+            if [ "$1" = "--no-color" ]; then
+              shift
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "workspace" ] && [ "$3" = "overview" ]; then
+              case "$PWD" in
+              */workspace-a)
+                cat "\(overviewAURL.path)"
+                ;;
+              */workspace-b)
+                cat "\(overviewBURL.path)"
+                ;;
+              *)
+                cat "\(overviewUnknownURL.path)"
+                ;;
+              esac
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then
               case "$PWD" in
               */workspace-a)
                 cat "\(configAURL.path)"

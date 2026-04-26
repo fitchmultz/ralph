@@ -154,8 +154,8 @@ public extension Workspace {
 }
 
 private extension Workspace {
-    nonisolated static let supportedMachineCLISpecDocumentVersion = 2
-    nonisolated static let supportedCLISpecVersion = 2
+    nonisolated static let supportedMachineCLISpecDocumentVersion = RalphMachineContract.cliSpecVersion
+    nonisolated static let supportedCLISpecVersion = RalphCLISpecDocument.expectedVersion
 
     nonisolated static func validateMachineCLISpecVersion(_ document: MachineCLISpecDocument) throws {
         guard document.version == supportedMachineCLISpecDocumentVersion else {

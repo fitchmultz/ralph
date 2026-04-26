@@ -314,7 +314,7 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         XCTAssertTrue(switched)
     }
 
-    func test_loadTasks_resolvesCustomQueuePathBeforeCheckingDefaultQueueFile() async throws {
+    func test_loadTasks_resolvesCustomQueuePathWhenWorkspaceOverviewCapabilityIsUnsupported() async throws {
         var workspace: Workspace!
         let rootURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-custom-queue-load-")
         let workspaceURL = rootURL.appendingPathComponent("workspace", isDirectory: true)
@@ -419,6 +419,11 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
 
         let queueReadCurrentURL = rootURL.appendingPathComponent("queue-read-current.json", isDirectory: false)
         try FileManager.default.copyItem(at: queueReadURL, to: queueReadCurrentURL)
+        let cliSpecURL = try RalphMockCLITestSupport.writeJSONDocument(
+            Self.workspaceOverviewCapabilitySpecDocument(supportsWorkspaceOverview: false),
+            in: rootURL,
+            name: "cli-spec-no-workspace-overview.json"
+        )
 
         let script = """
             #!/bin/sh
@@ -429,6 +434,10 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
             if [ "$1" = "machine" ] && [ "$2" = "workspace" ] && [ "$3" = "overview" ]; then
               echo "unrecognized subcommand 'overview'" >&2
               exit 64
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "cli-spec" ]; then
+              cat "\(cliSpecURL.path)"
+              exit 0
             fi
             if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then
               cat "\(configResolveURL.path)"
@@ -483,5 +492,260 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
         }
 
         XCTAssertTrue(refreshed)
+    }
+
+    func test_refreshWorkspaceOverview_doesNotFallbackWhenCliSpecSupportsWorkspaceOverview() async throws {
+        var workspace: Workspace!
+        let rootURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-overview-capability-supported-")
+        let workspaceURL = rootURL.appendingPathComponent("workspace", isDirectory: true)
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootURL, workspace) }
+
+        try FileManager.default.createDirectory(
+            at: workspaceURL.appendingPathComponent(".ralph", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+
+        let fallbackTask = RalphMockCLITestSupport.task(
+            id: "RQ-OVERVIEW-FALLBACK",
+            status: .todo,
+            title: "Should not load",
+            priority: .medium,
+            createdAt: "2026-04-26T00:00:00Z",
+            updatedAt: "2026-04-26T00:00:00Z"
+        )
+        let queueReadURL = try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(
+            in: rootURL,
+            name: "queue-read.json",
+            workspaceURL: workspaceURL,
+            activeTasks: [fallbackTask],
+            nextRunnableTaskID: fallbackTask.id
+        )
+        let configResolveURL = try WorkspaceRunnerConfigurationTestSupport.writeConfigResolveDocument(
+            in: rootURL,
+            name: "config-resolve.json",
+            workspaceURL: workspaceURL,
+            model: "capability-supported-model"
+        )
+        let cliSpecURL = try RalphMockCLITestSupport.writeJSONDocument(
+            Self.workspaceOverviewCapabilitySpecDocument(supportsWorkspaceOverview: true),
+            in: rootURL,
+            name: "cli-spec-with-workspace-overview.json"
+        )
+        let commandLogURL = rootURL.appendingPathComponent("command-log.txt", isDirectory: false)
+
+        let script = """
+            #!/bin/sh
+            set -eu
+            if [ "$1" = "--no-color" ]; then
+              shift
+            fi
+            printf '%s\n' "$*" >> "\(commandLogURL.path)"
+            if [ "$1" = "machine" ] && [ "$2" = "workspace" ] && [ "$3" = "overview" ]; then
+              echo "usage: ralph machine workspace overview [OPTIONS]" >&2
+              exit 64
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "cli-spec" ]; then
+              cat "\(cliSpecURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "read" ]; then
+              cat "\(queueReadURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" >&2
+            exit 64
+            """
+
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: rootURL,
+            name: "mock-ralph-overview-capability-supported",
+            body: script
+        )
+        workspace = Workspace(
+            workingDirectoryURL: workspaceURL,
+            client: try RalphCLIClient(executableURL: scriptURL),
+            bootstrapRepositoryStateOnInit: false
+        )
+
+        await workspace.refreshWorkspaceOverviewState(retryConfiguration: .minimal)
+
+        XCTAssertTrue(workspace.taskState.tasks.isEmpty)
+        XCTAssertFalse(workspace.diagnosticsState.watcherHealth.isWatching)
+        XCTAssertTrue(
+            workspace.taskState.tasksErrorMessage?.contains("usage: ralph machine workspace overview [OPTIONS]") ?? false
+        )
+        XCTAssertTrue(
+            workspace.runState.runnerConfigErrorMessage?.contains("usage: ralph machine workspace overview [OPTIONS]") ?? false
+        )
+
+        let commandLog = try String(contentsOf: commandLogURL, encoding: .utf8)
+        XCTAssertTrue(commandLog.contains("machine workspace overview"))
+        XCTAssertTrue(commandLog.contains("machine cli-spec"))
+        XCTAssertFalse(commandLog.contains("machine queue read"))
+        XCTAssertFalse(commandLog.contains("machine config resolve"))
+    }
+
+    func test_refreshWorkspaceOverview_structuredMachineErrorDoesNotTriggerFallback() async throws {
+        var workspace: Workspace!
+        let rootURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-overview-machine-error-")
+        let workspaceURL = rootURL.appendingPathComponent("workspace", isDirectory: true)
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootURL, workspace) }
+
+        try FileManager.default.createDirectory(
+            at: workspaceURL.appendingPathComponent(".ralph", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+
+        let fallbackTask = RalphMockCLITestSupport.task(
+            id: "RQ-OVERVIEW-MACHINE-ERROR",
+            status: .todo,
+            title: "Should not load",
+            priority: .medium,
+            createdAt: "2026-04-26T00:00:00Z",
+            updatedAt: "2026-04-26T00:00:00Z"
+        )
+        let queueReadURL = try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(
+            in: rootURL,
+            name: "queue-read.json",
+            workspaceURL: workspaceURL,
+            activeTasks: [fallbackTask],
+            nextRunnableTaskID: fallbackTask.id
+        )
+        let configResolveURL = try WorkspaceRunnerConfigurationTestSupport.writeConfigResolveDocument(
+            in: rootURL,
+            name: "config-resolve.json",
+            workspaceURL: workspaceURL,
+            model: "machine-error-model"
+        )
+        let cliSpecURL = try RalphMockCLITestSupport.writeJSONDocument(
+            Self.workspaceOverviewCapabilitySpecDocument(supportsWorkspaceOverview: false),
+            in: rootURL,
+            name: "cli-spec-no-workspace-overview.json"
+        )
+        let machineError = MachineErrorDocument(
+            version: MachineErrorDocument.expectedVersion,
+            code: .resourceBusy,
+            message: "Workspace overview failed.",
+            detail: "mocked machine contract failure",
+            retryable: false
+        )
+        let machineErrorURL = try RalphMockCLITestSupport.writeJSONDocument(
+            machineError,
+            in: rootURL,
+            name: "workspace-overview-machine-error.json"
+        )
+        let commandLogURL = rootURL.appendingPathComponent("command-log.txt", isDirectory: false)
+
+        let script = """
+            #!/bin/sh
+            set -eu
+            if [ "$1" = "--no-color" ]; then
+              shift
+            fi
+            printf '%s\n' "$*" >> "\(commandLogURL.path)"
+            if [ "$1" = "machine" ] && [ "$2" = "workspace" ] && [ "$3" = "overview" ]; then
+              cat "\(machineErrorURL.path)" >&2
+              exit 70
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "cli-spec" ]; then
+              cat "\(cliSpecURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "read" ]; then
+              cat "\(queueReadURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" >&2
+            exit 64
+            """
+
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: rootURL,
+            name: "mock-ralph-overview-machine-error",
+            body: script
+        )
+        workspace = Workspace(
+            workingDirectoryURL: workspaceURL,
+            client: try RalphCLIClient(executableURL: scriptURL),
+            bootstrapRepositoryStateOnInit: false
+        )
+
+        await workspace.refreshWorkspaceOverviewState(retryConfiguration: .minimal)
+
+        XCTAssertTrue(workspace.taskState.tasks.isEmpty)
+        XCTAssertEqual(workspace.taskState.tasksErrorMessage, machineError.message)
+        XCTAssertEqual(workspace.runState.runnerConfigErrorMessage, machineError.message)
+
+        let commandLog = try String(contentsOf: commandLogURL, encoding: .utf8)
+        XCTAssertTrue(commandLog.contains("machine workspace overview"))
+        XCTAssertFalse(commandLog.contains("machine cli-spec"))
+        XCTAssertFalse(commandLog.contains("machine queue read"))
+        XCTAssertFalse(commandLog.contains("machine config resolve"))
+    }
+}
+
+private extension WorkspaceQueueRefreshTests {
+    static func workspaceOverviewCapabilitySpecDocument(
+        supportsWorkspaceOverview: Bool
+    ) -> MachineCLISpecDocument {
+        let queueCommand = commandSpec(
+            name: "queue",
+            path: ["ralph", "machine", "queue"]
+        )
+        let workspaceOverviewCommand = commandSpec(
+            name: "overview",
+            path: ["ralph", "machine", "workspace", "overview"]
+        )
+        let workspaceCommand = commandSpec(
+            name: "workspace",
+            path: ["ralph", "machine", "workspace"],
+            subcommands: supportsWorkspaceOverview ? [workspaceOverviewCommand] : []
+        )
+        let machineSubcommands = supportsWorkspaceOverview
+            ? [queueCommand, workspaceCommand]
+            : [queueCommand]
+
+        return MachineCLISpecDocument(
+            version: RalphMachineContract.cliSpecVersion,
+            spec: RalphCLISpecDocument(
+                version: RalphCLISpecDocument.expectedVersion,
+                root: commandSpec(
+                    name: "ralph",
+                    path: ["ralph"],
+                    subcommands: [
+                        commandSpec(
+                            name: "machine",
+                            path: ["ralph", "machine"],
+                            subcommands: machineSubcommands
+                        )
+                    ]
+                )
+            )
+        )
+    }
+
+    static func commandSpec(
+        name: String,
+        path: [String],
+        subcommands: [RalphCLICommandSpec] = []
+    ) -> RalphCLICommandSpec {
+        RalphCLICommandSpec(
+            name: name,
+            path: path,
+            about: nil,
+            longAbout: nil,
+            afterLongHelp: nil,
+            hidden: false,
+            args: [],
+            subcommands: subcommands
+        )
     }
 }

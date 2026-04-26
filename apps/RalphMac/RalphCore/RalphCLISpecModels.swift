@@ -54,6 +54,24 @@ public struct RalphCLISpecDocument: Codable, Equatable, Sendable {
     }
 }
 
+public extension RalphCLISpecDocument {
+    static let expectedVersion = 2
+
+    func containsCommandSuffix(_ expected: [String]) -> Bool {
+        guard !expected.isEmpty else { return false }
+
+        func walk(_ command: RalphCLICommandSpec) -> Bool {
+            if command.path.count >= expected.count
+                && command.path.suffix(expected.count).elementsEqual(expected) {
+                return true
+            }
+            return command.subcommands.contains(where: walk)
+        }
+
+        return walk(root)
+    }
+}
+
 public struct MachineCLISpecDocument: Codable, Equatable, Sendable, VersionedMachineDocument {
     public static let expectedVersion = RalphMachineContract.cliSpecVersion
     public static let documentName = "machine cli-spec"
