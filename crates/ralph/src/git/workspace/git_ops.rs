@@ -119,7 +119,9 @@ pub(super) fn ensure_clean_workspace(workspace_path: &Path) -> Result<()> {
 
 fn clone_repo_from_local(repo_root: &Path, dest: &Path) -> Result<()> {
     let dest_owned = dest.to_string_lossy().into_owned();
-    let output = git_output(repo_root, &["clone", "--no-hardlinks", ".", &dest_owned])
+    // Use transport clone semantics to avoid local-object copy races when the source
+    // repository is being updated concurrently by other workers.
+    let output = git_output(repo_root, &["clone", "--no-local", ".", &dest_owned])
         .with_context(|| format!("run git clone into {}", dest.display()))?;
     ensure_git_success(output.status.success(), "git clone failed", &output.stderr)
 }
