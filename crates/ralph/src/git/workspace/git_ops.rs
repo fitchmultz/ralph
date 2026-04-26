@@ -134,8 +134,8 @@ pub(super) fn reset_workspace_to_branch(
     );
     // #endregion
 
-    let pre_checkout_status = workspace_status_lines(workspace_path);
-    let has_untracked_ralph_config = pre_checkout_status
+    let pre_sanitize_status = workspace_status_lines(workspace_path);
+    let has_untracked_ralph_config_before = pre_sanitize_status
         .iter()
         .any(|line| line.starts_with("?? ") && line.ends_with(".ralph/config.jsonc"));
 
@@ -143,12 +143,32 @@ pub(super) fn reset_workspace_to_branch(
     emit_debug_log(
         "H1",
         "git_ops.rs:reset_workspace_to_branch",
-        "workspace status before checkout -B",
+        "workspace status before pre-checkout sanitize",
+        json!({
+            "workspacePath": workspace_path.display().to_string(),
+            "statusCount": pre_sanitize_status.len(),
+            "statusSample": pre_sanitize_status.iter().take(12).cloned().collect::<Vec<String>>(),
+            "hasUntrackedRalphConfig": has_untracked_ralph_config_before,
+        }),
+    );
+    // #endregion
+
+    hard_reset_and_clean_current(workspace_path)?;
+    let pre_checkout_status = workspace_status_lines(workspace_path);
+    let has_untracked_ralph_config_after = pre_checkout_status
+        .iter()
+        .any(|line| line.starts_with("?? ") && line.ends_with(".ralph/config.jsonc"));
+
+    // #region agent log
+    emit_debug_log(
+        "H5",
+        "git_ops.rs:reset_workspace_to_branch",
+        "workspace status after pre-checkout sanitize",
         json!({
             "workspacePath": workspace_path.display().to_string(),
             "statusCount": pre_checkout_status.len(),
             "statusSample": pre_checkout_status.iter().take(12).cloned().collect::<Vec<String>>(),
-            "hasUntrackedRalphConfig": has_untracked_ralph_config,
+            "hasUntrackedRalphConfig": has_untracked_ralph_config_after,
         }),
     );
     // #endregion
@@ -167,6 +187,7 @@ pub(super) fn reset_workspace_to_remote_branch(
     retarget_origin(workspace_path, fetch_url, push_url)?;
     log_best_effort_fetch(workspace_path);
 
+    hard_reset_and_clean_current(workspace_path)?;
     let remote_ref = format!("origin/{branch}");
     checkout_branch_from_base(workspace_path, branch, &remote_ref)?;
     hard_reset_and_clean(workspace_path, &remote_ref)
@@ -297,6 +318,24 @@ fn checkout_branch_from_base(workspace_path: &Path, branch: &str, base_ref: &str
 
 fn hard_reset_and_clean(workspace_path: &Path, base_ref: &str) -> Result<()> {
     let reset_output = git_output(workspace_path, &["reset", "--hard", base_ref])
+        .with_context(|| format!("run git reset in {}", workspace_path.display()))?;
+    ensure_git_success(
+        reset_output.status.success(),
+        "git reset --hard failed",
+        &reset_output.stderr,
+    )?;
+
+    let clean_output = git_output(workspace_path, &["clean", "-fd"])
+        .with_context(|| format!("run git clean in {}", workspace_path.display()))?;
+    ensure_git_success(
+        clean_output.status.success(),
+        "git clean failed",
+        &clean_output.stderr,
+    )
+}
+
+fn hard_reset_and_clean_current(workspace_path: &Path) -> Result<()> {
+    let reset_output = git_output(workspace_path, &["reset", "--hard"])
         .with_context(|| format!("run git reset in {}", workspace_path.display()))?;
     ensure_git_success(
         reset_output.status.success(),

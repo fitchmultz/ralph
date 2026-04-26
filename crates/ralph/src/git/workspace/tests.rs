@@ -117,6 +117,54 @@ fn create_workspace_reuses_existing_and_cleans() -> Result<()> {
 }
 
 #[test]
+fn create_workspace_reuses_existing_with_conflicting_untracked_tracked_path() -> Result<()> {
+    let temp = seeded_repo()?;
+    std::fs::create_dir_all(temp.path().join(".ralph"))?;
+    std::fs::write(temp.path().join(".ralph/config.jsonc"), "{tracked_config}")?;
+    git_test::commit_all(temp.path(), "add tracked ralph config")?;
+
+    let base_branch = current_branch(temp.path())?;
+    let root = temp.path().join(".ralph/workspaces/parallel");
+    let first = create_workspace_at(temp.path(), &root, "RQ-0009", &base_branch)?;
+
+    git_test::git_run(&first.path, &["checkout", "-b", "stale-no-config"])?;
+    git_test::git_run(&first.path, &["rm", "--cached", ".ralph/config.jsonc"])?;
+    git_test::git_run(
+        &first.path,
+        &["commit", "-m", "drop tracked config in stale branch"],
+    )?;
+
+    // Leave an untracked file at a path that is tracked on base_branch.
+    std::fs::write(first.path.join(".ralph/config.jsonc"), "{untracked_config}")?;
+
+    let stale_status = git_test::git_output(
+        &first.path,
+        &["status", "--porcelain", "--untracked-files=all"],
+    )?;
+    assert!(
+        stale_status
+            .lines()
+            .any(|line| line.trim() == "?? .ralph/config.jsonc"),
+        "expected stale branch to have untracked .ralph/config.jsonc, got: {stale_status}"
+    );
+
+    let second = create_workspace_at(temp.path(), &root, "RQ-0009", &base_branch)?;
+    assert_eq!(first.path, second.path);
+    let status_after = git_test::git_output(
+        &second.path,
+        &["status", "--porcelain", "--untracked-files=all"],
+    )?;
+    assert!(
+        status_after.trim().is_empty(),
+        "expected clean workspace after reuse reset, got: {status_after}"
+    );
+    assert!(second.path.join(".ralph/config.jsonc").exists());
+
+    remove_workspace(&root, &second, true)?;
+    Ok(())
+}
+
+#[test]
 fn create_workspace_with_existing_branch() -> Result<()> {
     let temp = seeded_repo()?;
     let base_branch = current_branch(temp.path())?;
