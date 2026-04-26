@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "llvm-vs-code-extensions.lldb-dap",
+    "swiftlang.swift-vscode",
+    "tamasfe.even-better-toml",
+    "ms-vscode.makefile-tools",
+    "redhat.vscode-yaml"
+  ],
+  "unwantedRecommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-python.python",
+    "ms-python.black-formatter",
+    "ms-python.pylint"
+  ]
+}
