@@ -21,7 +21,7 @@
       "phase2": {
         "runner": "codex",
         "model": "gpt-5.5",
-        "reasoning_effort": "low"
+        "reasoning_effort": "medium"
       },
       "phase3": {
         "runner": "codex",
