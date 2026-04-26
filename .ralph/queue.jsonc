@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0017",
-      "status": "todo",
-      "title": "Version-gate `machine system info` in RalphMac compatibility checks",
-      "description": "Principles violated: E (make bugs hard to write), F (fail fast), J (consistency/integrity). `WorkspaceManager+Versioning.executeVersionCheck` decodes `MachineSystemInfoDocument` directly without validating the machine document version, even though Ralph’s machine contract is explicitly versioned. This allows incompatible payload shapes to flow into compatibility logic without a clear contract error. Why it matters: a future CLI/document version bump can cause false compatibility outcomes or ambiguous errors during app startup/version checks. Minimal fix: make `MachineSystemInfoDocument` conform to `VersionedMachineDocument`, add a `systemInfoVersion` constant in `RalphMachineContract`, and decode through `RalphMachineContract.decode(...)`. Acceptance criteria: mismatched system-info version produces `.versionMismatch` recovery messaging; matched version still validates normally.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "ralphmac",
-        "machine-contract",
-        "correctness"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift",
-        "apps/RalphMac/RalphCore/ConfigModels.swift",
-        "apps/RalphMac/RalphCore/MachineContract.swift",
-        "apps/RalphMac/RalphCoreTests/"
-      ],
-      "evidence": [
-        "path: apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift:89 :: executeVersionCheck :: decodes MachineSystemInfoDocument with JSONDecoder directly and performs no version gate",
-        "path: apps/RalphMac/RalphCore/ConfigModels.swift:174-181 :: MachineSystemInfoDocument :: has version field but no expectedVersion/documentName contract conformance",
-        "path: apps/RalphMac/RalphCore/MachineContract.swift:27-47 :: RalphMachineContract constants :: no system-info version constant is defined",
-        "workflow: rg -n \"MachineSystemInfoDocument|expectedVersion\" apps/RalphMac/RalphCore --glob '*.swift' :: found direct decode call and no system-info expectedVersion usage"
-      ],
-      "plan": [
-        "Add `systemInfoVersion` to `RalphMachineContract` and wire it to Rust machine contract expectations.",
-        "Make `MachineSystemInfoDocument` adopt `VersionedMachineDocument` with `expectedVersion`/`documentName`.",
-        "Update `executeVersionCheck` to decode through `RalphMachineContract.decode(...)` and surface structured version mismatch errors.",
-        "Add RalphCore tests for matching vs mismatched system-info versions during version-check flow.",
-        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming new version-mismatch tests pass."
-      ],
-      "notes": [],
-      "request": "scan: maintenance",
-      "created_at": "2026-04-26T16:17:04Z",
-      "updated_at": "2026-04-26T16:17:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0019",
       "status": "todo",
       "title": "Replace stderr text heuristics for workspace-overview fallback detection",

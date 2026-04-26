@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
+        "task_kind": "queue_shaping",
         "runner_used": "codex",
         "skill": "comprehensive-codebase-audit",
-        "task_kind": "queue_shaping"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
       }
     },
     {
@@ -688,8 +688,8 @@
       "custom_fields": {
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
         "runner_used": "codex",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -892,8 +892,8 @@
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "runner_used": "codex"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -1000,6 +1000,49 @@
       "created_at": "2026-04-26T16:17:04Z",
       "updated_at": "2026-04-26T16:53:16.409453000Z",
       "completed_at": "2026-04-26T16:53:16.409453000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0017",
+      "status": "done",
+      "title": "Version-gate `machine system info` in RalphMac compatibility checks",
+      "description": "Principles violated: E (make bugs hard to write), F (fail fast), J (consistency/integrity). `WorkspaceManager+Versioning.executeVersionCheck` decodes `MachineSystemInfoDocument` directly without validating the machine document version, even though Ralph’s machine contract is explicitly versioned. This allows incompatible payload shapes to flow into compatibility logic without a clear contract error. Why it matters: a future CLI/document version bump can cause false compatibility outcomes or ambiguous errors during app startup/version checks. Minimal fix: make `MachineSystemInfoDocument` conform to `VersionedMachineDocument`, add a `systemInfoVersion` constant in `RalphMachineContract`, and decode through `RalphMachineContract.decode(...)`. Acceptance criteria: mismatched system-info version produces `.versionMismatch` recovery messaging; matched version still validates normally.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "machine-contract",
+        "correctness"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift",
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphCore/MachineContract.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift:89 :: executeVersionCheck :: decodes MachineSystemInfoDocument with JSONDecoder directly and performs no version gate",
+        "path: apps/RalphMac/RalphCore/ConfigModels.swift:174-181 :: MachineSystemInfoDocument :: has version field but no expectedVersion/documentName contract conformance",
+        "path: apps/RalphMac/RalphCore/MachineContract.swift:27-47 :: RalphMachineContract constants :: no system-info version constant is defined",
+        "workflow: rg -n \"MachineSystemInfoDocument|expectedVersion\" apps/RalphMac/RalphCore --glob '*.swift' :: found direct decode call and no system-info expectedVersion usage"
+      ],
+      "plan": [
+        "Add `systemInfoVersion` to `RalphMachineContract` and wire it to Rust machine contract expectations.",
+        "Make `MachineSystemInfoDocument` adopt `VersionedMachineDocument` with `expectedVersion`/`documentName`.",
+        "Update `executeVersionCheck` to decode through `RalphMachineContract.decode(...)` and surface structured version mismatch errors.",
+        "Add RalphCore tests for matching vs mismatched system-info versions during version-check flow.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming new version-mismatch tests pass."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T18:12:56.559153000Z",
+      "completed_at": "2026-04-26T18:12:56.559153000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
