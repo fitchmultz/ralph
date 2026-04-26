@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0021",
-      "status": "todo",
-      "title": "Resolve dead API drift around `CollectedOutput.isRetryableFailure`",
-      "description": "Principles violated: B (YAGNI), C (DRY knowledge), H (operational hygiene). `CollectedOutput.isRetryableFailure` maintains its own retry heuristic surface but appears unused in production call paths, while retry decisions are already made via `RetryHelper.defaultShouldRetry`. Why it matters: unused but tested behavior can silently drift and confuse maintainers about which retry contract is canonical. Minimal fix: either remove the dead API and tests, or migrate production retry decisions to use it as the single canonical path. Acceptance criteria: one clearly documented retryability API remains and no orphaned duplicate retry heuristics persist.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "ralphmac",
-        "yagni",
-        "reliability"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift",
-        "apps/RalphMac/RalphCore/RetryHelper.swift",
-        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift",
-        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift"
-      ],
-      "evidence": [
-        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:83-106 :: isRetryableFailure :: defines standalone retryability logic",
-        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:55 :: runAndCollectWithRetry :: uses RetryHelper.defaultShouldRetry instead of isRetryableFailure",
-        "workflow: rg -n \"isRetryableFailure\\b\" apps/RalphMac --glob '*.swift' :: usage appears only in test files and the property definition",
-        "workflow: rg -n \"defaultShouldRetry\\b|runAndCollectWithRetry\\b\" apps/RalphMac --glob '*.swift' :: production retries route through RetryHelper"
-      ],
-      "plan": [
-        "Decide canonical retryability API (`RetryHelper` policy vs `CollectedOutput` API) and document it.",
-        "Remove or refactor redundant API/logic to keep a single source of truth.",
-        "Update tests to validate only the canonical path and delete drift-prone duplicate assertions.",
-        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)' -only-testing:RalphCoreTests/RetryHelperTests -only-testing:RalphCoreTests/RetryIntegrationTests`."
-      ],
-      "notes": [],
-      "request": "scan: maintenance",
-      "created_at": "2026-04-26T16:17:04Z",
-      "updated_at": "2026-04-26T16:17:04Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0022",
       "status": "todo",
       "title": "Surface diagnostics persistence failures instead of swallowing write errors",

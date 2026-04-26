@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "task_kind": "queue_shaping",
+        "model_used": "gpt-5.4",
         "skill": "comprehensive-codebase-audit",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "task_kind": "queue_shaping"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -609,9 +609,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
         "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md"
       }
     },
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements"
       }
     },
     {
@@ -1132,6 +1132,48 @@
       "created_at": "2026-04-26T16:17:04Z",
       "updated_at": "2026-04-26T18:41:31.464759000Z",
       "completed_at": "2026-04-26T18:41:31.464759000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0021",
+      "status": "done",
+      "title": "Resolve dead API drift around `CollectedOutput.isRetryableFailure`",
+      "description": "Principles violated: B (YAGNI), C (DRY knowledge), H (operational hygiene). `CollectedOutput.isRetryableFailure` maintains its own retry heuristic surface but appears unused in production call paths, while retry decisions are already made via `RetryHelper.defaultShouldRetry`. Why it matters: unused but tested behavior can silently drift and confuse maintainers about which retry contract is canonical. Minimal fix: either remove the dead API and tests, or migrate production retry decisions to use it as the single canonical path. Acceptance criteria: one clearly documented retryability API remains and no orphaned duplicate retry heuristics persist.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "yagni",
+        "reliability"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift",
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift",
+        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:83-106 :: isRetryableFailure :: defines standalone retryability logic",
+        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:55 :: runAndCollectWithRetry :: uses RetryHelper.defaultShouldRetry instead of isRetryableFailure",
+        "workflow: rg -n \"isRetryableFailure\\b\" apps/RalphMac --glob '*.swift' :: usage appears only in test files and the property definition",
+        "workflow: rg -n \"defaultShouldRetry\\b|runAndCollectWithRetry\\b\" apps/RalphMac --glob '*.swift' :: production retries route through RetryHelper"
+      ],
+      "plan": [
+        "Decide canonical retryability API (`RetryHelper` policy vs `CollectedOutput` API) and document it.",
+        "Remove or refactor redundant API/logic to keep a single source of truth.",
+        "Update tests to validate only the canonical path and delete drift-prone duplicate assertions.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)' -only-testing:RalphCoreTests/RetryHelperTests -only-testing:RalphCoreTests/RetryIntegrationTests`."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T18:48:34.643109000Z",
+      "completed_at": "2026-04-26T18:48:34.643109000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
