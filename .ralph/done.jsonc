@@ -194,9 +194,9 @@
       "relates_to": [],
       "custom_fields": {
         "task_kind": "queue_shaping",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "skill": "comprehensive-codebase-audit",
-        "model_used": "gpt-5.4"
+        "skill": "comprehensive-codebase-audit"
       }
     },
     {
@@ -482,6 +482,66 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
+        "source_report": "/tmp/ralph-report.md"
+      }
+    },
+    {
+      "id": "RQ-0009",
+      "status": "done",
+      "title": "Guarantee terminal machine summaries for loop failures",
+      "description": "Make `ralph machine run loop` emit a deterministic terminal machine summary on recoverable execution failures instead of short-circuiting through `?` after structured start events. Native clients should not have to infer final run state from process exit, stderr, or human text after the machine stream begins.",
+      "priority": "high",
+      "tags": [
+        "machine-api",
+        "run-loop",
+        "errors",
+        "contracts",
+        "ralphmac",
+        "blocking"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/machine/run.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/tests/machine_contract_test/machine_contract_test_run.rs",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController+MachineOutput.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunStateResumeBlockingTests.swift",
+        "docs/machine-contract.md"
+      ],
+      "evidence": [
+        "`crates/ralph/src/cli/machine/run.rs` already routes `run_loop(...)` through `emit_loop_run_summary`, but the loop branch emits `run_started` before `agent::resolve_run_agent_overrides(&args.agent)?`, leaving a post-stream-start failure path that bypasses the terminal summary helper entirely.",
+        "`emit_loop_run_summary` plus `crates/ralph/src/main.rs` already define the desired in-stream failure shape for `run_loop` errors: terminal `MachineRunSummaryDocument` on stdout, then `machine_error` on stderr when the command exits non-zero.",
+        "`crates/ralph/tests/machine_contract_test/machine_contract_test_run.rs` covers idle, blocked, parallel, and resume-refusal loop summaries, but it does not assert that a failure after machine output begins still ends with a terminal summary on stdout.",
+        "`apps/RalphMac/RalphCore/WorkspaceRunnerController+MachineOutput.swift` applies summaries mainly to `task_id` and `blocking`, while `WorkspaceRunnerController+Execution.swift` finalizes failures from process exit state; existing app tests cover successful loops and launch failures, not summary-driven loop failures after machine mode starts."
+      ],
+      "plan": [
+        "Move or wrap every fallible `machine run loop` step so failures before the first machine event stay startup-only `machine_error`s, while failures after `run_started` always flow through one terminal summary path.",
+        "Refactor the loop branch in `crates/ralph/src/cli/machine/run.rs` to share explicit result-to-summary behavior for recoverable runtime failures, including `failed` versus `stalled` classification and any canonical blocking payload.",
+        "Add Rust machine-contract coverage for a loop failure after machine mode starts and assert that the final stdout line remains the versioned run summary even when the process exits non-zero.",
+        "Document the startup-versus-in-stream failure contract for `ralph machine run loop` in `docs/machine-contract.md`.",
+        "Update RalphMac-side tests and any necessary summary handling so native loop failure state is driven by machine documents instead of inferred from raw stderr or exit code alone."
+      ],
+      "notes": [
+        "RQ-0008 already fixed non-failure loop outcomes and introduced `emit_loop_run_summary`; the remaining gap is the post-`run_started` failure seam plus missing machine/native failure-path regressions.",
+        "Guaranteed startup-vs-in-stream machine loop failure boundary.",
+        "Added stalled summary regression for post-run_started queue-lock failures.",
+        "Strengthened RalphMac loop failure coverage to clear live blocking from stdout summary while ignoring stderr state."
+      ],
+      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
+      "created_at": "2026-04-26T00:04:48Z",
+      "updated_at": "2026-04-26T03:05:04.221573000Z",
+      "completed_at": "2026-04-26T03:05:04.221573000Z",
+      "started_at": "2026-04-26T02:27:35.534468000Z",
+      "depends_on": [
+        "RQ-0008"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "codex",
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md"
       }
     }

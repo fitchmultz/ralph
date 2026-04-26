@@ -2,54 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0009",
-      "status": "todo",
-      "title": "Guarantee terminal machine summaries for loop failures",
-      "description": "Make `ralph machine run loop` emit a deterministic terminal machine summary on recoverable execution failures instead of short-circuiting through `?` after structured start events. Native clients should not have to infer final run state from process exit, stderr, or human text after the machine stream begins.",
-      "priority": "high",
-      "tags": [
-        "machine-api",
-        "run-loop",
-        "errors",
-        "contracts",
-        "ralphmac"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/machine/run.rs",
-        "crates/ralph/src/commands/run/run_loop/orchestration.rs",
-        "crates/ralph/tests/machine_contract_test/",
-        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
-        "apps/RalphMac/RalphCore/WorkspaceRunnerController+MachineOutput.swift",
-        "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift",
-        "docs/machine-contract.md"
-      ],
-      "evidence": [
-        "`crates/ralph/src/cli/machine/run.rs` calls `run_loop(...)?` and only emits the terminal `MachineRunSummaryDocument` on success.",
-        "`emit_run_summary` already maps one-shot run outcomes and errors into machine summaries, but the loop path does not use an equivalent result-to-summary path.",
-        "RalphMac has subprocess exit handling and raw stderr/stdout capture, but the app contract expects versioned machine documents rather than human prose."
-      ],
-      "plan": [
-        "Build on the loop outcome work from RQ-0008 so loop execution returns enough structured detail to summarize both success and failure.",
-        "Wrap machine loop execution in a result-to-summary path that emits `machine_error` plus a terminal summary for recoverable runtime failures after machine mode starts.",
-        "Classify startup failures that occur before a machine stream can be established separately from in-stream loop failures.",
-        "Add contract tests proving runner failure during loop still produces a terminal machine summary with exit code, outcome, and blocking/stalled context where appropriate.",
-        "Update RalphMac tests so loop failure state is driven by machine documents rather than raw stderr interpretation."
-      ],
-      "notes": [],
-      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
-      "created_at": "2026-04-26T00:04:48Z",
-      "updated_at": "2026-04-26T00:04:48Z",
-      "depends_on": [
-        "RQ-0008"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md"
-      }
-    },
-    {
       "id": "RQ-0011",
       "status": "todo",
       "title": "Move Stop After Current onto a machine command",
@@ -93,8 +45,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -281,8 +233,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements"
       }
     },
     {

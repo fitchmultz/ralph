@@ -7,6 +7,7 @@
 //! - Assert no-ID `machine run one --resume` emits `run_started` without a task ID.
 //! - Verify `task_selected` and the final summary expose the actual CLI-selected task.
 //! - Assert `machine run loop` preserves idle, blocked, and stalled terminal summaries.
+//! - Lock the startup-versus-in-stream failure boundary for `machine run loop`.
 //! - Keep run-surface assertions isolated from queue, recovery, and parallel suites.
 //!
 //! Non-scope:
@@ -28,10 +29,18 @@ use super::machine_contract_test_support::{
 };
 use anyhow::{Context, Result};
 use ralph::contracts::{Runner, SessionState, TaskStatus};
+use ralph::queue;
 use ralph::session::save_session;
 use serde_json::Value;
 use std::path::Path;
 use std::process::Command;
+
+fn parse_machine_error_document(stderr: &str) -> Result<Value> {
+    let json_start = stderr
+        .find('{')
+        .context("expected machine_error JSON object in stderr")?;
+    serde_json::from_str(&stderr[json_start..]).context("parse machine_error document")
+}
 
 fn configure_parallel_origin(dir: &Path) -> Result<()> {
     let remote_dir = dir.join("origin.git");
@@ -247,6 +256,27 @@ fn machine_run_loop_parallel_blocked_repo_reports_blocked_summary() -> Result<()
 }
 
 #[test]
+fn machine_run_loop_override_startup_failure_emits_only_machine_error() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+
+    let (status, stdout, stderr) =
+        run_in_dir(dir.path(), &["machine", "run", "loop", "--runner", "nope"]);
+    assert!(
+        !status.success(),
+        "machine run loop should fail for invalid runner override\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        stdout.trim().is_empty(),
+        "startup failure should not begin machine stdout stream:\n{stdout}"
+    );
+
+    let machine_error = parse_machine_error_document(&stderr)?;
+    assert_eq!(machine_error["version"], 1);
+    assert_eq!(machine_error["code"], "parse_error");
+    Ok(())
+}
+
+#[test]
 fn machine_run_loop_resume_refusal_reports_stalled_summary() -> Result<()> {
     let dir = setup_ralph_repo()?;
 
@@ -297,5 +327,104 @@ fn machine_run_loop_resume_refusal_reports_stalled_summary() -> Result<()> {
         summary["blocking"]["reason"]["reason"],
         "session_timed_out_requires_confirmation"
     );
+    Ok(())
+}
+
+#[test]
+fn machine_run_loop_runtime_failure_still_emits_terminal_summary() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+
+    let task = make_test_task("RQ-4001", "Fails CI after run starts", TaskStatus::Todo);
+    write_queue(dir.path(), &[task])?;
+    write_done(dir.path(), &[])?;
+
+    let runner_path = create_fake_runner(
+        dir.path(),
+        "codex",
+        r#"#!/bin/sh
+cat >/dev/null
+exit 1
+"#,
+    )?;
+    configure_runner(dir.path(), "codex", "gpt-5.3-codex", Some(&runner_path))?;
+    configure_ci_gate(dir.path(), None, Some(false))?;
+    git_add_all_commit(dir.path(), "setup")?;
+
+    let (status, stdout, stderr) =
+        run_in_dir(dir.path(), &["machine", "run", "loop", "--max-tasks", "1"]);
+    assert!(
+        !status.success(),
+        "machine run loop should fail after run_started\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let lines: Vec<Value> = stdout
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()
+        .context("parse machine loop runtime failure output")?;
+    let run_started = lines
+        .iter()
+        .find(|line| line["kind"] == "run_started")
+        .context("expected run_started event")?;
+    assert_eq!(run_started["kind"], "run_started");
+
+    let summary = lines
+        .last()
+        .context("expected terminal machine run summary")?;
+    assert_eq!(summary["version"], 2);
+    assert_eq!(summary["task_id"], Value::Null);
+    assert_eq!(summary["exit_code"], 1);
+    assert_eq!(summary["outcome"], "failed");
+    assert!(summary["blocking"].is_null());
+
+    let machine_error = parse_machine_error_document(&stderr)?;
+    assert_eq!(machine_error["version"], 1);
+    Ok(())
+}
+
+#[test]
+fn machine_run_loop_queue_lock_failure_emits_stalled_terminal_summary() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+
+    let task = make_test_task(
+        "RQ-4002",
+        "Hits queue lock after run starts",
+        TaskStatus::Todo,
+    );
+    write_queue(dir.path(), &[task])?;
+    write_done(dir.path(), &[])?;
+
+    let _lock = queue::acquire_queue_lock(dir.path(), "test lock holder", false)?;
+
+    let (status, stdout, stderr) =
+        run_in_dir(dir.path(), &["machine", "run", "loop", "--max-tasks", "1"]);
+    assert!(
+        !status.success(),
+        "machine run loop should report queue lock failure after run_started\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let lines: Vec<Value> = stdout
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()
+        .context("parse machine loop ci failure output")?;
+    let run_started = lines
+        .iter()
+        .find(|line| line["kind"] == "run_started")
+        .context("expected run_started event")?;
+    assert_eq!(run_started["kind"], "run_started");
+
+    let summary = lines
+        .last()
+        .context("expected terminal machine run summary")?;
+    assert_eq!(summary["version"], 2);
+    assert_eq!(summary["task_id"], Value::Null);
+    assert_eq!(summary["exit_code"], 1);
+    assert_eq!(summary["outcome"], "stalled");
+    assert_eq!(summary["blocking"]["status"], "stalled");
+    assert_eq!(summary["blocking"]["reason"]["kind"], "lock_blocked");
+
+    let machine_error = parse_machine_error_document(&stderr)?;
+    assert_eq!(machine_error["version"], 1);
     Ok(())
 }

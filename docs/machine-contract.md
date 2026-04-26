@@ -128,6 +128,10 @@ Terminal summaries include:
 - `outcome`
 - optional `blocking`
 
+Startup failures and in-stream failures are intentionally classified differently:
+- If `ralph machine run one` or `ralph machine run loop` fails before `run_started` is emitted, the command exits non-zero and stderr carries `machine_error`; stdout does not begin a machine run stream.
+- Once `run_started` has been emitted, the authoritative terminal run state must arrive as the final stdout summary document, even if the process later exits non-zero and stderr also carries `machine_error`.
+
 `ralph machine run one` and `ralph machine run loop` share the same summary document version, but loop runs may legitimately end in non-completed operator states. Current loop outcomes are:
 - `completed`
 - `no_candidates`

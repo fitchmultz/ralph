@@ -115,6 +115,7 @@ pub(super) fn handle_run(args: MachineRunArgs) -> Result<()> {
             emit_run_summary(&resolved, "one", result)
         }
         MachineRunCommand::Loop(args) => {
+            let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
             let event_handler = build_run_event_handler("loop");
             let resume_preview =
                 build_resume_preview(&resolved, None, args.resume, true, args.resume)?;
@@ -137,7 +138,6 @@ pub(super) fn handle_run(args: MachineRunArgs) -> Result<()> {
                     ),
                 })),
             })?;
-            let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
             let result = crate::commands::run::run_loop(
                 &resolved,
                 crate::commands::run::RunLoopOptions {

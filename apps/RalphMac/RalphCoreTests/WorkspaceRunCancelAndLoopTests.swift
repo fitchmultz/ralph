@@ -245,6 +245,70 @@ final class WorkspaceRunCancelAndLoopTests: WorkspacePerformanceTestCase {
         XCTAssertFalse(workspace.stopAfterCurrent)
     }
 
+    func test_startLoop_summaryDrivenFailureClearsLoopModeWithoutRelyingOnStderr() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "ralph-workspace-loop-summary-failure",
+            scriptName: "mock-ralph-loop-summary-failure",
+            seedQueueTasks: []
+        )
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.configResolveDocument(
+                workspaceURL: fixture.workspaceURL,
+                agent: AgentConfig(model: "model-test", iterations: 2)
+            ),
+            in: fixture.rootURL,
+            name: "config-resolve.json"
+        )
+
+        let script = """
+            #!/bin/sh
+            case "$*" in
+              *"--no-color machine config resolve"*)
+              cat "\(configResolveURL.path)"
+              exit 0
+              ;;
+              *"--no-color machine run loop --resume --max-tasks 0"*)
+              echo '{"version":3,"kind":"run_started","task_id":null,"phase":null,"message":null,"payload":null}'
+              echo '{"version":3,"kind":"blocked_state_changed","task_id":null,"phase":null,"message":"Ralph is blocked by unfinished dependencies.","payload":{"status":"blocked","reason":{"kind":"dependency_blocked","blocked_tasks":2},"task_id":null,"message":"Ralph is blocked by unfinished dependencies.","detail":"2 candidate task(s) are waiting on dependency completion."}}'
+              echo '{"version":3,"kind":"warning","task_id":null,"phase":null,"message":"Loop task failed after stream start.","payload":null}'
+              echo '{"version":2,"task_id":null,"exit_code":1,"outcome":"failed","blocking":null}'
+              echo '{"version":1,"code":"runner_failed","message":"machine stderr should not drive loop failure state","details":null}' 1>&2
+              exit 1
+              ;;
+            esac
+
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+        await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+
+        workspace.startLoop()
+
+        let failureFinished = await WorkspacePerformanceTestSupport.waitFor(timeout: 2.0) {
+            !workspace.isRunning && workspace.lastExitStatus?.code == 1
+        }
+        XCTAssertTrue(failureFinished)
+        XCTAssertEqual(workspace.lastExitStatus?.code, 1)
+        XCTAssertFalse(workspace.isLoopMode)
+        XCTAssertFalse(workspace.stopAfterCurrent)
+        XCTAssertNil(workspace.runState.blockingState)
+        XCTAssertNil(workspace.runState.runControlOperatorState)
+        XCTAssertTrue(workspace.output.contains("[warning] Loop task failed after stream start."))
+    }
+
     func test_startLoop_withParallelWorkers_appendsParallelOverride() async throws {
         var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
