@@ -1,4 +1,501 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0017",
+      "status": "todo",
+      "title": "Version-gate `machine system info` in RalphMac compatibility checks",
+      "description": "Principles violated: E (make bugs hard to write), F (fail fast), J (consistency/integrity). `WorkspaceManager+Versioning.executeVersionCheck` decodes `MachineSystemInfoDocument` directly without validating the machine document version, even though Ralph’s machine contract is explicitly versioned. This allows incompatible payload shapes to flow into compatibility logic without a clear contract error. Why it matters: a future CLI/document version bump can cause false compatibility outcomes or ambiguous errors during app startup/version checks. Minimal fix: make `MachineSystemInfoDocument` conform to `VersionedMachineDocument`, add a `systemInfoVersion` constant in `RalphMachineContract`, and decode through `RalphMachineContract.decode(...)`. Acceptance criteria: mismatched system-info version produces `.versionMismatch` recovery messaging; matched version still validates normally.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "machine-contract",
+        "correctness"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift",
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphCore/MachineContract.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift:89 :: executeVersionCheck :: decodes MachineSystemInfoDocument with JSONDecoder directly and performs no version gate",
+        "path: apps/RalphMac/RalphCore/ConfigModels.swift:174-181 :: MachineSystemInfoDocument :: has version field but no expectedVersion/documentName contract conformance",
+        "path: apps/RalphMac/RalphCore/MachineContract.swift:27-47 :: RalphMachineContract constants :: no system-info version constant is defined",
+        "workflow: rg -n \"MachineSystemInfoDocument|expectedVersion\" apps/RalphMac/RalphCore --glob '*.swift' :: found direct decode call and no system-info expectedVersion usage"
+      ],
+      "plan": [
+        "Add `systemInfoVersion` to `RalphMachineContract` and wire it to Rust machine contract expectations.",
+        "Make `MachineSystemInfoDocument` adopt `VersionedMachineDocument` with `expectedVersion`/`documentName`.",
+        "Update `executeVersionCheck` to decode through `RalphMachineContract.decode(...)` and surface structured version mismatch errors.",
+        "Add RalphCore tests for matching vs mismatched system-info versions during version-check flow.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming new version-mismatch tests pass."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0018",
+      "status": "todo",
+      "title": "Enforce `machine_error` version checks before retry/recovery classification",
+      "description": "Principles violated: E (make bugs hard to write), F (fail fast), J (consistency/integrity). RalphMac defines `RalphMachineContract.errorVersion` but `MachineErrorDocument.decode(from:)` bypasses contract validation and accepts any version value. Retry and recovery paths then trust that decoded payload as authoritative. Why it matters: incompatible `machine_error` payloads can be misclassified as valid structured errors, masking contract drift and producing incorrect retry/recovery behavior. Minimal fix: move machine-error decoding behind contract validation and reject unsupported versions with explicit recovery errors. Acceptance criteria: malformed/unknown machine-error versions no longer classify as valid machine errors; supported version behavior remains unchanged.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "machine-contract",
+        "reliability"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphCore/MachineContract.swift",
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift",
+        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/MachineContract.swift:44 :: errorVersion constant :: defined but unused elsewhere",
+        "path: apps/RalphMac/RalphCore/ConfigModels.swift:204-209 :: MachineErrorDocument.decode :: direct JSONDecoder decode with no version validation",
+        "path: apps/RalphMac/RalphCore/RetryHelper.swift:96,215 :: defaultShouldRetry/isRetryableFailure :: trusts MachineErrorDocument.decode(stderr)",
+        "path: apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift:48,129 :: classify :: trusts MachineErrorDocument.decode(description/stderr)",
+        "workflow: rg -n \"RalphMachineContract\\.errorVersion\" apps/RalphMac/RalphCore --glob '*.swift' :: only declaration found, no enforcement call sites"
+      ],
+      "plan": [
+        "Make `MachineErrorDocument` conform to the versioned-document contract and validate against `RalphMachineContract.errorVersion`.",
+        "Refactor callers to use the contract-validated decode path instead of raw permissive decode.",
+        "Ensure unsupported error-document versions return explicit version-mismatch classification rather than falling through as valid structured errors.",
+        "Add regression tests for supported vs unsupported machine-error versions across retry and recovery classifiers.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)' -only-testing:RalphCoreTests/RetryHelperTests -only-testing:RalphCoreTests/ErrorRecoveryCategoryTests`."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0019",
+      "status": "todo",
+      "title": "Replace stderr text heuristics for workspace-overview fallback detection",
+      "description": "Principles violated: E (make bugs hard to write), F (fail fast), G (least astonishment), J (consistency/integrity). `Workspace+QueueLoading` falls back from `machine workspace overview` by matching human stderr phrases like `usage:` and `unknown command`. This contradicts the documented machine-contract guidance to consume structured payloads instead of prose scraping. Why it matters: unrelated command failures that mention those strings can trigger incorrect legacy fallback paths and hide the real error class. Minimal fix: use a structured machine capability/version signal (or machine_error code) for fallback decisions and reserve string heuristics only as a temporary, explicit compatibility bridge with tests. Acceptance criteria: fallback triggers only on explicit unsupported-capability signals, not generic stderr text.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "machine-contract",
+        "ux"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/Workspace+QueueLoading.swift",
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift",
+        "docs/machine-contract.md",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/Workspace+QueueLoading.swift:147-149 :: loadWorkspaceOverviewAndConfig :: enters fallback path when shouldFallbackToLegacyWorkspaceOverview returns true",
+        "path: apps/RalphMac/RalphCore/Workspace+QueueLoading.swift:306-321 :: shouldFallbackToLegacyWorkspaceOverview :: uses stderr contains checks for 'unrecognized subcommand', 'unknown command', 'usage:', and empty stderr + exit code heuristics",
+        "path: docs/machine-contract.md:19 :: Rules :: machine clients should consume structured payloads instead of scraping prose",
+        "workflow: rg -n \"shouldFallbackToLegacyWorkspaceOverview|usage:\" apps/RalphMac/RalphCore --glob '*.swift' :: confirmed fallback is text-heuristic driven"
+      ],
+      "plan": [
+        "Define/consume a structured unsupported-capability signal for workspace-overview fallback decisions.",
+        "Refactor fallback gate to rely on machine_error code/version or explicit capability metadata instead of free-text parsing.",
+        "Keep any temporary text fallback behind an explicit guard with cleanup notes and telemetry.",
+        "Add tests proving generic stderr text does not trigger fallback and explicit unsupported-capability responses do.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming fallback tests cover both positive and negative cases."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0020",
+      "status": "todo",
+      "title": "Unify transient-error classification across retry and recovery surfaces",
+      "description": "Principles violated: C (DRY knowledge), D (localize change), J (consistency/integrity). Transient error pattern logic is duplicated across `RalphCLIClient+Retry`, `RetryHelper`, and `RalphCLIRecoveryClassifier` with divergent literal sets and behavior. Why it matters: a newly observed transient failure may be retried in one path but classified as non-retryable/unknown in another, causing inconsistent UX and harder debugging. Minimal fix: centralize transient error classification in one shared policy module used by retry execution and recovery UI classification. Acceptance criteria: one authoritative pattern source, consistent classification results across all three call paths, and focused tests for shared policy outputs.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "reliability",
+        "dry"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift",
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift",
+        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift",
+        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift",
+        "apps/RalphMac/RalphCoreTests/ErrorRecoveryCategoryTests.swift"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:90-105 :: isRetryableFailure :: inline retryable stderr patterns",
+        "path: apps/RalphMac/RalphCore/RetryHelper.swift:247-268 and 299-313 :: defaultShouldRetry :: separate retryable pattern lists and exit-code checks",
+        "path: apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift:137-254 :: classify :: independent normalized-string classification ladder",
+        "workflow: python3 literal scan over retry/recovery files :: found divergent transient/error literal sets (11 vs 12 vs broader classifier taxonomy)"
+      ],
+      "plan": [
+        "Create a shared classification policy for transient/retryable/process-error signals.",
+        "Refactor `RetryHelper`, `CollectedOutput` helpers, and recovery classifier to call shared policy APIs.",
+        "Document intentional differences (if any) as explicit policy modes rather than ad-hoc literal drift.",
+        "Add table-driven tests asserting identical outcomes for shared transient error fixtures across call sites.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)' -only-testing:RalphCoreTests/RetryHelperTests -only-testing:RalphCoreTests/RetryIntegrationTests -only-testing:RalphCoreTests/ErrorRecoveryCategoryTests`."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0021",
+      "status": "todo",
+      "title": "Resolve dead API drift around `CollectedOutput.isRetryableFailure`",
+      "description": "Principles violated: B (YAGNI), C (DRY knowledge), H (operational hygiene). `CollectedOutput.isRetryableFailure` maintains its own retry heuristic surface but appears unused in production call paths, while retry decisions are already made via `RetryHelper.defaultShouldRetry`. Why it matters: unused but tested behavior can silently drift and confuse maintainers about which retry contract is canonical. Minimal fix: either remove the dead API and tests, or migrate production retry decisions to use it as the single canonical path. Acceptance criteria: one clearly documented retryability API remains and no orphaned duplicate retry heuristics persist.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "yagni",
+        "reliability"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift",
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift",
+        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:83-106 :: isRetryableFailure :: defines standalone retryability logic",
+        "path: apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:55 :: runAndCollectWithRetry :: uses RetryHelper.defaultShouldRetry instead of isRetryableFailure",
+        "workflow: rg -n \"isRetryableFailure\\b\" apps/RalphMac --glob '*.swift' :: usage appears only in test files and the property definition",
+        "workflow: rg -n \"defaultShouldRetry\\b|runAndCollectWithRetry\\b\" apps/RalphMac --glob '*.swift' :: production retries route through RetryHelper"
+      ],
+      "plan": [
+        "Decide canonical retryability API (`RetryHelper` policy vs `CollectedOutput` API) and document it.",
+        "Remove or refactor redundant API/logic to keep a single source of truth.",
+        "Update tests to validate only the canonical path and delete drift-prone duplicate assertions.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)' -only-testing:RalphCoreTests/RetryHelperTests -only-testing:RalphCoreTests/RetryIntegrationTests`."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0022",
+      "status": "todo",
+      "title": "Surface diagnostics persistence failures instead of swallowing write errors",
+      "description": "Principles violated: F (fail fast), H (operational hygiene), J (consistency/integrity). Diagnostics writers in app presentation coordinators use `try?` for JSON encoding and file writes, silently dropping failures without telemetry or recovery state updates. Why it matters: contract diagnostics can vanish exactly when needed for investigation, while the UI appears healthy. Minimal fix: replace silent `try?` writes with explicit error handling that logs/records persistence issues and preserves an operator-visible signal. Acceptance criteria: failed diagnostics writes emit structured error telemetry and are test-covered.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "observability",
+        "fail-fast"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/WorkspaceContractPresentationCoordinator.swift",
+        "apps/RalphMac/RalphMac/SettingsWindowDiagnostics.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphMac/WorkspaceContractPresentationCoordinator.swift:160-167 :: persistDiagnosticsIfNeeded :: uses try? encode/createDirectory/write and drops all errors",
+        "path: apps/RalphMac/RalphMac/SettingsWindowDiagnostics.swift:248-255 :: persistDiagnosticsIfNeeded :: uses the same silent try? pattern",
+        "workflow: rg -n \"try\\? data.write|try\\? FileManager.default.createDirectory\" apps/RalphMac/RalphMac --glob '*.swift' :: confirms silent persistence failures on diagnostics paths"
+      ],
+      "plan": [
+        "Refactor diagnostics persistence helpers to return/record explicit errors instead of swallowing failures.",
+        "Wire persistence failures into existing diagnostics or logger channels so operators can act.",
+        "Add focused tests that simulate unwritable destinations and assert recorded error signals.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and checking diagnostics-persistence failure tests."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0023",
+      "status": "todo",
+      "title": "Make workspace reveal timeout explicit instead of silent polling exhaustion",
+      "description": "Principles violated: F (fail fast), G (least astonishment), H (operational hygiene). `scheduleWorkspaceReveal` polls up to 60 attempts with fixed sleep/yield and then silently exits with no user-visible error or telemetry if reveal never succeeds. Why it matters: workspace focus failures can become silent UX dead-ends that are difficult to diagnose. Minimal fix: replace silent exhaustion with an explicit timeout state and diagnostic event, and prefer event-driven readiness when possible. Acceptance criteria: reveal timeout is observable in diagnostics/logs and covered by deterministic tests.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "ux",
+        "operability"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/WorkspaceManager+Routing.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/WorkspaceManager+Routing.swift:115-129 :: scheduleWorkspaceReveal :: loops 60 attempts and uses fixed yield/sleep polling",
+        "path: apps/RalphMac/RalphCore/WorkspaceManager+Routing.swift:131-133 :: post-loop path :: clears task without surfacing timeout/failure state",
+        "workflow: rg -n \"scheduleWorkspaceReveal|workspaceRevealTask\" apps/RalphMac/RalphCore --glob '*.swift' :: confirms reveal timeout has no explicit operator-visible failure signal"
+      ],
+      "plan": [
+        "Introduce explicit timeout outcome reporting for workspace reveal attempts.",
+        "Emit structured diagnostics/log entries when reveal polling exhausts without success.",
+        "Replace or minimize fixed polling with event-driven triggers where feasible.",
+        "Add deterministic tests for success and timeout branches of reveal scheduling.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and asserting reveal-timeout tests pass."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0024",
+      "status": "todo",
+      "title": "Split `Workspace+RunnerState.swift` below hard 1,000 LOC limit",
+      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). The file exceeds the repository hard file-size limit, increasing coupling and making run-state changes risky across unrelated concerns. Why it matters: one-file edits now mix multiple state-management responsibilities, raising merge conflict and regression risk. Minimal fix: split by bounded concerns (console buffering/render cadence, operator-state synthesis, parallel status, run metadata) with a thin facade. Acceptance criteria: no file remains above hard limit and targeted runner-state tests still pass.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "architecture",
+        "file-size"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "apps/RalphMac/RalphCore/Workspace+RunnerState.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: AGENTS.md:257-260 :: File Size Limits :: hard limit is 1,000 LOC (must split)",
+        "workflow: python3 line-count scan :: apps/RalphMac/RalphCore/Workspace+RunnerState.swift has 1072 LOC",
+        "path: apps/RalphMac/RalphCore/Workspace+RunnerState.swift :: mixed run-control/operator/console responsibilities concentrated in one file"
+      ],
+      "plan": [
+        "Identify cohesive runner-state subdomains and design a facade + companion-file split plan.",
+        "Move logic into focused files while preserving public API behavior for workspace state mutations.",
+        "Backfill or adjust tests around moved behaviors to guard refactor regressions.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming file drops below 1,000 LOC."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0025",
+      "status": "todo",
+      "title": "Split `WorkspaceRunCancelAndLoopTests.swift` into focused suites under 800 LOC",
+      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). The suite exceeds the soft file-size ceiling, making cancel/loop behavior tests harder to navigate and maintain. Why it matters: broad, monolithic test files reduce failure locality and increase maintenance overhead when evolving run-loop semantics. Minimal fix: split test groups into targeted files (cancel flow, loop completion states, retry/resume interactions) under the existing test hub pattern. Acceptance criteria: suite is decomposed into focused files and all tests continue to pass.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "tests",
+        "ralphmac",
+        "file-size"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift",
+        "apps/RalphMac/RalphCoreTests/"
+      ],
+      "evidence": [
+        "path: AGENTS.md:258-259 :: File Size Limits :: soft limit ~800 LOC",
+        "workflow: python3 line-count scan :: apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift has 862 LOC",
+        "path: apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift :: combines multiple run-loop/cancel scenarios in one oversized suite"
+      ],
+      "plan": [
+        "Partition scenarios into focused test files aligned to one behavior family per file.",
+        "Keep common fixtures in shared test-support helpers to avoid duplication.",
+        "Preserve test naming and assertions while improving failure locality.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming parity."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0026",
+      "status": "todo",
+      "title": "Split `RunControlDetailSections+Configuration.swift` under soft size ceiling",
+      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). This run-control configuration view file is above the soft size target and blends multiple UI decision paths. Why it matters: configuration UX changes require touching a large mixed-responsibility file, increasing regression risk in run controls. Minimal fix: split into section-specific view components plus shared model/view-state helpers. Acceptance criteria: each new file remains below soft limits and run-control behavior snapshots stay stable.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ralphmac",
+        "ui",
+        "file-size"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "apps/RalphMac/RalphMac/RunControlDetailSections+Configuration.swift",
+        "apps/RalphMac/RalphMac/"
+      ],
+      "evidence": [
+        "path: AGENTS.md:258-259 :: File Size Limits :: soft limit ~800 LOC",
+        "workflow: python3 line-count scan :: apps/RalphMac/RalphMac/RunControlDetailSections+Configuration.swift has 811 LOC",
+        "path: apps/RalphMac/RalphMac/RunControlDetailSections+Configuration.swift :: large mixed configuration rendering and behavior logic"
+      ],
+      "plan": [
+        "Identify cohesive subviews/state adapters in run-control configuration UI.",
+        "Extract section-specific components and retain a thin composition surface.",
+        "Add/update UI logic tests or snapshot checks around moved sections.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'` and confirming unchanged behavior."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0027",
+      "status": "todo",
+      "title": "Add CI guardrail for repository file-size limits",
+      "description": "Principles violated: E (make bugs hard to write), H (operational hygiene), J (consistency/integrity). File-size limits are documented but not enforced by current local gates, allowing oversized files to accumulate undetected. Why it matters: policy-only limits drift over time and increase refactor risk. Minimal fix: add a non-flaky local gate script/target that fails when files exceed hard limits and warns/fails on soft-limit policy as agreed. Acceptance criteria: CI/local gate fails on new hard-limit violations and reports actionable offenders.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ci",
+        "policy",
+        "file-size"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "Makefile",
+        "scripts/",
+        "docs/guides/ci-strategy.md",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "path: AGENTS.md:257-260 :: File Size Limits :: target/soft/hard limits are explicit",
+        "workflow: make pre-public-check :: passed while oversized files (1072/862/811 LOC) still exist",
+        "workflow: rg -n \"File Size Limits|LOC|line count\" Makefile scripts docs/guides/ci-strategy.md :: no active line-count enforcement gate found"
+      ],
+      "plan": [
+        "Implement a deterministic file-size check script with configurable ignore list for generated/vendor paths.",
+        "Wire the check into local CI entrypoints (`make ci-fast`/`make agent-ci` tier policy as appropriate).",
+        "Document enforcement behavior and remediation guidance in CI strategy docs.",
+        "Add regression tests for the size-check script behavior (pass/fail paths).",
+        "Verify by running `make ci-fast` and confirming the new guard reports current offenders until split tasks are completed."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0028",
+      "status": "todo",
+      "title": "Add targeted tests for fallback/versioning/diagnostics error paths",
+      "description": "Principles violated: E (make bugs hard to write), H (operational hygiene), J (consistency/integrity). Several high-risk branches (workspace-overview fallback heuristics, machine-system-info versioning, machine-error version compatibility, diagnostics write failures) lack direct focused tests. Why it matters: contract regressions in these boundaries can ship silently because broad suite coverage does not pin exact edge behavior. Minimal fix: add deterministic unit/integration tests for each boundary branch and expected error classification. Acceptance criteria: new tests fail on regressions in fallback gating, version mismatch handling, and diagnostics persistence error reporting.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "tests",
+        "ralphmac",
+        "contracts"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCoreTests/",
+        "apps/RalphMac/RalphCore/Workspace+QueueLoading.swift",
+        "apps/RalphMac/RalphCore/WorkspaceManager+Versioning.swift",
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphMac/WorkspaceContractPresentationCoordinator.swift",
+        "apps/RalphMac/RalphMac/SettingsWindowDiagnostics.swift"
+      ],
+      "evidence": [
+        "workflow: rg -n \"shouldFallbackToLegacyWorkspaceOverview\" apps/RalphMac/RalphCoreTests --glob '*.swift' :: no direct tests found",
+        "workflow: rg -n \"executeVersionCheck|machine system info\" apps/RalphMac/RalphCoreTests --glob '*.swift' :: only command-surface references, no explicit version-mismatch tests",
+        "workflow: rg -n \"WorkspaceContractPresentationCoordinator|SettingsWindowDiagnostics\" apps/RalphMac/RalphCoreTests --glob '*.swift' :: no focused diagnostics persistence failure coverage",
+        "path: apps/RalphMac/RalphCore/ConfigModels.swift:204-209 :: machine_error decoding branch currently unguarded by version-specific tests"
+      ],
+      "plan": [
+        "Add focused tests for workspace-overview fallback positive/negative triggers.",
+        "Add tests for system-info and machine-error version mismatch behavior.",
+        "Add diagnostics persistence tests that force write failures and assert recorded error outcomes.",
+        "Keep tests deterministic with fixture-based stderr/data inputs rather than timing-dependent flows.",
+        "Verify by running `xcodebuild test -project apps/RalphMac/RalphMac.xcodeproj -scheme RalphCore -destination 'platform=macOS,arch=$(uname -m)'`."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T16:17:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    }
+  ]
 }
