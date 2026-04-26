@@ -172,3 +172,199 @@ final class WorkspaceDiagnosticsServiceTests: RalphCoreTestCase {
         XCTAssertTrue(output.contains("Workspace config is incompatible with this Ralph version"))
     }
 }
+
+/*
+ Purpose:
+ - Verify contract diagnostics persistence surfaces explicit status on write failures.
+
+ Responsibilities:
+ - Validate settings and workspace diagnostics persistence returns failure status and telemetry.
+ - Verify persistence status returns to success after a transient storage failure.
+ - Confirm persisted diagnostics JSON includes the structured persistence outcome.
+
+ Scope:
+ - ContractDiagnosticsPersistence helper behavior used by settings and workspace diagnostics coordinators.
+
+ Usage:
+ - Runs as part of the RalphCore XCTest suite.
+
+ Invariants/Assumptions:
+ - Tests run on the main actor because presentation coordinators are main-actor isolated.
+ - Storage failures are injected through ContractDiagnosticsPersistenceStorage closures.
+ */
+@MainActor
+final class ContractDiagnosticsPersistenceTests: RalphCoreTestCase {
+    private struct PersistableSnapshot: Codable, Equatable {
+        var requestSequence: Int
+        var persistence: ContractDiagnosticsPersistenceStatus
+    }
+
+    private enum ExpectedFailure: Error {
+        case createDirectoryFailed
+        case writeFailed
+    }
+
+    private final class FailFirstWriteRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var shouldFail = true
+        private var persistedData: Data?
+
+        func write(_ data: Data, to url: URL) throws {
+            lock.lock()
+            defer { lock.unlock() }
+
+            if shouldFail {
+                shouldFail = false
+                throw ExpectedFailure.writeFailed
+            }
+
+            try data.write(to: url, options: .atomic)
+            persistedData = data
+        }
+
+        func latestData() -> Data? {
+            lock.lock()
+            defer { lock.unlock() }
+            return persistedData
+        }
+    }
+
+    func test_persist_createDirectoryFailure_returnsFailureStatus_andTelemetry() throws {
+        let directory = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "settings-diagnostics-create-failure")
+        defer { RalphCoreTestSupport.assertRemoved(directory) }
+        let diagnosticsURL = directory.appendingPathComponent("settings-diagnostics.json", isDirectory: false)
+        var telemetry: [ContractDiagnosticsPersistenceFailureTelemetry] = []
+
+        let status = ContractDiagnosticsPersistence.persist(
+            snapshot: PersistableSnapshot(requestSequence: 1, persistence: .disabled),
+            diagnosticsFileURL: diagnosticsURL,
+            storage: ContractDiagnosticsPersistenceStorage(
+                createDirectory: { _ in throw ExpectedFailure.createDirectoryFailed },
+                writeData: { _, _ in }
+            ),
+            diagnosticsType: "settings",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            },
+            failureTelemetry: { entry in
+                telemetry.append(entry)
+            }
+        )
+
+        XCTAssertEqual(status.outcome, .failure)
+        XCTAssertEqual(status.path, diagnosticsURL.path)
+        XCTAssertTrue(status.errorMessage?.contains("createDirectoryFailed") == true)
+        XCTAssertEqual(telemetry.count, 1)
+        XCTAssertEqual(telemetry[0].diagnosticsType, "settings")
+        XCTAssertEqual(telemetry[0].path, diagnosticsURL.path)
+        XCTAssertTrue(telemetry[0].errorMessage.contains("createDirectoryFailed"))
+        XCTAssertTrue(telemetry[0].message.contains("settings"))
+    }
+
+    func test_persist_writeFailure_returnsFailureStatus_andTelemetry_forWorkspaceRouting() throws {
+        let directory = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "workspace-diagnostics-write-failure")
+        defer { RalphCoreTestSupport.assertRemoved(directory) }
+        let diagnosticsURL = directory.appendingPathComponent("workspace-diagnostics.json", isDirectory: false)
+        var telemetry: [ContractDiagnosticsPersistenceFailureTelemetry] = []
+
+        let status = ContractDiagnosticsPersistence.persist(
+            snapshot: PersistableSnapshot(requestSequence: 1, persistence: .disabled),
+            diagnosticsFileURL: diagnosticsURL,
+            storage: ContractDiagnosticsPersistenceStorage(
+                createDirectory: { _ in },
+                writeData: { _, _ in throw ExpectedFailure.writeFailed }
+            ),
+            diagnosticsType: "workspace-routing",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            },
+            failureTelemetry: { entry in
+                telemetry.append(entry)
+            }
+        )
+
+        XCTAssertEqual(status.outcome, .failure)
+        XCTAssertEqual(status.path, diagnosticsURL.path)
+        XCTAssertTrue(status.errorMessage?.contains("writeFailed") == true)
+        XCTAssertEqual(telemetry.count, 1)
+        XCTAssertEqual(telemetry[0].diagnosticsType, "workspace-routing")
+        XCTAssertEqual(telemetry[0].path, diagnosticsURL.path)
+        XCTAssertTrue(telemetry[0].errorMessage.contains("writeFailed"))
+        XCTAssertTrue(telemetry[0].message.contains("workspace-routing"))
+    }
+
+    func test_persist_withoutDiagnosticsPath_returnsDisabled_withoutTelemetry() {
+        var telemetry: [ContractDiagnosticsPersistenceFailureTelemetry] = []
+        let status = ContractDiagnosticsPersistence.persist(
+            snapshot: PersistableSnapshot(requestSequence: 1, persistence: .success(path: "/tmp/ignore")),
+            diagnosticsFileURL: nil,
+            storage: ContractDiagnosticsPersistenceStorage(
+                createDirectory: { _ in XCTFail("createDirectory should not be called when diagnostics are disabled") },
+                writeData: { _, _ in XCTFail("writeData should not be called when diagnostics are disabled") }
+            ),
+            diagnosticsType: "settings",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            },
+            failureTelemetry: { entry in
+                telemetry.append(entry)
+            }
+        )
+
+        XCTAssertEqual(status, .disabled)
+        XCTAssertTrue(telemetry.isEmpty)
+    }
+
+    func test_persist_recoversToSuccess_andWritesSuccessOutcome() throws {
+        let directory = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "settings-diagnostics-recover-success")
+        defer { RalphCoreTestSupport.assertRemoved(directory) }
+        let diagnosticsURL = directory.appendingPathComponent("settings-diagnostics.json", isDirectory: false)
+        let recorder = FailFirstWriteRecorder()
+        var snapshot = PersistableSnapshot(requestSequence: 1, persistence: .disabled)
+
+        let firstStatus = ContractDiagnosticsPersistence.persist(
+            snapshot: snapshot,
+            diagnosticsFileURL: diagnosticsURL,
+            storage: ContractDiagnosticsPersistenceStorage(
+                createDirectory: { url in
+                    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                },
+                writeData: { data, url in
+                    try recorder.write(data, to: url)
+                }
+            ),
+            diagnosticsType: "settings",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            }
+        )
+        snapshot.persistence = firstStatus
+
+        let secondStatus = ContractDiagnosticsPersistence.persist(
+            snapshot: snapshot,
+            diagnosticsFileURL: diagnosticsURL,
+            storage: ContractDiagnosticsPersistenceStorage(
+                createDirectory: { url in
+                    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                },
+                writeData: { data, url in
+                    try recorder.write(data, to: url)
+                }
+            ),
+            diagnosticsType: "settings",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            }
+        )
+
+        XCTAssertEqual(firstStatus.outcome, .failure)
+        XCTAssertEqual(secondStatus.outcome, .success)
+        XCTAssertEqual(secondStatus.path, diagnosticsURL.path)
+        XCTAssertNil(secondStatus.errorMessage)
+
+        let persistedData = try XCTUnwrap(recorder.latestData())
+        let decodedSnapshot = try JSONDecoder().decode(PersistableSnapshot.self, from: persistedData)
+        XCTAssertEqual(decodedSnapshot.persistence.outcome, .success)
+        XCTAssertEqual(decodedSnapshot.persistence.path, diagnosticsURL.path)
+    }
+}

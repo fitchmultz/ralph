@@ -263,6 +263,30 @@ fn apply_followups_if_present_for_finalization(
     queue::apply_default_followups_if_present_with_removal(resolved, task_id, true)
 }
 
+fn append_debug_log(hypothesis_id: &str, location: &str, message: &str, data: serde_json::Value) {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+    let payload = serde_json::json!({
+        "sessionId": "f05fb4",
+        "runId": "pre-fix",
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": timestamp,
+    });
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/Users/mitchfultz/Projects/AI/ralph/.cursor/debug-f05fb4.log")
+        && let Ok(line) = serde_json::to_string(&payload)
+    {
+        let _ = writeln!(file, "{line}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::apply_followups_if_present_for_finalization;
@@ -403,29 +427,5 @@ mod tests {
         let report = apply_followups_if_present_for_finalization(&resolved, "RQ-0001")?;
         assert!(report.is_none(), "expected no-op without proposal file");
         Ok(())
-    }
-}
-
-fn append_debug_log(hypothesis_id: &str, location: &str, message: &str, data: serde_json::Value) {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0);
-    let payload = serde_json::json!({
-        "sessionId": "f05fb4",
-        "runId": "pre-fix",
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": timestamp,
-    });
-    if let Ok(mut file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/Users/mitchfultz/Projects/AI/ralph/.cursor/debug-f05fb4.log")
-        && let Ok(line) = serde_json::to_string(&payload)
-    {
-        let _ = writeln!(file, "{line}");
     }
 }

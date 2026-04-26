@@ -24,7 +24,113 @@
  - Log export may be unavailable on older macOS runtimes.
  */
 
-import Foundation
+public import Foundation
+
+public struct ContractDiagnosticsPersistenceStatus: Codable, Equatable, Sendable {
+    public enum Outcome: String, Codable, Sendable {
+        case disabled
+        case success
+        case failure
+    }
+
+    public var outcome: Outcome
+    public var path: String?
+    public var errorMessage: String?
+
+    public static let disabled = Self(outcome: .disabled, path: nil, errorMessage: nil)
+
+    public static func success(path: String) -> Self {
+        Self(outcome: .success, path: path, errorMessage: nil)
+    }
+
+    public static func failure(path: String, error: any Error) -> Self {
+        Self(outcome: .failure, path: path, errorMessage: String(describing: error))
+    }
+}
+
+public struct ContractDiagnosticsPersistenceStorage: Sendable {
+    public var createDirectory: @Sendable (URL) throws -> Void
+    public var writeData: @Sendable (Data, URL) throws -> Void
+
+    public init(
+        createDirectory: @escaping @Sendable (URL) throws -> Void,
+        writeData: @escaping @Sendable (Data, URL) throws -> Void
+    ) {
+        self.createDirectory = createDirectory
+        self.writeData = writeData
+    }
+
+    public static let live = Self(
+        createDirectory: { url in
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        },
+        writeData: { data, url in
+            try data.write(to: url, options: .atomic)
+        }
+    )
+}
+
+public struct ContractDiagnosticsPersistenceFailureTelemetry: Equatable, Sendable {
+    public var diagnosticsType: String
+    public var path: String
+    public var errorMessage: String
+
+    public init(diagnosticsType: String, path: String, errorMessage: String) {
+        self.diagnosticsType = diagnosticsType
+        self.path = path
+        self.errorMessage = errorMessage
+    }
+
+    public var message: String {
+        "Failed to persist \(diagnosticsType) diagnostics at \(path): \(errorMessage)"
+    }
+}
+
+public enum ContractDiagnosticsPersistence {
+    public static func persist<Snapshot: Codable>(
+        snapshot: Snapshot,
+        diagnosticsFileURL: URL?,
+        storage: ContractDiagnosticsPersistenceStorage,
+        diagnosticsType: String,
+        applyStatus: (inout Snapshot, ContractDiagnosticsPersistenceStatus) -> Void,
+        failureTelemetry: ((ContractDiagnosticsPersistenceFailureTelemetry) -> Void)? = nil
+    ) -> ContractDiagnosticsPersistenceStatus {
+        guard let diagnosticsFileURL else {
+            return .disabled
+        }
+
+        let successStatus = ContractDiagnosticsPersistenceStatus.success(path: diagnosticsFileURL.path)
+        do {
+            var persistedSnapshot = snapshot
+            applyStatus(&persistedSnapshot, successStatus)
+
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+            let data = try encoder.encode(persistedSnapshot)
+
+            let directory = diagnosticsFileURL.deletingLastPathComponent()
+            try storage.createDirectory(directory)
+            try storage.writeData(data, diagnosticsFileURL)
+            return successStatus
+        } catch {
+            let failureStatus = ContractDiagnosticsPersistenceStatus.failure(
+                path: diagnosticsFileURL.path,
+                error: error
+            )
+            let telemetry = ContractDiagnosticsPersistenceFailureTelemetry(
+                diagnosticsType: diagnosticsType,
+                path: diagnosticsFileURL.path,
+                errorMessage: failureStatus.errorMessage ?? "unknown error"
+            )
+            if let failureTelemetry {
+                failureTelemetry(telemetry)
+            } else {
+                RalphLogger.shared.error(telemetry.message, category: .workspace)
+            }
+            return failureStatus
+        }
+    }
+}
 
 public struct QueueLockDiagnosticSnapshot: Equatable, Sendable {
     public enum Condition: String, Equatable, Sendable {

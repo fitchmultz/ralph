@@ -47,6 +47,7 @@ struct WorkspaceContractDiagnosticsSnapshot: Codable, Equatable {
     var effectiveWorkspaceID: String?
     var visibleAppWindowCount: Int
     var visibleWorkspaceWindowCount: Int
+    var persistence: ContractDiagnosticsPersistenceStatus
 
     static let idle = WorkspaceContractDiagnosticsSnapshot(
         workspaceID: nil,
@@ -67,7 +68,8 @@ struct WorkspaceContractDiagnosticsSnapshot: Codable, Equatable {
         focusedWorkspaceID: nil,
         effectiveWorkspaceID: nil,
         visibleAppWindowCount: 0,
-        visibleWorkspaceWindowCount: 0
+        visibleWorkspaceWindowCount: 0,
+        persistence: .disabled
     )
 }
 
@@ -79,15 +81,31 @@ final class WorkspaceContractPresentationCoordinator: ObservableObject {
 
     private var snapshotsByWorkspaceID: [UUID: WorkspaceContractDiagnosticsSnapshot] = [:]
     private let diagnosticsFileURL: URL?
+    private let persistenceStorage: ContractDiagnosticsPersistenceStorage
 
-    private init() {
-        if let rawPath = ProcessInfo.processInfo.environment["RALPH_WORKSPACE_ROUTING_DIAGNOSTICS_PATH"]?
+    init(
+        diagnosticsFileURL: URL?,
+        persistenceStorage: ContractDiagnosticsPersistenceStorage = .live
+    ) {
+        self.diagnosticsFileURL = diagnosticsFileURL
+        self.persistenceStorage = persistenceStorage
+    }
+
+    private convenience init() {
+        self.init(
+            diagnosticsFileURL: Self.resolveDiagnosticsFileURL(),
+            persistenceStorage: .live
+        )
+    }
+
+    private static func resolveDiagnosticsFileURL() -> URL? {
+        guard let rawPath = ProcessInfo.processInfo.environment["RALPH_WORKSPACE_ROUTING_DIAGNOSTICS_PATH"]?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-           !rawPath.isEmpty {
-            diagnosticsFileURL = URL(fileURLWithPath: rawPath, isDirectory: false)
-        } else {
-            diagnosticsFileURL = nil
+            !rawPath.isEmpty
+        else {
+            return nil
         }
+        return URL(fileURLWithPath: rawPath, isDirectory: false)
     }
 
     func capture(
@@ -117,7 +135,8 @@ final class WorkspaceContractPresentationCoordinator: ObservableObject {
             focusedWorkspaceID: manager.focusedWorkspace?.id.uuidString,
             effectiveWorkspaceID: manager.effectiveWorkspace?.id.uuidString,
             visibleAppWindowCount: 0,
-            visibleWorkspaceWindowCount: 0
+            visibleWorkspaceWindowCount: 0,
+            persistence: diagnostics.persistence
         )
         refreshDiagnostics(preferredWorkspaceID: workspace.id)
     }
@@ -129,6 +148,10 @@ final class WorkspaceContractPresentationCoordinator: ObservableObject {
 
     func refresh() {
         refreshDiagnostics(preferredWorkspaceID: nil)
+    }
+
+    func persistDiagnosticsForTesting() {
+        persistDiagnosticsIfNeeded()
     }
 
     private func refreshDiagnostics(preferredWorkspaceID: UUID?) {
@@ -148,6 +171,7 @@ final class WorkspaceContractPresentationCoordinator: ObservableObject {
         snapshot.effectiveWorkspaceID = manager.effectiveWorkspace?.id.uuidString
         snapshot.visibleAppWindowCount = visibleWindows.count
         snapshot.visibleWorkspaceWindowCount = visibleWorkspaceWindowCount
+        snapshot.persistence = diagnostics.persistence
         diagnostics = snapshot
         persistDiagnosticsIfNeeded()
     }
@@ -158,12 +182,14 @@ final class WorkspaceContractPresentationCoordinator: ObservableObject {
     }
 
     private func persistDiagnosticsIfNeeded() {
-        guard let diagnosticsFileURL else { return }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
-        guard let data = try? encoder.encode(diagnostics) else { return }
-        let directory = diagnosticsFileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try? data.write(to: diagnosticsFileURL, options: .atomic)
+        diagnostics.persistence = ContractDiagnosticsPersistence.persist(
+            snapshot: diagnostics,
+            diagnosticsFileURL: diagnosticsFileURL,
+            storage: persistenceStorage,
+            diagnosticsType: "workspace-routing",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            }
+        )
     }
 }

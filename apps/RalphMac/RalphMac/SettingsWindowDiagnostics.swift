@@ -48,6 +48,7 @@ struct SettingsWindowDiagnosticsSnapshot: Codable, Equatable {
     var firstResponderClassName: String?
     var firstResponderIsTextView: Bool
     var settingsWindowIsKey: Bool
+    var persistence: ContractDiagnosticsPersistenceStatus
 
     static let idle = SettingsWindowDiagnosticsSnapshot(
         requestSequence: 0,
@@ -66,7 +67,8 @@ struct SettingsWindowDiagnosticsSnapshot: Codable, Equatable {
         settingsWindowTitle: nil,
         firstResponderClassName: nil,
         firstResponderIsTextView: false,
-        settingsWindowIsKey: false
+        settingsWindowIsKey: false,
+        persistence: .disabled
     )
 
     func encodedForAccessibility() -> String {
@@ -90,15 +92,31 @@ final class SettingsPresentationCoordinator: ObservableObject {
     @Published private(set) var diagnostics = SettingsWindowDiagnosticsSnapshot.idle
 
     private let diagnosticsFileURL: URL?
+    private let persistenceStorage: ContractDiagnosticsPersistenceStorage
 
-    private init() {
-        if let rawPath = ProcessInfo.processInfo.environment["RALPH_SETTINGS_DIAGNOSTICS_PATH"]?
+    init(
+        diagnosticsFileURL: URL?,
+        persistenceStorage: ContractDiagnosticsPersistenceStorage = .live
+    ) {
+        self.diagnosticsFileURL = diagnosticsFileURL
+        self.persistenceStorage = persistenceStorage
+    }
+
+    private convenience init() {
+        self.init(
+            diagnosticsFileURL: Self.resolveDiagnosticsFileURL(),
+            persistenceStorage: .live
+        )
+    }
+
+    private static func resolveDiagnosticsFileURL() -> URL? {
+        guard let rawPath = ProcessInfo.processInfo.environment["RALPH_SETTINGS_DIAGNOSTICS_PATH"]?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-           !rawPath.isEmpty {
-            diagnosticsFileURL = URL(fileURLWithPath: rawPath, isDirectory: false)
-        } else {
-            diagnosticsFileURL = nil
+            !rawPath.isEmpty
+        else {
+            return nil
         }
+        return URL(fileURLWithPath: rawPath, isDirectory: false)
     }
 
     func prepare(workspace: Workspace?, source: SettingsPresentationSource) {
@@ -120,7 +138,8 @@ final class SettingsPresentationCoordinator: ObservableObject {
             settingsWindowTitle: diagnostics.settingsWindowTitle,
             firstResponderClassName: diagnostics.firstResponderClassName,
             firstResponderIsTextView: diagnostics.firstResponderIsTextView,
-            settingsWindowIsKey: diagnostics.settingsWindowIsKey
+            settingsWindowIsKey: diagnostics.settingsWindowIsKey,
+            persistence: diagnostics.persistence
         )
         persistDiagnosticsIfNeeded()
         NotificationCenter.default.post(name: Self.contextDidChangeNotification, object: nil)
@@ -177,7 +196,8 @@ final class SettingsPresentationCoordinator: ObservableObject {
                 window.firstResponder.map { String(describing: type(of: $0)) }
             },
             firstResponderIsTextView: resolvedSettingsWindow?.firstResponder is NSTextView,
-            settingsWindowIsKey: resolvedSettingsWindow?.isKeyWindow ?? false
+            settingsWindowIsKey: resolvedSettingsWindow?.isKeyWindow ?? false,
+            persistence: diagnostics.persistence
         )
         persistDiagnosticsIfNeeded()
     }
@@ -246,12 +266,14 @@ final class SettingsPresentationCoordinator: ObservableObject {
     }
 
     private func persistDiagnosticsIfNeeded() {
-        guard let diagnosticsFileURL else { return }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
-        guard let data = try? encoder.encode(diagnostics) else { return }
-        let directory = diagnosticsFileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try? data.write(to: diagnosticsFileURL, options: .atomic)
+        diagnostics.persistence = ContractDiagnosticsPersistence.persist(
+            snapshot: diagnostics,
+            diagnosticsFileURL: diagnosticsFileURL,
+            storage: persistenceStorage,
+            diagnosticsType: "settings",
+            applyStatus: { snapshot, status in
+                snapshot.persistence = status
+            }
+        )
     }
 }
