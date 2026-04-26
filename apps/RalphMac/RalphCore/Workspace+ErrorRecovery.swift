@@ -142,7 +142,10 @@ private extension Workspace {
 
         guard collected.status.code == 0 else {
             throw WorkspaceError.cliError(
-                collected.failureMessage(fallback: "Failed to \(operation) (exit \(collected.status.code))")
+                collected.failureMessage(
+                    operation: operation,
+                    fallback: "Failed to \(operation) (exit \(collected.status.code))"
+                )
             )
         }
 

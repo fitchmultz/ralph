@@ -55,6 +55,31 @@ final class WorkspaceErrorRecoveryTests: RalphCoreTestCase {
         }
     }
 
+    func test_validateQueueContinuation_surfacesVersionMismatchForUnsupportedMachineErrorVersion() async throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .queueCorrupted,
+            message: "Queue validation could not continue.",
+            detail: "read queue file .ralph/queue.jsonc: missing terminal completed_at",
+            retryable: true
+        )
+        let fixture = try Self.makeMockCLIFixture(validateFailure: .machine(document))
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        workspace = Workspace(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: try RalphCLIClient(executableURL: fixture.scriptURL)
+        )
+
+        do {
+            _ = try await workspace.validateQueueContinuation()
+            XCTFail("Expected version mismatch failure")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("Unsupported machine error version 999"))
+        }
+    }
+
     func test_repairQueueContinuation_fallsBackToTrimmedRawStderr() async throws {
         let fixture = try Self.makeMockCLIFixture(repairFailure: .stderr("  queue repair preview failed  \n"))
         var workspace: Workspace!

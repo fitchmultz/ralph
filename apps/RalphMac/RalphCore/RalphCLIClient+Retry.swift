@@ -63,13 +63,22 @@ public extension RalphCLIClient {
 public struct TimeoutError: Error, Sendable {}
 
 public extension RalphCLIClient.CollectedOutput {
-    var machineError: MachineErrorDocument? {
-        MachineErrorDocument.decode(from: stderr)
+    func machineError(operation: String) throws -> MachineErrorDocument? {
+        try MachineErrorDocument.decodeIfPresent(from: stderr, operation: operation)
     }
 
-    func failureMessage(fallback fallbackMessage: @autoclosure () -> String) -> String {
-        if let machineError {
-            return machineError.userFacingDescription
+    func failureMessage(
+        operation: String = "format process failure",
+        fallback fallbackMessage: @autoclosure () -> String
+    ) -> String {
+        do {
+            if let machineError = try machineError(operation: operation) {
+                return machineError.userFacingDescription
+            }
+        } catch let recovery as RecoveryError {
+            return recovery.message
+        } catch {
+            return error.localizedDescription
         }
 
         let trimmedStderr = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -83,8 +92,12 @@ public extension RalphCLIClient.CollectedOutput {
     var isRetryableFailure: Bool {
         guard status.code != 0 else { return false }
 
-        if let machineError {
-            return machineError.retryable
+        do {
+            if let machineError = try machineError(operation: "classify retryable process failure") {
+                return machineError.retryable
+            }
+        } catch {
+            return false
         }
 
         let lowercasedStderr = stderr.lowercased()

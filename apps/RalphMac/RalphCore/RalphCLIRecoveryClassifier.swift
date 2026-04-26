@@ -45,12 +45,21 @@ enum RalphCLIRecoveryClassifier {
                     workspaceURL: workspaceURL
                 )
             case .processError(let exitCode, let stderr):
-                if let machineError = MachineErrorDocument.decode(from: stderr) {
-                    return classifyMachineError(
-                        machineError,
-                        operation: operation,
-                        workspaceURL: workspaceURL
-                    )
+                do {
+                    if let machineError = try MachineErrorDocument.decodeIfPresent(
+                        from: stderr,
+                        operation: operation
+                    ) {
+                        return classifyMachineError(
+                            machineError,
+                            operation: operation,
+                            workspaceURL: workspaceURL
+                        )
+                    }
+                } catch let recovery as RecoveryError {
+                    return recovery
+                } catch {
+                    // Fall through to stderr-driven legacy classification for malformed payloads.
                 }
                 let trimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
@@ -126,12 +135,21 @@ enum RalphCLIRecoveryClassifier {
         operation: String,
         workspaceURL: URL?
     ) -> RecoveryError {
-        if let machineError = MachineErrorDocument.decode(from: description) {
-            return classifyMachineError(
-                machineError,
-                operation: operation,
-                workspaceURL: workspaceURL
-            )
+        do {
+            if let machineError = try MachineErrorDocument.decodeIfPresent(
+                from: description,
+                operation: operation
+            ) {
+                return classifyMachineError(
+                    machineError,
+                    operation: operation,
+                    workspaceURL: workspaceURL
+                )
+            }
+        } catch let recovery as RecoveryError {
+            return recovery
+        } catch {
+            // Fall through to legacy phrase matching when structured decode fails for non-version reasons.
         }
 
         let normalized = description.lowercased()

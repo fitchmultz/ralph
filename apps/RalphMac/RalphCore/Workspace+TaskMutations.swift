@@ -336,13 +336,28 @@ extension Workspace {
   ) async -> RalphTask? {
     let isTaskConflict = {
       if let retryable = error as? RetryableError,
-        case .processError(_, let stderr) = retryable,
-        MachineErrorDocument.decode(from: stderr)?.code == .taskMutationConflict
+        case .processError(_, let stderr) = retryable
       {
-        return true
+        do {
+          if let machineError = try MachineErrorDocument.decodeIfPresent(
+            from: stderr,
+            operation: "task mutate"
+          ) {
+            return machineError.code == .taskMutationConflict
+          }
+        } catch {
+          return false
+        }
       }
-      if let machineError = MachineErrorDocument.decode(from: error.localizedDescription) {
-        return machineError.code == .taskMutationConflict
+      do {
+        if let machineError = try MachineErrorDocument.decodeIfPresent(
+          from: error.localizedDescription,
+          operation: "task mutate"
+        ) {
+          return machineError.code == .taskMutationConflict
+        }
+      } catch {
+        return false
       }
       return error.localizedDescription.contains("Task mutation conflict for")
     }()

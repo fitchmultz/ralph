@@ -218,6 +218,40 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertEqual(recoveryError.underlyingError, document.detail)
     }
 
+    func testClassifyUnsupportedMachineErrorVersionFromProcessError() throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .resourceBusy,
+            message: "Resource temporarily unavailable.",
+            detail: "resource busy",
+            retryable: true
+        )
+        let stderr = String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        let error = RetryableError.processError(exitCode: 1, stderr: stderr)
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadTasks")
+        XCTAssertEqual(recoveryError.category, .versionMismatch)
+        XCTAssertTrue(recoveryError.message.contains("Unsupported machine error version 999"))
+    }
+
+    func testClassifyUnsupportedMachineErrorVersionFromGenericDescription() throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .resourceBusy,
+            message: "Resource temporarily unavailable.",
+            detail: "resource busy",
+            retryable: true
+        )
+        let description = String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        let error = NSError(domain: "RalphCore.CLIProcess", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: description
+        ])
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadTasks")
+        XCTAssertEqual(recoveryError.category, .versionMismatch)
+        XCTAssertTrue(recoveryError.message.contains("Unsupported machine error version 999"))
+    }
+
     func testClassifyMachineUnknownErrorUsesStructuredSanitizedMessage() throws {
         let document = MachineErrorDocument(
             version: 1,

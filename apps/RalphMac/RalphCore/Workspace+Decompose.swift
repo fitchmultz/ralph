@@ -83,7 +83,9 @@ extension Workspace {
         )
 
         guard collected.status.code == 0 else {
+            let operation = write ? "task decompose write" : "task decompose preview"
             throw WorkspaceError.cliError(collected.failureMessage(
+                operation: operation,
                 fallback: "Failed to run machine task decompose (exit \(collected.status.code))"
             ))
         }

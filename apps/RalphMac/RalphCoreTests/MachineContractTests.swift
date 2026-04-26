@@ -25,6 +25,30 @@ import XCTest
 @testable import RalphCore
 
 final class MachineContractTests: XCTestCase {
+    func testDecodeRejectsUnsupportedMachineErrorVersion() {
+        let data = Data("""
+        {
+          "version": 999,
+          "code": "resource_busy",
+          "message": "Resource temporarily unavailable.",
+          "detail": "resource busy",
+          "retryable": true
+        }
+        """.utf8)
+
+        XCTAssertThrowsError(
+            try RalphMachineContract.decode(
+                MachineErrorDocument.self,
+                from: data,
+                operation: "machine error"
+            )
+        ) { error in
+            let recovery = error as? RecoveryError
+            XCTAssertEqual(recovery?.category, .versionMismatch)
+            XCTAssertTrue(recovery?.message.contains("Unsupported machine error version 999") ?? false)
+        }
+    }
+
     func testDecodeRejectsUnsupportedQueueValidateVersion() {
         let data = Data("""
         {

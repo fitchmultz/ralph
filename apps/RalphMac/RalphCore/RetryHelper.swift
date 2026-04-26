@@ -93,8 +93,17 @@ public enum RetryableError: Error, Sendable, Equatable, LocalizedError {
         case .resourceTemporarilyUnavailable:
             return "Resource temporarily unavailable"
         case .processError(let exitCode, let stderr):
-            if let machineError = MachineErrorDocument.decode(from: stderr) {
-                return machineError.userFacingDescription
+            do {
+                if let machineError = try MachineErrorDocument.decodeIfPresent(
+                    from: stderr,
+                    operation: "format process error"
+                ) {
+                    return machineError.userFacingDescription
+                }
+            } catch let recovery as RecoveryError {
+                return recovery.message
+            } catch {
+                // Fall through to raw stderr formatting for malformed payloads.
             }
             let trimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty {
@@ -212,8 +221,15 @@ public final class RetryHelper: Sendable {
             case .fileLocked, .resourceBusy, .ioTimeout, .resourceTemporarilyUnavailable:
                 return true
             case .processError(let exitCode, let stderr):
-                if let machineError = MachineErrorDocument.decode(from: stderr) {
-                    return machineError.retryable
+                do {
+                    if let machineError = try MachineErrorDocument.decodeIfPresent(
+                        from: stderr,
+                        operation: "retry decision"
+                    ) {
+                        return machineError.retryable
+                    }
+                } catch {
+                    return false
                 }
                 return isRetryableProcessError(exitCode: exitCode, stderr: stderr)
             case .underlying(let underlying):

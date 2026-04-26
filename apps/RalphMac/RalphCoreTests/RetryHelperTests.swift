@@ -194,6 +194,19 @@ final class RetryHelperTests: RalphCoreTestCase {
         XCTAssertTrue(RetryHelper.defaultShouldRetry(error))
     }
 
+    func test_defaultShouldRetry_rejectsUnsupportedMachineErrorVersion() throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .resourceBusy,
+            message: "Resource temporarily unavailable.",
+            detail: "resource busy",
+            retryable: true
+        )
+        let stderr = String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        let error = RetryableError.processError(exitCode: 1, stderr: stderr)
+        XCTAssertFalse(RetryHelper.defaultShouldRetry(error))
+    }
+
     func test_machineErrorDocument_userFacingDescriptionIncludesStructuredFields() {
         let document = MachineErrorDocument(
             version: 1,
@@ -236,6 +249,23 @@ final class RetryHelperTests: RalphCoreTestCase {
         )
 
         XCTAssertEqual(error.localizedDescription, document.userFacingDescription)
+    }
+
+    func test_retryableProcessError_localizedDescriptionSurfacesVersionMismatchForUnsupportedMachineError(
+    ) throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .resourceBusy,
+            message: "Resource temporarily unavailable.",
+            detail: "resource busy",
+            retryable: true
+        )
+        let error = RetryableError.processError(
+            exitCode: 7,
+            stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        )
+
+        XCTAssertTrue(error.localizedDescription.contains("Unsupported machine error version 999"))
     }
     
     func test_isRetryableFailure_detectsRetryablePatterns() {
@@ -282,7 +312,23 @@ final class RetryHelperTests: RalphCoreTestCase {
             stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
         )
         XCTAssertTrue(output.isRetryableFailure)
-        XCTAssertEqual(output.machineError, document)
+        XCTAssertEqual(try output.machineError(operation: "retry helper test"), document)
+    }
+
+    func test_isRetryableFailure_rejectsUnsupportedMachineErrorVersion() throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .resourceBusy,
+            message: "Resource temporarily unavailable.",
+            detail: "resource busy",
+            retryable: true
+        )
+        let output = RalphCLIClient.CollectedOutput(
+            status: RalphCLIExitStatus(code: 1, reason: .exit),
+            stdout: "",
+            stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        )
+        XCTAssertFalse(output.isRetryableFailure)
     }
 
     func test_failureMessage_prefersStructuredMachineErrorDocument() throws {
@@ -302,6 +348,28 @@ final class RetryHelperTests: RalphCoreTestCase {
         XCTAssertEqual(
             output.failureMessage(fallback: "fallback message"),
             document.userFacingDescription
+        )
+    }
+
+    func test_failureMessage_surfacesVersionMismatchForUnsupportedMachineErrorDocument() throws {
+        let document = MachineErrorDocument(
+            version: 999,
+            code: .queueCorrupted,
+            message: "Queue is invalid.",
+            detail: "read queue file .ralph/queue.jsonc: missing terminal completed_at",
+            retryable: true
+        )
+        let output = RalphCLIClient.CollectedOutput(
+            status: RalphCLIExitStatus(code: 1, reason: .exit),
+            stdout: "",
+            stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
+        )
+
+        XCTAssertTrue(
+            output.failureMessage(
+                operation: "retry helper test failure message",
+                fallback: "fallback message"
+            ).contains("Unsupported machine error version 999")
         )
     }
 

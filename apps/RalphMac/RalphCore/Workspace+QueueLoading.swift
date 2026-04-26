@@ -309,7 +309,14 @@ extension Workspace {
         guard case .processError(let exitCode, let stderr) = error as? RetryableError else {
             return false
         }
-        if MachineErrorDocument.decode(from: stderr) != nil {
+        do {
+            if try MachineErrorDocument.decodeIfPresent(
+                from: stderr,
+                operation: "loadWorkspaceOverview"
+            ) != nil {
+                return false
+            }
+        } catch {
             return false
         }
         let normalized = stderr.lowercased()

@@ -70,6 +70,7 @@ extension Workspace {
     guard collected.status.code == 0 else {
       throw WorkspaceError.cliError(
         collected.failureMessage(
+          operation: "create task",
           fallback: "Failed to create task (exit \(collected.status.code))"
         ))
     }

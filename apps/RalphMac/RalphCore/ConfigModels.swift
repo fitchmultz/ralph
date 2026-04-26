@@ -194,18 +194,46 @@ public enum MachineErrorCode: String, Codable, Sendable, Equatable {
     case unknown
 }
 
-public struct MachineErrorDocument: Codable, Sendable, Equatable {
+public struct MachineErrorDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.errorVersion
+    public static let documentName = "machine error"
+
     public let version: Int
     public let code: MachineErrorCode
     public let message: String
     public let detail: String?
     public let retryable: Bool
 
-    public static func decode(from raw: String) -> MachineErrorDocument? {
+    public static func decodeIfPresent(
+        from raw: String,
+        operation: String
+    ) throws -> MachineErrorDocument? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         guard let data = trimmed.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(MachineErrorDocument.self, from: data)
+
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            return nil
+        }
+
+        guard let envelope = object as? [String: Any], isMachineErrorEnvelope(envelope) else {
+            return nil
+        }
+
+        do {
+            return try RalphMachineContract.decode(
+                MachineErrorDocument.self,
+                from: data,
+                operation: operation
+            )
+        } catch let recovery as RecoveryError {
+            throw recovery
+        } catch {
+            return nil
+        }
     }
 
     public var userFacingDescription: String {
@@ -226,6 +254,13 @@ public struct MachineErrorDocument: Codable, Sendable, Equatable {
         guard let detail else { return nil }
         let trimmed = detail.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func isMachineErrorEnvelope(_ object: [String: Any]) -> Bool {
+        object["version"] != nil
+            && object["code"] != nil
+            && object["message"] != nil
+            && object["retryable"] != nil
     }
 }
 

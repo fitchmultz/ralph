@@ -212,6 +212,7 @@ extension WorkspaceRunnerController {
                 guard collected.status.code == 0 else {
                     throw Workspace.WorkspaceError.cliError(
                         collected.failureMessage(
+                            operation: "request loop stop",
                             fallback: "Failed to request loop stop (exit \(collected.status.code))"
                         )
                     )
