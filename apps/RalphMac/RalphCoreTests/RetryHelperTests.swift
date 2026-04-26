@@ -181,6 +181,57 @@ final class RetryHelperTests: RalphCoreTestCase {
         XCTAssertTrue(RetryHelper.defaultShouldRetry(lockedError))
     }
 
+    func test_transientFixtureRetryability_staysAlignedAcrossRetrySurfaces() {
+        struct Fixture {
+            let text: String
+            let retryable: Bool
+        }
+
+        let fixtures: [Fixture] = [
+            Fixture(text: "resource temporarily unavailable", retryable: true),
+            Fixture(text: "device or resource busy", retryable: true),
+            Fixture(text: "file is locked by another process", retryable: true),
+            Fixture(text: "operation would block", retryable: true),
+            Fixture(text: "try again", retryable: true),
+            Fixture(text: "io timeout", retryable: true),
+            Fixture(text: "connection reset by peer", retryable: true),
+            Fixture(text: "broken pipe", retryable: true),
+            Fixture(text: "permission denied", retryable: false),
+            Fixture(text: "file not found", retryable: false),
+        ]
+
+        for fixture in fixtures {
+            let processError = RetryableError.processError(exitCode: 1, stderr: fixture.text)
+            XCTAssertEqual(
+                RetryHelper.defaultShouldRetry(processError),
+                fixture.retryable,
+                "process-error retryability mismatch for fixture: \(fixture.text)"
+            )
+
+            let collectedOutput = RalphCLIClient.CollectedOutput(
+                status: RalphCLIExitStatus(code: 1, reason: .exit),
+                stdout: "",
+                stderr: fixture.text
+            )
+            XCTAssertEqual(
+                collectedOutput.isRetryableFailure,
+                fixture.retryable,
+                "collected-output retryability mismatch for fixture: \(fixture.text)"
+            )
+
+            let genericError = NSError(
+                domain: "RalphCore.CLIProcess",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: fixture.text]
+            )
+            XCTAssertEqual(
+                RetryHelper.defaultShouldRetry(genericError),
+                fixture.retryable,
+                "generic-error retryability mismatch for fixture: \(fixture.text)"
+            )
+        }
+    }
+
     func test_defaultShouldRetry_usesMachineErrorRetryableFlag() throws {
         let document = MachineErrorDocument(
             version: 1,

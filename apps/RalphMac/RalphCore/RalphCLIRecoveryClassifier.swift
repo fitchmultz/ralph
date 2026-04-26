@@ -235,26 +235,20 @@ enum RalphCLIRecoveryClassifier {
             )
         }
 
-        if normalized.contains("network")
-            || normalized.contains("connection")
-            || normalized.contains("timed out")
-        {
-            return makeRecovery(
-                category: .networkError,
-                message: "Network operation failed",
-                underlyingError: description,
-                operation: operation,
-                workspaceURL: workspaceURL
-            )
-        }
+        if let category = RalphCLITransientErrorPolicy.recoveryCategory(for: description) {
+            let message: String
+            switch category {
+            case .resourceBusy:
+                message = "Resource temporarily unavailable"
+            case .networkError:
+                message = "Network operation failed"
+            default:
+                message = description
+            }
 
-        if normalized.contains("resource temporarily unavailable")
-            || normalized.contains("resource busy")
-            || normalized.contains("file locked")
-        {
             return makeRecovery(
-                category: .resourceBusy,
-                message: "Resource temporarily unavailable",
+                category: category,
+                message: message,
                 underlyingError: description,
                 operation: operation,
                 workspaceURL: workspaceURL

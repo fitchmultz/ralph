@@ -132,12 +132,13 @@
 		AA8888888888888888888888 /* VelocityDetailsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8888888888888888888888 /* VelocityDetailsCard.swift */; };
 		AA99BB88CC77DD66EE55FF4400112233 /* TaskDetailViewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE11DD22CC33BB44AA55FF6677889900 /* TaskDetailViewSupport.swift */; };
 		ABCD1234EFAB5678CD9012EF /* WorkspacePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */; };
-		AC12ADCEB6FBE27F325003B5 /* RetryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */; };
-		AC12ADCEB6FBE27F325003B6 /* WorkspaceTaskPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A8 /* WorkspaceTaskPresentationTests.swift */; };
-		AD182128A9C76DC60BA7ED7E /* WorkspaceWindowAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E244DB04759B1EF7B8AA9990 /* WorkspaceWindowAnchor.swift */; };
-		AD262F5CE6FC50AECE385373 /* RunControlConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */; };
-		ASETTINGSINFRA0012345678900 /* ASettingsInfra.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASETTINGSINFRAREF0012345678900 /* ASettingsInfra.swift */; };
-		B21C5D6A955D6896460637B7 /* RetryHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF00ECB3884C6A991E9ED664 /* RetryHelper.swift */; };
+			AC12ADCEB6FBE27F325003B5 /* RetryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */; };
+			AC12ADCEB6FBE27F325003B6 /* WorkspaceTaskPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A8 /* WorkspaceTaskPresentationTests.swift */; };
+			AD182128A9C76DC60BA7ED7E /* WorkspaceWindowAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E244DB04759B1EF7B8AA9990 /* WorkspaceWindowAnchor.swift */; };
+			AD262F5CE6FC50AECE385373 /* RunControlConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */; };
+			A9D1E3F4B5C6478899AABBCC /* RalphCLITransientErrorPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1E3F4B5C6478899AABBCD /* RalphCLITransientErrorPolicy.swift */; };
+			ASETTINGSINFRA0012345678900 /* ASettingsInfra.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASETTINGSINFRAREF0012345678900 /* ASettingsInfra.swift */; };
+			B21C5D6A955D6896460637B7 /* RetryHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF00ECB3884C6A991E9ED664 /* RetryHelper.swift */; };
 		B3F1A2C4D5E6789012345672 /* WorkspaceRunNextInvocationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345671 /* WorkspaceRunNextInvocationTests.swift */; };
 		B3F1A2C4D5E6789012345674 /* WorkspaceRunStateResumeBlockingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345673 /* WorkspaceRunStateResumeBlockingTests.swift */; };
 		B3F1A2C4D5E6789012345676 /* WorkspaceRunCancelAndLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345675 /* WorkspaceRunCancelAndLoopTests.swift */; };
@@ -385,17 +386,18 @@
 		A3100001B2C3D4E5F6071811 /* SettingsSmokeContractRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSmokeContractRunner.swift; sourceTree = "<group>"; };
 		A3110001B2C3D4E5F6071811 /* WorkspaceContractPresentationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceContractPresentationCoordinator.swift; sourceTree = "<group>"; };
 		A3120001B2C3D4E5F6071811 /* WorkspaceRoutingContractRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRoutingContractRunner.swift; sourceTree = "<group>"; };
-		A9011001B2C3D4E5F6071811 /* ErrorRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRecoveryView.swift; sourceTree = "<group>"; };
-		A9011001B2C3D4E5F6071812 /* TaskConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolution.swift; sourceTree = "<group>"; };
-		A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiagnosticsService.swift; sourceTree = "<group>"; };
-		A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardStateTests.swift; sourceTree = "<group>"; };
-		A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolutionTests.swift; sourceTree = "<group>"; };
-		A9020001B2C3D4E5F6071811 /* WorkspaceOperationalHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOperationalHealth.swift; sourceTree = "<group>"; };
-		A9020001B2C3D4E5F6071812 /* WorkspaceQueueRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueRuntime.swift; sourceTree = "<group>"; };
-		A9020001B2C3D4E5F6071813 /* WorkspaceRunnerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunnerController.swift; sourceTree = "<group>"; };
-		A9020001B2C3D4E5F6071814 /* WorkspaceSceneRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSceneRouter.swift; sourceTree = "<group>"; };
-		A94C0DE10000000000000002 /* RalphMockCLITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMockCLITestSupport.swift; sourceTree = "<group>"; };
-		AA11BB22CC33DD44EE55FF6677889900 /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskDetailView.swift; path = RalphMac/TaskDetailView.swift; sourceTree = "<group>"; };
+			A9011001B2C3D4E5F6071811 /* ErrorRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRecoveryView.swift; sourceTree = "<group>"; };
+			A9011001B2C3D4E5F6071812 /* TaskConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolution.swift; sourceTree = "<group>"; };
+			A9011001B2C3D4E5F6071813 /* WorkspaceDiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiagnosticsService.swift; sourceTree = "<group>"; };
+			A9011001B2C3D4E5F6071814 /* AnalyticsDashboardStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardStateTests.swift; sourceTree = "<group>"; };
+			A9011001B2C3D4E5F6071815 /* TaskConflictResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskConflictResolutionTests.swift; sourceTree = "<group>"; };
+			A9020001B2C3D4E5F6071811 /* WorkspaceOperationalHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOperationalHealth.swift; sourceTree = "<group>"; };
+			A9020001B2C3D4E5F6071812 /* WorkspaceQueueRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueRuntime.swift; sourceTree = "<group>"; };
+			A9020001B2C3D4E5F6071813 /* WorkspaceRunnerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunnerController.swift; sourceTree = "<group>"; };
+			A9020001B2C3D4E5F6071814 /* WorkspaceSceneRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSceneRouter.swift; sourceTree = "<group>"; };
+			A94C0DE10000000000000002 /* RalphMockCLITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMockCLITestSupport.swift; sourceTree = "<group>"; };
+			A9D1E3F4B5C6478899AABBCD /* RalphCLITransientErrorPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLITransientErrorPolicy.swift; sourceTree = "<group>"; };
+			AA11BB22CC33DD44EE55FF6677889900 /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskDetailView.swift; path = RalphMac/TaskDetailView.swift; sourceTree = "<group>"; };
 		AA48F75E84AD1531DC4D4BB9 /* DependencyGraphAccessibilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyGraphAccessibilityView.swift; sourceTree = "<group>"; };
 		AABBCCDDEEFF001122334455 /* GraphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphModels.swift; sourceTree = "<group>"; };
 		AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RunControlConsoleView.swift; sourceTree = "<group>"; };
@@ -565,14 +567,15 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		37CDBC33081942368A3B78AC /* RalphCore */ = {
-			isa = PBXGroup;
-			children = (
-				31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */,
-				31B301E8A7CC431E930E753A /* RalphCLIClient+Recovery.swift */,
-				C1AA00020000000000000002 /* RalphCLIRecoveryClassifier.swift */,
-				31B301E8A7CC431E930E753B /* RalphCLIRun.swift */,
-				31B301E8A7CC431E930E753C /* RalphCLIClient+Retry.swift */,
+			37CDBC33081942368A3B78AC /* RalphCore */ = {
+				isa = PBXGroup;
+				children = (
+					31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */,
+					31B301E8A7CC431E930E753A /* RalphCLIClient+Recovery.swift */,
+					C1AA00020000000000000002 /* RalphCLIRecoveryClassifier.swift */,
+					A9D1E3F4B5C6478899AABBCD /* RalphCLITransientErrorPolicy.swift */,
+					31B301E8A7CC431E930E753B /* RalphCLIRun.swift */,
+					31B301E8A7CC431E930E753C /* RalphCLIClient+Retry.swift */,
 				31B301E8A7CC431E930E753D /* RalphCLIHealthChecker.swift */,
 				5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */,
 				F3014AC133794F7F8AF0E753 /* RalphModels.swift */,
@@ -1019,15 +1022,16 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		5160DFD9B63E4D5387E9DA40 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */,
-				EE9BBA22346A4F6089F70336 /* RalphCLIClient+Recovery.swift in Sources */,
-				C1AB00020000000000000002 /* RalphCLIRecoveryClassifier.swift in Sources */,
-				EE9BBA22346A4F6089F70337 /* RalphCLIRun.swift in Sources */,
-				EE9BBA22346A4F6089F70338 /* RalphCLIClient+Retry.swift in Sources */,
+			5160DFD9B63E4D5387E9DA40 /* Sources */ = {
+				isa = PBXSourcesBuildPhase;
+				buildActionMask = 2147483647;
+				files = (
+					EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */,
+					EE9BBA22346A4F6089F70336 /* RalphCLIClient+Recovery.swift in Sources */,
+					C1AB00020000000000000002 /* RalphCLIRecoveryClassifier.swift in Sources */,
+					A9D1E3F4B5C6478899AABBCC /* RalphCLITransientErrorPolicy.swift in Sources */,
+					EE9BBA22346A4F6089F70337 /* RalphCLIRun.swift in Sources */,
+					EE9BBA22346A4F6089F70338 /* RalphCLIClient+Retry.swift in Sources */,
 				EE9BBA22346A4F6089F70339 /* RalphCLIHealthChecker.swift in Sources */,
 				0F5CF3F1723144EA83490033 /* RalphCLIExecutableLocator.swift in Sources */,
 				EF9F001157144DB59DB782FF /* RalphModels.swift in Sources */,

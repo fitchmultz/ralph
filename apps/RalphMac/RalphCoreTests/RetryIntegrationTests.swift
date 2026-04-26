@@ -138,6 +138,44 @@ final class RetryIntegrationTests: RalphCoreTestCase {
         let count = await tracker.count
         XCTAssertEqual(count, 1) // Should be called once for the retry
     }
+
+    func test_runAndCollectWithRetry_retriesOnTryAgainPhrase() async throws {
+        let stateFile = tempDir.appendingPathComponent("attempt-count-try-again")
+
+        let scriptContent = """
+            #!/bin/bash
+            ATTEMPT_FILE="\(stateFile.path)"
+            if [ -f "$ATTEMPT_FILE" ]; then
+                ATTEMPT=$(cat "$ATTEMPT_FILE")
+            else
+                ATTEMPT=0
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            echo $ATTEMPT > "$ATTEMPT_FILE"
+
+            if [ $ATTEMPT -lt 2 ]; then
+                echo "try again" >&2
+                exit 1
+            fi
+            echo '{"tasks":[]}'
+            exit 0
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: tempDir,
+            name: "mock-cli-try-again",
+            body: scriptContent
+        )
+
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        let result = try await client.runAndCollectWithRetry(
+            arguments: ["queue", "list"],
+            retryConfiguration: RetryConfiguration(maxRetries: 3, baseDelay: 0.01, jitterRange: 0...0)
+        )
+
+        XCTAssertEqual(result.status.code, 0)
+        let attempts = Int(try String(contentsOf: stateFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines))
+        XCTAssertEqual(attempts, 2)
+    }
     
     func test_retryConfiguration_presets() {
         // Verify all preset configurations are valid
@@ -177,10 +215,12 @@ final class RetryIntegrationTests: RalphCoreTestCase {
             "device or resource busy",
             "file is locked",
             "io timeout",
+            "timed out",
+            "connection reset",
+            "broken pipe",
             "eagain",
             "ewouldblock",
             "ebusy",
-            "locked",
             "try again"
         ]
         

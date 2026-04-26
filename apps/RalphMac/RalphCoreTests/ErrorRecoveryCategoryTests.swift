@@ -317,6 +317,70 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertEqual(genericRecovery.message, processRecovery.message)
     }
 
+    func testTransientFixtures_alignRetryAndRecoveryAcrossGenericAndProcessErrors() {
+        struct Fixture {
+            let text: String
+            let retryable: Bool
+            let expectedCategory: ErrorCategory?
+        }
+
+        let fixtures: [Fixture] = [
+            Fixture(text: "resource temporarily unavailable", retryable: true, expectedCategory: .resourceBusy),
+            Fixture(text: "device or resource busy", retryable: true, expectedCategory: .resourceBusy),
+            Fixture(text: "file is locked by another process", retryable: true, expectedCategory: .resourceBusy),
+            Fixture(text: "operation would block", retryable: true, expectedCategory: .resourceBusy),
+            Fixture(text: "try again", retryable: true, expectedCategory: .resourceBusy),
+            Fixture(text: "io timeout", retryable: true, expectedCategory: .networkError),
+            Fixture(text: "connection reset by peer", retryable: true, expectedCategory: .networkError),
+            Fixture(text: "broken pipe", retryable: true, expectedCategory: .networkError),
+            Fixture(text: "permission denied", retryable: false, expectedCategory: .permissionDenied),
+            Fixture(text: "file not found", retryable: false, expectedCategory: nil),
+        ]
+
+        for fixture in fixtures {
+            let genericError = NSError(
+                domain: "RalphCore.CLIProcess",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: fixture.text]
+            )
+            let processError = RetryableError.processError(exitCode: 1, stderr: fixture.text)
+
+            XCTAssertEqual(
+                RetryHelper.defaultShouldRetry(genericError),
+                fixture.retryable,
+                "generic-error retryability mismatch for fixture: \(fixture.text)"
+            )
+            XCTAssertEqual(
+                RetryHelper.defaultShouldRetry(processError),
+                fixture.retryable,
+                "process-error retryability mismatch for fixture: \(fixture.text)"
+            )
+
+            let genericRecovery = RecoveryError.classify(error: genericError, operation: "loadTasks")
+            let processRecovery = RecoveryError.classify(error: processError, operation: "loadTasks")
+
+            XCTAssertEqual(
+                genericRecovery.category,
+                processRecovery.category,
+                "generic/process classification mismatch for fixture: \(fixture.text)"
+            )
+
+            if let expectedCategory = fixture.expectedCategory {
+                XCTAssertEqual(
+                    genericRecovery.category,
+                    expectedCategory,
+                    "unexpected category for fixture: \(fixture.text)"
+                )
+            } else {
+                XCTAssertEqual(
+                    genericRecovery.category,
+                    .unknown,
+                    "expected unknown category for fixture: \(fixture.text)"
+                )
+            }
+        }
+    }
+
     func testClassifyMissingQueueFileIsActionable() {
         let error = NSError(
             domain: "RalphCore.CLIProcess",

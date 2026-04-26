@@ -23,10 +23,6 @@
 
 public import Foundation
 
-#if canImport(Darwin)
-import Darwin
-#endif
-
 /// Configuration for retry behavior
 public struct RetryConfiguration: Sendable {
     public let maxRetries: Int
@@ -231,101 +227,20 @@ public final class RetryHelper: Sendable {
                 } catch {
                     return false
                 }
-                return isRetryableProcessError(exitCode: exitCode, stderr: stderr)
+                return RalphCLITransientErrorPolicy.isRetryableProcessError(
+                    exitCode: exitCode,
+                    stderr: stderr
+                )
             case .underlying(let underlying):
-                return isRetryableUnderlyingError(underlying)
+                return RalphCLITransientErrorPolicy.isRetryableUnderlyingError(underlying)
             }
         }
-        
-        // Check for process error patterns in description (for errors from other sources)
-        let description = error.localizedDescription.lowercased()
-        let retryablePatterns = [
-            "file locked",
-            "resource busy",
-            "io timeout",
-            "resource temporarily unavailable",
-            "operation would block",
-            "device or resource busy",
-            "eagain",
-            "ewouldblock",
-            "ebusy"
-        ]
-        
-        if retryablePatterns.contains(where: { description.contains($0) }) {
+
+        if RalphCLITransientErrorPolicy.recoveryCategory(for: error.localizedDescription) != nil {
             return true
         }
-        
-        // Check for common retryable underlying errors via NSError
-        return isRetryableUnderlyingError(error)
-    }
-    
-    /// Check if a process error is retryable based on exit code and stderr
-    private static func isRetryableProcessError(exitCode: Int32, stderr: String) -> Bool {
-        // Exit codes that indicate transient failures
-        let retryableExitCodes: Set<Int32> = [75, 111] // EX_TEMPFAIL, EX_UNAVAILABLE
-        
-        if retryableExitCodes.contains(exitCode) {
-            return true
-        }
-        
-        // Check stderr for retryable error patterns
-        let lowercasedStderr = stderr.lowercased()
-        let retryablePatterns = [
-            "resource temporarily unavailable",
-            "operation would block",
-            "device or resource busy",
-            "file is locked",
-            "io timeout",
-            "eagain",
-            "ewouldblock",
-            "ebusy"
-        ]
-        
-        return retryablePatterns.contains { lowercasedStderr.contains($0) }
-    }
-    
-    /// Check if an underlying error is retryable
-    private static func isRetryableUnderlyingError(_ error: any Error) -> Bool {
-        let nsError = error as NSError
-        
-        // Check for POSIX error codes
-        let retryablePOSIXCodes: Set<Int32> = [
-            EAGAIN,      // Resource temporarily unavailable
-            EWOULDBLOCK, // Operation would block
-            EBUSY,       // Device or resource busy
-            EDEADLK,     // Resource deadlock would occur
-            EINTR        // Interrupted system call
-        ]
-        
-        if nsError.domain == NSPOSIXErrorDomain {
-            return retryablePOSIXCodes.contains(Int32(nsError.code))
-        }
-        
-        // Check for Cocoa/Foundation errors that indicate transient issues
-        let retryableCocoaCodes: Set<Int> = [
-            NSFileReadUnknownError,
-            NSFileWriteUnknownError,
-            NSFileLockingError
-        ]
-        
-        if nsError.domain == NSCocoaErrorDomain {
-            return retryableCocoaCodes.contains(nsError.code)
-        }
-        
-        // Check error description for common transient error patterns
-        let errorDescription = error.localizedDescription.lowercased()
-        let retryablePatterns = [
-            "resource temporarily unavailable",
-            "operation would block",
-            "device or resource busy",
-            "file is locked",
-            "try again",
-            "io timeout",
-            "connection reset",
-            "broken pipe"
-        ]
-        
-        return retryablePatterns.contains { errorDescription.contains($0) }
+
+        return RalphCLITransientErrorPolicy.isRetryableUnderlyingError(error)
     }
 }
 

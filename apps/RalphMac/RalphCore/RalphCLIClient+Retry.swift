@@ -99,23 +99,10 @@ public extension RalphCLIClient.CollectedOutput {
         } catch {
             return false
         }
-
-        let lowercasedStderr = stderr.lowercased()
-        let retryablePatterns = [
-            "resource temporarily unavailable",
-            "operation would block",
-            "device or resource busy",
-            "resource busy",
-            "file is locked",
-            "io timeout",
-            "eagain",
-            "ewouldblock",
-            "ebusy",
-            "locked",
-            "try again"
-        ]
-
-        return retryablePatterns.contains { lowercasedStderr.contains($0) }
+        return RalphCLITransientErrorPolicy.isRetryableProcessError(
+            exitCode: status.code,
+            stderr: stderr
+        )
     }
 
     func toError() -> any Error {
