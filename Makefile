@@ -77,7 +77,7 @@ MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help install install-verify macos-install-app update lint lint-fix format format-check type-check clean clean-temp test generate docs build ci ci-fast ci-docs deps \
 	changelog changelog-preview changelog-check version-check version-sync publish-check release release-dry-run release-verify release-artifacts pre-commit pre-public-check release-gate \
-	profile-ship-gate profile-ship-gate-clean agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
+	profile-ship-gate profile-ship-gate-clean agent-ci check-env-safety check-backup-artifacts check-file-size-limits check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
 	macos-test-window-shortcuts macos-test-contracts macos-test-settings-smoke macos-test-workspace-routing-contract coverage coverage-clean
 help:
@@ -114,6 +114,7 @@ help:
 	@echo "  make publish-check # Run cargo package review + crates.io dry-run for $(CARGO_PACKAGE_NAME)"
 	@echo "  make release-verify VERSION=x.y.z # Prepare the exact local release snapshot that make release will publish"
 	@echo "  make check-repo-safety # Fast required-files + env/runtime + secret checks"
+	@echo "  make check-file-size-limits # Enforce warn-on-soft/fail-on-hard file-size guardrail"
 	@echo ""
 	@echo "Resource knobs (optional):"
 	@echo "  RALPH_CI_JOBS=4     # Example cap for shared workstations (0 = tool default, fastest local iteration)"
@@ -349,6 +350,9 @@ check-backup-artifacts:
 		exit 1; \
 	fi
 
+check-file-size-limits:
+	@bash ./scripts/check-file-size-limits.sh
+
 check-repo-safety: check-env-safety
 	@true
 
@@ -357,7 +361,7 @@ pre-commit: check-env-safety check-backup-artifacts format-check
 	@echo "  ✓ Pre-commit checks passed"
 
 # Docs/community-only safety gate when no executable surface changed.
-ci-docs: check-env-safety check-backup-artifacts
+ci-docs: check-env-safety check-backup-artifacts check-file-size-limits
 	@echo "→ Docs-only CI gate (no executable surface changed)..."
 	@bash ./scripts/lib/public_readiness_scan.sh docs
 	@echo ""
@@ -365,7 +369,7 @@ ci-docs: check-env-safety check-backup-artifacts
 
 # Fast deterministic Rust/CLI gate for routine development and PR-equivalent checks.
 # Clippy is run with --all-targets/--all-features and type-checks the same Rust surface.
-ci-fast: check-env-safety check-backup-artifacts deps format-check lint test
+ci-fast: check-env-safety check-backup-artifacts check-file-size-limits deps format-check lint test
 	@echo "→ Fast CI gate (format-check/lint/test)..."
 	@echo ""
 	@echo "  ✓ Fast CI completed"

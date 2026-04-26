@@ -61,6 +61,7 @@ Docs/community-only gate is `make ci-docs`:
 
 - `check-env-safety` (runs required-file + secret checks everywhere, and adds tracked runtime/local-only file validation when git metadata is available)
 - `check-backup-artifacts`
+- `check-file-size-limits` (warns on files over the soft limit; fails on files over the hard limit)
 - repo-wide markdown link scan
 - documented session-cache path guard
 
@@ -68,10 +69,18 @@ Fast Rust/CLI gate is `make ci-fast`:
 
 - `check-env-safety` (runs required-file + secret checks everywhere, and adds tracked runtime/local-only file validation when git metadata is available)
 - `check-backup-artifacts`
+- `check-file-size-limits` (same policy behavior as `ci-docs`)
 - `deps`
 - `format-check`
 - `lint` (`cargo clippy --all-targets --all-features`, which also type-checks the Rust surface)
 - `test`
+
+File-size guard behavior:
+
+- Policy is sourced from `AGENTS.md` (`target <500`, soft `~800`, hard `1000` LOC).
+- Soft-limit offenders are always printed as actionable warnings and do not fail the gate.
+- Hard-limit offenders fail the gate with explicit line counts and relative paths.
+- Excludes are intentionally narrow and focused on machine-owned/generated surfaces (for example `schemas/*.json`, `*.xcodeproj/project.pbxproj`, and `.ralph/{queue,done,config}.jsonc`), not broad source-tree bypasses.
 
 ## Lower-Level Gates
 

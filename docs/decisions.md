@@ -27,6 +27,41 @@ Follow-up actions:
 Review date, if any:
 ```
 
+## 2026-04-26: Enforce repository file-size policy in local CI tiers
+
+Decision: Enforce Ralph's documented file-size policy through a deterministic
+local guardrail (`scripts/check-file-size-limits.sh`) wired into both
+`make ci-docs` and `make ci-fast`.
+
+Date: 2026-04-26
+
+Owner: Maintainers
+
+Context: File-size limits were documented in [AGENTS.md](../AGENTS.md) but not
+enforced by the canonical local gates, allowing oversized files to accumulate
+without immediate feedback.
+
+Chosen option: Add a dedicated script that scans tracked and untracked
+non-ignored human-authored files, warns when files exceed the soft limit, fails
+when files exceed the hard limit, and keeps generated/machine-owned exclusions
+explicit and narrow.
+
+Rejected options: Keep limits as documentation-only policy; fail immediately on
+all soft-limit offenders; add broad source-tree exclusions to suppress current
+offenders.
+
+Reason: Warn-on-soft/fail-on-hard creates immediate visibility while preventing
+new hard-limit debt, without turning existing soft-limit cleanup into a
+permanent blocker.
+
+Expected consequences: Docs-only and code-oriented local gates now surface
+actionable offender paths and line counts. New hard-limit violations fail early
+in the canonical local workflow.
+
+Follow-up actions: Track and split current soft-limit offenders over time.
+
+Review date, if any: None.
+
 ## 2026-04-26: Track RalphMac parity by scenario-level proof
 
 Decision: Treat scenario-level proof entries in
