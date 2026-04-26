@@ -15,7 +15,7 @@
  - Process execution, backoff, or UI rendering.
 
  Usage:
- - `RetryHelper`, `RalphCLIClient.CollectedOutput`, and `RalphCLIRecoveryClassifier` call this module.
+ - `RetryHelper` and `RalphCLIRecoveryClassifier` call this module.
 
  Invariants/assumptions callers must respect:
  - Input text can be free-form stderr or localized descriptions.
@@ -45,6 +45,7 @@ enum RalphCLITransientErrorPolicy {
         ("resource busy", .resourceBusy),
         ("file is locked", .resourceBusy),
         ("file locked", .resourceBusy),
+        ("locked", .resourceBusy),
         ("eagain", .resourceBusy),
         ("ewouldblock", .resourceBusy),
         ("ebusy", .resourceBusy),

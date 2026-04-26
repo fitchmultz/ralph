@@ -167,18 +167,36 @@ final class RetryHelperTests: RalphCoreTestCase {
         XCTAssertTrue(RetryHelper.defaultShouldRetry(RetryableError.resourceTemporarilyUnavailable))
     }
     
-    func test_defaultShouldRetry_recognizesProcessErrorWithRetryableStderr() {
+    func test_defaultShouldRetry_recognizesCanonicalProcessErrorPatterns() {
+        let retryablePatterns = [
+            "resource temporarily unavailable",
+            "operation would block",
+            "device or resource busy",
+            "resource busy",
+            "file is locked",
+            "io timeout",
+            "eagain",
+            "ewouldblock",
+            "ebusy",
+            "locked",
+            "try again"
+        ]
+
+        for pattern in retryablePatterns {
+            let error = RetryableError.processError(exitCode: 1, stderr: pattern)
+            XCTAssertTrue(
+                RetryHelper.defaultShouldRetry(error),
+                "Pattern '\(pattern)' should be retryable"
+            )
+        }
+    }
+
+    func test_defaultShouldRetry_rejectsProcessErrorWithNonRetryableStderr() {
         let error = RetryableError.processError(
             exitCode: 1,
-            stderr: "Resource temporarily unavailable"
+            stderr: "permission denied"
         )
-        XCTAssertTrue(RetryHelper.defaultShouldRetry(error))
-        
-        let lockedError = RetryableError.processError(
-            exitCode: 1,
-            stderr: "File is locked by another process"
-        )
-        XCTAssertTrue(RetryHelper.defaultShouldRetry(lockedError))
+        XCTAssertFalse(RetryHelper.defaultShouldRetry(error))
     }
 
     func test_transientFixtureRetryability_staysAlignedAcrossRetrySurfaces() {
@@ -214,9 +232,9 @@ final class RetryHelperTests: RalphCoreTestCase {
                 stderr: fixture.text
             )
             XCTAssertEqual(
-                collectedOutput.isRetryableFailure,
+                RetryHelper.defaultShouldRetry(collectedOutput.toError()),
                 fixture.retryable,
-                "collected-output retryability mismatch for fixture: \(fixture.text)"
+                "collected-output toError retryability mismatch for fixture: \(fixture.text)"
             )
 
             let genericError = NSError(
@@ -319,37 +337,7 @@ final class RetryHelperTests: RalphCoreTestCase {
         XCTAssertTrue(error.localizedDescription.contains("Unsupported machine error version 999"))
     }
     
-    func test_isRetryableFailure_detectsRetryablePatterns() {
-        let lockedOutput = RalphCLIClient.CollectedOutput(
-            status: RalphCLIExitStatus(code: 1, reason: .exit),
-            stdout: "",
-            stderr: "file is locked"
-        )
-        XCTAssertTrue(lockedOutput.isRetryableFailure)
-        
-        let busyOutput = RalphCLIClient.CollectedOutput(
-            status: RalphCLIExitStatus(code: 1, reason: .exit),
-            stdout: "",
-            stderr: "resource busy"
-        )
-        XCTAssertTrue(busyOutput.isRetryableFailure)
-        
-        let permanentOutput = RalphCLIClient.CollectedOutput(
-            status: RalphCLIExitStatus(code: 1, reason: .exit),
-            stdout: "",
-            stderr: "file not found"
-        )
-        XCTAssertFalse(permanentOutput.isRetryableFailure)
-        
-        let successOutput = RalphCLIClient.CollectedOutput(
-            status: RalphCLIExitStatus(code: 0, reason: .exit),
-            stdout: "success",
-            stderr: ""
-        )
-        XCTAssertFalse(successOutput.isRetryableFailure)
-    }
-
-    func test_isRetryableFailure_usesMachineErrorDocument() throws {
+    func test_machineError_decodesStructuredDocument() throws {
         let document = MachineErrorDocument(
             version: 1,
             code: .resourceBusy,
@@ -362,24 +350,7 @@ final class RetryHelperTests: RalphCoreTestCase {
             stdout: "",
             stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
         )
-        XCTAssertTrue(output.isRetryableFailure)
         XCTAssertEqual(try output.machineError(operation: "retry helper test"), document)
-    }
-
-    func test_isRetryableFailure_rejectsUnsupportedMachineErrorVersion() throws {
-        let document = MachineErrorDocument(
-            version: 999,
-            code: .resourceBusy,
-            message: "Resource temporarily unavailable.",
-            detail: "resource busy",
-            retryable: true
-        )
-        let output = RalphCLIClient.CollectedOutput(
-            status: RalphCLIExitStatus(code: 1, reason: .exit),
-            stdout: "",
-            stderr: String(decoding: try JSONEncoder().encode(document), as: UTF8.self)
-        )
-        XCTAssertFalse(output.isRetryableFailure)
     }
 
     func test_failureMessage_prefersStructuredMachineErrorDocument() throws {

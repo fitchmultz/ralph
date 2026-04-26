@@ -207,12 +207,12 @@ final class RetryIntegrationTests: RalphCoreTestCase {
         XCTAssertEqual(analyticsConfig.maxRetries, 1)
     }
     
-    func test_collectedOutput_isRetryableFailure_patterns() {
-        // Test various retryable error patterns
+    func test_collectedOutput_toError_usesCanonicalRetryHelperClassification() {
         let retryablePatterns = [
             "resource temporarily unavailable",
             "operation would block",
             "device or resource busy",
+            "resource busy",
             "file is locked",
             "io timeout",
             "timed out",
@@ -230,10 +230,12 @@ final class RetryIntegrationTests: RalphCoreTestCase {
                 stdout: "",
                 stderr: pattern
             )
-            XCTAssertTrue(output.isRetryableFailure, "Pattern '\(pattern)' should be retryable")
+            XCTAssertTrue(
+                RetryHelper.defaultShouldRetry(output.toError()),
+                "Pattern '\(pattern)' should be retryable"
+            )
         }
-        
-        // Test non-retryable patterns
+
         let nonRetryablePatterns = [
             "file not found",
             "permission denied",
@@ -247,7 +249,10 @@ final class RetryIntegrationTests: RalphCoreTestCase {
                 stdout: "",
                 stderr: pattern
             )
-            XCTAssertFalse(output.isRetryableFailure, "Pattern '\(pattern)' should not be retryable")
+            XCTAssertFalse(
+                RetryHelper.defaultShouldRetry(output.toError()),
+                "Pattern '\(pattern)' should not be retryable"
+            )
         }
     }
     

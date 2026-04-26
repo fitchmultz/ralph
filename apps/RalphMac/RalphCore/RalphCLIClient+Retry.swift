@@ -89,22 +89,6 @@ public extension RalphCLIClient.CollectedOutput {
         return fallbackMessage()
     }
 
-    var isRetryableFailure: Bool {
-        guard status.code != 0 else { return false }
-
-        do {
-            if let machineError = try machineError(operation: "classify retryable process failure") {
-                return machineError.retryable
-            }
-        } catch {
-            return false
-        }
-        return RalphCLITransientErrorPolicy.isRetryableProcessError(
-            exitCode: status.code,
-            stderr: stderr
-        )
-    }
-
     func toError() -> any Error {
         RetryableError.processError(exitCode: status.code, stderr: stderr)
     }

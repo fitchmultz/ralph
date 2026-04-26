@@ -239,7 +239,6 @@ public final class RetryHelper: Sendable {
         if RalphCLITransientErrorPolicy.recoveryCategory(for: error.localizedDescription) != nil {
             return true
         }
-
         return RalphCLITransientErrorPolicy.isRetryableUnderlyingError(error)
     }
 }
