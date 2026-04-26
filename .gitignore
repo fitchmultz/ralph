@@ -10,7 +10,6 @@
 **/.ty_cache/
 target/
 .learnings
-.vscode/settings.json
 debug/
 CLAUDE.md
 GEMINI.md
