@@ -9,8 +9,8 @@
     },
     "git_publish_mode": "commit_and_push",
     "runner": "codex",
-    "model": "gpt-5.5",
-    "reasoning_effort": "medium",
+    "model": "gpt-5.3-codex",
+    "reasoning_effort": "xhigh",
     "phases": 3,
     "phase_overrides": {
       "phase1": {
