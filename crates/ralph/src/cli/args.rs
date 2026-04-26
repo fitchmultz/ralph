@@ -82,7 +82,7 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 
-    /// Force operations (e.g., bypass stale queue locks; bypass clean-repo safety checks for commands that enforce them, e.g. `run one`, `run loop`, and `scan`).
+    /// Force operations (e.g., bypass clean-repo safety checks for commands that enforce them, e.g., `run one`, `run loop`, and `scan`).
     #[arg(long, global = true)]
     pub force: bool,
 

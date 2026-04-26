@@ -5,7 +5,7 @@
 //!
 //! Responsibilities:
 //! - Create lock directories and owner files.
-//! - Apply stale-lock force-removal and shared supervisor/task lock rules.
+//! - Apply stale-lock auto-cleanup and shared supervisor/task lock rules.
 //! - Detect supervising-process ownership for callers that should avoid re-locking.
 //!
 //! Not handled here:
@@ -58,7 +58,7 @@ pub fn is_supervising_process(lock_dir: &Path) -> Result<bool> {
     Ok(is_supervising_label(&owner.label))
 }
 
-pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<DirLock> {
+pub fn acquire_dir_lock(lock_dir: &Path, label: &str, _force: bool) -> Result<DirLock> {
     log::debug!(
         "acquiring dir lock: {} (label: {})",
         lock_dir.display(),
@@ -77,15 +77,24 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
             let existing = inspect_existing_lock(lock_dir, read_lock_owner);
 
-            if force && existing.is_stale {
-                if let Err(remove_error) = fs::remove_dir_all(lock_dir) {
-                    log::debug!(
-                        "Failed to remove stale lock directory {}: {}",
-                        lock_dir.display(),
-                        remove_error
-                    );
+            if existing.is_stale {
+                match fs::remove_dir_all(lock_dir) {
+                    Ok(()) => {
+                        log::info!(
+                            "Auto-cleared stale lock directory {} before acquiring {} lock",
+                            lock_dir.display(),
+                            label
+                        );
+                        return acquire_dir_lock(lock_dir, label, false);
+                    }
+                    Err(remove_error) => {
+                        log::debug!(
+                            "Failed to auto-clear stale lock directory {}: {}",
+                            lock_dir.display(),
+                            remove_error
+                        );
+                    }
                 }
-                return acquire_dir_lock(lock_dir, label, false);
             }
 
             if !(is_task_label

@@ -28,6 +28,15 @@ fn test_owner(started_at: &str) -> LockOwner {
     }
 }
 
+fn find_definitely_dead_pid() -> u32 {
+    for pid in [0xFFFF_FFFE, 999_999, 500_000, 250_000, 100_000] {
+        if pid_is_running(pid) == Some(false) {
+            return pid;
+        }
+    }
+    panic!("Could not find a definitely-dead PID on this system");
+}
+
 #[test]
 fn pid_is_running_current_process() {
     let current_pid = std::process::id();
@@ -110,6 +119,53 @@ fn lock_staleness_flags_unclear_owner_time_for_review_without_auto_stale() {
     );
     assert!(!future.is_stale());
     assert_eq!(future.advisory, LockStalenessAdvisory::FutureStartedAt);
+}
+
+#[test]
+fn acquire_dir_lock_auto_clears_stale_lock_without_force() -> anyhow::Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let lock_dir = temp.path().join("lock");
+    std::fs::create_dir_all(&lock_dir)?;
+    std::fs::write(
+        lock_dir.join("owner"),
+        format!(
+            "pid: {}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run loop\n",
+            find_definitely_dead_pid()
+        ),
+    )?;
+
+    let lock = acquire_dir_lock(&lock_dir, "next run", false)?;
+
+    let owner = std::fs::read_to_string(lock_dir.join("owner"))?;
+    assert!(
+        owner.contains("label: next run"),
+        "expected acquisition to replace stale owner metadata, got: {owner}"
+    );
+    drop(lock);
+    assert!(
+        !lock_dir.exists(),
+        "expected new lock guard to clean up normally after drop"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn lock_error_suggestions_do_not_emit_manual_rm_commands() {
+    let owner = test_owner("2026-04-09T00:00:00Z");
+    let message = format_lock_error(
+        std::path::Path::new("/tmp/ralph-lock"),
+        Some(&owner),
+        true,
+        false,
+        Some(LockStaleness {
+            liveness: PidLiveness::NotRunning,
+            advisory: LockStalenessAdvisory::None,
+        }),
+    );
+
+    assert!(message.contains("ralph queue unlock --yes"));
+    assert!(!message.contains("rm -rf"), "message was: {message}");
 }
 
 #[test]

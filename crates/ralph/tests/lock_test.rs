@@ -86,7 +86,7 @@ fn test_acquire_dir_lock_already_held() {
 
 #[cfg(unix)]
 #[test]
-fn test_acquire_dir_lock_force_with_stale_pid() {
+fn test_acquire_dir_lock_auto_clears_stale_pid() {
     let dir = TempDir::new().expect("create temp dir");
     let repo_root = dir.path();
     let lock_dir = lock::queue_lock_dir(repo_root);
@@ -100,8 +100,8 @@ fn test_acquire_dir_lock_force_with_stale_pid() {
     );
     fs::write(&owner_path, fake_owner).unwrap();
 
-    // Force acquisition should clear stale lock
-    let lock = lock::acquire_dir_lock(&lock_dir, "new_label", true).unwrap();
+    // Acquisition should automatically clear a confirmed stale lock.
+    let lock = lock::acquire_dir_lock(&lock_dir, "new_label", false).unwrap();
     assert!(lock_dir.exists());
 
     // Verify owner was updated

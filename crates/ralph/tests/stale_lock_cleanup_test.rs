@@ -4,7 +4,7 @@
 //! - Integration tests for stale lock cleanup behavior.
 //!
 //! Responsibilities:
-//! - Verify force acquisition clears stale lock metadata.
+//! - Verify acquisition clears stale lock metadata automatically.
 //! - Ensure active locks are not removed even when forced.
 //! - Verify resume flow clears stale locks automatically (regression test for RQ-0643).
 //!
@@ -21,7 +21,7 @@
 //!
 //! Invariants/assumptions:
 //! - The fake PID used is not running on the test system.
-//! - Error messages retain the "stale pid" signal.
+//! - Active-lock error messages retain the lock-holder signal.
 
 use anyhow::{Context, Result};
 use ralph::lock;
@@ -33,7 +33,7 @@ mod lock_support;
 
 #[cfg(unix)]
 #[test]
-fn acquire_dir_lock_auto_cleans_stale_lock_when_forced() -> Result<()> {
+fn acquire_dir_lock_auto_cleans_stale_lock_without_force() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
     let lock_dir = dir.path().join("lock");
 
@@ -49,13 +49,9 @@ fn acquire_dir_lock_auto_cleans_stale_lock_when_forced() -> Result<()> {
         ),
     )?;
 
-    // Attempting to acquire without force should fail.
-    let err = lock::acquire_dir_lock(&lock_dir, "new-proc", false).unwrap_err();
-    assert!(format!("{err:#}").to_lowercase().contains("stale pid"));
-
-    // Attempting to acquire with force should succeed.
-    let _lock =
-        lock::acquire_dir_lock(&lock_dir, "new-proc", true).context("acquire with force")?;
+    // Attempting to acquire without force should succeed because the PID is confirmed dead.
+    let _lock = lock::acquire_dir_lock(&lock_dir, "new-proc", false)
+        .context("acquire after auto-clearing stale lock")?;
     assert!(lock_dir.exists());
     assert!(owner_path.exists());
 
@@ -84,15 +80,15 @@ fn acquire_dir_lock_does_not_clean_active_lock_even_if_forced() -> Result<()> {
     Ok(())
 }
 
-/// Regression test for RQ-0643: force=true clears stale queue lock.
+/// Regression test for RQ-0643: acquisition clears stale queue locks.
 ///
 /// This test verifies the underlying mechanism used by the resume flow:
-/// acquire_queue_lock with force=true clears stale locks (PIDs that are dead).
-/// The run_loop calls this during resume to clear any stale locks left by
-/// a crashed or killed ralph process.
+/// acquire_queue_lock clears stale locks (PIDs that are dead). The run_loop
+/// calls this during resume to clear any stale locks left by a crashed or
+/// killed ralph process.
 #[cfg(unix)]
 #[test]
-fn acquire_dir_lock_with_force_clears_stale_lock_for_resume() -> Result<()> {
+fn acquire_dir_lock_clears_stale_lock_for_resume_without_force() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
     let repo_root = dir.path().to_path_buf();
     fs::create_dir_all(repo_root.join(".ralph")).context("create .ralph dir")?;
@@ -108,16 +104,9 @@ fn acquire_dir_lock_with_force_clears_stale_lock_for_resume() -> Result<()> {
         ),
     )?;
 
-    // Verify the lock exists and appears stale
+    // Acquire without force should succeed and clear the stale lock.
     assert!(lock_dir.exists(), "lock dir should exist");
-    let err = lock::acquire_dir_lock(&lock_dir, "test", false).unwrap_err();
-    assert!(
-        format!("{err:#}").contains("STALE PID"),
-        "expected stale PID error"
-    );
-
-    // Acquire with force=true should succeed and clear the stale lock
-    let lock = lock::acquire_dir_lock(&lock_dir, "run loop resume", true)?;
+    let lock = lock::acquire_dir_lock(&lock_dir, "run loop resume", false)?;
     drop(lock);
 
     // After dropping, the lock should be fully cleaned up.

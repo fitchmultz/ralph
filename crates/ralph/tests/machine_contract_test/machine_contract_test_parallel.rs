@@ -95,13 +95,16 @@ fn machine_run_started_preserves_repo_trust_in_config_payload() -> Result<()> {
     std::fs::create_dir_all(&lock_dir)?;
     std::fs::write(
         lock_dir.join("owner"),
-        "pid: 999999\nstarted_at: 2026-03-21T12:00:00Z\ncommand: ralph run loop --parallel 2\nlabel: run loop\n",
+        format!(
+            "pid: {}\nstarted_at: 2026-03-21T12:00:00Z\ncommand: ralph run loop --parallel 2\nlabel: run loop\n",
+            std::process::id()
+        ),
     )?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "run", "one", "--resume"]);
     assert!(
         !status.success(),
-        "machine run one should stall on the stale lock\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        "machine run one should stall on the active lock\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
     let run_started: Value = serde_json::from_str(

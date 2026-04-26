@@ -17,8 +17,7 @@
 //! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants/assumptions:
-//! - `clear_stale_queue_lock_for_resume` uses `force=true` which only clears
-//!   the lock if the owning PID is confirmed dead.
+//! - Stale lock cleanup only clears locks whose owner PID is confirmed dead.
 //! - Queue lock errors are non-retriable to prevent infinite loops.
 
 use anyhow::Result;
@@ -52,8 +51,9 @@ impl QueueLockInspection {
 /// Clear stale queue lock when resuming a session.
 ///
 /// This helper is called during resume to preemptively clean up stale locks
-/// left behind by a crashed or killed ralph process. It uses `force=true`
-/// which only clears the lock if the owning PID is confirmed stale (see lock.rs).
+/// left behind by a crashed or killed ralph process. Normal lock acquisition
+/// also auto-clears confirmed-dead PID locks; this remains a resume-specific
+/// preflight so resume decisions see a clean queue-lock state.
 ///
 /// Returns Ok(()) if no lock exists, lock was cleared, or lock is held by
 /// a live process/unreadable metadata (those cases are handled later during
@@ -64,7 +64,6 @@ pub fn clear_stale_queue_lock_for_resume(repo_root: &Path) -> Result<()> {
         return Ok(());
     }
 
-    // `force=true` only clears when the PID is confirmed stale (see lock.rs).
     // We acquire+drop immediately: this performs stale cleanup without holding the lock.
     let lock = match crate::queue::acquire_queue_lock(repo_root, "run loop resume", true) {
         Ok(lock) => lock,
@@ -118,7 +117,7 @@ pub(crate) fn inspect_queue_lock(repo_root: &Path) -> Option<QueueLockInspection
                         None,
                         "Ralph is stalled on a stale queue lock.",
                         format!(
-                            "The queue lock at {} was left behind by Ralph process {} (pid {}). Clear the stale lock or rerun with --force before resuming execution.",
+                            "The queue lock at {} was left behind by Ralph process {} (pid {}). Ralph will auto-clear this verified stale lock on the next queue-lock acquisition.",
                             lock_dir.display(),
                             owner.label,
                             owner.pid

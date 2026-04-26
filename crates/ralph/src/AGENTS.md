@@ -387,5 +387,5 @@ When making changes, keep docs in sync:
 | CI failing | Run `make agent-ci`; first failing step is printed (common: formatting, Clippy warnings, tests) |
 | `.env tracked` error | Run `git rm --cached .env` and ensure `.env` is in `.gitignore` |
 | `Backup artifacts` error | Remove any `*.bak` files under `crates/ralph/src/` |
-| Queue lock | Investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale |
+| Queue lock | Confirmed-dead PID locks auto-clear on acquisition; investigate `.ralph/lock` before forcing active or indeterminate locks |
 | Runner issues | Verify runner binary is on `PATH` (e.g., `codex --help`) and check runner/model settings in config |

@@ -194,8 +194,8 @@ fn inspect_queue_lock_reports_stale_lock_as_stale_operator_state() -> anyhow::Re
         inspection.blocking_state.message
     );
     assert!(
-        inspection.blocking_state.detail.contains("--force"),
-        "expected stale-specific recovery detail, got: {}",
+        inspection.blocking_state.detail.contains("auto-clear"),
+        "expected stale-specific auto-clear detail, got: {}",
         inspection.blocking_state.detail
     );
 

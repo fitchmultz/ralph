@@ -67,7 +67,7 @@ impl LockStalenessAdvisory {
                 FUTURE_STARTED_AT_GRACE_SECONDS / 60
             )),
             Self::AgedLivePid => Some(format!(
-                "  The owner `started_at` value is older than {} days while the owner PID {liveness_text}. This can be a long-running Ralph process or a reused PID, so Ralph does not auto-clear it; verify the PID, command, and timestamp before using --force or `ralph queue unlock`.",
+                "  The owner `started_at` value is older than {} days while the owner PID {liveness_text}. This can be a long-running Ralph process or a reused PID, so Ralph does not auto-clear it; verify the PID, command, and timestamp before using `ralph queue unlock`.",
                 PID_REUSE_REVIEW_AFTER_SECONDS / 60 / 60 / 24
             )),
         }
@@ -188,7 +188,7 @@ pub(crate) fn format_lock_error(
 
     if is_stale {
         message.push_str(
-            "\n\nStaleness Policy:\n  Ralph automatically treats a PID lock as stale only when the owner PID is definitely not running.",
+            "\n\nStaleness Policy:\n  Ralph automatically treats and clears a PID lock as stale only when the owner PID is definitely not running.",
         );
     } else if let Some(note) = staleness.and_then(LockStaleness::advisory_note) {
         message.push_str("\n\nStaleness Policy:\n");
@@ -197,15 +197,13 @@ pub(crate) fn format_lock_error(
 
     message.push_str("\n\nSuggested Action:");
     if is_stale {
-        message.push_str(&format!(
-            "\n  The process that held this lock is no longer running.\n  Use --force to automatically clear it, or use the built-in unlock command (unsafe if another ralph is running):\n  ralph queue unlock\n  Or remove the directory manually:\n  rm -rf {}",
-            lock_dir.display()
-        ));
+        message.push_str(
+            "\n  The process that held this lock is no longer running. Ralph normally auto-clears this verified stale lock before acquiring the queue lock. If this message persists, use the built-in unlock command:\n  ralph queue unlock --yes",
+        );
     } else {
-        message.push_str(&format!(
-            "\n  If you are sure no other ralph process is running, use the built-in unlock command:\n  ralph queue unlock\n  Or remove the lock directory manually:\n  rm -rf {}",
-            lock_dir.display()
-        ));
+        message.push_str(
+            "\n  If you are sure no other ralph process is running, use the built-in unlock command:\n  ralph queue unlock",
+        );
     }
 
     message
