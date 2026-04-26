@@ -29,7 +29,9 @@ pub(crate) use command::{build_worker_command, debug_command_args};
 pub(crate) use process::{
     FinishedWorker, WorkerState, spawn_worker, start_worker_monitor, terminate_workers,
 };
-pub(crate) use selection::{collect_excluded_ids, select_next_task_locked};
+pub(crate) use selection::{
+    NextTaskSelection, collect_excluded_ids, select_next_task_locked, select_next_task_state_locked,
+};
 
 #[cfg(test)]
 #[path = "worker_tests.rs"]

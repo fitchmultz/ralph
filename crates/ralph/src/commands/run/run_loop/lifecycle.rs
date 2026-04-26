@@ -28,7 +28,7 @@ use crate::config;
 use crate::constants::limits::MAX_CONSECUTIVE_FAILURES;
 use crate::{signal, webhook};
 
-use super::types::{RunLoopOptions, RunLoopStats};
+use super::types::{RunLoopOptions, RunLoopOutcome, RunLoopStats};
 
 pub(super) struct LoopLifecycle {
     cache_dir: PathBuf,
@@ -136,7 +136,7 @@ impl LoopLifecycle {
         self,
         resolved: &config::Resolved,
         opts: &RunLoopOptions,
-        result: &Result<()>,
+        result: &Result<RunLoopOutcome>,
     ) {
         if self.stats.tasks_attempted > 0 {
             let notify_config = crate::notification::build_notification_config(
@@ -158,9 +158,9 @@ impl LoopLifecycle {
         let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
         let loop_duration_ms = self.loop_start_time.elapsed().as_millis() as u64;
         let loop_note = match result {
-            Ok(()) => Some(format!(
-                "Completed: {}/{} succeeded",
-                self.stats.tasks_succeeded, self.stats.tasks_attempted
+            Ok(outcome) => Some(format!(
+                "Outcome {:?}: {}/{} succeeded",
+                outcome, self.stats.tasks_succeeded, self.stats.tasks_attempted
             )),
             Err(err) => Some(format!("Error: {}", err)),
         };
@@ -174,9 +174,13 @@ impl LoopLifecycle {
             loop_note.as_deref(),
         );
 
-        if result.is_ok()
-            && let Err(err) = crate::session::clear_session(&self.cache_dir)
-        {
+        let should_clear_session = matches!(
+            result,
+            Ok(RunLoopOutcome::Completed
+                | RunLoopOutcome::NoCandidates { .. }
+                | RunLoopOutcome::Blocked { .. })
+        );
+        if should_clear_session && let Err(err) = crate::session::clear_session(&self.cache_dir) {
             log::warn!("Failed to clear session on loop completion: {}", err);
         }
     }

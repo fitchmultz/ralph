@@ -268,6 +268,83 @@ final class WorkspaceRunStateResumeBlockingTests: WorkspacePerformanceTestCase {
         )
     }
 
+    func test_runSummary_stoppedWithoutBlocking_clearsExistingLiveBlockingState() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "summary-preserves-live-blocking")
+        )
+        var decoder = WorkspaceRunnerController.MachineRunOutputDecoder()
+        let items = decoder.append(
+            "{\"version\":3,\"kind\":\"blocked_state_changed\",\"task_id\":null,\"phase\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"payload\":{\"status\":\"blocked\",\"reason\":{\"kind\":\"dependency_blocked\",\"blocked_tasks\":2},\"task_id\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"detail\":\"2 candidate task(s) are waiting on dependency completion.\",\"observed_at\":\"2026-12-30T00:00:00Z\"}}\n"
+                + "{\"version\":2,\"task_id\":null,\"exit_code\":0,\"outcome\":\"stopped\",\"blocking\":null}\n"
+        )
+
+        for item in items {
+            workspace.runnerController.applyMachineRunOutputItem(item, workspace: workspace)
+        }
+
+        XCTAssertNil(workspace.runState.blockingState)
+        XCTAssertNil(workspace.runState.runControlOperatorState)
+    }
+
+    func test_runSummary_explicitBlocking_supersedesEarlierLiveBlockingState() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "summary-supersedes-live-blocking")
+        )
+        var decoder = WorkspaceRunnerController.MachineRunOutputDecoder()
+        let items = decoder.append(
+            "{\"version\":3,\"kind\":\"blocked_state_changed\",\"task_id\":null,\"phase\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"payload\":{\"status\":\"blocked\",\"reason\":{\"kind\":\"dependency_blocked\",\"blocked_tasks\":2},\"task_id\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"detail\":\"2 candidate task(s) are waiting on dependency completion.\",\"observed_at\":\"2026-12-30T00:00:00Z\"}}\n"
+                + "{\"version\":2,\"task_id\":null,\"exit_code\":0,\"outcome\":\"no_candidates\",\"blocking\":{\"status\":\"waiting\",\"reason\":{\"kind\":\"idle\",\"include_draft\":false},\"task_id\":null,\"message\":\"Ralph is idle: no todo tasks are available.\",\"detail\":\"The queue currently has no runnable todo candidates; Ralph is waiting for new work.\",\"observed_at\":\"2026-12-31T00:00:00Z\"}}\n"
+        )
+
+        for item in items {
+            workspace.runnerController.applyMachineRunOutputItem(item, workspace: workspace)
+        }
+
+        XCTAssertEqual(workspace.runState.blockingState?.status, .waiting)
+        XCTAssertEqual(workspace.runState.blockingState?.reason, .idle(includeDraft: false))
+        XCTAssertEqual(workspace.runState.blockingState?.observedAt, "2026-12-31T00:00:00Z")
+        XCTAssertEqual(workspace.runState.runControlOperatorState?.source, .liveRun)
+    }
+
+    func test_runSummary_completedOutcomeClearsExistingLiveBlockingState() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "summary-clears-live-blocking")
+        )
+        var decoder = WorkspaceRunnerController.MachineRunOutputDecoder()
+        let items = decoder.append(
+            "{\"version\":3,\"kind\":\"blocked_state_changed\",\"task_id\":null,\"phase\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"payload\":{\"status\":\"blocked\",\"reason\":{\"kind\":\"dependency_blocked\",\"blocked_tasks\":2},\"task_id\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"detail\":\"2 candidate task(s) are waiting on dependency completion.\"}}\n"
+                + "{\"version\":2,\"task_id\":null,\"exit_code\":0,\"outcome\":\"completed\",\"blocking\":null}\n"
+        )
+
+        for item in items {
+            workspace.runnerController.applyMachineRunOutputItem(item, workspace: workspace)
+        }
+
+        XCTAssertNil(workspace.runState.blockingState)
+        XCTAssertNil(workspace.runState.runControlOperatorState)
+    }
+
+    func test_runSummary_unknownOutcomePreservesExistingLiveBlockingState() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "summary-unknown-outcome")
+        )
+        var decoder = WorkspaceRunnerController.MachineRunOutputDecoder()
+        let items = decoder.append(
+            "{\"version\":3,\"kind\":\"blocked_state_changed\",\"task_id\":null,\"phase\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"payload\":{\"status\":\"blocked\",\"reason\":{\"kind\":\"dependency_blocked\",\"blocked_tasks\":2},\"task_id\":null,\"message\":\"Ralph is blocked by unfinished dependencies.\",\"detail\":\"2 candidate task(s) are waiting on dependency completion.\"}}\n"
+                + "{\"version\":2,\"task_id\":null,\"exit_code\":0,\"outcome\":\"future_mode\",\"blocking\":null}\n"
+        )
+
+        for item in items {
+            workspace.runnerController.applyMachineRunOutputItem(item, workspace: workspace)
+        }
+
+        XCTAssertEqual(workspace.runState.blockingState?.status, .blocked)
+        XCTAssertEqual(
+            workspace.runState.blockingState?.reason,
+            .dependencyBlocked(blockedTasks: 2)
+        )
+    }
+
     func test_runControlPreviewTask_prefersSelectedTodoTask() {
         let workspace = Workspace(workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "run-control-preview"))
         workspace.tasks = [

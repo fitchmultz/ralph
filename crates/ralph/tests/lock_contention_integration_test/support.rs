@@ -182,7 +182,7 @@ fn test_task(relates_to: Vec<String>) -> Task {
 
 pub(super) fn run_loop_once(resolved: &Resolved) -> (Result<()>, Duration) {
     let start = Instant::now();
-    let result = run::run_loop(resolved, run_loop_options());
+    let result = run::run_loop(resolved, run_loop_options()).map(|_| ());
     let elapsed = start.elapsed();
     (result, elapsed)
 }

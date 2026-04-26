@@ -22,6 +22,7 @@
 //! - JSON helper output must remain UTF-8 and stable enough for existing CLI contract assertions.
 
 use anyhow::Result;
+use ralph::contracts::{Task, TaskStatus};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
@@ -83,4 +84,16 @@ pub(super) fn write_json_file<T: Serialize>(
     let path = dir.join(name);
     std::fs::write(&path, serde_json::to_string_pretty(document)?)?;
     Ok(path)
+}
+
+pub(super) fn write_queue(dir: &Path, tasks: &[Task]) -> Result<()> {
+    test_support::write_queue(dir, tasks)
+}
+
+pub(super) fn write_done(dir: &Path, tasks: &[Task]) -> Result<()> {
+    test_support::write_done(dir, tasks)
+}
+
+pub(super) fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
+    test_support::make_test_task(id, title, status)
 }

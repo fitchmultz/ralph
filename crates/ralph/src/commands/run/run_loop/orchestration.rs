@@ -26,8 +26,8 @@ use crate::contracts::TaskStatus;
 use crate::{queue, runutil};
 
 use super::lifecycle::LoopLifecycle;
-use super::session::resolve_resume_state;
-use super::types::RunLoopOptions;
+use super::session::{ResumeResolution, resolve_resume_state};
+use super::types::{RunLoopOptions, RunLoopOutcome};
 use super::wait::{WaitExit, WaitMode, wait_for_work};
 use crate::commands::run::queue_lock::{
     clear_stale_queue_lock_for_resume, is_queue_lock_already_held_error, queue_lock_blocking_state,
@@ -35,14 +35,19 @@ use crate::commands::run::queue_lock::{
 use crate::commands::run::run_one::{RunOneResumeOptions, RunOutcome, run_one_with_handlers};
 use crate::commands::run::{emit_blocked_state_changed, emit_blocked_state_cleared};
 
-pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
+pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<RunLoopOutcome> {
     if let Some(result) = maybe_run_parallel(resolved, &opts)? {
         return result;
     }
 
     let queue_file = queue::load_queue(&resolved.queue_path)?;
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
-    let resume_state = resolve_resume_state(resolved, &opts)?;
+    let resume_state = match resolve_resume_state(resolved, &opts)? {
+        ResumeResolution::Continue(state) => state,
+        ResumeResolution::Refused { blocking } => {
+            return Ok(RunLoopOutcome::Stalled { blocking });
+        }
+    };
 
     if resume_state.resume_task_id.is_some()
         && let Err(err) = clear_stale_queue_lock_for_resume(&resolved.repo_root)
@@ -65,7 +70,12 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
             log::info!("No todo tasks found.");
         }
         if !opts.wait_when_empty {
-            return Ok(());
+            return Ok(RunLoopOutcome::NoCandidates {
+                blocking: Box::new(
+                    crate::contracts::BlockingState::idle(include_draft)
+                        .with_observed_at(crate::timeutil::now_utc_rfc3339_or_fallback()),
+                ),
+            });
         }
     }
 
@@ -93,7 +103,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
 fn maybe_run_parallel(
     resolved: &config::Resolved,
     opts: &RunLoopOptions,
-) -> Result<Option<Result<()>>> {
+) -> Result<Option<Result<RunLoopOutcome>>> {
     let parallel_workers = opts.parallel_workers.or(resolved.config.parallel.workers);
     if let Some(workers) = parallel_workers
         && workers >= 2
@@ -124,7 +134,7 @@ fn run_loop_state_machine(
     include_draft: bool,
     resume_task_id: Option<&str>,
     lifecycle: &mut LoopLifecycle,
-) -> Result<()> {
+) -> Result<RunLoopOutcome> {
     let mut pending_resume_task_id = resume_task_id.map(str::to_string);
     let mut active_blocking = None;
 
@@ -134,13 +144,15 @@ fn run_loop_state_machine(
                 "RunLoop: end (reached max task limit: {})",
                 lifecycle.completed()
             );
-            return Ok(());
+            return Ok(RunLoopOutcome::Completed);
         }
 
         if lifecycle.stop_requested() {
             log::info!("Stop signal detected; no new tasks will be started.");
             lifecycle.clear_stop_signal();
-            return Ok(());
+            return Ok(RunLoopOutcome::Stopped {
+                blocking: active_blocking.take().map(Box::new),
+            });
         }
 
         match run_one_with_handlers(
@@ -159,7 +171,9 @@ fn run_loop_state_machine(
 
                 if !opts.wait_when_empty {
                     log::info!("{}", idle_state.message);
-                    return Ok(());
+                    return Ok(RunLoopOutcome::NoCandidates {
+                        blocking: Box::new(idle_state),
+                    });
                 }
                 match wait_for_work(
                     resolved,
@@ -179,17 +193,21 @@ fn run_loop_state_machine(
                     }
                     WaitExit::QueueStillIdle { state } => {
                         log::info!("{}", state.message);
-                        return Ok(());
+                        return Ok(RunLoopOutcome::NoCandidates {
+                            blocking: Box::new(state),
+                        });
                     }
                     WaitExit::TimedOut { state } => {
                         log::info!(
                             "RunLoop: end (wait timeout reached while {})",
                             state.message
                         );
-                        return Ok(());
+                        return Ok(RunLoopOutcome::Stalled {
+                            blocking: Box::new(state),
+                        });
                     }
                     WaitExit::StopRequested { state } => {
-                        if let Some(state) = state {
+                        if let Some(ref state) = state {
                             log::info!(
                                 "RunLoop: end (stop signal received while {})",
                                 state.message
@@ -197,7 +215,9 @@ fn run_loop_state_machine(
                         } else {
                             log::info!("RunLoop: end (stop signal received)");
                         }
-                        return Ok(());
+                        return Ok(RunLoopOutcome::Stopped {
+                            blocking: state.map(Box::new),
+                        });
                     }
                 }
             }
@@ -212,7 +232,10 @@ fn run_loop_state_machine(
                         summary.blocked_by_dependencies,
                         summary.blocked_by_schedule
                     );
-                    return Ok(());
+                    return Ok(RunLoopOutcome::Blocked {
+                        summary,
+                        blocking: state,
+                    });
                 }
 
                 let mode = if opts.wait_when_empty {
@@ -246,17 +269,21 @@ fn run_loop_state_machine(
                     }
                     WaitExit::QueueStillIdle { state } => {
                         log::info!("{}", state.message);
-                        return Ok(());
+                        return Ok(RunLoopOutcome::NoCandidates {
+                            blocking: Box::new(state),
+                        });
                     }
                     WaitExit::TimedOut { state } => {
                         log::info!(
                             "RunLoop: end (wait timeout reached while {})",
                             state.message
                         );
-                        return Ok(());
+                        return Ok(RunLoopOutcome::Stalled {
+                            blocking: Box::new(state),
+                        });
                     }
                     WaitExit::StopRequested { state } => {
-                        if let Some(state) = state {
+                        if let Some(ref state) = state {
                             log::info!(
                                 "RunLoop: end (stop signal received while {})",
                                 state.message
@@ -264,7 +291,9 @@ fn run_loop_state_machine(
                         } else {
                             log::info!("RunLoop: end (stop signal received)");
                         }
-                        return Ok(());
+                        return Ok(RunLoopOutcome::Stopped {
+                            blocking: state.map(Box::new),
+                        });
                     }
                 }
             }

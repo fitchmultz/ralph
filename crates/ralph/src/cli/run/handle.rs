@@ -52,6 +52,8 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                     run_event_handler: None,
                 },
             )
+            .and_then(run_cmd::RunLoopOutcome::into_non_machine_result)
+            .map(|_| ())
         }
         RunCommand::One(args) => handle_run_one(args, force, &resolved),
         RunCommand::Loop(args) => handle_run_loop(args, force, &resolved),
@@ -179,4 +181,6 @@ fn handle_run_loop(args: RunLoopArgs, force: bool, resolved: &config::Resolved) 
             run_event_handler: None,
         },
     )
+    .and_then(run_cmd::RunLoopOutcome::into_non_machine_result)
+    .map(|_| ())
 }

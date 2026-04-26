@@ -22,7 +22,7 @@
 use crate::commands::run::{emit_blocked_state_changed, emit_resume_decision};
 use crate::config;
 use crate::session::{self, ResumeBehavior, ResumeDecisionMode, ResumeStatus};
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 use super::RunLoopOptions;
 
@@ -31,10 +31,17 @@ pub(super) struct ResumeState {
     pub(super) completed_count: u32,
 }
 
+pub(super) enum ResumeResolution {
+    Continue(ResumeState),
+    Refused {
+        blocking: Box<crate::contracts::BlockingState>,
+    },
+}
+
 pub(super) fn resolve_resume_state(
     resolved: &config::Resolved,
     opts: &RunLoopOptions,
-) -> Result<ResumeState> {
+) -> Result<ResumeResolution> {
     let cache_dir = resolved.repo_root.join(".ralph/cache");
     let queue_file = crate::queue::load_queue(&resolved.queue_path)?;
     let resolution = session::resolve_run_session_decision(
@@ -58,9 +65,14 @@ pub(super) fn resolve_resume_state(
         emit_resume_decision(decision, opts.run_event_handler.as_ref());
         if let Some(blocking_state) = decision.blocking_state() {
             emit_blocked_state_changed(&blocking_state, opts.run_event_handler.as_ref());
+            if matches!(decision.status, ResumeStatus::RefusingToResume) {
+                return Ok(ResumeResolution::Refused {
+                    blocking: Box::new(blocking_state),
+                });
+            }
         }
         if matches!(decision.status, ResumeStatus::RefusingToResume) {
-            bail!("{}", decision.message);
+            return Err(anyhow::anyhow!("{}", decision.message));
         }
     }
 
@@ -70,8 +82,8 @@ pub(super) fn resolve_resume_state(
         opts.starting_completed
     };
 
-    Ok(ResumeState {
+    Ok(ResumeResolution::Continue(ResumeState {
         resume_task_id: resolution.resume_task_id,
         completed_count,
-    })
+    }))
 }

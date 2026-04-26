@@ -26,4 +26,4 @@ mod types;
 mod wait;
 
 pub use orchestration::run_loop;
-pub use types::RunLoopOptions;
+pub use types::{RunLoopOptions, RunLoopOutcome};

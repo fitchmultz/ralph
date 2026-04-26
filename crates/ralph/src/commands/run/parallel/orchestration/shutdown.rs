@@ -20,6 +20,7 @@
 
 use anyhow::Result;
 
+use crate::commands::run::RunLoopOutcome;
 use crate::config;
 use crate::{runutil, signal};
 
@@ -29,8 +30,8 @@ pub(super) fn finalize_parallel_run(
     resolved: &config::Resolved,
     opts: &crate::commands::run::parallel::ParallelRunOptions,
     prepared: &mut PreparedParallelRun,
-    loop_result: Result<()>,
-) -> Result<()> {
+    loop_result: Result<RunLoopOutcome>,
+) -> Result<RunLoopOutcome> {
     if prepared.interrupted || loop_result.is_err() {
         let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
         let loop_duration_ms = prepared.loop_start_time.elapsed().as_millis() as u64;
@@ -103,5 +104,5 @@ pub(super) fn finalize_parallel_run(
         loop_note.as_deref(),
     );
 
-    Ok(())
+    loop_result
 }

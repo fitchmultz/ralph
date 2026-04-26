@@ -34,7 +34,9 @@ use crate::cli::machine::common::{
     machine_safety_context,
 };
 use crate::cli::machine::io::print_json_line;
-use crate::commands::run::{RunEvent, RunEventHandler, RunOneResumeOptions, RunOutcome};
+use crate::commands::run::{
+    RunEvent, RunEventHandler, RunLoopOutcome, RunOneResumeOptions, RunOutcome,
+};
 use crate::contracts::{
     MACHINE_RUN_EVENT_VERSION, MACHINE_RUN_SUMMARY_VERSION, MachineRunEventEnvelope,
     MachineRunEventKind, MachineRunSummaryDocument,
@@ -136,7 +138,7 @@ pub(super) fn handle_run(args: MachineRunArgs) -> Result<()> {
                 })),
             })?;
             let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
-            crate::commands::run::run_loop(
+            let result = crate::commands::run::run_loop(
                 &resolved,
                 crate::commands::run::RunLoopOptions {
                     max_tasks: args.max_tasks,
@@ -154,14 +156,8 @@ pub(super) fn handle_run(args: MachineRunArgs) -> Result<()> {
                     empty_poll_ms: 30_000,
                     run_event_handler: Some(event_handler),
                 },
-            )?;
-            print_json_line(&MachineRunSummaryDocument {
-                version: MACHINE_RUN_SUMMARY_VERSION,
-                task_id: None,
-                exit_code: 0,
-                outcome: "completed".to_string(),
-                blocking: None,
-            })
+            );
+            emit_loop_run_summary(&resolved, result)
         }
         MachineRunCommand::ParallelStatus => {
             let state_path = crate::commands::run::state_file_path(&resolved.repo_root);
@@ -319,6 +315,106 @@ fn emit_run_summary(
                 kind: MachineRunEventKind::Warning,
                 timestamp: timeutil::now_utc_rfc3339_or_fallback(),
                 run_mode: Some(run_mode.to_string()),
+                task_id: None,
+                phase: None,
+                exit_code: Some(1),
+                message: Some(format!("{error:#}")),
+                stream: None,
+                payload: None,
+            })?;
+            print_json_line(&MachineRunSummaryDocument {
+                version: MACHINE_RUN_SUMMARY_VERSION,
+                task_id: None,
+                exit_code: 1,
+                outcome: if blocking.is_some() {
+                    "stalled".to_string()
+                } else {
+                    "failed".to_string()
+                },
+                blocking,
+            })?;
+            bail!("{error:#}")
+        }
+    }
+}
+
+fn emit_loop_run_summary(
+    resolved: &crate::config::Resolved,
+    result: Result<RunLoopOutcome>,
+) -> Result<()> {
+    match result {
+        Ok(RunLoopOutcome::Completed) => print_json_line(&MachineRunSummaryDocument {
+            version: MACHINE_RUN_SUMMARY_VERSION,
+            task_id: None,
+            exit_code: 0,
+            outcome: "completed".to_string(),
+            blocking: None,
+        }),
+        Ok(RunLoopOutcome::NoCandidates { blocking }) => {
+            print_json_line(&MachineRunSummaryDocument {
+                version: MACHINE_RUN_SUMMARY_VERSION,
+                task_id: None,
+                exit_code: 0,
+                outcome: "no_candidates".to_string(),
+                blocking: Some(*blocking),
+            })
+        }
+        Ok(RunLoopOutcome::Blocked { summary, blocking }) => {
+            log::debug!(
+                "machine loop summary blocked (ready={} deps={} sched={})",
+                summary.runnable_candidates,
+                summary.blocked_by_dependencies,
+                summary.blocked_by_schedule
+            );
+            print_json_line(&MachineRunSummaryDocument {
+                version: MACHINE_RUN_SUMMARY_VERSION,
+                task_id: None,
+                exit_code: 0,
+                outcome: "blocked".to_string(),
+                blocking: Some(*blocking),
+            })
+        }
+        Ok(RunLoopOutcome::Stalled { blocking }) => print_json_line(&MachineRunSummaryDocument {
+            version: MACHINE_RUN_SUMMARY_VERSION,
+            task_id: None,
+            exit_code: 0,
+            outcome: "stalled".to_string(),
+            blocking: Some(*blocking),
+        }),
+        Ok(RunLoopOutcome::Stopped { blocking }) => print_json_line(&MachineRunSummaryDocument {
+            version: MACHINE_RUN_SUMMARY_VERSION,
+            task_id: None,
+            exit_code: 0,
+            outcome: "stopped".to_string(),
+            blocking: blocking.map(|state| *state),
+        }),
+        Err(error) => {
+            let blocking =
+                crate::commands::run::queue_lock_blocking_state(&resolved.repo_root, &error)
+                    .or_else(|| {
+                        error
+                            .downcast_ref::<crate::commands::run::CiFailure>()
+                            .map(|failure| failure.blocking_state())
+                    });
+            if let Some(state) = blocking.as_ref() {
+                emit_run_event(MachineRunEventEnvelope {
+                    version: MACHINE_RUN_EVENT_VERSION,
+                    kind: MachineRunEventKind::BlockedStateChanged,
+                    timestamp: timeutil::now_utc_rfc3339_or_fallback(),
+                    run_mode: Some("loop".to_string()),
+                    task_id: state.task_id.clone(),
+                    phase: None,
+                    exit_code: Some(1),
+                    message: Some(state.message.clone()),
+                    stream: None,
+                    payload: Some(serde_json::to_value(state)?),
+                })?;
+            }
+            emit_run_event(MachineRunEventEnvelope {
+                version: MACHINE_RUN_EVENT_VERSION,
+                kind: MachineRunEventKind::Warning,
+                timestamp: timeutil::now_utc_rfc3339_or_fallback(),
+                run_mode: Some("loop".to_string()),
                 task_id: None,
                 phase: None,
                 exit_code: Some(1),

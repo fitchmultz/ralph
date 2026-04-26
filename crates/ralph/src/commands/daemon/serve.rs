@@ -119,4 +119,6 @@ pub fn serve(resolved: &Resolved, args: DaemonServeArgs) -> Result<()> {
     clear_daemon_runtime_artifacts(&cache_dir, false);
 
     result
+        .and_then(crate::commands::run::RunLoopOutcome::into_non_machine_result)
+        .map(|_| ())
 }

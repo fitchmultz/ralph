@@ -28,11 +28,13 @@ use crate::queue;
 
 use super::preflight::{PreparedParallelRun, prepare_parallel_run};
 use super::shutdown::finalize_parallel_run;
+use crate::commands::run::RunLoopOutcome;
 use crate::commands::run::parallel::orchestration::events::handle_finished_workers;
 use crate::commands::run::parallel::state::{self, WorkerRecord};
 use crate::commands::run::parallel::sync::sync_ralph_state;
 use crate::commands::run::parallel::worker::{
-    collect_excluded_ids, select_next_task_locked, spawn_worker, start_worker_monitor,
+    NextTaskSelection, collect_excluded_ids, select_next_task_locked,
+    select_next_task_state_locked, spawn_worker, start_worker_monitor,
 };
 use crate::commands::run::parallel::{
     ParallelRunOptions, can_start_more_tasks, effective_active_worker_count, prune_stale_workers,
@@ -41,20 +43,10 @@ use crate::commands::run::parallel::{
 
 const WORKER_CONTROL_WAIT_SLICE: Duration = Duration::from_millis(250);
 
-fn should_exit_when_idle(
-    tasks_started: u32,
-    max_tasks: u32,
-    next_available: bool,
-    stop_requested: bool,
-) -> bool {
-    let no_more_tasks = max_tasks != 0 && tasks_started >= max_tasks;
-    no_more_tasks || !next_available || stop_requested
-}
-
 pub(crate) fn run_loop_parallel(
     resolved: &config::Resolved,
     opts: ParallelRunOptions,
-) -> Result<()> {
+) -> Result<RunLoopOutcome> {
     let queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "run loop", opts.force)?;
     let ctrlc_state = crate::runner::ctrlc_state().ok().cloned();
     let mut prepared = prepare_parallel_run(resolved, &opts)?;
@@ -75,7 +67,7 @@ fn drive_parallel_loop(
     queue_lock: &crate::lock::DirLock,
     ctrlc: Option<&crate::runner::CtrlCState>,
     prepared: &mut PreparedParallelRun,
-) -> Result<()> {
+) -> Result<RunLoopOutcome> {
     loop {
         if ctrlc.is_some_and(|ctrlc| ctrlc.interrupted.load(Ordering::SeqCst)) {
             prepared.interrupted = true;
@@ -98,16 +90,10 @@ fn drive_parallel_loop(
 
         drain_and_handle_finished(resolved, prepared)?;
 
-        if prepared.guard.in_flight().is_empty() {
-            let next_available = queue_has_next_task(resolved, queue_lock, prepared)?;
-            if should_exit_when_idle(
-                prepared.tasks_started,
-                opts.max_tasks,
-                next_available,
-                prepared.stop_requested,
-            ) {
-                break;
-            }
+        if prepared.guard.in_flight().is_empty()
+            && let Some(outcome) = terminal_idle_outcome(resolved, opts, queue_lock, prepared)?
+        {
+            return Ok(outcome);
         }
 
         if !prepared.guard.in_flight().is_empty() {
@@ -128,7 +114,7 @@ fn drive_parallel_loop(
         }
     }
 
-    Ok(())
+    Ok(RunLoopOutcome::Completed)
 }
 
 fn spawn_available_workers(
@@ -220,40 +206,38 @@ fn drain_and_handle_finished(
     )
 }
 
-fn queue_has_next_task(
+fn terminal_idle_outcome(
     resolved: &config::Resolved,
+    opts: &ParallelRunOptions,
     queue_lock: &crate::lock::DirLock,
     prepared: &PreparedParallelRun,
-) -> Result<bool> {
+) -> Result<Option<RunLoopOutcome>> {
+    if opts.max_tasks != 0 && prepared.tasks_started >= opts.max_tasks {
+        return Ok(Some(RunLoopOutcome::Completed));
+    }
+
+    if prepared.stop_requested {
+        return Ok(Some(RunLoopOutcome::Stopped { blocking: None }));
+    }
+
     let excluded = collect_excluded_ids(
         prepared.guard.state_file(),
         prepared.guard.in_flight(),
         &prepared.attempted_task_ids,
     );
-    Ok(select_next_task_locked(resolved, prepared.include_draft, &excluded, queue_lock)?.is_some())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::should_exit_when_idle;
-
-    #[test]
-    fn should_exit_when_idle_unbounded_continues_if_task_available() {
-        assert!(!should_exit_when_idle(42, 0, true, false));
-    }
-
-    #[test]
-    fn should_exit_when_idle_unbounded_stops_if_no_task_available() {
-        assert!(should_exit_when_idle(42, 0, false, false));
-    }
-
-    #[test]
-    fn should_exit_when_idle_bounded_stops_at_limit_even_if_task_available() {
-        assert!(should_exit_when_idle(5, 5, true, false));
-    }
-
-    #[test]
-    fn should_exit_when_idle_stops_when_stop_requested_even_if_task_available() {
-        assert!(should_exit_when_idle(1, 0, true, true));
-    }
+    let outcome = match select_next_task_state_locked(
+        resolved,
+        prepared.include_draft,
+        &excluded,
+        queue_lock,
+    )? {
+        NextTaskSelection::Runnable(_) => None,
+        NextTaskSelection::NoCandidates { blocking } => {
+            Some(RunLoopOutcome::NoCandidates { blocking })
+        }
+        NextTaskSelection::Blocked { summary, blocking } => {
+            Some(RunLoopOutcome::Blocked { summary, blocking })
+        }
+    };
+    Ok(outcome)
 }

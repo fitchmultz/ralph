@@ -121,7 +121,43 @@ Blocking-state transitions are also structured:
 
 ### `machine run` summaries (`version: 2`)
 
-Terminal summaries now include optional `blocking` state for `no_candidates`, `blocked`, and classified stalled failures.
+Terminal summaries include:
+- `version`
+- optional `task_id`
+- `exit_code`
+- `outcome`
+- optional `blocking`
+
+`ralph machine run one` and `ralph machine run loop` share the same summary document version, but loop runs may legitimately end in non-completed operator states. Current loop outcomes are:
+- `completed`
+- `no_candidates`
+- `blocked`
+- `stalled`
+- `stopped`
+- `failed`
+
+When present, `blocking` is the canonical operator-state payload. App and automation clients should preserve it as the source of truth instead of inferring queue idle/blocked state from `outcome` strings alone.
+
+Example loop summary for an idle queue:
+
+```json
+{
+  "version": 2,
+  "task_id": null,
+  "exit_code": 0,
+  "outcome": "no_candidates",
+  "blocking": {
+    "status": "waiting",
+    "reason": {
+      "kind": "idle",
+      "include_draft": false
+    },
+    "task_id": null,
+    "message": "Ralph is idle: no todo tasks are available.",
+    "detail": "The queue currently has no runnable todo candidates; Ralph is waiting for new work."
+  }
+}
+```
 
 ### `machine queue read`
 

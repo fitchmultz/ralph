@@ -102,7 +102,7 @@ extension WorkspaceRunnerController {
             }
             if let blocking = summary.blocking {
                 workspace.runState.setLiveBlockingState(blocking.asWorkspaceBlockingState())
-            } else {
+            } else if shouldClearBlocking(for: summary.outcome) {
                 workspace.runState.clearLiveBlockingState()
             }
         case .rawText(let text):
@@ -161,6 +161,17 @@ extension WorkspaceRunnerController {
             lines.append("  \(state.detail)")
         }
         appendConsoleText(lines.joined(separator: "\n") + "\n", workspace: workspace)
+    }
+
+    private func shouldClearBlocking(for outcome: String) -> Bool {
+        switch outcome {
+        case "completed", "ran", "failed", "stopped":
+            return true
+        case "no_candidates", "blocked", "stalled":
+            return false
+        default:
+            return false
+        }
     }
 }
 

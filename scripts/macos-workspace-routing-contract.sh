@@ -57,14 +57,24 @@ done
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
-APP_BUNDLE="$(cd "$(dirname "$APP_BUNDLE")" && pwd)/$(basename "$APP_BUNDLE")"
-APP_EXECUTABLE="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-APP_CLI="$APP_BUNDLE/Contents/MacOS/ralph"
-
 if ! command -v python3 >/dev/null 2>&1; then
     echo "ERROR: required command not found: python3" >&2
     exit 2
 fi
+APP_BUNDLE="$(
+    python3 - "$REPO_ROOT" "$APP_BUNDLE" <<'PY'
+import os
+import sys
+
+repo_root = sys.argv[1]
+path = sys.argv[2]
+if not os.path.isabs(path):
+    path = os.path.join(repo_root, path)
+print(os.path.abspath(path))
+PY
+)"
+APP_EXECUTABLE="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+APP_CLI="$APP_BUNDLE/Contents/MacOS/ralph"
 
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "ERROR: app bundle not found: $APP_BUNDLE" >&2

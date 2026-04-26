@@ -58,7 +58,7 @@ pub use parallel::state::{
 };
 
 // Re-export run loop types
-pub use run_loop::{RunLoopOptions, run_loop};
+pub use run_loop::{RunLoopOptions, RunLoopOutcome, run_loop};
 
 // Re-export run-one entrypoints
 pub use run_one::{
