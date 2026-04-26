@@ -23,6 +23,23 @@
 public import Foundation
 public import Combine
 
+struct WorkspaceRevealRetryConfiguration {
+    var maxAttempts: Int = 60
+    var yieldAttempts: Int = 10
+    var retryDelayNanoseconds: UInt64 = 20_000_000
+    var yield: @Sendable () async -> Void = { await Task.yield() }
+    var sleep: @Sendable (UInt64) async -> Void = { nanoseconds in
+        try? await Task.sleep(nanoseconds: nanoseconds)
+    }
+}
+
+struct PendingWorkspaceReveal {
+    let workspaceID: UUID
+    let revision: UInt64
+    let startedAt: Date
+    var attempts: Int
+}
+
 @MainActor
 public final class WorkspaceManager: ObservableObject {
     public static let shared = WorkspaceManager()
@@ -49,6 +66,8 @@ public final class WorkspaceManager: ObservableObject {
     var workspaceBootstrapRevisions: [UUID: UInt64] = [:]
     var workspaceRevealTask: Task<Void, Never>?
     var workspaceRevealRevision: UInt64 = 0
+    var pendingWorkspaceReveal: PendingWorkspaceReveal?
+    var workspaceRevealConfiguration = WorkspaceRevealRetryConfiguration()
 
     private init() {
         let preparation = RalphAppDefaults.prepareForLaunch()

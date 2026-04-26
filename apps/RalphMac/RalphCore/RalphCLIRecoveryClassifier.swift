@@ -152,6 +152,28 @@ enum RalphCLIRecoveryClassifier {
             // Fall through to legacy phrase matching when structured decode fails for non-version reasons.
         }
 
+        if let summary = parseUserFacingMachineErrorSummary(description) {
+            let document = MachineErrorDocument(
+                version: MachineErrorDocument.expectedVersion,
+                code: summary.code,
+                message: summary.message,
+                detail: summary.detail,
+                retryable: summary.retryable
+            )
+            let classified = classifyMachineError(
+                document,
+                operation: operation,
+                workspaceURL: workspaceURL
+            )
+            return makeRecovery(
+                category: classified.category,
+                message: description,
+                underlyingError: summary.detail,
+                operation: operation,
+                workspaceURL: workspaceURL
+            )
+        }
+
         let normalized = description.lowercased()
 
         if normalized.contains("permission denied") {
@@ -395,5 +417,48 @@ enum RalphCLIRecoveryClassifier {
                 "If the problem persists, consider reporting the issue",
             ]
         }
+    }
+
+    private struct UserFacingMachineErrorSummary: Sendable {
+        let code: MachineErrorCode
+        let message: String
+        let detail: String?
+        let retryable: Bool
+    }
+
+    private static func parseUserFacingMachineErrorSummary(
+        _ description: String
+    ) -> UserFacingMachineErrorSummary? {
+        let lines = description
+            .split(whereSeparator: \.isNewline)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        func extractValue(for label: String) -> String? {
+            let prefix = "\(label):"
+            guard let line = lines.first(where: { $0.hasPrefix(prefix) }) else {
+                return nil
+            }
+            let value = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.isEmpty ? nil : value
+        }
+
+        guard
+            let codeRaw = extractValue(for: "Code"),
+            let message = extractValue(for: "Message"),
+            let retryableRaw = extractValue(for: "Retryable")
+        else {
+            return nil
+        }
+
+        let code = MachineErrorCode(rawValue: codeRaw) ?? .unknown
+        let retryable = retryableRaw.caseInsensitiveCompare("yes") == .orderedSame
+            || retryableRaw.caseInsensitiveCompare("true") == .orderedSame
+        let detail = extractValue(for: "Detail")
+        return UserFacingMachineErrorSummary(
+            code: code,
+            message: message,
+            detail: detail,
+            retryable: retryable
+        )
     }
 }

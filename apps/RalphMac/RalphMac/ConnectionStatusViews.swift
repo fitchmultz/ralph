@@ -100,6 +100,8 @@ struct OperationalStatusBannerView: View {
             return "dot.scope.display"
         case .workspacePersistence, .appPersistence:
             return "internaldrive.fill.badge.exclamationmark"
+        case .workspaceRouting:
+            return "arrow.triangle.2.circlepath"
         case .crashReporting:
             return "waveform.path.ecg.rectangle.fill"
         case nil:

@@ -6,7 +6,7 @@
 
  Responsibilities:
  - Define the shared operational-health model used across workspace runtime, diagnostics, and UI.
- - Normalize watcher, CLI, persistence, and crash-reporting failures into one issue format.
+ - Normalize watcher, CLI, persistence, routing, and crash-reporting failures into one issue format.
  - Provide summary helpers for rendering workspace health consistently.
 
  Does not handle:
@@ -52,6 +52,7 @@ public struct WorkspaceOperationalIssue: Identifiable, Equatable, Sendable {
         case watcher
         case workspacePersistence
         case appPersistence
+        case workspaceRouting
         case crashReporting
     }
 
@@ -144,6 +145,28 @@ public struct QueueWatcherHealth: Equatable, Sendable {
     }
 }
 
+public struct WorkspaceRevealHealth: Equatable, Sendable {
+    public enum State: Equatable, Sendable {
+        case idle
+        case pending(attempts: Int)
+        case timedOut(attempts: Int)
+    }
+
+    public let workspaceID: UUID
+    public let state: State
+    public let timestamp: Date
+
+    public init(
+        workspaceID: UUID,
+        state: State,
+        timestamp: Date = Date()
+    ) {
+        self.workspaceID = workspaceID
+        self.state = state
+        self.timestamp = timestamp
+    }
+}
+
 public extension QueueWatcherHealth {
     static func idle(for workingDirectoryURL: URL) -> QueueWatcherHealth {
         QueueWatcherHealth(state: .idle, workingDirectoryURL: workingDirectoryURL)
@@ -155,6 +178,22 @@ public extension QueueWatcherHealth {
 }
 
 public extension WorkspaceOperationalIssue {
+    static func fromRevealHealth(_ health: WorkspaceRevealHealth) -> WorkspaceOperationalIssue? {
+        guard case .timedOut(let attempts) = health.state else {
+            return nil
+        }
+
+        return WorkspaceOperationalIssue(
+            id: "workspace-reveal.\(health.workspaceID.uuidString)",
+            source: .workspaceRouting,
+            severity: .warning,
+            title: "Workspace reveal timed out",
+            message: "Ralph could not route focus to the requested workspace after \(attempts) attempts.",
+            recoverySuggestion: "Bring Ralph to the foreground or reopen the main window, then retry the action.",
+            timestamp: health.timestamp
+        )
+    }
+
     static func fromCLIStatus(_ status: CLIHealthStatus) -> WorkspaceOperationalIssue? {
         guard case .unavailable(let reason) = status.availability else {
             return nil

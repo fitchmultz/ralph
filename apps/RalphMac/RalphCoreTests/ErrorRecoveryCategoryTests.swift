@@ -218,6 +218,23 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertEqual(recoveryError.underlyingError, document.detail)
     }
 
+    func testClassifyUserFacingMachineErrorSummaryPreservesStructuredMessage() {
+        let summary = """
+        Code: resource_busy
+        Message: Failed to record stop request.
+        Detail: cache directory is locked
+        Retryable: yes
+        """
+        let error = NSError(domain: "RalphCore.CLIProcess", code: 23, userInfo: [
+            NSLocalizedDescriptionKey: summary,
+        ])
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "request loop stop")
+        XCTAssertEqual(recoveryError.category, .resourceBusy)
+        XCTAssertEqual(recoveryError.message, summary)
+        XCTAssertEqual(recoveryError.underlyingError, "cache directory is locked")
+    }
+
     func testClassifyUnsupportedMachineErrorVersionFromProcessError() throws {
         let document = MachineErrorDocument(
             version: 999,

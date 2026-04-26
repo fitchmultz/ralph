@@ -42,6 +42,7 @@ public extension WorkspaceManager {
 
     func registerWindowRouteActions(for windowID: UUID, actions: WindowRouteActions) {
         sceneRouter.registerWindowRouteActions(for: windowID, actions: actions)
+        attemptPendingWorkspaceRevealIfNeeded(trigger: "window-route-registered")
     }
 
     func unregisterWindowRouteActions(for windowID: UUID) {
@@ -53,6 +54,7 @@ public extension WorkspaceManager {
         perform: @escaping (WorkspaceSceneRoute) -> Void
     ) {
         sceneRouter.registerWorkspaceRouteActions(for: workspaceID, perform: perform)
+        attemptPendingWorkspaceRevealIfNeeded(trigger: "workspace-route-registered")
     }
 
     func unregisterWorkspaceRouteActions(for workspaceID: UUID) {
@@ -95,6 +97,7 @@ public extension WorkspaceManager {
             focusedWorkspaceID: focusedWorkspace?.id
         ) {
             markWorkspaceActive(workspaces.first(where: { $0.id == workspaceID }))
+            clearRevealHealth(for: workspaceID)
             return true
         }
 
@@ -106,31 +109,54 @@ public extension WorkspaceManager {
 
     func scheduleWorkspaceReveal(_ workspaceID: UUID) {
         workspaceRevealTask?.cancel()
+        workspaceRevealTask = nil
         workspaceRevealRevision &+= 1
         let revision = workspaceRevealRevision
+
+        pendingWorkspaceReveal = PendingWorkspaceReveal(
+            workspaceID: workspaceID,
+            revision: revision,
+            startedAt: Date(),
+            attempts: 0
+        )
+        clearRevealHealth(for: workspaceID)
+        attemptPendingWorkspaceRevealIfNeeded(
+            trigger: "scheduled",
+            expectedRevision: revision
+        )
+
+        guard pendingWorkspaceReveal?.revision == revision else {
+            return
+        }
+
+        let configuration = workspaceRevealConfiguration
+        let maxAttempts = max(configuration.maxAttempts, 0)
+        let yieldAttempts = max(configuration.yieldAttempts, 0)
 
         workspaceRevealTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
-            for attempt in 0..<60 {
+            for attempt in 0..<maxAttempts {
                 guard !Task.isCancelled else { return }
-                guard self.workspaceRevealRevision == revision else { return }
+                guard self.pendingWorkspaceReveal?.revision == revision else { return }
 
-                if self.revealWorkspace(workspaceID) {
-                    self.workspaceRevealTask = nil
-                    return
-                }
+                self.pendingWorkspaceReveal?.attempts = attempt + 1
+                self.attemptPendingWorkspaceRevealIfNeeded(
+                    trigger: "poll-\(attempt + 1)",
+                    expectedRevision: revision
+                )
 
-                if attempt < 10 {
-                    await Task.yield()
+                guard self.pendingWorkspaceReveal?.revision == revision else { return }
+                guard attempt + 1 < maxAttempts else { continue }
+
+                if attempt < yieldAttempts {
+                    await configuration.yield()
                 } else {
-                    try? await Task.sleep(nanoseconds: 20_000_000)
+                    await configuration.sleep(configuration.retryDelayNanoseconds)
                 }
             }
 
-            if self.workspaceRevealRevision == revision {
-                self.workspaceRevealTask = nil
-            }
+            self.recordWorkspaceRevealTimeout(for: workspaceID, revision: revision)
         }
     }
 
@@ -140,5 +166,88 @@ public extension WorkspaceManager {
 
     func resetSceneRoutingForTests() {
         sceneRouter.resetForTests()
+        workspaceRevealTask?.cancel()
+        workspaceRevealTask = nil
+        pendingWorkspaceReveal = nil
+        workspaceRevealConfiguration = WorkspaceRevealRetryConfiguration()
+        for workspace in workspaces where workspace.diagnosticsState.revealHealth != nil {
+            workspace.diagnosticsState.revealHealth = nil
+            workspace.refreshOperationalHealth()
+        }
+    }
+}
+
+private extension WorkspaceManager {
+    func attemptPendingWorkspaceRevealIfNeeded(
+        trigger: String,
+        expectedRevision: UInt64? = nil
+    ) {
+        guard let pending = pendingWorkspaceReveal else { return }
+        if let expectedRevision, pending.revision != expectedRevision {
+            return
+        }
+
+        updateRevealHealthIfNeeded(
+            for: pending.workspaceID,
+            state: .pending(attempts: pending.attempts)
+        )
+
+        if revealWorkspace(pending.workspaceID) {
+            let attempts = max(1, pending.attempts)
+            RalphLogger.shared.info(
+                "Resolved workspace reveal for \(pending.workspaceID.uuidString) via \(trigger) after \(attempts) attempt\(attempts == 1 ? "" : "s")",
+                category: .workspace
+            )
+            pendingWorkspaceReveal = nil
+            workspaceRevealTask?.cancel()
+            workspaceRevealTask = nil
+        }
+    }
+
+    func recordWorkspaceRevealTimeout(for workspaceID: UUID, revision: UInt64) {
+        guard let pending = pendingWorkspaceReveal, pending.revision == revision else {
+            return
+        }
+
+        let attempts = max(pending.attempts, workspaceRevealConfiguration.maxAttempts)
+        updateRevealHealthIfNeeded(
+            for: workspaceID,
+            state: .timedOut(attempts: attempts)
+        )
+        RalphLogger.shared.error(
+            "Workspace reveal timed out for \(workspaceID.uuidString) after \(attempts) attempts",
+            category: .workspace
+        )
+        pendingWorkspaceReveal = nil
+        workspaceRevealTask = nil
+    }
+
+    func updateRevealHealthIfNeeded(
+        for workspaceID: UUID,
+        state: WorkspaceRevealHealth.State
+    ) {
+        guard let workspace = workspaces.first(where: { $0.id == workspaceID }) else {
+            return
+        }
+
+        if workspace.diagnosticsState.revealHealth?.state == state {
+            return
+        }
+
+        workspace.diagnosticsState.revealHealth = WorkspaceRevealHealth(
+            workspaceID: workspaceID,
+            state: state
+        )
+        workspace.refreshOperationalHealth()
+    }
+
+    func clearRevealHealth(for workspaceID: UUID) {
+        guard let workspace = workspaces.first(where: { $0.id == workspaceID }) else {
+            return
+        }
+        guard workspace.diagnosticsState.revealHealth != nil else { return }
+
+        workspace.diagnosticsState.revealHealth = nil
+        workspace.refreshOperationalHealth()
     }
 }

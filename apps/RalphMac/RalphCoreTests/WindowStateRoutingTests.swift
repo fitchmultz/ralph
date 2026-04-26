@@ -151,6 +151,88 @@ final class WindowStateRoutingTests: WindowStateTestCase {
         XCTAssertEqual(receivedRoutes, [.showTaskCreation])
     }
 
+    func test_scheduleWorkspaceReveal_resolvesWhenWindowRouteActionsRegister() async {
+        let workspace = manager.createWorkspace()
+        let workspaceID = workspace.id
+        let defaultConfiguration = manager.workspaceRevealConfiguration
+        defer { manager.workspaceRevealConfiguration = defaultConfiguration }
+
+        var revealedWindow = false
+        manager.workspaceRevealConfiguration = WorkspaceRevealRetryConfiguration(
+            maxAttempts: 2,
+            yieldAttempts: 0,
+            retryDelayNanoseconds: 0,
+            yield: {},
+            sleep: { _ in await Task.yield() }
+        )
+
+        manager.scheduleWorkspaceReveal(workspace.id)
+        manager.registerWindowRouteActions(
+            for: UUID(),
+            actions: WindowRouteActions(
+                containsWorkspace: { $0 == workspace.id },
+                focusWorkspace: { _ in },
+                appendWorkspace: { _ in
+                    XCTFail("should not append existing workspace")
+                },
+                revealWindow: { revealedWindow = true },
+                persistState: {}
+            )
+        )
+
+        let revealResolved = await RalphCoreTestSupport.waitUntil {
+            await MainActor.run {
+                let manager = WorkspaceManager.shared
+                guard manager.workspaces.contains(where: { $0.id == workspaceID }) else {
+                    return false
+                }
+                return manager.workspaceRevealTask == nil && manager.pendingWorkspaceReveal == nil
+            }
+        }
+        XCTAssertTrue(revealResolved, "reveal should finish")
+
+        XCTAssertTrue(revealedWindow)
+        XCTAssertNil(workspace.diagnosticsState.revealHealth)
+    }
+
+    func test_scheduleWorkspaceReveal_recordsTimeoutDiagnosticWhenAttemptsExhaust() async {
+        let workspace = manager.createWorkspace()
+        let workspaceID = workspace.id
+        let defaultConfiguration = manager.workspaceRevealConfiguration
+        defer { manager.workspaceRevealConfiguration = defaultConfiguration }
+
+        manager.workspaceRevealConfiguration = WorkspaceRevealRetryConfiguration(
+            maxAttempts: 2,
+            yieldAttempts: 0,
+            retryDelayNanoseconds: 0,
+            yield: {},
+            sleep: { _ in }
+        )
+
+        manager.scheduleWorkspaceReveal(workspace.id)
+
+        let timeoutRecorded = await RalphCoreTestSupport.waitUntil {
+            await MainActor.run {
+                let manager = WorkspaceManager.shared
+                guard let workspace = manager.workspaces.first(where: { $0.id == workspaceID }) else {
+                    return false
+                }
+                guard case .timedOut(let attempts)? = workspace.diagnosticsState.revealHealth?.state else {
+                    return false
+                }
+                return attempts == 2
+                    && manager.workspaceRevealTask == nil
+                    && manager.pendingWorkspaceReveal == nil
+            }
+        }
+        XCTAssertTrue(timeoutRecorded, "timeout should be recorded")
+
+        let revealIssue = workspace.operationalIssues.first {
+            $0.source == .workspaceRouting && $0.title == "Workspace reveal timed out"
+        }
+        XCTAssertNotNil(revealIssue)
+    }
+
     func test_effectiveWorkspace_prefersFocusedAndLastActiveWorkspace() throws {
         let firstDirectory = try makeWorkspaceDirectory(prefix: "effective-workspace-first")
         let secondDirectory = try makeWorkspaceDirectory(prefix: "effective-workspace-second")
