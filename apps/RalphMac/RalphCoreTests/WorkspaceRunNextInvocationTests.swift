@@ -2,10 +2,10 @@
  WorkspaceRunNextInvocationTests
 
  Purpose:
- - Validate `runNextTask` CLI argument selection and streamed machine-run output.
+ - Validate `runNextTask` preparation-state transitions, CLI argument selection, and streamed machine-run output.
 
  Responsibilities:
- - Validate `runNextTask` CLI argument selection and streamed machine-run output.
+ - Validate `runNextTask` preparation-state transitions, CLI argument selection, and streamed machine-run output.
 
  Does not handle:
  - Resume or blocking-state application, parallel status, loop/cancel, or watcher health.
@@ -22,6 +22,64 @@ import XCTest
 
 @MainActor
 final class WorkspaceRunNextInvocationTests: WorkspacePerformanceTestCase {
+    func test_runNextTask_entersPreparationWithoutQueueReadOrImplicitTaskID() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "ralph-workspace-run-preparing",
+            scriptName: "mock-ralph-run-preparing",
+            seedQueueTasks: []
+        )
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+        let commandLogURL = fixture.rootURL.appendingPathComponent("command-log.txt", isDirectory: false)
+
+        let script = """
+            #!/bin/sh
+            printf '%s\\n' "$*" >> "\(commandLogURL.path)"
+
+            sleep 1
+
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "run" ] && [ "$4" = "one" ]; then
+              shift 4
+              if [ "$#" -ne 1 ] || [ "$1" != "--resume" ]; then
+                echo "unexpected run one args: $*" 1>&2
+                exit 65
+              fi
+              echo '{"version":2,"task_id":null,"exit_code":0,"outcome":"completed","blocking":null}'
+              exit 0
+            fi
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+
+        workspace.runNextTask()
+
+        XCTAssertTrue(workspace.runState.isPreparingRun)
+        XCTAssertTrue(workspace.runState.isExecutionActive)
+        XCTAssertFalse(workspace.runState.isRunning)
+        XCTAssertNil(workspace.runState.currentTaskID)
+
+        let finished = await WorkspacePerformanceTestSupport.waitFor(timeout: 4.0) {
+            !workspace.runState.isExecutionActive
+        }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(workspace.runState.lastExitStatus?.code, 0)
+
+        let commandLog = try String(contentsOf: commandLogURL, encoding: .utf8)
+        XCTAssertTrue(commandLog.contains("--no-color machine run one --resume"))
+        XCTAssertFalse(commandLog.contains("machine queue read"))
+        XCTAssertFalse(commandLog.contains(" --id "))
+    }
+
     func test_runNextTask_usesCanonicalCLISelection_andStreamsSelectedTask() async throws {
         var workspace: Workspace!
         let stalePreviewTask = RalphMockCLITestSupport.task(

@@ -150,6 +150,9 @@
 		B3F1A2C4D5E6789012345676 /* WorkspaceRunCancelAndLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345675 /* WorkspaceRunCancelAndLoopTests.swift */; };
 		B3F1A2C4D5E6789012345678 /* WorkspaceParallelRunControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345677 /* WorkspaceParallelRunControlTests.swift */; };
 		B3F1A2C4D5E678901234567A /* WorkspaceRunControlWatcherHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345679 /* WorkspaceRunControlWatcherHealthTests.swift */; };
+		B3F1A2C4D5E6789012345682 /* WorkspaceRunCancellationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345681 /* WorkspaceRunCancellationTests.swift */; };
+		B3F1A2C4D5E6789012345684 /* WorkspaceLoopStartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345683 /* WorkspaceLoopStartTests.swift */; };
+		B3F1A2C4D5E6789012345686 /* WorkspaceLoopStopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A2C4D5E6789012345685 /* WorkspaceLoopStopTests.swift */; };
 		B46FBE1A725EA09170363A82 /* TaskExecutionOverridesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C8497F9C98D1E54DE2DBF0 /* TaskExecutionOverridesSection.swift */; };
 		B706290CB59B2E73527D6401 /* WorkspaceView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D8A8D051707C004689A7D9 /* WorkspaceView+Actions.swift */; };
 		B9B5C4321751543C95899B9C /* RalphMacUILaunchAndTaskFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A3280F3774A438F9AF9EA5 /* RalphMacUILaunchAndTaskFlowTests.swift */; };
@@ -428,6 +431,9 @@
 		B3F1A2C4D5E6789012345675 /* WorkspaceRunCancelAndLoopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunCancelAndLoopTests.swift; sourceTree = "<group>"; };
 		B3F1A2C4D5E6789012345677 /* WorkspaceParallelRunControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceParallelRunControlTests.swift; sourceTree = "<group>"; };
 		B3F1A2C4D5E6789012345679 /* WorkspaceRunControlWatcherHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunControlWatcherHealthTests.swift; sourceTree = "<group>"; };
+		B3F1A2C4D5E6789012345681 /* WorkspaceRunCancellationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRunCancellationTests.swift; sourceTree = "<group>"; };
+		B3F1A2C4D5E6789012345683 /* WorkspaceLoopStartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceLoopStartTests.swift; sourceTree = "<group>"; };
+		B3F1A2C4D5E6789012345685 /* WorkspaceLoopStopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceLoopStopTests.swift; sourceTree = "<group>"; };
 		B457CE53E5E32E8183834647 /* RalphMacUINavigationAndKeyboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUINavigationAndKeyboardTests.swift; sourceTree = "<group>"; };
 		B4AE32B854B634C360A2F819 /* AppSettings+Appearance.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "AppSettings+Appearance.swift"; sourceTree = "<group>"; };
 		B6D1EEC569C94444A00C7A84 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -727,6 +733,9 @@
 				B3F1A2C4D5E6789012345671 /* WorkspaceRunNextInvocationTests.swift */,
 				B3F1A2C4D5E6789012345673 /* WorkspaceRunStateResumeBlockingTests.swift */,
 				B3F1A2C4D5E6789012345675 /* WorkspaceRunCancelAndLoopTests.swift */,
+				B3F1A2C4D5E6789012345681 /* WorkspaceRunCancellationTests.swift */,
+				B3F1A2C4D5E6789012345683 /* WorkspaceLoopStartTests.swift */,
+				B3F1A2C4D5E6789012345685 /* WorkspaceLoopStopTests.swift */,
 				B3F1A2C4D5E6789012345677 /* WorkspaceParallelRunControlTests.swift */,
 				B3F1A2C4D5E6789012345679 /* WorkspaceRunControlWatcherHealthTests.swift */,
 				13E5C2ED7D03FC4696F7E341 /* WorkspaceRunnerConfigurationTests.swift */,
@@ -1170,6 +1179,9 @@
 				B3F1A2C4D5E6789012345672 /* WorkspaceRunNextInvocationTests.swift in Sources */,
 				B3F1A2C4D5E6789012345674 /* WorkspaceRunStateResumeBlockingTests.swift in Sources */,
 				B3F1A2C4D5E6789012345676 /* WorkspaceRunCancelAndLoopTests.swift in Sources */,
+				B3F1A2C4D5E6789012345682 /* WorkspaceRunCancellationTests.swift in Sources */,
+				B3F1A2C4D5E6789012345684 /* WorkspaceLoopStartTests.swift in Sources */,
+				B3F1A2C4D5E6789012345686 /* WorkspaceLoopStopTests.swift in Sources */,
 				B3F1A2C4D5E6789012345678 /* WorkspaceParallelRunControlTests.swift in Sources */,
 				B3F1A2C4D5E678901234567A /* WorkspaceRunControlWatcherHealthTests.swift in Sources */,
 				A8D48D6992FD8E5F56018280 /* WorkspaceRunnerConfigurationTests.swift in Sources */,

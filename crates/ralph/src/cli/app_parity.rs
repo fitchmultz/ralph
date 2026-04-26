@@ -191,9 +191,9 @@ pub const APP_PARITY_SCENARIO_REGISTRY: &[AppParityScenarioEntry] = &[
             "crates/ralph/tests/machine_contract_test/machine_contract_test_run.rs::machine_run_stop_uses_runtime_parallel_state_for_guidance",
         ],
         &[
-            "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift::test_stopLoop_requestsQueueStopSignalForActiveMachineLoop",
-            "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift::test_stopLoop_keepsStopRequestedWhenMachineRunStopReportsAlreadyPresent",
-            "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift::test_runControlOperatorState_exposesStopAfterCurrentActionDuringLoopBlocking",
+            "apps/RalphMac/RalphCoreTests/WorkspaceLoopStopTests.swift::test_stopLoop_requestsQueueStopSignalForActiveMachineLoop",
+            "apps/RalphMac/RalphCoreTests/WorkspaceLoopStopTests.swift::test_stopLoop_keepsStopRequestedWhenMachineRunStopReportsAlreadyPresent",
+            "apps/RalphMac/RalphCoreTests/WorkspaceLoopStopTests.swift::test_runControlOperatorState_exposesStopAfterCurrentActionDuringLoopBlocking",
         ],
         &["Human queue stop parsing does not count as parity completion."],
     ),
