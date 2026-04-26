@@ -100,6 +100,7 @@
 		A1234567890ABCDEF1234567 /* QueueFileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */; };
 		A1B2C3D4E5F60718293A4B5D /* MachineContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* MachineContract.swift */; };
 		A1B2C3D4E5F60718293A4B5F /* MachineContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5E /* MachineContractTests.swift */; };
+		D4F1A2B3C4D5E6F708192A3B /* WorkspaceManagerVersioningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F1A2B3C4D5E6F708192A3A /* WorkspaceManagerVersioningTests.swift */; };
 		A1B2C3D4E5F60718293A4B60 /* WorkspaceDiagnosticsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* WorkspaceDiagnosticsServiceTests.swift */; };
 		A1B2C3D4E5F6789012345678 /* ANSIParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F678901234567890 /* ANSIParserTests.swift */; };
 		A216D62658610CB568691F35 /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDE5AEE63017EB9E3B311E0 /* SettingsService.swift */; };
@@ -377,6 +378,7 @@
 		A0C8497F9C98D1E54DE2DBF0 /* TaskExecutionOverridesSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskExecutionOverridesSection.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5C /* MachineContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachineContract.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5E /* MachineContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachineContractTests.swift; sourceTree = "<group>"; };
+		D4F1A2B3C4D5E6F708192A3A /* WorkspaceManagerVersioningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceManagerVersioningTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B61 /* WorkspaceDiagnosticsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiagnosticsServiceTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718G9H0I1J2 /* TaskListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskListView.swift; path = RalphMac/TaskListView.swift; sourceTree = "<group>"; };
 		A24E80C16889B4FDE88205DC /* CrashReporter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
@@ -712,6 +714,7 @@
 				C2F100000000000000000009 /* WorkspaceRunnerRetargetingTests.swift */,
 				C2F10000000000000000000A /* WorkspaceRunnerRetargetingRunStateTests.swift */,
 				C2F10000000000000000000B /* WorkspaceManagerCLIOverrideTests.swift */,
+				D4F1A2B3C4D5E6F708192A3A /* WorkspaceManagerVersioningTests.swift */,
 				30412AD055A0A3EA93DF756C /* WorkspaceTaskMutationAgentTests.swift */,
 				C2F100000000000000000011 /* WindowStateTests.swift */,
 				C2F100000000000000000012 /* WindowStateTestSupport.swift */,
@@ -1147,6 +1150,7 @@
 				C2F200000000000000000009 /* WorkspaceRunnerRetargetingTests.swift in Sources */,
 				C2F20000000000000000000A /* WorkspaceRunnerRetargetingRunStateTests.swift in Sources */,
 				C2F20000000000000000000B /* WorkspaceManagerCLIOverrideTests.swift in Sources */,
+				D4F1A2B3C4D5E6F708192A3B /* WorkspaceManagerVersioningTests.swift in Sources */,
 				A23FD428E057C0453557DD4A /* WorkspaceTaskMutationAgentTests.swift in Sources */,
 				C2F200000000000000000011 /* WindowStateTests.swift in Sources */,
 				C2F200000000000000000012 /* WindowStateTestSupport.swift in Sources */,

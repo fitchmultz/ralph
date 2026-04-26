@@ -171,7 +171,10 @@ public struct MachineQueuePaths: Codable, Sendable, Equatable {
     }
 }
 
-public struct MachineSystemInfoDocument: Codable, Sendable, Equatable {
+public struct MachineSystemInfoDocument: Codable, Sendable, Equatable, VersionedMachineDocument {
+    public static let expectedVersion = RalphMachineContract.systemInfoVersion
+    public static let documentName = "machine system info"
+
     public let version: Int
     public let cliVersion: String
 

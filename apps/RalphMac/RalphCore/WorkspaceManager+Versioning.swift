@@ -86,10 +86,20 @@ public extension WorkspaceManager {
                 return nil
             }
 
-            let document = try JSONDecoder().decode(MachineSystemInfoDocument.self, from: Data(output.stdout.utf8))
+            let document = try RalphMachineContract.decode(
+                MachineSystemInfoDocument.self,
+                from: Data(output.stdout.utf8),
+                operation: "check CLI version"
+            )
             let versionString = document.cliVersion.trimmingCharacters(in: .whitespacesAndNewlines)
             let validator = VersionValidator()
             return validator.validate(versionString)
+        } catch let recovery as RecoveryError {
+            let message = recovery.message
+            let guidance = recovery.suggestions.first
+            errorMessage = guidance.map { "\(message)\n\n\($0)" } ?? message
+            RalphLogger.shared.error("Failed to check CLI version: \(message)", category: .cli)
+            return nil
         } catch {
             let message = "Failed to check CLI version: \(error.localizedDescription)"
             errorMessage = message

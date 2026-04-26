@@ -49,6 +49,27 @@ final class MachineContractTests: XCTestCase {
         }
     }
 
+    func testDecodeRejectsUnsupportedMachineSystemInfoVersion() {
+        let data = Data("""
+        {
+          "version": 999,
+          "cli_version": "0.4.0"
+        }
+        """.utf8)
+
+        XCTAssertThrowsError(
+            try RalphMachineContract.decode(
+                MachineSystemInfoDocument.self,
+                from: data,
+                operation: "check CLI version"
+            )
+        ) { error in
+            let recovery = error as? RecoveryError
+            XCTAssertEqual(recovery?.category, .versionMismatch)
+            XCTAssertTrue(recovery?.message.contains("Unsupported machine system info version 999") ?? false)
+        }
+    }
+
     func testDecodeRejectsUnsupportedQueueValidateVersion() {
         let data = Data("""
         {
