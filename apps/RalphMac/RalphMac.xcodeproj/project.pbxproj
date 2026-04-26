@@ -45,6 +45,12 @@
 		4A8D2E1F8B3C4D56A7E8F905 /* WorkspaceTaskPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */; };
 		4A8D2E1F8B3C4D56A7E8F906 /* Workspace+TaskMutations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */; };
 		4A8D2E1F8B3C4D56A7E8F907 /* Workspace+RunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */; };
+		C3A024010000000000000001 /* WorkspaceRunState+ConsoleRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000001 /* WorkspaceRunState+ConsoleRendering.swift */; };
+		C3A024010000000000000002 /* WorkspaceRunState+OperatorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000002 /* WorkspaceRunState+OperatorState.swift */; };
+		C3A024010000000000000003 /* Workspace+RunControlOperatorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000003 /* Workspace+RunControlOperatorState.swift */; };
+		C3A024010000000000000004 /* Workspace+RunnerStatusModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000004 /* Workspace+RunnerStatusModels.swift */; };
+		C3A024010000000000000005 /* Workspace+RunnerExecutionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000005 /* Workspace+RunnerExecutionModels.swift */; };
+		C3A024010000000000000006 /* Workspace+RunnerCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000006 /* Workspace+RunnerCommands.swift */; };
 		4A8D2E1F8B3C4D56A7E8F908 /* Workspace+QueueLoading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */; };
 		4A8D2E1F8B3C4D56A7E8F909 /* Workspace+ConflictDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */; };
 		4A8D2E1F8B3C4D56A7E8F90A /* Workspace+GraphData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B651F8A746C4387B1F9D433 /* Workspace+GraphData.swift */; };
@@ -294,6 +300,12 @@
 		0B651F8A746C4387B1F9D42E /* WorkspaceTaskPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskPresentation.swift; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D42F /* Workspace+TaskMutations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+TaskMutations.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunnerState.swift"; sourceTree = "<group>"; };
+		C3A024020000000000000001 /* WorkspaceRunState+ConsoleRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceRunState+ConsoleRendering.swift"; sourceTree = "<group>"; };
+		C3A024020000000000000002 /* WorkspaceRunState+OperatorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceRunState+OperatorState.swift"; sourceTree = "<group>"; };
+		C3A024020000000000000003 /* Workspace+RunControlOperatorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunControlOperatorState.swift"; sourceTree = "<group>"; };
+		C3A024020000000000000004 /* Workspace+RunnerStatusModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunnerStatusModels.swift"; sourceTree = "<group>"; };
+		C3A024020000000000000005 /* Workspace+RunnerExecutionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunnerExecutionModels.swift"; sourceTree = "<group>"; };
+		C3A024020000000000000006 /* Workspace+RunnerCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunnerCommands.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+QueueLoading.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+ConflictDetection.swift"; sourceTree = "<group>"; };
 		0B651F8A746C4387B1F9D433 /* Workspace+GraphData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+GraphData.swift"; sourceTree = "<group>"; };
@@ -592,6 +604,12 @@
 				0B651F8A746C4387B1F9D43A /* Workspace+Persistence.swift */,
 				0B651F8A746C4387B1F9D43B /* Workspace+ErrorRecovery.swift */,
 				0B651F8A746C4387B1F9D430 /* Workspace+RunnerState.swift */,
+				C3A024020000000000000001 /* WorkspaceRunState+ConsoleRendering.swift */,
+				C3A024020000000000000002 /* WorkspaceRunState+OperatorState.swift */,
+				C3A024020000000000000003 /* Workspace+RunControlOperatorState.swift */,
+				C3A024020000000000000004 /* Workspace+RunnerStatusModels.swift */,
+				C3A024020000000000000005 /* Workspace+RunnerExecutionModels.swift */,
+				C3A024020000000000000006 /* Workspace+RunnerCommands.swift */,
 				0B651F8A746C4387B1F9D431 /* Workspace+QueueLoading.swift */,
 				0B651F8A746C4387B1F9D432 /* Workspace+ConflictDetection.swift */,
 				0B651F8A746C4387B1F9D433 /* Workspace+GraphData.swift */,
@@ -1049,6 +1067,12 @@
 				4A8D2E1F8B3C4D56A7E8F912 /* Workspace+Persistence.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F913 /* Workspace+ErrorRecovery.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F907 /* Workspace+RunnerState.swift in Sources */,
+				C3A024010000000000000001 /* WorkspaceRunState+ConsoleRendering.swift in Sources */,
+				C3A024010000000000000002 /* WorkspaceRunState+OperatorState.swift in Sources */,
+				C3A024010000000000000003 /* Workspace+RunControlOperatorState.swift in Sources */,
+				C3A024010000000000000004 /* Workspace+RunnerStatusModels.swift in Sources */,
+				C3A024010000000000000005 /* Workspace+RunnerExecutionModels.swift in Sources */,
+				C3A024010000000000000006 /* Workspace+RunnerCommands.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F908 /* Workspace+QueueLoading.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F909 /* Workspace+ConflictDetection.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F90A /* Workspace+GraphData.swift in Sources */,
