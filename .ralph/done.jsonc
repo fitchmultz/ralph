@@ -194,8 +194,8 @@
       "relates_to": [],
       "custom_fields": {
         "skill": "comprehensive-codebase-audit",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
+        "runner_used": "codex",
         "task_kind": "queue_shaping"
       }
     },
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -610,9 +610,9 @@
       "relates_to": [],
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "runner_used": "codex"
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
         "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
       }
     },
     {
@@ -1374,6 +1374,49 @@
       "created_at": "2026-04-26T16:17:04Z",
       "updated_at": "2026-04-26T23:17:52.346648000Z",
       "completed_at": "2026-04-26T23:17:52.346648000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0027",
+      "status": "done",
+      "title": "Add CI guardrail for repository file-size limits",
+      "description": "Principles violated: E (make bugs hard to write), H (operational hygiene), J (consistency/integrity). File-size limits are documented but not enforced by current local gates, allowing oversized files to accumulate undetected. Why it matters: policy-only limits drift over time and increase refactor risk. Minimal fix: add a non-flaky local gate script/target that fails when files exceed hard limits and warns/fails on soft-limit policy as agreed. Acceptance criteria: CI/local gate fails on new hard-limit violations and reports actionable offenders.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "ci",
+        "policy",
+        "file-size"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "Makefile",
+        "scripts/",
+        "docs/guides/ci-strategy.md",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "path: AGENTS.md:257-260 :: File Size Limits :: target/soft/hard limits are explicit",
+        "workflow: make pre-public-check :: passed while oversized files (1072/862/811 LOC) still exist",
+        "workflow: rg -n \"File Size Limits|LOC|line count\" Makefile scripts docs/guides/ci-strategy.md :: no active line-count enforcement gate found"
+      ],
+      "plan": [
+        "Implement a deterministic file-size check script with configurable ignore list for generated/vendor paths.",
+        "Wire the check into local CI entrypoints (`make ci-fast`/`make agent-ci` tier policy as appropriate).",
+        "Document enforcement behavior and remediation guidance in CI strategy docs.",
+        "Add regression tests for the size-check script behavior (pass/fail paths).",
+        "Verify by running `make ci-fast` and confirming the new guard reports current offenders until split tasks are completed."
+      ],
+      "notes": [],
+      "request": "scan: maintenance",
+      "created_at": "2026-04-26T16:17:04Z",
+      "updated_at": "2026-04-26T23:26:12.182496000Z",
+      "completed_at": "2026-04-26T23:26:12.182496000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
