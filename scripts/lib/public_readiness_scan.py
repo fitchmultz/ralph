@@ -27,12 +27,14 @@ import argparse
 import os
 import re
 import sys
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Iterator
 
 
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+MARKDOWN_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>[\s\S]*?)\n```", re.MULTILINE)
 STALE_SESSION_CACHE_PATH_RE = re.compile(r"\.ralph/cache/session\.json(?!c)")
 AWS_EXAMPLE_KEY = "AK" "IA" "IOSFODNN7EXAMPLE"
 OPENSSH_PRIVATE_KEY_TAG = "OPEN" "SSH PRIVATE KEY"
@@ -74,6 +76,41 @@ HIGH_CONFIDENCE_SECRET_PATTERNS = {
         r"BEGIN (?:RSA|OPEN" r"SSH|EC|DSA|PGP) PRIVATE " r"KEY"
     ),
 }
+
+
+@dataclass(frozen=True)
+class DocSnippetContract:
+    rel_path: str
+    pattern: re.Pattern[str]
+    message: str
+    search_scope: str = "document"
+
+
+STALE_DOC_SNIPPET_CONTRACTS = (
+    DocSnippetContract(
+        rel_path="docs/features/app.md",
+        pattern=re.compile(r"`ralph task decompose --format json`"),
+        message="use `ralph machine task decompose` for RalphMac decomposition docs",
+    ),
+    DocSnippetContract(
+        rel_path="docs/features/session-management.md",
+        pattern=re.compile(
+            r'"version"\s*:\s*3[\s\S]*?"resume_preview"',
+            re.MULTILINE,
+        ),
+        message="machine config resolve examples must use version 4",
+        search_scope="json_blocks",
+    ),
+    DocSnippetContract(
+        rel_path="docs/features/session-management.md",
+        pattern=re.compile(
+            r'"version"\s*:\s*2[\s\S]*?"kind"\s*:\s*"resume_decision"',
+            re.MULTILINE,
+        ),
+        message="machine run resume_decision examples must use version 3",
+        search_scope="json_blocks",
+    ),
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -249,12 +286,32 @@ def collect_secret_problems(rel_path: str, text: str) -> list[str]:
     return problems
 
 
+def iter_markdown_json_blocks(text: str) -> Iterator[str]:
+    for match in MARKDOWN_JSON_FENCE_RE.finditer(text):
+        yield match.group("body")
+
+
+def collect_doc_contract_problems(rel_path: str, text: str) -> list[str]:
+    problems: list[str] = []
+    json_blocks = tuple(iter_markdown_json_blocks(text))
+    for contract in STALE_DOC_SNIPPET_CONTRACTS:
+        if rel_path != contract.rel_path:
+            continue
+        haystacks = (text,)
+        if contract.search_scope == "json_blocks":
+            haystacks = json_blocks
+        if any(contract.pattern.search(haystack) for haystack in haystacks):
+            problems.append(f"{rel_path}: {contract.message}")
+    return problems
+
+
 def scan_repo(
     repo_root: Path,
     excludes: tuple[str, ...],
     *,
     include_links: bool,
     include_session_paths: bool,
+    include_doc_contracts: bool,
     include_secrets: bool,
 ) -> int:
     problems: list[str] = []
@@ -264,8 +321,14 @@ def scan_repo(
         should_scan_session_paths = include_session_paths and scans_session_path_contract(
             rel_path, path
         )
+        should_scan_doc_contracts = include_doc_contracts and path.suffix == ".md"
         should_scan_secrets = include_secrets
-        if not (should_scan_links or should_scan_session_paths or should_scan_secrets):
+        if not (
+            should_scan_links
+            or should_scan_session_paths
+            or should_scan_doc_contracts
+            or should_scan_secrets
+        ):
             continue
 
         text = read_text(path, repo_root, excludes)
@@ -276,6 +339,8 @@ def scan_repo(
             problems.extend(collect_link_problems(path, repo_root, text))
         if should_scan_session_paths:
             problems.extend(collect_session_path_problems(rel_path, text))
+        if should_scan_doc_contracts:
+            problems.extend(collect_doc_contract_problems(rel_path, text))
         if should_scan_secrets:
             problems.extend(collect_secret_problems(rel_path, text))
 
@@ -291,6 +356,7 @@ def scan_links(repo_root: Path, excludes: tuple[str, ...]) -> int:
         excludes,
         include_links=True,
         include_session_paths=False,
+        include_doc_contracts=False,
         include_secrets=False,
     )
 
@@ -301,6 +367,7 @@ def scan_session_paths(repo_root: Path, excludes: tuple[str, ...]) -> int:
         excludes,
         include_links=False,
         include_session_paths=True,
+        include_doc_contracts=False,
         include_secrets=False,
     )
 
@@ -311,6 +378,7 @@ def scan_secrets(repo_root: Path, excludes: tuple[str, ...]) -> int:
         excludes,
         include_links=False,
         include_session_paths=False,
+        include_doc_contracts=False,
         include_secrets=True,
     )
 
@@ -321,6 +389,7 @@ def scan_docs(repo_root: Path, excludes: tuple[str, ...]) -> int:
         excludes,
         include_links=True,
         include_session_paths=True,
+        include_doc_contracts=True,
         include_secrets=False,
     )
 
@@ -331,6 +400,7 @@ def scan_all(repo_root: Path, excludes: tuple[str, ...]) -> int:
         excludes,
         include_links=True,
         include_session_paths=True,
+        include_doc_contracts=True,
         include_secrets=True,
     )
 

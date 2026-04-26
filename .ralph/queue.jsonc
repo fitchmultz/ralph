@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0015",
-      "status": "todo",
-      "title": "Fix stale RalphMac and session-management docs",
-      "description": "Update app and session-management documentation so contributors are pointed at the current machine surfaces and contract versions. Current docs still reference older app command paths and stale machine run event versions, which creates drift pressure even when the runtime code is correct.",
-      "priority": "low",
-      "tags": [
-        "docs",
-        "ralphmac",
-        "machine-api",
-        "contracts"
-      ],
-      "scope": [
-        "docs/features/app.md",
-        "docs/features/session-management.md",
-        "docs/machine-contract.md",
-        "apps/RalphMac/RalphCore/Workspace+Decompose.swift",
-        "crates/ralph/tests/",
-        "scripts/pre-public-check.sh"
-      ],
-      "evidence": [
-        "`docs/features/app.md` says decomposition uses `ralph task decompose --format json`, while RalphMac uses `ralph machine task decompose`.",
-        "`docs/features/session-management.md` shows a machine run event example with `version: 2`, while the machine contract and current run events use version 3.",
-        "Stale docs encourage future app work to target old or human-facing surfaces instead of machine contracts."
-      ],
-      "plan": [
-        "Update app docs to name current machine commands for decomposition and native app workflows.",
-        "Update session-management examples to use the current machine run event version and payload shape.",
-        "Cross-check nearby machine-contract examples for stale version numbers or old command names touched by the audit.",
-        "If an existing docs validation hook is appropriate, add a lightweight check for stale command/version snippets without creating a new CI workflow.",
-        "Run the docs-relevant local validation gate for the changed files."
-      ],
-      "notes": [],
-      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
-      "created_at": "2026-04-26T00:04:48Z",
-      "updated_at": "2026-04-26T00:04:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
-      }
-    },
-    {
       "id": "RQ-0016",
       "status": "todo",
       "title": "Add scenario-level app parity coverage",

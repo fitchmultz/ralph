@@ -160,9 +160,35 @@ This prevents headless automation from silently discarding or duplicating interr
 
 ```json
 {
-  "version": 3,
-  "paths": { "repo_root": "/repo", "queue_path": "/repo/.ralph/queue.jsonc", "done_path": "/repo/.ralph/done.jsonc" },
-  "safety": { "repo_trusted": true, "dirty_repo": false, "git_publish_mode": "off", "ci_gate_enabled": true, "git_revert_mode": "ask", "parallel_configured": false, "execution_interactivity": "noninteractive_streaming", "interactive_approval_supported": false },
+  "version": 4,
+  "paths": {
+    "repo_root": "/repo",
+    "queue_path": "/repo/.ralph/queue.jsonc",
+    "done_path": "/repo/.ralph/done.jsonc"
+  },
+  "safety": {
+    "repo_trusted": true,
+    "dirty_repo": false,
+    "git_publish_mode": "off",
+    "ci_gate_enabled": true,
+    "git_revert_mode": "ask",
+    "parallel_configured": false,
+    "execution_interactivity": "noninteractive_streaming",
+    "interactive_approval_supported": false
+  },
+  "execution_controls": {
+    "runners": [],
+    "reasoning_efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "parallel_workers": {
+      "min": 2,
+      "max": 32,
+      "default_missing_value": 2
+    }
+  },
   "config": { "agent": { "model": "gpt-5.4" } },
   "resume_preview": {
     "status": "refusing_to_resume",
@@ -182,7 +208,21 @@ This preview is **read-only**: it must not clear or rewrite saved session state.
 `ralph machine run ...` streams can emit:
 
 ```json
-{"version":2,"kind":"resume_decision","task_id":"RQ-0001","message":"Resume: continuing the interrupted session for task RQ-0001.","payload":{"status":"resuming_same_session","scope":"run_session","reason":"session_valid","task_id":"RQ-0001","message":"Resume: continuing the interrupted session for task RQ-0001.","detail":"Saved session is current and will resume from phase 2 with 1 completed loop task(s)."}}
+{
+  "version": 3,
+  "kind": "resume_decision",
+  "timestamp": "2026-04-26T06:00:00Z",
+  "task_id": "RQ-0001",
+  "message": "Resume: continuing the interrupted session for task RQ-0001.",
+  "payload": {
+    "status": "resuming_same_session",
+    "scope": "run_session",
+    "reason": "session_valid",
+    "task_id": "RQ-0001",
+    "message": "Resume: continuing the interrupted session for task RQ-0001.",
+    "detail": "Saved session is current and will resume from phase 2 with 1 completed loop task(s)."
+  }
+}
 ```
 
 RalphMac consumes both `resume_preview` and `resume_decision` so Run Control can show the expected action before the run starts and the actual action once the run begins.

@@ -95,6 +95,7 @@ Resume decisions remain structured:
 {
   "version": 3,
   "kind": "resume_decision",
+  "timestamp": "2026-04-26T06:00:00Z",
   "task_id": "RQ-0001",
   "message": "Resume: continuing the interrupted session for task RQ-0001.",
   "payload": {
@@ -108,12 +109,17 @@ Resume decisions remain structured:
 }
 ```
 
+Every `machine run` event envelope includes `timestamp`. Machine clients should
+validate the full envelope shape instead of assuming older timestamp-less event
+examples remain valid.
+
 Blocking-state transitions are also structured:
 
 ```json
 {
   "version": 3,
   "kind": "blocked_state_changed",
+  "timestamp": "2026-04-26T06:00:02Z",
   "message": "Ralph is blocked by unfinished dependencies.",
   "payload": {
     "status": "blocked",

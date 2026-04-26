@@ -23,3 +23,6 @@ mod links;
 
 #[path = "public_readiness_scan_contracts/secrets.rs"]
 mod secrets;
+
+#[path = "public_readiness_scan_contracts/docs_contracts.rs"]
+mod docs_contracts;

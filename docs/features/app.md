@@ -101,17 +101,20 @@ Behavioral notes:
 - The sheet defaults to preview mode and only writes after an explicit second action.
 - Launching from a selected task defaults to decomposing that task in place.
 - Freeform mode can optionally attach a new subtree under an existing parent.
-- The app calls `ralph task decompose --format json` and renders the stable CLI response; it does not reimplement planner logic locally.
+- The app calls `ralph machine task decompose` for both preview and write flows and renders the versioned machine-contract response; it does not reimplement planner logic locally.
 
 ## How the App Integrates with the CLI
 
 The app is a thin client that shells out to the `ralph` binary via `RalphCLIClient`.
 
 Practical implications:
-- Native workflows should use versioned `ralph machine ...` JSON contracts or
-  shared structured JSON command outputs, not human CLI text.
+- Native workflows should use versioned `ralph machine ...` JSON contracts,
+  not human CLI text or older app-targeted CLI JSON surfaces.
 - Task override and Run Control execution affordances should come from
   `ralph machine config resolve.execution_controls`, not hardcoded native menus.
+- Decomposition preview/write flows should stay wired to
+  `ralph machine task decompose` so the app consumes the same stable contract
+  used by other machine clients.
 - Trusted plugin runners appear in native controls through the same machine-fed
   contract; unknown configured runner or effort values must remain visible
   instead of being coerced away.

@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
         "skill": "comprehensive-codebase-audit",
-        "task_kind": "queue_shaping",
-        "model_used": "gpt-5.4"
+        "task_kind": "queue_shaping"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -540,8 +540,8 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md"
       }
     },
@@ -610,9 +610,9 @@
       "relates_to": [],
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
+        "runner_used": "codex",
         "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
       }
     },
     {
@@ -760,9 +760,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "runner_used": "codex",
         "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md"
       }
     },
@@ -829,10 +829,71 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
+      }
+    },
+    {
+      "id": "RQ-0015",
+      "status": "done",
+      "title": "Fix stale RalphMac and session-management docs",
+      "description": "Update app and session-management documentation so contributors are pointed at the current machine surfaces and contract versions. Current docs still reference older app command paths and stale machine run event versions, which creates drift pressure even when the runtime code is correct.",
+      "priority": "low",
+      "tags": [
+        "docs",
+        "ralphmac",
+        "machine-api",
+        "contracts",
+        "docs-validation",
+        "public-readiness"
+      ],
+      "scope": [
+        "docs/features/app.md",
+        "docs/features/session-management.md",
+        "docs/machine-contract.md",
+        "apps/RalphMac/RalphCore/Workspace+Decompose.swift",
+        "crates/ralph/src/contracts/machine.rs",
+        "scripts/lib/public_readiness_scan.sh",
+        "scripts/lib/public_readiness_scan.py",
+        "crates/ralph/tests/release_integration_contract_test/"
+      ],
+      "evidence": [
+        "`docs/features/app.md` still says the app calls `ralph task decompose --format json`, but `apps/RalphMac/RalphCore/Workspace+Decompose.swift` shells out to `ralph machine task decompose` for both preview and write flows.",
+        "`docs/features/session-management.md` still shows a `resume_decision` machine run event with `\"version\":2`, but `docs/machine-contract.md` and `crates/ralph/src/contracts/machine.rs` define machine run events at version 3.",
+        "That same session-management page also shows `ralph machine config resolve` output with `\"version\": 3`, while `crates/ralph/src/contracts/machine.rs` and `docs/machine-contract.md` define `machine config resolve` at version 4.",
+        "`scripts/lib/public_readiness_scan.py` currently guards markdown links and stale `.ralph/cache/session.json` references, but it does not yet catch stale machine-command or machine-event-version snippets in docs.",
+        "Leaving the stale snippets in place teaches future RalphMac and automation work to target older human-facing or outdated contract surfaces instead of the current machine API."
+      ],
+      "plan": [
+        "Update `docs/features/app.md` so the decomposition section and app/CLI integration guidance explicitly point contributors at `ralph machine task decompose` and other machine-contract-backed native flows.",
+        "Update `docs/features/session-management.md` so the `machine config resolve` example and the `machine run` event example match the current contract versions and payload shapes used by the machine API.",
+        "Cross-check `docs/machine-contract.md` against `crates/ralph/src/contracts/machine.rs` for nearby command-name or version drift in the touched session-management and app-facing sections, then fix any stale examples found in-scope.",
+        "Extend the existing public-readiness docs scan path (`scripts/lib/public_readiness_scan.sh` / `.py`) with a lightweight stale-snippet guard for the known bad command/version patterns instead of adding a new workflow.",
+        "Add or update focused regression coverage for that docs scan so stale machine-command or machine-event-version snippets fail locally before future drift lands.",
+        "In Phase 2, run the docs-relevant local validation for the changed surfaces rather than the full repo CI gate."
+      ],
+      "notes": [
+        "The machine-contract doc already advertises `machine config resolve` at version 4, `machine run` events at version 3, and `machine task decompose` at version 2, so it should be treated as the documentation-side canonical reference while cross-checking runtime code.",
+        "The current focused public-readiness scan already has a docs mode and a session-path contract; this task should reuse that seam for any new stale-snippet guard.",
+        "Updated RalphMac and session-management docs to current machine surfaces and versions.",
+        "Added stale-doc public-readiness scan coverage for app/session drift.",
+        "Tightened docs-scan matching to fenced JSON blocks and verified with targeted tests plus make agent-ci."
+      ],
+      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
+      "created_at": "2026-04-26T00:04:48Z",
+      "updated_at": "2026-04-26T07:10:58.613497000Z",
+      "completed_at": "2026-04-26T07:10:58.613497000Z",
+      "started_at": "2026-04-26T06:50:49.119887000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "runner_used": "codex",
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4"
       }
     }
   ]
