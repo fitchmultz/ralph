@@ -130,9 +130,18 @@ final class WorkspaceRunStateResumeBlockingTests: WorkspacePerformanceTestCase {
             in: fixture.rootURL,
             name: "queue-read.json"
         )
+        let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.configResolveDocument(workspaceURL: fixture.workspaceURL),
+            in: fixture.rootURL,
+            name: "config-resolve.json"
+        )
 
         let script = """
             #!/bin/sh
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
             if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "queue" ] && [ "$4" = "read" ]; then
               cat "\(queueReadURL.path)"
               exit 0

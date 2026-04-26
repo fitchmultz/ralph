@@ -209,19 +209,45 @@ enum RalphMockCLITestSupport {
         return workspace
     }
 
-    static func resolvedPaths(for workspaceURL: URL) -> MachineQueuePaths {
+    struct MockResolvedPathOverrides {
+        let queueURL: URL?
+        let doneURL: URL?
+        let projectConfigURL: URL?
+
+        init(
+            queueURL: URL? = nil,
+            doneURL: URL? = nil,
+            projectConfigURL: URL? = nil
+        ) {
+            self.queueURL = queueURL
+            self.doneURL = doneURL
+            self.projectConfigURL = projectConfigURL
+        }
+    }
+
+    static func resolvedPaths(
+        for workspaceURL: URL,
+        overrides: MockResolvedPathOverrides? = nil
+    ) -> MachineQueuePaths {
         let workspacePath = workspaceURL.path
+        let queueURL = overrides?.queueURL
+            ?? workspaceURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false)
+        let doneURL = overrides?.doneURL
+            ?? workspaceURL.appendingPathComponent(".ralph/done.jsonc", isDirectory: false)
+        let projectConfigURL = overrides?.projectConfigURL
+            ?? workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
         return MachineQueuePaths(
             repoRoot: workspacePath,
-            queuePath: workspaceURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false).path,
-            donePath: workspaceURL.appendingPathComponent(".ralph/done.jsonc", isDirectory: false).path,
-            projectConfigPath: workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false).path,
+            queuePath: queueURL.path,
+            donePath: doneURL.path,
+            projectConfigPath: projectConfigURL.path,
             globalConfigPath: nil
         )
     }
 
     static func configResolveDocument(
         workspaceURL: URL,
+        pathOverrides: MockResolvedPathOverrides? = nil,
         safety: MachineConfigSafetySummary = defaultSafetySummary,
         agent: AgentConfig = AgentConfig(),
         executionControls: MachineExecutionControls = defaultExecutionControls,
@@ -229,7 +255,7 @@ enum RalphMockCLITestSupport {
     ) -> MachineConfigResolveDocument {
         MachineConfigResolveDocument(
             version: RalphMachineContract.configResolveVersion,
-            paths: resolvedPaths(for: workspaceURL),
+            paths: resolvedPaths(for: workspaceURL, overrides: pathOverrides),
             safety: safety,
             config: RalphConfig(agent: agent),
             executionControls: executionControls,
@@ -243,6 +269,7 @@ enum RalphMockCLITestSupport {
         doneTasks: [RalphTask] = [],
         nextRunnableTaskID: String? = nil,
         runnability: RalphJSONValue = emptyRunnability,
+        pathOverrides: MockResolvedPathOverrides? = nil,
         safety: MachineConfigSafetySummary = defaultSafetySummary,
         agent: AgentConfig = AgentConfig(),
         executionControls: MachineExecutionControls = defaultExecutionControls,
@@ -255,10 +282,12 @@ enum RalphMockCLITestSupport {
                 activeTasks: activeTasks,
                 doneTasks: doneTasks,
                 nextRunnableTaskID: nextRunnableTaskID,
-                runnability: runnability
+                runnability: runnability,
+                pathOverrides: pathOverrides
             ),
             config: configResolveDocument(
                 workspaceURL: workspaceURL,
+                pathOverrides: pathOverrides,
                 safety: safety,
                 agent: agent,
                 executionControls: executionControls,
@@ -272,11 +301,12 @@ enum RalphMockCLITestSupport {
         activeTasks: [RalphTask],
         doneTasks: [RalphTask] = [],
         nextRunnableTaskID: String? = nil,
-        runnability: RalphJSONValue = emptyRunnability
+        runnability: RalphJSONValue = emptyRunnability,
+        pathOverrides: MockResolvedPathOverrides? = nil
     ) -> MachineQueueReadDocument {
         MachineQueueReadDocument(
             version: 1,
-            paths: resolvedPaths(for: workspaceURL),
+            paths: resolvedPaths(for: workspaceURL, overrides: pathOverrides),
             active: RalphTaskQueueDocument(tasks: activeTasks),
             done: RalphTaskQueueDocument(tasks: doneTasks),
             nextRunnableTaskID: nextRunnableTaskID,

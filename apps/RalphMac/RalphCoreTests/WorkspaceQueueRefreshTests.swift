@@ -241,4 +241,247 @@ final class WorkspaceQueueRefreshTests: RalphCoreTestCase {
 
         XCTAssertTrue(retargeted)
     }
+
+    func test_workspaceOverviewWatcherRetargetsWhenConfigMovesQueuePath() async throws {
+        var workspace: Workspace!
+        let rootURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-overview-path-switch-")
+        let workspaceURL = rootURL.appendingPathComponent("workspace", isDirectory: true)
+        let customStateURL = workspaceURL.appendingPathComponent("custom-state", isDirectory: true)
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootURL, workspace) }
+
+        try FileManager.default.createDirectory(at: customStateURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: workspaceURL.appendingPathComponent(".ralph", isDirectory: true), withIntermediateDirectories: true)
+
+        let initialTask = RalphMockCLITestSupport.task(id: "RQ-OVERVIEW-1", status: .todo, title: "Initial overview task", priority: .medium, createdAt: "2026-04-25T00:00:00Z", updatedAt: "2026-04-25T00:00:00Z")
+        let switchedTask = RalphMockCLITestSupport.task(id: "RQ-OVERVIEW-2", status: .todo, title: "Switched queue task", priority: .high, createdAt: "2026-04-25T01:00:00Z", updatedAt: "2026-04-25T01:00:00Z")
+        let defaultQueueURL = workspaceURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false)
+        let defaultDoneURL = workspaceURL.appendingPathComponent(".ralph/done.jsonc", isDirectory: false)
+        let customQueueURL = customStateURL.appendingPathComponent("tasks.jsonc", isDirectory: false)
+        let customDoneURL = customStateURL.appendingPathComponent("archive.jsonc", isDirectory: false)
+        let projectConfigURL = workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(to: defaultQueueURL, tasks: [initialTask])
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(to: customQueueURL, tasks: [switchedTask])
+        try "[]\n".write(to: defaultDoneURL, atomically: true, encoding: .utf8)
+        try "[]\n".write(to: customDoneURL, atomically: true, encoding: .utf8)
+        try "{}\n".write(to: projectConfigURL, atomically: true, encoding: .utf8)
+
+        let switchedPaths = RalphMockCLITestSupport.MockResolvedPathOverrides(queueURL: customQueueURL, doneURL: customDoneURL, projectConfigURL: projectConfigURL)
+        let overviewURL = try WorkspaceRunnerConfigurationTestSupport.writeWorkspaceOverviewDocument(in: rootURL, name: "overview.json", workspaceURL: workspaceURL, activeTasks: [initialTask], nextRunnableTaskID: initialTask.id, model: "overview-model")
+        let configResolveCurrentURL = rootURL.appendingPathComponent("config-resolve-current.json", isDirectory: false)
+        try FileManager.default.copyItem(at: try WorkspaceRunnerConfigurationTestSupport.writeConfigResolveDocument(in: rootURL, name: "config-resolve-switched.json", workspaceURL: workspaceURL, model: "overview-model", pathOverrides: switchedPaths), to: configResolveCurrentURL)
+        let queueReadCurrentURL = rootURL.appendingPathComponent("queue-read-current.json", isDirectory: false)
+        try FileManager.default.copyItem(at: try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(in: rootURL, name: "queue-read-switched.json", workspaceURL: workspaceURL, activeTasks: [switchedTask], nextRunnableTaskID: switchedTask.id, pathOverrides: switchedPaths), to: queueReadCurrentURL)
+        let graphCurrentURL = rootURL.appendingPathComponent("graph-current.json", isDirectory: false)
+        try FileManager.default.copyItem(at: try WorkspaceRunnerConfigurationTestSupport.writeGraphDocument(in: rootURL, name: "graph-switched.json", tasks: [RalphMockCLITestSupport.graphNode(id: switchedTask.id, title: switchedTask.title)]), to: graphCurrentURL)
+        let dashboardCurrentURL = rootURL.appendingPathComponent("dashboard-current.json", isDirectory: false)
+        try """
+        {"version":1,"dashboard":{"window_days":7,"generated_at":"2026-04-25T01:00:00Z","sections":{"productivity_summary":{"status":"unavailable","data":null,"error_message":"not needed"},"productivity_velocity":{"status":"unavailable","data":null,"error_message":"not needed"},"burndown":{"status":"unavailable","data":null,"error_message":"not needed"},"queue_stats":{"status":"ok","data":{"summary":{"total":1,"done":0,"rejected":0,"terminal":0,"active":1,"terminal_rate":0},"tag_breakdown":[]},"error_message":null},"history":{"status":"unavailable","data":null,"error_message":"not needed"}}}}
+        """.write(to: dashboardCurrentURL, atomically: true, encoding: .utf8)
+
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: rootURL, name: "mock-ralph-overview-path-switch", body: """
+            #!/bin/sh
+            set -eu
+            if [ "$1" = "--no-color" ]; then shift; fi
+            if [ "$1" = "machine" ] && [ "$2" = "workspace" ] && [ "$3" = "overview" ]; then cat "\(overviewURL.path)"; exit 0; fi
+            if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then cat "\(configResolveCurrentURL.path)"; exit 0; fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "read" ]; then cat "\(queueReadCurrentURL.path)"; exit 0; fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "graph" ]; then cat "\(graphCurrentURL.path)"; exit 0; fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "dashboard" ]; then cat "\(dashboardCurrentURL.path)"; exit 0; fi
+            echo "unexpected args: $*" >&2
+            exit 64
+            """)
+        workspace = Workspace(workingDirectoryURL: workspaceURL, client: try RalphCLIClient(executableURL: scriptURL), bootstrapRepositoryStateOnInit: false)
+
+        await workspace.refreshWorkspaceOverviewState(retryConfiguration: .minimal)
+        let watcherStarted = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run { workspace.diagnosticsState.watcherHealth.isWatching }
+        }
+        XCTAssertEqual(workspace.taskState.tasks.map(\.id), [initialTask.id])
+        XCTAssertEqual(workspace.queueFileURL, defaultQueueURL)
+        XCTAssertTrue(watcherStarted)
+
+        try "{ \"version\": 2, \"queue\": { \"file\": \"custom-state/tasks.jsonc\", \"done_file\": \"custom-state/archive.jsonc\" } }\n".write(to: projectConfigURL, atomically: true, encoding: .utf8)
+
+        let switched = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.queueFileURL == customQueueURL
+                    && workspace.doneFileURL == customDoneURL
+                    && workspace.taskState.tasks.map(\.id) == [switchedTask.id]
+                    && workspace.taskState.lastQueueRefreshEvent?.source == .externalFileChange
+            }
+        }
+
+        XCTAssertTrue(switched)
+    }
+
+    func test_loadTasks_resolvesCustomQueuePathBeforeCheckingDefaultQueueFile() async throws {
+        var workspace: Workspace!
+        let rootURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-custom-queue-load-")
+        let workspaceURL = rootURL.appendingPathComponent("workspace", isDirectory: true)
+        let customStateURL = workspaceURL.appendingPathComponent("custom-state", isDirectory: true)
+        defer { RalphCoreTestSupport.shutdownAndRemove(rootURL, workspace) }
+
+        try FileManager.default.createDirectory(at: customStateURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: workspaceURL.appendingPathComponent(".ralph", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+
+        let customQueueURL = customStateURL.appendingPathComponent("queue.jsonc", isDirectory: false)
+        let customDoneURL = customStateURL.appendingPathComponent("done.jsonc", isDirectory: false)
+        let projectConfigURL = workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+        try "[]\n".write(to: customDoneURL, atomically: true, encoding: .utf8)
+        try "{ \"version\": 2, \"queue\": { \"file\": \"custom-state/queue.jsonc\", \"done_file\": \"custom-state/done.jsonc\" } }\n"
+            .write(to: projectConfigURL, atomically: true, encoding: .utf8)
+
+        let initialTask = RalphMockCLITestSupport.task(
+            id: "RQ-CUSTOM-1",
+            status: .todo,
+            title: "Initial custom queue task",
+            priority: .medium,
+            createdAt: "2026-04-25T00:00:00Z",
+            updatedAt: "2026-04-25T00:00:00Z"
+        )
+        let updatedTask = RalphMockCLITestSupport.task(
+            id: "RQ-CUSTOM-2",
+            status: .todo,
+            title: "Updated custom queue task",
+            priority: .high,
+            createdAt: "2026-04-25T01:00:00Z",
+            updatedAt: "2026-04-25T01:00:00Z"
+        )
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(to: customQueueURL, tasks: [initialTask])
+
+        let pathOverrides = RalphMockCLITestSupport.MockResolvedPathOverrides(
+            queueURL: customQueueURL,
+            doneURL: customDoneURL,
+            projectConfigURL: projectConfigURL
+        )
+        let configResolveURL = try WorkspaceRunnerConfigurationTestSupport.writeConfigResolveDocument(
+            in: rootURL,
+            name: "config-resolve.json",
+            workspaceURL: workspaceURL,
+            model: "custom-path-model",
+            pathOverrides: pathOverrides
+        )
+        let queueReadURL = try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(
+            in: rootURL,
+            name: "queue-read.json",
+            workspaceURL: workspaceURL,
+            activeTasks: [initialTask],
+            nextRunnableTaskID: initialTask.id,
+            pathOverrides: pathOverrides
+        )
+        let queueReadUpdatedURL = try WorkspaceRunnerConfigurationTestSupport.writeQueueReadDocument(
+            in: rootURL,
+            name: "queue-read-updated.json",
+            workspaceURL: workspaceURL,
+            activeTasks: [updatedTask],
+            nextRunnableTaskID: updatedTask.id,
+            pathOverrides: pathOverrides
+        )
+        let graphReadURL = try WorkspaceRunnerConfigurationTestSupport.writeGraphDocument(
+            in: rootURL,
+            name: "graph-read.json",
+            tasks: [RalphMockCLITestSupport.graphNode(id: updatedTask.id, title: updatedTask.title)]
+        )
+        let dashboardReadURL = rootURL.appendingPathComponent("dashboard-read.json", isDirectory: false)
+        try """
+        {
+          "version": 1,
+          "dashboard": {
+            "window_days": 7,
+            "generated_at": "2026-04-25T01:00:00Z",
+            "sections": {
+              "productivity_summary": { "status": "unavailable", "data": null, "error_message": "not needed" },
+              "productivity_velocity": { "status": "unavailable", "data": null, "error_message": "not needed" },
+              "burndown": { "status": "unavailable", "data": null, "error_message": "not needed" },
+              "queue_stats": {
+                "status": "ok",
+                "data": {
+                  "summary": {
+                    "total": 1,
+                    "done": 0,
+                    "rejected": 0,
+                    "terminal": 0,
+                    "active": 1,
+                    "terminal_rate": 0
+                  },
+                  "tag_breakdown": []
+                },
+                "error_message": null
+              },
+              "history": { "status": "unavailable", "data": null, "error_message": "not needed" }
+            }
+          }
+        }
+        """.write(to: dashboardReadURL, atomically: true, encoding: .utf8)
+
+        let queueReadCurrentURL = rootURL.appendingPathComponent("queue-read-current.json", isDirectory: false)
+        try FileManager.default.copyItem(at: queueReadURL, to: queueReadCurrentURL)
+
+        let script = """
+            #!/bin/sh
+            set -eu
+            if [ "$1" = "--no-color" ]; then
+              shift
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "workspace" ] && [ "$3" = "overview" ]; then
+              echo "unrecognized subcommand 'overview'" >&2
+              exit 64
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "config" ] && [ "$3" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "read" ]; then
+              cat "\(queueReadCurrentURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "graph" ]; then
+              cat "\(graphReadURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "machine" ] && [ "$2" = "queue" ] && [ "$3" = "dashboard" ]; then
+              cat "\(dashboardReadURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" >&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: rootURL,
+            name: "mock-ralph-custom-queue-load",
+            body: script
+        )
+        workspace = Workspace(
+            workingDirectoryURL: workspaceURL,
+            client: try RalphCLIClient(executableURL: scriptURL),
+            bootstrapRepositoryStateOnInit: false
+        )
+
+        await workspace.refreshWorkspaceOverviewState(retryConfiguration: .minimal)
+
+        XCTAssertEqual(workspace.taskState.tasks.map(\.id), [initialTask.id])
+        XCTAssertEqual(workspace.queueFileURL, customQueueURL)
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: workspaceURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false).path
+            )
+        )
+        XCTAssertTrue(workspace.diagnosticsState.watcherHealth.isWatching)
+
+        try WorkspaceTaskCreationTestSupport.removeItemIfExists(queueReadCurrentURL)
+        try FileManager.default.copyItem(at: queueReadUpdatedURL, to: queueReadCurrentURL)
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(to: customQueueURL, tasks: [updatedTask])
+
+        let refreshed = await RalphCoreTestSupport.waitUntil(timeout: .seconds(10)) {
+            await MainActor.run {
+                workspace.taskState.tasks.map(\.id) == [updatedTask.id]
+                    && workspace.taskState.lastQueueRefreshEvent?.source == .externalFileChange
+            }
+        }
+
+        XCTAssertTrue(refreshed)
+    }
 }

@@ -28,6 +28,7 @@ enum WorkspaceRunnerConfigurationTestSupport {
         name: String,
         workspaceURL: URL,
         model: String,
+        pathOverrides: RalphMockCLITestSupport.MockResolvedPathOverrides? = nil,
         runner: String? = nil,
         reasoningEffort: String? = nil,
         phases: Int? = nil,
@@ -39,6 +40,7 @@ enum WorkspaceRunnerConfigurationTestSupport {
         try RalphMockCLITestSupport.writeJSONDocument(
             RalphMockCLITestSupport.configResolveDocument(
                 workspaceURL: workspaceURL,
+                pathOverrides: pathOverrides,
                 safety: safety,
                 agent: AgentConfig(
                     runner: runner,
@@ -61,14 +63,16 @@ enum WorkspaceRunnerConfigurationTestSupport {
         workspaceURL: URL,
         activeTasks: [RalphTask],
         doneTasks: [RalphTask] = [],
-        nextRunnableTaskID: String? = nil
+        nextRunnableTaskID: String? = nil,
+        pathOverrides: RalphMockCLITestSupport.MockResolvedPathOverrides? = nil
     ) throws -> URL {
         try RalphMockCLITestSupport.writeJSONDocument(
             RalphMockCLITestSupport.queueReadDocument(
                 workspaceURL: workspaceURL,
                 activeTasks: activeTasks,
                 doneTasks: doneTasks,
-                nextRunnableTaskID: nextRunnableTaskID
+                nextRunnableTaskID: nextRunnableTaskID,
+                pathOverrides: pathOverrides
             ),
             in: directory,
             name: name
@@ -83,6 +87,7 @@ enum WorkspaceRunnerConfigurationTestSupport {
         doneTasks: [RalphTask] = [],
         nextRunnableTaskID: String? = nil,
         model: String,
+        pathOverrides: RalphMockCLITestSupport.MockResolvedPathOverrides? = nil,
         phases: Int? = nil,
         iterations: Int? = nil,
         gitPublishMode: String? = nil,
@@ -94,6 +99,7 @@ enum WorkspaceRunnerConfigurationTestSupport {
                 activeTasks: activeTasks,
                 doneTasks: doneTasks,
                 nextRunnableTaskID: nextRunnableTaskID,
+                pathOverrides: pathOverrides,
                 safety: safety,
                 agent: AgentConfig(
                     model: model,

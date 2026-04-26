@@ -86,6 +86,12 @@ public extension Workspace {
 }
 
 public extension Workspace {
+    enum QueueAccessPreflightResult {
+        case ready
+        case configResolutionFailed(RecoveryError)
+        case missingConfiguredQueueFile(URL)
+    }
+
     func loadWorkspaceOverview(
         retryConfiguration: RetryConfiguration = .minimal
     ) async -> WorkspaceOverviewLoadResult {
@@ -162,7 +168,7 @@ public extension Workspace {
 
     func loadTasks(retryConfiguration: RetryConfiguration = .default) async {
         let repositoryContext = currentRepositoryContext()
-        guard client != nil else {
+        guard let client else {
             guard isCurrentRepositoryContext(repositoryContext) else { return }
             taskState.tasksErrorMessage = "CLI client not available."
             taskState.nextRunnableTaskID = nil
@@ -170,15 +176,35 @@ public extension Workspace {
             return
         }
 
-        guard hasRalphQueueFile else {
+        let queueAccess = await ensureQueueAccessPreflight(
+            client: client,
+            retryConfiguration: retryConfiguration
+        )
+        guard isCurrentRepositoryContext(repositoryContext), !isShutDown, !Task.isCancelled else {
+            return
+        }
+
+        switch queueAccess {
+        case .ready:
+            break
+        case .configResolutionFailed(let recoveryError):
             guard isCurrentRepositoryContext(repositoryContext) else { return }
             stopFileWatching()
             taskState.tasks = []
             taskState.nextRunnableTaskID = nil
             runState.clearQueueBlockingState()
-            taskState.tasksErrorMessage = """
-            No Ralph queue found in this directory. Run `ralph init --non-interactive` in \(identityState.workingDirectoryURL.path).
-            """
+            taskState.tasksErrorMessage = recoveryError.message
+            diagnosticsState.showErrorRecovery = true
+            diagnosticsState.lastRecoveryError = recoveryError
+            runState.refreshOperatorStateForDisplay()
+            return
+        case .missingConfiguredQueueFile(let queueURL):
+            guard isCurrentRepositoryContext(repositoryContext) else { return }
+            stopFileWatching()
+            taskState.tasks = []
+            taskState.nextRunnableTaskID = nil
+            runState.clearQueueBlockingState()
+            taskState.tasksErrorMessage = Self.missingConfiguredQueueMessage(for: queueURL)
             diagnosticsState.showErrorRecovery = false
             diagnosticsState.lastRecoveryError = nil
             return
@@ -231,6 +257,52 @@ public extension Workspace {
 }
 
 extension Workspace {
+    func ensureQueueAccessPreflight(
+        client: RalphCLIClient,
+        retryConfiguration: RetryConfiguration
+    ) async -> QueueAccessPreflightResult {
+        do {
+            let document = try await decodeMachineRepositoryJSON(
+                MachineConfigResolveDocument.self,
+                client: client,
+                machineArguments: ["config", "resolve"],
+                currentDirectoryURL: identityState.workingDirectoryURL,
+                retryConfiguration: retryConfiguration
+            )
+            runnerController.applyConfigResolveDocument(document, workspace: self)
+        } catch is CancellationError {
+            return .configResolutionFailed(
+                RecoveryError.classify(
+                    error: CancellationError(),
+                    operation: "resolve queue paths",
+                    workspaceURL: identityState.workingDirectoryURL
+                )
+            )
+        } catch {
+            let recoveryError = RecoveryError.classify(
+                error: error,
+                operation: "resolve queue paths",
+                workspaceURL: identityState.workingDirectoryURL
+            )
+            return .configResolutionFailed(recoveryError)
+        }
+
+        guard configuredQueueFileExists else {
+            return .missingConfiguredQueueFile(queueFileURL)
+        }
+
+        return .ready
+    }
+
+    nonisolated static func missingConfiguredQueueMessage(for queueURL: URL) -> String {
+        """
+        No Ralph queue was found at the configured path:
+        \(queueURL.path)
+
+        Confirm the active Ralph queue configuration or inspect `ralph machine config resolve` for the current machine-resolved queue paths.
+        """
+    }
+
     nonisolated static func shouldFallbackToLegacyWorkspaceOverview(
         for error: any Error
     ) -> Bool {

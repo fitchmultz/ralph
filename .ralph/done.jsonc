@@ -194,8 +194,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
-        "task_kind": "queue_shaping",
         "skill": "comprehensive-codebase-audit",
+        "task_kind": "queue_shaping",
         "model_used": "gpt-5.4"
       }
     },
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -686,9 +686,83 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
+      }
+    },
+    {
+      "id": "RQ-0013",
+      "status": "done",
+      "title": "Make custom queue paths first-class in RalphMac",
+      "description": "Fix the remaining RalphMac and app-doc paths that assume `.ralph/queue.jsonc` before resolving configuration. Ralph supports configurable `queue.file` and `queue.done_file`; the app should resolve paths through machine/config sources before direct queue existence checks and should not tell users to initialize a repo when the configured queue file simply lives somewhere else.",
+      "priority": "medium",
+      "tags": [
+        "ralphmac",
+        "configuration",
+        "queue",
+        "docs",
+        "ux",
+        "machine-contract",
+        "watcher",
+        "testing"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/Workspace+QueueLoading.swift",
+        "apps/RalphMac/RalphCore/Workspace+Persistence.swift",
+        "apps/RalphMac/RalphCore/WorkspaceDiagnosticsService.swift",
+        "apps/RalphMac/RalphCore/QueueFileWatcher.swift",
+        "apps/RalphMac/RalphCore/WorkspaceQueueRuntime.swift",
+        "apps/RalphMac/RalphCore/WorkspaceManager+Lifecycle.swift",
+        "apps/RalphMac/RalphCore/Workspace.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController.swift",
+        "apps/RalphMac/RalphCoreTests/RalphMockCLITestSupport.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunnerConfigurationTestSupport.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceQueueRefreshTests.swift",
+        "apps/RalphMac/RalphCoreTests/QueueFileWatcherTests.swift",
+        "apps/RalphMac/RalphCoreTests/MachineContractTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceErrorRecoveryTests.swift",
+        "apps/RalphMac/RalphCoreTests/ConfigModelsTests.swift",
+        "docs/features/app.md",
+        "docs/configuration.md",
+        "docs/machine-contract.md"
+      ],
+      "evidence": [
+        "`docs/configuration.md` already documents configurable `queue.file` and `queue.done_file`, so `.ralph/queue.jsonc` is a default, not the contract.",
+        "`Workspace+QueueLoading.loadWorkspaceOverview()` already applies `MachineQueuePaths` from `machine workspace overview`, proving the app has a canonical machine-resolved path flow.",
+        "`Workspace+QueueLoading.loadTasks()` still gates on `hasRalphQueueFile` before `machine queue read`, so a repo with a custom configured queue path can fail before the app resolves paths.",
+        "`Workspace+Persistence.hasRalphQueueFile`, `existingQueueFileURL`, `preferredQueueFileURL`, and default done/config fallbacks still assume `.ralph/...` paths until `resolvedPaths` is populated.",
+        "`WorkspaceDiagnosticsService.queueValidationOutput()` and `docs/features/app.md` still tell users to confirm `.ralph/queue.jsonc` and run `ralph init`, even when the configured queue file may live elsewhere.",
+        "`WorkspaceManager+Lifecycle.workspaceIsRestorable()` only checks the default queue location, which can treat a custom-path workspace as non-restorable on app startup."
+      ],
+      "plan": [
+        "Make machine-resolved `MachineQueuePaths` the first-class RalphMac source of truth before any direct queue existence, diagnostics, watcher, or restore decisions run.",
+        "Refactor startup and retarget preflight so custom-path repos resolve config/overview first, then distinguish config-resolution failures from a missing configured queue file instead of telling users to initialize the repo.",
+        "Ensure watcher targets and workspace restore checks can follow resolved queue/done/config paths on first load and after retarget, not only after a later successful refresh.",
+        "Expand RalphMac test support so fixtures can emit non-default queue/done/config paths, then add regression coverage for initial load, watcher refresh, diagnostics, and restore flows with custom queue paths.",
+        "Update app and machine-contract docs to describe configured queue paths and machine path resolution as canonical, with `.ralph/queue.jsonc` and `.ralph/done.jsonc` called out only as defaults/examples."
+      ],
+      "notes": [
+        "The main healthy path already exists: `machine workspace overview` and `machine config resolve` both carry `MachineQueuePaths`, and `Workspace.updateResolvedPaths(_)` already feeds watcher target sync.",
+        "The remaining bug pattern is early fallback logic that decides 'no queue' from `.ralph/queue.jsonc` before the machine contract gets a chance to resolve custom queue/done/config paths.",
+        "Phase 2 should inspect adjacent app surfaces beyond the raw task scope when they still use default-path assumptions, especially diagnostics messaging, workspace restoration, and test fixture helpers.",
+        "RalphMac now resolves queue paths before direct queue-file checks and surfaces config-resolve vs missing-configured-queue failures clearly.",
+        "Watcher refresh now classifies configured queue/done targets by watched file kind, so custom filenames and config-driven queue-path switches reload tasks and derived views.",
+        "Added RalphMac regression coverage for overview-seeded custom-path watching, config-driven queue retargeting, custom watcher filenames, generic diagnostics copy, and restoration when only Ralph state remains."
+      ],
+      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
+      "created_at": "2026-04-26T00:04:48Z",
+      "updated_at": "2026-04-26T06:13:57.944987000Z",
+      "completed_at": "2026-04-26T06:13:57.944987000Z",
+      "started_at": "2026-04-26T05:33:21.747939000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4"
       }
     }

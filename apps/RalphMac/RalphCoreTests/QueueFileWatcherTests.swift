@@ -143,6 +143,105 @@ final class QueueFileWatcherTests: RalphCoreTestCase {
         await watcher.stop()
     }
 
+    func test_queueFileWatcher_customTargetsEmitNotificationForConfiguredQueuePath() async throws {
+        let workspaceURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-watcher-custom-")
+        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+
+        let stateURL = workspaceURL.appendingPathComponent("state", isDirectory: true)
+        try FileManager.default.createDirectory(at: stateURL, withIntermediateDirectories: true)
+
+        let queueURL = stateURL.appendingPathComponent("queue.jsonc", isDirectory: false)
+        let doneURL = stateURL.appendingPathComponent("done.jsonc", isDirectory: false)
+        let configURL = workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+        try FileManager.default.createDirectory(
+            at: configURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(to: queueURL, tasks: [])
+        try "[]\n".write(to: doneURL, atomically: true, encoding: .utf8)
+        try "{}\n".write(to: configURL, atomically: true, encoding: .utf8)
+
+        let watcher = QueueFileWatcher(
+            targets: QueueFileWatcher.WatchTargets(
+                workingDirectoryURL: workspaceURL,
+                queueFileURL: queueURL,
+                doneFileURL: doneURL,
+                projectConfigFileURL: configURL
+            ),
+            configuration: Self.fastWatcherConfiguration
+        )
+        let notification = expectation(description: "watcher-custom-target-notification")
+        let eventTask = Task {
+            for await event in watcher.events {
+                if case .filesChanged(let batch) = event,
+                   batch.fileNames.contains("queue.jsonc") {
+                    notification.fulfill()
+                    return
+                }
+            }
+        }
+
+        await watcher.start()
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(
+            to: queueURL,
+            tasks: [
+                RalphTask(id: "RQ-CUSTOM", status: .todo, title: "Configured target", priority: .medium)
+            ]
+        )
+
+        await fulfillment(of: [notification], timeout: 1.0)
+        eventTask.cancel()
+        await watcher.stop()
+    }
+
+    func test_queueFileWatcher_customQueueFileNameStillMarksQueueSnapshotChanges() async throws {
+        let workspaceURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-watcher-custom-name-")
+        defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }
+
+        let stateURL = workspaceURL.appendingPathComponent("state", isDirectory: true)
+        try FileManager.default.createDirectory(at: stateURL, withIntermediateDirectories: true)
+
+        let queueURL = stateURL.appendingPathComponent("tasks.jsonc", isDirectory: false)
+        let doneURL = stateURL.appendingPathComponent("archive.jsonc", isDirectory: false)
+        let configURL = workspaceURL.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+        try FileManager.default.createDirectory(
+            at: configURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(to: queueURL, tasks: [])
+        try "[]\n".write(to: doneURL, atomically: true, encoding: .utf8)
+        try "{}\n".write(to: configURL, atomically: true, encoding: .utf8)
+
+        let watcher = QueueFileWatcher(
+            targets: QueueFileWatcher.WatchTargets(
+                workingDirectoryURL: workspaceURL,
+                queueFileURL: queueURL,
+                doneFileURL: doneURL,
+                projectConfigFileURL: configURL
+            ),
+            configuration: Self.fastWatcherConfiguration
+        )
+        let notification = expectation(description: "watcher-custom-queue-name-batch")
+        let eventTask = Task {
+            for await event in watcher.events {
+                if case .filesChanged(let batch) = event, batch.affectsQueueSnapshot {
+                    notification.fulfill()
+                    return
+                }
+            }
+        }
+
+        await watcher.start()
+        try WorkspaceTaskCreationTestSupport.writeQueueDocument(
+            to: queueURL,
+            tasks: [RalphTask(id: "RQ-CUSTOM-NAME", status: .todo, title: "Custom queue file", priority: .medium)]
+        )
+
+        await fulfillment(of: [notification], timeout: 1.0)
+        eventTask.cancel()
+        await watcher.stop()
+    }
+
     func test_queueFileWatcher_surfacesFailureAfterRetryExhaustion() async throws {
         let workspaceURL = try WorkspaceTaskCreationTestSupport.makeTempDir(prefix: "ralph-workspace-watcher-fail-")
         defer { RalphCoreTestSupport.assertRemoved(workspaceURL) }

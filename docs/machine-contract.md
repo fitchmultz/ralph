@@ -67,6 +67,8 @@ Includes:
 - `execution_controls` for native runner, reasoning-effort, and parallel-worker affordances
 - optional `resume_preview`
 
+RalphMac and other machine clients should treat these resolved paths as the canonical queue, done, and config file locations for the workspace instead of assuming the default `.ralph/...` paths.
+
 `execution_controls` is the canonical native-control catalog for RalphMac. It includes:
 - runner options with stable ids, display names, source (`built_in`, `global_plugin`, `project_plugin`), reasoning-effort support, model-affordance metadata, and optional default model
 - reasoning-effort options
@@ -80,6 +82,8 @@ Includes:
 ### `machine workspace overview` (`version: 1`)
 
 Returns a single document that embeds the same payloads as `machine queue read` and `machine config resolve` under `queue` and `config` respectively, so clients can refresh both in one subprocess round-trip.
+
+The embedded `queue.paths` and `config.paths` payloads are the canonical first-load source for app watcher targets, queue access checks, and workspace diagnostics.
 
 ### `machine run` events (`version: 3`)
 

@@ -17,7 +17,7 @@
  - Used by the RalphMac app or RalphCore tests through its owning feature surface.
 
  Invariants/assumptions callers must respect:
- - Restorable workspaces must still exist on disk and contain a Ralph queue file.
+ - Restorable workspaces must still exist on disk and retain enough Ralph state to resolve their queue path.
  - Closing a workspace removes its persisted app-default state.
  */
 
@@ -188,7 +188,15 @@ public extension WorkspaceManager {
 
     func workspaceIsRestorable(_ url: URL) -> Bool {
         guard workspaceDirectoryExists(url) else { return false }
-        return Workspace.existingQueueFileURL(in: url) != nil
+        if Workspace.existingDefaultQueueFileURL(in: url) != nil {
+            return true
+        }
+        let configURL = url.appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+        if FileManager.default.fileExists(atPath: configURL.path) {
+            return true
+        }
+        let ralphDirectoryURL = url.appendingPathComponent(".ralph", isDirectory: true)
+        return FileManager.default.fileExists(atPath: ralphDirectoryURL.path)
     }
 
     private func workspaceSnapshot(_ workspaceID: UUID) -> RalphWorkspaceDefaultsSnapshot? {

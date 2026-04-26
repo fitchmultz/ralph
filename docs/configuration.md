@@ -354,6 +354,8 @@ Supported fields:
 - `id_width`: zero padding width (default: `4`, e.g. `RQ-0001`).
 - `auto_archive_terminal_after_days`: automatically archive terminal tasks (done/rejected) from queue to done after this many days (default: `null`/`None`, disabled).
 
+RalphMac and other machine clients resolve these settings through `ralph machine config resolve` or `ralph machine workspace overview`; the `.ralph/...` locations are defaults, not a separate app contract.
+
 **Parallel mode restriction:** When running `ralph run loop --parallel ...`, `queue.file` and
 `queue.done_file` must resolve to paths **under the repository root**. Parallel mode maps these
 paths into per-worker workspace clones; paths outside the repo root cannot be mapped safely and are

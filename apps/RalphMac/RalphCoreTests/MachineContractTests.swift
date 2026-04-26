@@ -218,4 +218,29 @@ final class MachineContractTests: XCTestCase {
         XCTAssertTrue(workspace.taskState.tasks.isEmpty)
         XCTAssertNil(workspace.identityState.resolvedPaths)
     }
+
+    @MainActor
+    func testApplyConfigResolveDocumentPreservesCustomResolvedPaths() {
+        let workspaceURL = RalphCoreTestSupport.workspaceURL(label: "custom-resolved-paths")
+        let workspace = Workspace(
+            workingDirectoryURL: workspaceURL,
+            bootstrapRepositoryStateOnInit: false
+        )
+        let overrides = RalphMockCLITestSupport.MockResolvedPathOverrides(
+            queueURL: workspaceURL.appendingPathComponent("state/custom-queue.jsonc", isDirectory: false),
+            doneURL: workspaceURL.appendingPathComponent("state/custom-done.jsonc", isDirectory: false),
+            projectConfigURL: workspaceURL.appendingPathComponent(".ralph/custom-config.jsonc", isDirectory: false)
+        )
+        let document = RalphMockCLITestSupport.configResolveDocument(
+            workspaceURL: workspaceURL,
+            pathOverrides: overrides
+        )
+
+        workspace.runnerController.applyConfigResolveDocument(document, workspace: workspace)
+
+        XCTAssertEqual(workspace.identityState.resolvedPaths, document.paths)
+        XCTAssertEqual(workspace.queueFileURL.path, document.paths.queuePath)
+        XCTAssertEqual(workspace.doneFileURL.path, document.paths.donePath)
+        XCTAssertEqual(workspace.projectConfigFileURL?.path, document.paths.projectConfigPath)
+    }
 }

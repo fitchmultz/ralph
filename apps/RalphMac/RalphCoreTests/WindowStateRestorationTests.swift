@@ -252,6 +252,41 @@ final class WindowStateRestorationTests: WindowStateTestCase {
         XCTAssertEqual(workspace.identityState.workingDirectoryURL.path, targetDirectory.path)
     }
 
+    func test_workspaceIsRestorable_acceptsConfigOnlyWorkspaceForCustomQueuePath() throws {
+        let directory = try makeWorkspaceDirectory(prefix: "workspace-restorable-custom-config")
+        defer { RalphCoreTestSupport.assertRemoved(directory) }
+
+        let ralphDirectory = directory.appendingPathComponent(".ralph", isDirectory: true)
+        try FileManager.default.createDirectory(at: ralphDirectory, withIntermediateDirectories: true)
+        try """
+        {
+          "version": 2,
+          "queue": {
+            "file": "custom-state/queue.jsonc",
+            "done_file": "custom-state/done.jsonc"
+          }
+        }
+        """.write(
+            to: ralphDirectory.appendingPathComponent("config.jsonc", isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(manager.workspaceIsRestorable(directory))
+    }
+
+    func test_workspaceIsRestorable_acceptsRalphDirectoryWithoutLocalQueueConfig() throws {
+        let directory = try makeWorkspaceDirectory(prefix: "workspace-restorable-global-config")
+        defer { RalphCoreTestSupport.assertRemoved(directory) }
+
+        try FileManager.default.createDirectory(
+            at: directory.appendingPathComponent(".ralph", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+
+        XCTAssertTrue(manager.workspaceIsRestorable(directory))
+    }
+
     func test_scheduleInitialRepositoryBootstrapIfNeeded_bootstrapsRestoredWorkspaceOnDemand() async throws {
         var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(

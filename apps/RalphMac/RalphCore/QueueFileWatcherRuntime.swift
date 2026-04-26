@@ -98,7 +98,7 @@ actor QueueFileWatcherRuntime {
     private var stream: FSEventStreamRef?
     private var callbackContext: CallbackContext?
     private var shouldWatch = false
-    private var pendingChanges = Set<String>()
+    private var pendingChangedKinds = Set<WatchedFileKind>()
     private var debounceTask: Task<Void, Never>?
     private var retryTask: Task<Void, Never>?
     private var startAttempts = 0
@@ -136,7 +136,7 @@ actor QueueFileWatcherRuntime {
         retryTask = nil
         debounceTask?.cancel()
         debounceTask = nil
-        pendingChanges.removeAll()
+        pendingChangedKinds.removeAll()
         lastKnownSignatures = Self.captureSignatures(for: targets.watchedFiles)
 
         if let stream {
@@ -257,7 +257,7 @@ actor QueueFileWatcherRuntime {
         guard shouldWatch, stream != nil else { return }
         let changedKinds = changedFiles(paths: paths, flags: flags)
         guard !changedKinds.isEmpty else { return }
-        pendingChanges.formUnion(changedKinds.map { fileName(for: $0) })
+        pendingChangedKinds.formUnion(changedKinds)
         scheduleDebounce()
     }
 
@@ -271,9 +271,15 @@ actor QueueFileWatcherRuntime {
     }
 
     private func flushPendingChanges() {
-        guard shouldWatch, !pendingChanges.isEmpty else { return }
-        let batch = QueueFileWatcher.FileChangeBatch(fileNames: pendingChanges)
-        pendingChanges.removeAll()
+        guard shouldWatch, !pendingChangedKinds.isEmpty else { return }
+        let changedKinds = pendingChangedKinds
+        let batch = QueueFileWatcher.FileChangeBatch(
+            fileNames: Set(changedKinds.map { fileName(for: $0) }),
+            queueChanged: changedKinds.contains(.queue),
+            doneChanged: changedKinds.contains(.done),
+            configChanged: changedKinds.contains(.config)
+        )
+        pendingChangedKinds.removeAll()
         emit(.filesChanged(batch))
     }
 

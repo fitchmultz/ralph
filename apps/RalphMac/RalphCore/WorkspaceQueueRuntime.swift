@@ -179,29 +179,43 @@ final class WorkspaceQueueRuntime {
     private func process(batch: QueueFileWatcher.FileChangeBatch) async {
         guard let workspace, !workspace.isShutDown else { return }
         let repositoryContext = workspace.currentRepositoryContext()
+        let queueSnapshotChanged = batch.affectsQueueSnapshot
 
-        if batch.affectsQueueSnapshot {
-            lastTasksSnapshot = workspace.taskState.tasks
-
-            await workspace.loadTasks(retryConfiguration: .minimal)
-
-            guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
-            workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
-                source: .externalFileChange,
-                previousTasks: lastTasksSnapshot,
-                currentTasks: workspace.taskState.tasks
-            )
-
-            guard workspace.taskState.tasksErrorMessage == nil else { return }
-
-            await workspace.loadGraphData(retryConfiguration: .minimal)
-            guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
-
-            await workspace.loadAnalytics(timeRange: workspace.insightsState.analytics.timeRange)
+        if queueSnapshotChanged {
+            await refreshQueueSnapshotAndDerivedViews(repositoryContext: repositoryContext)
         }
 
         guard batch.affectsRunnerConfiguration else { return }
         guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+        let previousTargets = workspace.queueWatcherTargets
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
+
+        guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+        guard !queueSnapshotChanged, workspace.queueWatcherTargets != previousTargets else { return }
+
+        await refreshQueueSnapshotAndDerivedViews(repositoryContext: repositoryContext)
+    }
+
+    private func refreshQueueSnapshotAndDerivedViews(
+        repositoryContext: Workspace.RepositoryContext
+    ) async {
+        guard let workspace, !workspace.isShutDown else { return }
+
+        lastTasksSnapshot = workspace.taskState.tasks
+        await workspace.loadTasks(retryConfiguration: .minimal)
+
+        guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+        workspace.taskState.lastQueueRefreshEvent = Workspace.QueueRefreshEvent(
+            source: .externalFileChange,
+            previousTasks: lastTasksSnapshot,
+            currentTasks: workspace.taskState.tasks
+        )
+
+        guard workspace.taskState.tasksErrorMessage == nil else { return }
+
+        await workspace.loadGraphData(retryConfiguration: .minimal)
+        guard !workspace.isShutDown, !Task.isCancelled, workspace.isCurrentRepositoryContext(repositoryContext) else { return }
+
+        await workspace.loadAnalytics(timeRange: workspace.insightsState.analytics.timeRange)
     }
 }

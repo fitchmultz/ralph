@@ -2,10 +2,10 @@
  QueueFileWatcher
 
  Purpose:
- - Monitor `.ralph/queue.jsonc`, `.ralph/done.jsonc`, and `.ralph/config.jsonc` for external changes using FSEvents.
+ - Monitor the resolved queue, done, and project-config files for external changes using FSEvents.
 
  Responsibilities:
- - Monitor `.ralph/queue.jsonc`, `.ralph/done.jsonc`, and `.ralph/config.jsonc` for external changes using FSEvents.
+ - Monitor the resolved queue, done, and project-config files for external changes using FSEvents.
  - Emit typed watcher health and file-change events through a single async event stream.
  - Retry FSEvent stream creation on transient failures without exposing unsafe shared mutable state.
 
@@ -78,21 +78,37 @@ public final class QueueFileWatcher: Sendable {
 
     public struct FileChangeBatch: Sendable, Equatable {
         public let fileNames: Set<String>
+        let queueChanged: Bool
+        let doneChanged: Bool
+        let configChanged: Bool
 
-        public init(fileNames: Set<String>) {
+        public init(
+            fileNames: Set<String>,
+            queueChanged: Bool = false,
+            doneChanged: Bool = false,
+            configChanged: Bool = false
+        ) {
             self.fileNames = fileNames
+            self.queueChanged = queueChanged
+            self.doneChanged = doneChanged
+            self.configChanged = configChanged
         }
 
         public var affectsQueueSnapshot: Bool {
-            !fileNames.isDisjoint(with: ["queue.json", "queue.jsonc", "done.json", "done.jsonc"])
+            queueChanged || doneChanged
         }
 
         public var affectsRunnerConfiguration: Bool {
-            !fileNames.isDisjoint(with: ["config.json", "config.jsonc"])
+            configChanged
         }
 
         func merged(with other: FileChangeBatch) -> FileChangeBatch {
-            FileChangeBatch(fileNames: fileNames.union(other.fileNames))
+            FileChangeBatch(
+                fileNames: fileNames.union(other.fileNames),
+                queueChanged: queueChanged || other.queueChanged,
+                doneChanged: doneChanged || other.doneChanged,
+                configChanged: configChanged || other.configChanged
+            )
         }
     }
 

@@ -2,54 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0013",
-      "status": "todo",
-      "title": "Make custom queue paths first-class in RalphMac",
-      "description": "Fix the remaining RalphMac and app-doc paths that assume `.ralph/queue.jsonc` before resolving configuration. Ralph supports configurable `queue.file` and `queue.done_file`; the app should resolve paths through machine/config sources before direct queue existence checks and should not tell users to initialize a repo when the configured queue file simply lives somewhere else.",
-      "priority": "medium",
-      "tags": [
-        "ralphmac",
-        "configuration",
-        "queue",
-        "docs",
-        "ux"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/Workspace+QueueLoading.swift",
-        "apps/RalphMac/RalphCore/Workspace+Persistence.swift",
-        "apps/RalphMac/RalphCore/QueueFileWatcher.swift",
-        "apps/RalphMac/RalphCore/WorkspaceQueueRuntime.swift",
-        "apps/RalphMac/RalphCoreTests/",
-        "docs/features/app.md",
-        "docs/configuration.md",
-        "docs/machine-contract.md"
-      ],
-      "evidence": [
-        "`docs/configuration.md` documents configurable `queue.file` and `queue.done_file`.",
-        "`Workspace+QueueLoading.swift` can report `No Ralph queue found` before resolved queue paths are known.",
-        "`Workspace+Persistence.swift` defaults direct queue discovery to `.ralph/queue.jsonc` before resolved paths exist.",
-        "`docs/features/app.md` troubleshooting tells users to confirm `.ralph/queue.jsonc` instead of the configured queue file."
-      ],
-      "plan": [
-        "Make machine/config path resolution the first step before RalphMac performs direct queue existence checks.",
-        "Update queue loading errors so they distinguish failed config resolution from missing configured queue files.",
-        "Ensure watcher targets are seeded from resolved queue/done/config paths for custom-path repos on first load, not only after a successful overview refresh.",
-        "Add Swift tests for a repo whose queue and done files are configured away from `.ralph/queue.jsonc`.",
-        "Update app troubleshooting docs to refer to the configured queue file and machine config resolution."
-      ],
-      "notes": [],
-      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
-      "created_at": "2026-04-26T00:04:48Z",
-      "updated_at": "2026-04-26T00:04:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
-      }
-    },
-    {
       "id": "RQ-0014",
       "status": "todo",
       "title": "Turn RalphMac continuation next steps into native actions",
@@ -92,8 +44,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -136,8 +88,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -187,8 +139,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "source_report": "/tmp/ralph-report.md"
       }
     }
   ]

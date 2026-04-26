@@ -12,7 +12,8 @@ Related: [Machine Contract](../machine-contract.md), [CI and Test Strategy](../g
 Ralph includes a macOS app for interactive queue and run supervision workflows.
 
 The app is intended for:
-- Browsing and editing `.ralph/queue.jsonc` and `.ralph/done.jsonc`
+- Browsing and editing the workspace's configured queue and done files
+  (`.ralph/queue.jsonc` and `.ralph/done.jsonc` by default)
 - Triage and prioritization with a richer visual layout than terminal output
 - Triggering common run operations while keeping CLI-compatible behavior
 - Multi-window workflows across repositories and workstreams
@@ -162,7 +163,8 @@ Test sources live in `apps/RalphMac/RalphMacUITests/`.
 - Run `ralph app open` from the repository root.
 
 ### Queue data not loading
-- Confirm `.ralph/queue.jsonc` exists.
+- Run `ralph machine config resolve` to inspect the machine-resolved queue, done, and config paths.
+- Confirm the configured queue file exists at the resolved `queue_path`.
 - Run `ralph queue validate` and resolve schema errors.
 
 ### Runner commands fail

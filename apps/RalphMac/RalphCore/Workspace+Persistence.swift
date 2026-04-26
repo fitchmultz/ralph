@@ -186,10 +186,7 @@ public extension Workspace {
     }
 
     var hasRalphQueueFile: Bool {
-        if let resolvedQueueFileURL {
-            return FileManager.default.fileExists(atPath: resolvedQueueFileURL.path)
-        }
-        return Self.existingQueueFileURL(in: identityState.workingDirectoryURL) != nil
+        configuredQueueFileExists
     }
 
     var projectDisplayName: String {
@@ -208,7 +205,7 @@ public extension Workspace {
     }
 
     var queueFileURL: URL {
-        resolvedQueueFileURL ?? Self.preferredQueueFileURL(in: identityState.workingDirectoryURL)
+        resolvedQueueFileURL ?? Self.defaultQueueFileURL(in: identityState.workingDirectoryURL)
     }
 
     var doneFileURL: URL {
@@ -242,17 +239,20 @@ public extension Workspace {
         return URL(fileURLWithPath: path, isDirectory: false)
     }
 
-    static func existingQueueFileURL(in workingDirectoryURL: URL) -> URL? {
-        let candidate = workingDirectoryURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false)
+    var configuredQueueFileExists: Bool {
+        FileManager.default.fileExists(atPath: queueFileURL.path)
+    }
+
+    static func existingDefaultQueueFileURL(in workingDirectoryURL: URL) -> URL? {
+        let candidate = defaultQueueFileURL(in: workingDirectoryURL)
         if FileManager.default.fileExists(atPath: candidate.path) {
             return candidate
         }
         return nil
     }
 
-    static func preferredQueueFileURL(in workingDirectoryURL: URL) -> URL {
-        existingQueueFileURL(in: workingDirectoryURL)
-            ?? workingDirectoryURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false)
+    static func defaultQueueFileURL(in workingDirectoryURL: URL) -> URL {
+        workingDirectoryURL.appendingPathComponent(".ralph/queue.jsonc", isDirectory: false)
     }
 
     func loadState() {

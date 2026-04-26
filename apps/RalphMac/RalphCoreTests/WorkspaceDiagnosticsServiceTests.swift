@@ -85,4 +85,90 @@ final class WorkspaceDiagnosticsServiceTests: RalphCoreTestCase {
         XCTAssertTrue(snapshot.unlockPreview.contains("Unlock allowed: yes"))
         XCTAssertTrue(snapshot.canClearStaleLock)
     }
+
+    func testQueueValidationOutput_reportsConfiguredQueuePathWhenCustomQueueIsMissing() async throws {
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "workspace-diagnostics-custom-queue-missing",
+            workspaceName: "workspace",
+            createConfigFile: true
+        )
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let customQueueURL = fixture.workspaceURL.appendingPathComponent("custom/queue.jsonc", isDirectory: false)
+        let customDoneURL = fixture.workspaceURL.appendingPathComponent("custom/done.jsonc", isDirectory: false)
+        let overrides = RalphMockCLITestSupport.MockResolvedPathOverrides(
+            queueURL: customQueueURL,
+            doneURL: customDoneURL,
+            projectConfigURL: fixture.configURL
+        )
+        let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.configResolveDocument(
+                workspaceURL: fixture.workspaceURL,
+                pathOverrides: overrides
+            ),
+            in: fixture.rootURL,
+            name: "config-resolve.json"
+        )
+
+        let script = """
+            #!/bin/sh
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: "mock-ralph-diagnostics-custom-missing",
+            body: script
+        )
+        workspace = Workspace(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: try RalphCLIClient(executableURL: scriptURL),
+            bootstrapRepositoryStateOnInit: false
+        )
+
+        let output = await WorkspaceDiagnosticsService.queueValidationOutput(for: workspace)
+        XCTAssertTrue(output.contains("Queue validation skipped"))
+        XCTAssertTrue(output.contains(customQueueURL.path))
+        XCTAssertTrue(output.contains("ralph machine config resolve"))
+        XCTAssertFalse(output.contains(".ralph/config.jsonc"))
+        XCTAssertFalse(output.contains("ralph init --non-interactive"))
+    }
+
+    func testQueueValidationOutput_reportsConfigResolutionFailure() async throws {
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "workspace-diagnostics-config-resolve-failure",
+            workspaceName: "workspace"
+        )
+        var workspace: Workspace!
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let script = """
+            #!/bin/sh
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+              echo "load project config: unsupported config version 999" >&2
+              exit 11
+            fi
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: "mock-ralph-diagnostics-config-fail",
+            body: script
+        )
+        workspace = Workspace(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: try RalphCLIClient(executableURL: scriptURL),
+            bootstrapRepositoryStateOnInit: false
+        )
+
+        let output = await WorkspaceDiagnosticsService.queueValidationOutput(for: workspace)
+        XCTAssertTrue(output.contains("could not resolve the workspace queue paths"))
+        XCTAssertTrue(output.contains("Workspace config is incompatible with this Ralph version"))
+    }
 }

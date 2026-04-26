@@ -61,8 +61,33 @@ public struct QueueLockDiagnosticSnapshot: Equatable, Sendable {
 @MainActor
 public enum WorkspaceDiagnosticsService {
     public static func queueValidationOutput(for workspace: Workspace) async -> String {
-        guard workspace.hasRalphQueueFile else {
-            return "Queue validation skipped\n\nNo `.ralph/queue.jsonc` found in \(workspace.identityState.workingDirectoryURL.path).\nRun `ralph init --non-interactive` in this directory first."
+        guard let client = workspace.client else {
+            return "Queue validation skipped\n\nCLI client not available."
+        }
+
+        switch await workspace.ensureQueueAccessPreflight(
+            client: client,
+            retryConfiguration: .minimal
+        ) {
+        case .ready:
+            break
+        case .configResolutionFailed(let recoveryError):
+            return """
+            Queue validation skipped
+
+            RalphMac could not resolve the workspace queue paths before validation.
+
+            \(recoveryError.message)
+            """
+        case .missingConfiguredQueueFile(let queueURL):
+            return """
+            Queue validation skipped
+
+            No queue file was found at the configured path:
+            \(queueURL.path)
+
+            Confirm the active Ralph queue configuration or inspect `ralph machine config resolve`.
+            """
         }
 
         do {
