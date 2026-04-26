@@ -524,6 +524,7 @@ public struct ParallelStatusSnapshot: Codable, Sendable, Equatable {
 }
 
 public struct ParallelStatusStep: Sendable, Equatable {
+    public let title: String
     public let command: String
     public let detail: String
 }
@@ -561,7 +562,9 @@ struct MachineParallelStatusDocument: Decodable, Sendable, Equatable, VersionedM
             headline: continuation.headline,
             detail: continuation.detail,
             blocking: effectiveBlocking?.asWorkspaceBlockingState(),
-            nextSteps: continuation.nextSteps.map { ParallelStatusStep(command: $0.command, detail: $0.detail) },
+            nextSteps: continuation.nextSteps.map {
+                ParallelStatusStep(title: $0.title, command: $0.command, detail: $0.detail)
+            },
             snapshot: snapshot
         )
     }

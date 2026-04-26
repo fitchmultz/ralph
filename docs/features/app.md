@@ -46,7 +46,7 @@ The app centers around workspace navigation and fast task handling:
 
 - **Queue**: inspect tasks, status, priority, and dependency context
 - **Quick Actions**: shortcuts for frequent task and run operations
-- **Run Control**: launch and supervise execution flows
+- **Run Control**: launch and supervise execution flows, including machine-backed continuation and recovery actions
 - **Advanced Runner**: diagnostic runner/model controls; not a parity-completion surface
 - **Analytics**: high-level productivity and queue trend visibility
 - **Graph View**: visualize dependency relationships
@@ -118,6 +118,13 @@ Practical implications:
 - Stop After Current specifically uses `ralph machine run stop`; the app should
   never infer stop state by streaming or scraping human `ralph queue stop`
   output.
+- Run Control continuation cards should prefer structured native actions over
+  terminal-only instructions when the machine contract exposes a safe preview or
+  refresh path.
+- Queue recovery remains preview-first in the app: validation, repair preview,
+  restore preview, lock inspection, unlock preview, and shared-status refresh
+  are native; unsupported continuations fall back to command copy or an explicit
+  "not native yet" explanation.
 - CLI and app should remain behaviorally aligned for core task/run operations.
 - Advanced Runner access does not count as native app parity.
 - Most data and execution issues can be reproduced via CLI commands.

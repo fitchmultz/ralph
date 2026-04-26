@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0014",
-      "status": "todo",
-      "title": "Turn RalphMac continuation next steps into native actions",
-      "description": "Improve Run Control so machine-provided operator next steps become native actions where safe instead of mostly appearing as terminal instructions. The app should classify each continuation or blocking next step as actionable, copy-only, or unsupported-with-reason, then render buttons for safe actions such as refresh, validate, repair preview, undo list, stop after current, and status refresh.",
-      "priority": "medium",
-      "tags": [
-        "ralphmac",
-        "ux",
-        "continuation",
-        "blocking",
-        "recovery"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphMac/RunControlDetailSections+Configuration.swift",
-        "apps/RalphMac/RalphCore/Workspace+RunnerState.swift",
-        "apps/RalphMac/RalphCore/WorkspaceRunnerController.swift",
-        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
-        "apps/RalphMac/RalphCoreTests/",
-        "docs/features/app.md"
-      ],
-      "evidence": [
-        "`RunControlDetailSections+Configuration.swift` renders many operator next steps as text rows or command strings.",
-        "Lock recovery has proper buttons, but other continuation and blocking actions are often informational only.",
-        "This makes the native app feel like a log viewer around terminal commands instead of an operator console."
-      ],
-      "plan": [
-        "Inventory machine continuation and blocking next-step payloads currently surfaced in Run Control.",
-        "Define an app-side action classification for safe native actions, copy-command fallbacks, and unsupported actions with reasons.",
-        "Add native buttons for refresh, queue validate, repair preview, undo list, stop after current, retry/status refresh, and any other safe existing machine continuation.",
-        "Keep terminal command rendering only as a fallback for actions that are intentionally not native.",
-        "Add Swift UI/state tests covering at least one blocking state with actionable continuation buttons beyond lock recovery."
-      ],
-      "notes": [],
-      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
-      "created_at": "2026-04-26T00:04:48Z",
-      "updated_at": "2026-04-26T00:04:48Z",
-      "depends_on": [
-        "RQ-0011"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "source_report": "/tmp/ralph-report.md"
-      }
-    },
-    {
       "id": "RQ-0015",
       "status": "todo",
       "title": "Fix stale RalphMac and session-management docs",
@@ -88,8 +41,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements"
       }
     },
     {
@@ -139,8 +92,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
       }
     }
   ]

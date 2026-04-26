@@ -218,6 +218,71 @@ final class WorkspaceParallelRunControlTests: WorkspacePerformanceTestCase {
         XCTAssertEqual(workspace.runState.runControlOperatorState?.blockingState, parallelBlocking)
     }
 
+    func test_runState_runControlOperatorState_classifiesQueueRecoveryActions() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "run-control-queue-recovery-actions")
+        )
+        workspace.runState.setQueueBlockingState(
+            Workspace.BlockingState(
+                status: .stalled,
+                reason: .operatorRecovery(
+                    scope: "queue_validate",
+                    reason: "validation_failed",
+                    suggestedCommand: "ralph machine queue repair --dry-run"
+                ),
+                taskID: nil,
+                message: "Ralph is stalled on queue consistency.",
+                detail: "Validation found recoverable queue issues."
+            )
+        )
+
+        let actions = workspace.runState.runControlOperatorState?.actions ?? []
+
+        XCTAssertTrue(actions.containsNative(.validateQueue))
+        XCTAssertTrue(actions.containsNative(.previewQueueRepair))
+        XCTAssertTrue(actions.containsNative(.previewQueueUndo))
+        XCTAssertTrue(actions.containsNative(.refreshRunControlStatus))
+    }
+
+    func test_classifyParallelStatusActions_mapsNativeAndUnsupportedCommands() {
+        let actions = Workspace.RunControlOperatorState.classifyParallelStatusActions(
+            [
+                ParallelStatusStep(
+                    title: "Inspect worker snapshot",
+                    command: "ralph machine run parallel-status",
+                    detail: "Refresh retained worker details."
+                ),
+                ParallelStatusStep(
+                    title: "Retry one blocked worker",
+                    command: "ralph run parallel retry --task <TASK_ID>",
+                    detail: "Retry the retained worker branch after resolving conflicts."
+                ),
+            ],
+            isLoopMode: true,
+            stopAfterCurrent: false
+        )
+
+        XCTAssertEqual(actions.nativeActionCount(.refreshParallelStatus), 1)
+        XCTAssertTrue(actions.containsNative(.stopAfterCurrent))
+        XCTAssertTrue(actions.containsUnsupportedCommand("ralph run parallel retry --task <TASK_ID>"))
+        XCTAssertTrue(actions.containsTitle("Retry one blocked worker"))
+    }
+
+    func test_classifyParallelStatusActions_keepsDryRunStopAsCopyOnly() {
+        let actions = Workspace.RunControlOperatorState.classifyParallelStatusActions(
+            [
+                ParallelStatusStep(
+                    title: "Preview stop request",
+                    command: "ralph machine run stop --dry-run",
+                    detail: "Preview whether Stop After Current would create a stop marker."
+                ),
+            ]
+        )
+
+        XCTAssertTrue(actions.containsCopyCommand("ralph machine run stop --dry-run"))
+        XCTAssertFalse(actions.containsNative(.stopAfterCurrent))
+    }
+
     func test_loadRunnerConfiguration_failure_preservesExistingQueueOperatorState() async throws {
         var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
@@ -351,6 +416,79 @@ final class WorkspaceParallelRunControlTests: WorkspacePerformanceTestCase {
         XCTAssertTrue(commandLog.contains("machine config resolve"))
         XCTAssertTrue(commandLog.contains("machine run parallel-status"))
         XCTAssertFalse(commandLog.contains("machine queue read"))
+    }
+
+    func test_refreshRunControlQueueStatusData_readsQueueBeforeRefreshingRunControlState() async throws {
+        var workspace: Workspace!
+        let fixture = try RalphMockCLITestSupport.makeFixture(
+            prefix: "ralph-workspace-run-control-queue-refresh",
+            logFileName: "commands.log",
+            seedQueueTasks: [
+                RalphMockCLITestSupport.task(
+                    id: "RQ-3333",
+                    status: .todo,
+                    title: "Refresh queue-derived operator state",
+                    priority: .medium,
+                    createdAt: "2026-03-10T00:00:00Z",
+                    updatedAt: "2026-03-10T00:00:00Z"
+                )
+            ]
+        )
+        defer { RalphCoreTestSupport.shutdownAndRemove(fixture.rootURL, workspace) }
+
+        let configResolveURL = try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.configResolveDocument(workspaceURL: fixture.workspaceURL),
+            in: fixture.rootURL,
+            name: "config-resolve.json"
+        )
+        let queueReadURL = try RalphMockCLITestSupport.writeJSONDocument(
+            RalphMockCLITestSupport.queueReadDocument(
+                workspaceURL: fixture.workspaceURL,
+                activeTasks: [
+                    RalphMockCLITestSupport.task(
+                        id: "RQ-3333",
+                        status: .todo,
+                        title: "Refresh queue-derived operator state",
+                        priority: .medium,
+                        createdAt: "2026-03-10T00:00:00Z",
+                        updatedAt: "2026-03-10T00:00:00Z"
+                    )
+                ]
+            ),
+            in: fixture.rootURL,
+            name: "queue-read.json"
+        )
+
+        let script = """
+            #!/bin/sh
+            echo "$*" >> "\(fixture.logURL!.path)"
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "config" ] && [ "$4" = "resolve" ]; then
+              cat "\(configResolveURL.path)"
+              exit 0
+            fi
+            if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "queue" ] && [ "$4" = "read" ]; then
+              cat "\(queueReadURL.path)"
+              exit 0
+            fi
+            echo "unexpected args: $*" 1>&2
+            exit 64
+            """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(
+            in: fixture.rootURL,
+            name: fixture.scriptURL.lastPathComponent,
+            body: script
+        )
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        workspace = RalphMockCLITestSupport.makeWorkspaceWithoutInitialRefresh(
+            workingDirectoryURL: fixture.workspaceURL,
+            client: client
+        )
+
+        await workspace.refreshRunControlQueueStatusData()
+
+        let commandLog = try String(contentsOf: fixture.logURL!, encoding: .utf8)
+        XCTAssertTrue(commandLog.contains("machine queue read"))
+        XCTAssertTrue(commandLog.contains("machine config resolve"))
     }
 
     func test_refreshRepositoryState_clearsInactiveParallelStatusWhenParallelNotConfigured() async throws {
@@ -591,5 +729,39 @@ final class WorkspaceParallelRunControlTests: WorkspacePerformanceTestCase {
             nextSteps: [],
             snapshot: ParallelStatusSnapshot(schemaVersion: 3, targetBranch: "main", workers: workers)
         )
+    }
+}
+
+private extension Array where Element == Workspace.RunControlOperatorAction {
+    func containsNative(_ nativeAction: Workspace.RunControlOperatorAction.NativeAction) -> Bool {
+        contains {
+            guard case .native(let action) = $0.disposition else { return false }
+            return action == nativeAction
+        }
+    }
+
+    func nativeActionCount(_ nativeAction: Workspace.RunControlOperatorAction.NativeAction) -> Int {
+        filter {
+            guard case .native(let action) = $0.disposition else { return false }
+            return action == nativeAction
+        }.count
+    }
+
+    func containsUnsupportedCommand(_ command: String) -> Bool {
+        contains {
+            guard case .unsupported(_, let unsupportedCommand) = $0.disposition else { return false }
+            return unsupportedCommand == command
+        }
+    }
+
+    func containsCopyCommand(_ command: String) -> Bool {
+        contains {
+            guard case .copyCommand(let copyCommand) = $0.disposition else { return false }
+            return copyCommand == command
+        }
+    }
+
+    func containsTitle(_ title: String) -> Bool {
+        contains { $0.title == title }
     }
 }

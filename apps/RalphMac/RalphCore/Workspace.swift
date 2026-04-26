@@ -208,6 +208,16 @@ public final class Workspace: ObservableObject, Identifiable {
         await refreshParallelStatusIfNeeded(retryConfiguration: .minimal)
     }
 
+    public func refreshRunControlQueueStatusData() async {
+        await awaitPendingRepositoryActivityIfNeeded()
+        guard !isShutDown, !Task.isCancelled else { return }
+        await loadTasks(retryConfiguration: .minimal)
+        guard !isShutDown, !Task.isCancelled else { return }
+        await loadRunnerConfiguration(retryConfiguration: .minimal)
+        guard !isShutDown, !Task.isCancelled else { return }
+        await refreshParallelStatusIfNeeded(retryConfiguration: .minimal)
+    }
+
     public func refreshRepositoryState(
         retryConfiguration: RetryConfiguration = .minimal,
         includeCLISpec: Bool = true

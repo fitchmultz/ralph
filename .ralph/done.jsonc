@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.4:xhigh"
+        "model_used": "openai-codex/gpt-5.4:xhigh",
+        "runner_used": "pi"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
       }
     },
     {
@@ -540,9 +540,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -610,8 +610,8 @@
       "relates_to": [],
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "runner_used": "codex"
       }
     },
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "runner_used": "codex",
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -760,10 +760,79 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
         "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "source_report": "/tmp/ralph-report.md"
+      }
+    },
+    {
+      "id": "RQ-0014",
+      "status": "done",
+      "title": "Turn RalphMac continuation next steps into native actions",
+      "description": "Improve Run Control so machine-provided operator next steps become native actions where safe instead of mostly appearing as terminal instructions. The app should classify each continuation or blocking next step as actionable, copy-only, or unsupported-with-reason, then render buttons for safe actions such as refresh, validate, repair preview, undo list, stop after current, and status refresh.",
+      "priority": "medium",
+      "tags": [
+        "ralphmac",
+        "ux",
+        "continuation",
+        "blocking",
+        "recovery",
+        "machine-contract"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/RunControlDetailSections+Configuration.swift",
+        "apps/RalphMac/RalphCore/Workspace+RunnerState.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController.swift",
+        "apps/RalphMac/RalphCore/WorkspaceRunnerController+Execution.swift",
+        "apps/RalphMac/RalphCore/Workspace+ErrorRecovery.swift",
+        "apps/RalphMac/RalphCore/WorkspaceDiagnosticsService.swift",
+        "apps/RalphMac/RalphCore/WorkspaceTaskMutationModels.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunStateResumeBlockingTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceParallelRunControlTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunCancelAndLoopTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceDiagnosticsServiceTests.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceErrorRecoveryTests.swift",
+        "apps/RalphMac/RalphCoreTests/ErrorRecoveryCategoryTests.swift",
+        "docs/features/app.md"
+      ],
+      "evidence": [
+        "`Workspace.RunControlOperatorState` in `Workspace+RunnerState.swift` reduces blocking and resume guidance to at most two `RunControlOperatorStep` text rows, so machine continuation commands are not preserved as actionable state.",
+        "`RunControlExecutionControlsSection.operatorStateView` in `RunControlDetailSections+Configuration.swift` renders `state.nextSteps` as caption text and only exposes native recovery buttons for `.lockBlocked`.",
+        "`Workspace+ErrorRecovery.swift` and `WorkspaceDiagnosticsService.swift` already expose native queue validate, repair preview, restore preview, and run-control refresh primitives that Run Control can reuse instead of showing terminal-only instructions.",
+        "`WorkspaceRunStateResumeBlockingTests`, `WorkspaceParallelRunControlTests`, and `WorkspaceRunCancelAndLoopTests` cover blocking/resume and stop-loop state, but there is no coverage for actionable Run Control next-step classification beyond lock recovery."
+      ],
+      "plan": [
+        "Refactor `Workspace.RunControlOperatorState` so Run Control keeps structured next-step actions instead of only lossy text rows, while preserving existing blocking/resume precedence and observed-at behavior.",
+        "Introduce an app-side classification that maps machine/operator next steps into native actions, copy-command fallbacks, or unsupported items with explicit reasons, and recognize safe actions such as refresh, queue validate, repair preview, undo preview/listing, shared parallel status refresh, and stop-after-current.",
+        "Update `RunControlDetailSections+Configuration.swift` to render native action buttons from the classified operator state, keep lock recovery wired through the same action system where practical, and leave command text only for fallback or unsupported actions.",
+        "Reuse existing workspace recovery and diagnostics entry points before adding new CLI plumbing; only add controller/service helpers where a safe native action does not yet have one.",
+        "Add focused RalphCore regression coverage for blocking or resume states that should surface native Run Control actions, plus stop-after-current and refresh-related cases where command routing or precedence could regress.",
+        "Update the app feature documentation so Run Control is described as using machine-backed native continuation actions with CLI fallback rather than terminal-instruction-only guidance."
+      ],
+      "notes": [
+        "Current app-side machine continuation payloads already include `title`, `command`, and `detail` via `WorkspaceContinuationAction` in `WorkspaceTaskMutationModels.swift`; the main missing piece is a Run Control action model that keeps command identity long enough to map safe actions natively.",
+        "Prefer deriving native actions from structured blocking reasons and known machine commands instead of parsing human-facing text details.",
+        "Reviewed and refined Run Control continuation actions in Phase 3.",
+        "Queue-derived refresh actions now perform a real queue read before rebuilding operator state.",
+        "Parallel continuation action titles are preserved and dry-run stop remains copy-only.",
+        "Validation passed via xcodebuild WorkspaceParallelRunControlTests and make agent-ci."
+      ],
+      "request": "update the .ralph/queue.jsonc with tasks to remediate every finding.",
+      "created_at": "2026-04-26T00:04:48Z",
+      "updated_at": "2026-04-26T06:48:03.803015000Z",
+      "completed_at": "2026-04-26T06:48:03.803015000Z",
+      "started_at": "2026-04-26T06:16:38.953175000Z",
+      "depends_on": [
+        "RQ-0011"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
       }
     }
   ]

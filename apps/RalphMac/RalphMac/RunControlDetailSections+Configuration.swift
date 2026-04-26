@@ -20,6 +20,7 @@
  - Callers keep usage within the documented responsibilities and owning feature contracts.
  */
 
+import AppKit
 import RalphCore
 import SwiftUI
 
@@ -343,26 +344,13 @@ struct RunControlExecutionControlsSection: View {
                 }
             }
 
-            if !state.nextSteps.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Next")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    ForEach(Array(state.nextSteps.enumerated()), id: \.offset) { _, step in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(step.title)
-                                .font(.caption.weight(.medium))
-                            Text(step.detail)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
+            if !state.actions.isEmpty {
+                operatorActionsView(state.actions)
             }
 
             if let blockingState = state.blockingState,
                case .lockBlocked = blockingState.reason {
-                lockRecoveryActionsView
+                queueLockStatusView
             }
 
             if let observed = state.observedAt, !observed.isEmpty {
@@ -411,21 +399,13 @@ struct RunControlExecutionControlsSection: View {
                         )
                     }
 
-                    if !parallelStatus.nextSteps.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Next")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            ForEach(parallelStatus.nextSteps.prefix(2), id: \.command) { step in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(step.command)
-                                        .font(.system(.caption, design: .monospaced))
-                                    Text(step.detail)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                    let actions = Workspace.RunControlOperatorState.classifyParallelStatusActions(
+                        parallelStatus.nextSteps,
+                        isLoopMode: workspace.runState.isLoopMode,
+                        stopAfterCurrent: workspace.runState.stopAfterCurrent
+                    )
+                    if !actions.isEmpty {
+                        operatorActionsView(actions)
                     }
                 }
             } else {
@@ -463,59 +443,88 @@ struct RunControlExecutionControlsSection: View {
     }
 
     @ViewBuilder
-    private var lockRecoveryActionsView: some View {
+    private func operatorActionsView(_ actions: [Workspace.RunControlOperatorAction]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Lock Recovery")
+            Text("Next")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 8) {
-                Button("Inspect Lock") {
-                    runDiagnosticsSheet(
-                        title: "Queue Lock Inspection",
-                        loadingTitle: "Inspecting queue lock..."
-                    ) {
-                        let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
-                        queueLockSnapshot = snapshot
-                        return await WorkspaceDiagnosticsService.queueLockInspectionOutput(for: workspace)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            ForEach(actions) { action in
+                operatorActionRow(action)
+            }
+        }
+    }
 
-                Button("Preview Unlock") {
-                    runDiagnosticsSheet(
-                        title: "Queue Unlock Preview",
-                        loadingTitle: "Previewing queue unlock..."
-                    ) {
-                        let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
-                        queueLockSnapshot = snapshot
-                        return snapshot.unlockPreview
-                    }
+    @ViewBuilder
+    private func operatorActionRow(_ action: Workspace.RunControlOperatorAction) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(action.title)
+                        .font(.caption.weight(.medium))
+                    Text(action.detail)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
 
-                Button("Clear Stale Lock") {
-                    runDiagnosticsSheet(
-                        title: "Clear Stale Queue Lock",
-                        loadingTitle: "Clearing stale queue lock..."
-                    ) {
-                        let result = await WorkspaceDiagnosticsService.clearStaleQueueLock(for: workspace)
-                        queueLockSnapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
-                        return result
+                Spacer(minLength: 12)
+
+                switch action.disposition {
+                case .native:
+                    if isProminentOperatorAction(action) {
+                        Button(action: { performOperatorAction(action) }) {
+                            Label(action.title, systemImage: operatorActionIcon(action))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(isOperatorActionDisabled(action))
+                    } else {
+                        Button(action: { performOperatorAction(action) }) {
+                            Label(action.title, systemImage: operatorActionIcon(action))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(isOperatorActionDisabled(action))
                     }
+                case .copyCommand:
+                    Button("Copy Command") {
+                        performOperatorAction(action)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                case .unsupported:
+                    Text("Not Native")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(queueLockSnapshot?.canClearStaleLock != true || isRunningDiagnostics)
             }
 
-            if let queueLockSnapshot {
-                Text("Lock status: \(queueLockSnapshot.condition.displayName)")
+            switch action.disposition {
+            case .native:
+                EmptyView()
+            case .copyCommand(let command):
+                Text(command)
+                    .font(.system(.caption2, design: .monospaced))
+                    .textSelection(.enabled)
+            case .unsupported(let reason, let command):
+                Text(reason)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                if let command, !command.isEmpty {
+                    Text(command)
+                        .font(.system(.caption2, design: .monospaced))
+                        .textSelection(.enabled)
+                }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var queueLockStatusView: some View {
+        if let queueLockSnapshot {
+            Text("Lock status: \(queueLockSnapshot.condition.displayName)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -626,6 +635,133 @@ struct RunControlExecutionControlsSection: View {
         Task { @MainActor in
             diagnosticsSheetText = await action()
             isRunningDiagnostics = false
+        }
+    }
+
+    private func performOperatorAction(_ action: Workspace.RunControlOperatorAction) {
+        switch action.disposition {
+        case .native(let nativeAction):
+            switch nativeAction {
+            case .refreshRunControlStatus:
+                Task { @MainActor in
+                    await workspace.refreshRunControlStatusData()
+                    await refreshQueueLockSnapshotIfNeeded()
+                }
+            case .refreshQueueStatus:
+                Task { @MainActor in
+                    await workspace.refreshRunControlQueueStatusData()
+                    await refreshQueueLockSnapshotIfNeeded()
+                }
+            case .refreshParallelStatus:
+                Task { @MainActor in
+                    await workspace.loadParallelStatus(retryConfiguration: .minimal)
+                    await refreshQueueLockSnapshotIfNeeded()
+                }
+            case .validateQueue:
+                runDiagnosticsSheet(
+                    title: "Queue Validation",
+                    loadingTitle: "Validating queue..."
+                ) {
+                    await WorkspaceDiagnosticsService.queueValidationOutput(for: workspace)
+                }
+            case .previewQueueRepair:
+                runDiagnosticsSheet(
+                    title: "Queue Repair Preview",
+                    loadingTitle: "Previewing queue repair..."
+                ) {
+                    await WorkspaceDiagnosticsService.queueRepairPreviewOutput(for: workspace)
+                }
+            case .previewQueueUndo:
+                runDiagnosticsSheet(
+                    title: "Queue Restore Preview",
+                    loadingTitle: "Previewing queue restore..."
+                ) {
+                    await WorkspaceDiagnosticsService.queueRestorePreviewOutput(for: workspace)
+                }
+            case .stopAfterCurrent:
+                workspace.stopLoop()
+            case .inspectQueueLock:
+                runDiagnosticsSheet(
+                    title: "Queue Lock Inspection",
+                    loadingTitle: "Inspecting queue lock..."
+                ) {
+                    let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+                    queueLockSnapshot = snapshot
+                    return await WorkspaceDiagnosticsService.queueLockInspectionOutput(for: workspace)
+                }
+            case .previewQueueUnlock:
+                runDiagnosticsSheet(
+                    title: "Queue Unlock Preview",
+                    loadingTitle: "Previewing queue unlock..."
+                ) {
+                    let snapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+                    queueLockSnapshot = snapshot
+                    return snapshot.unlockPreview
+                }
+            case .clearStaleQueueLock:
+                runDiagnosticsSheet(
+                    title: "Clear Stale Queue Lock",
+                    loadingTitle: "Clearing stale queue lock..."
+                ) {
+                    let result = await WorkspaceDiagnosticsService.clearStaleQueueLock(for: workspace)
+                    queueLockSnapshot = await WorkspaceDiagnosticsService.queueLockDiagnosticSnapshot(for: workspace)
+                    return result
+                }
+            }
+        case .copyCommand(let command):
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+        case .unsupported:
+            break
+        }
+    }
+
+    private func isOperatorActionDisabled(_ action: Workspace.RunControlOperatorAction) -> Bool {
+        guard case .native(let nativeAction) = action.disposition else {
+            return false
+        }
+
+        switch nativeAction {
+        case .inspectQueueLock, .previewQueueUnlock, .validateQueue, .previewQueueRepair, .previewQueueUndo:
+            return isRunningDiagnostics
+        case .clearStaleQueueLock:
+            return queueLockSnapshot?.canClearStaleLock != true || isRunningDiagnostics
+        case .stopAfterCurrent:
+            return workspace.runState.stopAfterCurrent
+        case .refreshRunControlStatus, .refreshQueueStatus, .refreshParallelStatus:
+            return false
+        }
+    }
+
+    private func isProminentOperatorAction(_ action: Workspace.RunControlOperatorAction) -> Bool {
+        if case .native(.inspectQueueLock) = action.disposition {
+            return true
+        }
+        return false
+    }
+
+    private func operatorActionIcon(_ action: Workspace.RunControlOperatorAction) -> String {
+        guard case .native(let nativeAction) = action.disposition else {
+            return "bolt.circle"
+        }
+
+        switch nativeAction {
+        case .refreshRunControlStatus, .refreshQueueStatus, .refreshParallelStatus:
+            return "arrow.clockwise"
+        case .validateQueue:
+            return "checkmark.shield"
+        case .previewQueueRepair:
+            return "wrench.and.screwdriver"
+        case .previewQueueUndo:
+            return "clock.arrow.circlepath"
+        case .stopAfterCurrent:
+            return "pause.circle"
+        case .inspectQueueLock:
+            return "lock.magnifyingglass"
+        case .previewQueueUnlock:
+            return "lock.open.trianglebadge.exclamationmark"
+        case .clearStaleQueueLock:
+            return "lock.open"
         }
     }
 

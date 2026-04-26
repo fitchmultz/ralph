@@ -768,6 +768,28 @@ final class WorkspaceRunCancelAndLoopTests: WorkspacePerformanceTestCase {
         XCTAssertTrue(loopFinished)
     }
 
+    func test_runControlOperatorState_exposesStopAfterCurrentActionDuringLoopBlocking() {
+        let workspace = Workspace(
+            workingDirectoryURL: RalphCoreTestSupport.workspaceURL(label: "run-control-stop-after-current-action")
+        )
+        workspace.isLoopMode = true
+        workspace.runState.setLiveBlockingState(
+            Workspace.BlockingState(
+                status: .blocked,
+                reason: .dependencyBlocked(blockedTasks: 2),
+                taskID: nil,
+                message: "Ralph is blocked by unfinished dependencies.",
+                detail: "2 candidate task(s) are waiting on dependency completion."
+            )
+        )
+
+        let actions = workspace.runState.runControlOperatorState?.actions ?? []
+        XCTAssertTrue(actions.contains { action in
+            guard case .native(.stopAfterCurrent) = action.disposition else { return false }
+            return true
+        })
+    }
+
     func test_stopLoop_structuredFailureClearsStopRequestedAndShowsRecoveryError() async throws {
         var workspace: Workspace!
         let fixture = try RalphMockCLITestSupport.makeFixture(
