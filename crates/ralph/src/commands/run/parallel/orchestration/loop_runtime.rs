@@ -106,7 +106,7 @@ fn drive_parallel_loop(
                     &mut prepared.guard,
                     &prepared.state_path,
                     &prepared.settings.workspace_root,
-                    &resolved.repo_root,
+                    resolved,
                     &prepared.target_branch,
                     &mut prepared.stats,
                 )?;
@@ -200,7 +200,7 @@ fn drain_and_handle_finished(
         &mut prepared.guard,
         &prepared.state_path,
         &prepared.settings.workspace_root,
-        &resolved.repo_root,
+        resolved,
         &prepared.target_branch,
         &mut prepared.stats,
     )

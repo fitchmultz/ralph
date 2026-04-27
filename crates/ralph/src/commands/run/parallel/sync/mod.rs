@@ -77,6 +77,31 @@ pub(crate) fn ensure_branch_pushed(workspace_path: &Path) -> Result<()> {
         .with_context(|| "push branch to upstream (auto-rebase on rejection)")
 }
 
+/// Mirror completed worker bookkeeping files back to the coordinator source tree.
+///
+/// Tracked queue/done files are expected to arrive through the normal branch
+/// fast-forward path. Untracked or gitignored queue/done files cannot be updated
+/// from git refs, so successful workers must copy the workspace-local reconciled
+/// files back to the operator-visible source paths explicitly.
+pub(crate) fn sync_worker_bookkeeping_back_to_source(
+    resolved: &config::Resolved,
+    workspace_path: &Path,
+) -> Result<()> {
+    sync_worker_bookkeeping_file_back_to_source(
+        resolved,
+        workspace_path,
+        &resolved.queue_path,
+        "queue",
+    )?;
+    sync_worker_bookkeeping_file_back_to_source(
+        resolved,
+        workspace_path,
+        &resolved.done_path,
+        "done",
+    )?;
+    Ok(())
+}
+
 fn sync_worker_bookkeeping_files(resolved: &config::Resolved, workspace_path: &Path) -> Result<()> {
     sync_worker_bookkeeping_file(resolved, workspace_path, &resolved.queue_path, "queue")?;
     sync_worker_bookkeeping_file(resolved, workspace_path, &resolved.done_path, "done")?;
@@ -99,6 +124,56 @@ fn sync_worker_bookkeeping_file(
 
     common::sync_file_if_exists(source_path, &target_path)
         .with_context(|| format!("sync {} bookkeeping file to workspace", label))
+}
+
+fn sync_worker_bookkeeping_file_back_to_source(
+    resolved: &config::Resolved,
+    workspace_path: &Path,
+    source_path: &Path,
+    label: &str,
+) -> Result<()> {
+    let workspace_source_path = super::path_map::map_resolved_path_into_workspace(
+        &resolved.repo_root,
+        workspace_path,
+        source_path,
+        label,
+    )
+    .with_context(|| format!("map {} bookkeeping path from workspace", label))?;
+
+    if !workspace_source_path.exists() {
+        return Ok(());
+    }
+
+    let rel = source_path
+        .strip_prefix(&resolved.repo_root)
+        .with_context(|| {
+            format!(
+                "{} bookkeeping path {} is not under repo root {}",
+                label,
+                source_path.display(),
+                resolved.repo_root.display()
+            )
+        })?;
+    let rel = rel.to_string_lossy().to_string();
+    if git::is_path_tracked(&resolved.repo_root, &rel)
+        .with_context(|| format!("check whether {} bookkeeping path is tracked", label))?
+    {
+        log::debug!(
+            "{} bookkeeping path {} is tracked; leaving source refresh to git branch updates",
+            label,
+            rel
+        );
+        return Ok(());
+    }
+
+    common::sync_file_if_exists(&workspace_source_path, source_path)
+        .with_context(|| format!("sync {} bookkeeping file back to source", label))?;
+    log::info!(
+        "Refreshed untracked {} bookkeeping path from worker workspace: {}",
+        label,
+        source_path.display()
+    );
+    Ok(())
 }
 
 #[cfg(test)]

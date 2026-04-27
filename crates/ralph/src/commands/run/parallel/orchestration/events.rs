@@ -23,8 +23,10 @@ use std::path::Path;
 
 use crate::commands::run::parallel::cleanup_guard::ParallelCleanupGuard;
 use crate::commands::run::parallel::state::{self, WorkerLifecycle, WorkerRecord};
+use crate::commands::run::parallel::sync;
 use crate::commands::run::parallel::worker::FinishedWorker;
 use crate::commands::run::parallel::workspace_cleanup::remove_workspace_best_effort;
+use crate::config;
 use crate::contracts::QueueFile;
 use crate::timeutil;
 
@@ -91,7 +93,7 @@ pub(super) fn handle_finished_workers(
     guard: &mut ParallelCleanupGuard,
     state_path: &Path,
     workspace_root: &Path,
-    coordinator_repo_root: &Path,
+    resolved: &config::Resolved,
     target_branch: &str,
     stats: &mut ParallelRunStats,
 ) -> Result<()> {
@@ -111,7 +113,8 @@ pub(super) fn handle_finished_workers(
             }
 
             log::info!("Worker {} completed successfully", task_id);
-            refresh_coordinator_branch_best_effort(coordinator_repo_root, target_branch);
+            refresh_coordinator_branch_best_effort(&resolved.repo_root, target_branch);
+            sync::sync_worker_bookkeeping_back_to_source(resolved, &workspace.path)?;
         } else {
             stats.record_failure();
 
@@ -191,7 +194,9 @@ mod tests {
         self, ParallelStateFile, WorkerLifecycle, WorkerRecord,
     };
     use crate::commands::run::parallel::worker::start_worker_monitor;
+    use crate::contracts::Config;
     use crate::git::WorkspaceSpec;
+    use crate::testsupport::git as git_test;
     use anyhow::Result;
     use std::process::{Child, Command, ExitStatus, Stdio};
     use tempfile::TempDir;
@@ -251,6 +256,19 @@ mod tests {
         }
     }
 
+    fn test_resolved(repo_root: &Path) -> config::Resolved {
+        config::Resolved {
+            config: Config::default(),
+            repo_root: repo_root.to_path_buf(),
+            queue_path: repo_root.join(".ralph/queue.jsonc"),
+            done_path: repo_root.join(".ralph/done.jsonc"),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        }
+    }
+
     #[test]
     fn finished_success_marks_completed_persists_state_and_removes_worker() -> Result<()> {
         let temp = TempDir::new()?;
@@ -275,7 +293,7 @@ mod tests {
             &mut guard,
             &state_path,
             &temp.path().join("workspaces"),
-            temp.path(),
+            &test_resolved(temp.path()),
             "main",
             &mut stats,
         )?;
@@ -328,7 +346,7 @@ mod tests {
             &mut guard,
             &state_path,
             &temp.path().join("workspaces"),
-            temp.path(),
+            &test_resolved(temp.path()),
             "main",
             &mut stats,
         )?;
@@ -367,7 +385,7 @@ mod tests {
             &mut guard,
             &state_path,
             &temp.path().join("workspaces"),
-            temp.path(),
+            &test_resolved(temp.path()),
             "main",
             &mut stats,
         )?;
@@ -405,7 +423,7 @@ mod tests {
             &mut guard,
             &bad_state_path,
             &temp.path().join("workspaces"),
-            temp.path(),
+            &test_resolved(temp.path()),
             "main",
             &mut stats,
         )
@@ -440,11 +458,67 @@ mod tests {
             &mut guard,
             &state_path,
             &temp.path().join("workspaces"),
-            &temp.path().join("not-a-git-repo"),
+            &test_resolved(&temp.path().join("not-a-git-repo")),
             "main",
             &mut stats,
         )?;
 
+        assert_eq!(stats.succeeded(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn finished_success_refreshes_ignored_source_bookkeeping_from_worker() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().join("repo");
+        std::fs::create_dir_all(&repo_root)?;
+        git_test::init_repo(&repo_root)?;
+        std::fs::write(
+            repo_root.join(".gitignore"),
+            ".ralph/queue.jsonc\n.ralph/done.jsonc\n",
+        )?;
+        git_test::git_run(&repo_root, &["add", ".gitignore"])?;
+        git_test::git_run(&repo_root, &["commit", "-m", "ignore bookkeeping"])?;
+        std::fs::write(repo_root.join(".ralph/queue.jsonc"), "{stale_queue}")?;
+        std::fs::write(repo_root.join(".ralph/done.jsonc"), "{stale_done}")?;
+
+        let state_path = temp.path().join("state.json");
+        let mut guard = create_guard(&temp, state_path.clone());
+        let workspace = worker_workspace(&temp, "RQ-0006")?;
+        std::fs::create_dir_all(workspace.path.join(".ralph"))?;
+        std::fs::write(workspace.path.join(".ralph/queue.jsonc"), "{fresh_queue}")?;
+        std::fs::write(workspace.path.join(".ralph/done.jsonc"), "{fresh_done}")?;
+        register_finished_worker_monitor(&mut guard, &workspace, "RQ-0006")?;
+        guard.state_file_mut().upsert_worker(WorkerRecord::new(
+            "RQ-0006",
+            workspace.path.clone(),
+            "2026-04-25T00:00:00Z".to_string(),
+        ));
+
+        let mut stats = ParallelRunStats::default();
+        handle_finished_workers(
+            vec![crate::commands::run::parallel::worker::FinishedWorker {
+                task_id: "RQ-0006".to_string(),
+                task_title: "Task".to_string(),
+                workspace,
+                status: synthetic_status(0),
+            }],
+            &mut guard,
+            &state_path,
+            &temp.path().join("workspaces"),
+            &test_resolved(&repo_root),
+            "main",
+            &mut stats,
+        )?;
+
+        assert_eq!(
+            std::fs::read_to_string(repo_root.join(".ralph/queue.jsonc"))?,
+            "{fresh_queue}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(repo_root.join(".ralph/done.jsonc"))?,
+            "{fresh_done}"
+        );
         assert_eq!(stats.succeeded(), 1);
         Ok(())
     }

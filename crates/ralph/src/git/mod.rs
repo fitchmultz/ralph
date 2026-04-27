@@ -65,8 +65,8 @@ pub(crate) use pr::{
     pr_merge_status,
 };
 pub use status::{
-    ensure_paths_unchanged, ignored_paths, is_path_ignored, snapshot_paths, status_paths,
-    status_porcelain,
+    ensure_paths_unchanged, ignored_paths, is_path_ignored, is_path_tracked, snapshot_paths,
+    status_paths, status_porcelain,
 };
 // NEW: workspace-based isolation (clone workspaces).
 pub(crate) use workspace::{

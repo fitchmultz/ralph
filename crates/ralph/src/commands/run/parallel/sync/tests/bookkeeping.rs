@@ -178,3 +178,112 @@ fn sync_ralph_state_seeds_jsonc_bookkeeping_for_migrated_uncommitted_config() ->
 
     Ok(())
 }
+
+#[test]
+fn sync_worker_bookkeeping_back_to_source_mirrors_ignored_default_paths() -> Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::write(
+        repo_root.join(".gitignore"),
+        ".ralph/queue.jsonc\n.ralph/done.jsonc\n",
+    )?;
+    git_test::git_run(&repo_root, &["add", ".gitignore"])?;
+    git_test::git_run(&repo_root, &["commit", "-m", "ignore bookkeeping"])?;
+
+    fs::write(repo_root.join(".ralph/queue.jsonc"), "{stale_queue}")?;
+    fs::write(repo_root.join(".ralph/done.jsonc"), "{stale_done}")?;
+    fs::create_dir_all(workspace_root.join(".ralph"))?;
+    fs::write(workspace_root.join(".ralph/queue.jsonc"), "{fresh_queue}")?;
+    fs::write(workspace_root.join(".ralph/done.jsonc"), "{fresh_done}")?;
+
+    let resolved = build_test_resolved(
+        &repo_root,
+        Some(repo_root.join(".ralph/queue.jsonc")),
+        Some(repo_root.join(".ralph/done.jsonc")),
+    );
+    sync_worker_bookkeeping_back_to_source(&resolved, &workspace_root)?;
+
+    assert_eq!(
+        fs::read_to_string(repo_root.join(".ralph/queue.jsonc"))?,
+        "{fresh_queue}"
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join(".ralph/done.jsonc"))?,
+        "{fresh_done}"
+    );
+    Ok(())
+}
+
+#[test]
+fn sync_worker_bookkeeping_back_to_source_mirrors_untracked_custom_paths() -> Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::write(repo_root.join("README.md"), "tracked baseline")?;
+    git_test::git_run(&repo_root, &["add", "README.md"])?;
+    git_test::git_run(&repo_root, &["commit", "-m", "baseline"])?;
+
+    let queue_path = repo_root.join("queue/active.jsonc");
+    let done_path = repo_root.join("archive/done.jsonc");
+    fs::create_dir_all(queue_path.parent().unwrap())?;
+    fs::create_dir_all(done_path.parent().unwrap())?;
+    fs::write(&queue_path, "{stale_queue}")?;
+    fs::write(&done_path, "{stale_done}")?;
+    fs::create_dir_all(workspace_root.join("queue"))?;
+    fs::create_dir_all(workspace_root.join("archive"))?;
+    fs::write(workspace_root.join("queue/active.jsonc"), "{fresh_queue}")?;
+    fs::write(workspace_root.join("archive/done.jsonc"), "{fresh_done}")?;
+
+    let resolved = build_test_resolved(
+        &repo_root,
+        Some(queue_path.clone()),
+        Some(done_path.clone()),
+    );
+    sync_worker_bookkeeping_back_to_source(&resolved, &workspace_root)?;
+
+    assert_eq!(fs::read_to_string(queue_path)?, "{fresh_queue}");
+    assert_eq!(fs::read_to_string(done_path)?, "{fresh_done}");
+    Ok(())
+}
+
+#[test]
+fn sync_worker_bookkeeping_back_to_source_keeps_tracked_paths_git_authoritative() -> Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::write(repo_root.join(".ralph/queue.jsonc"), "{tracked_queue}")?;
+    fs::write(repo_root.join(".ralph/done.jsonc"), "{tracked_done}")?;
+    git_test::git_run(
+        &repo_root,
+        &["add", "-f", ".ralph/queue.jsonc", ".ralph/done.jsonc"],
+    )?;
+    git_test::git_run(&repo_root, &["commit", "-m", "track bookkeeping"])?;
+
+    fs::create_dir_all(workspace_root.join(".ralph"))?;
+    fs::write(workspace_root.join(".ralph/queue.jsonc"), "{worker_queue}")?;
+    fs::write(workspace_root.join(".ralph/done.jsonc"), "{worker_done}")?;
+
+    let resolved = build_test_resolved(
+        &repo_root,
+        Some(repo_root.join(".ralph/queue.jsonc")),
+        Some(repo_root.join(".ralph/done.jsonc")),
+    );
+    sync_worker_bookkeeping_back_to_source(&resolved, &workspace_root)?;
+
+    assert_eq!(
+        fs::read_to_string(repo_root.join(".ralph/queue.jsonc"))?,
+        "{tracked_queue}"
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join(".ralph/done.jsonc"))?,
+        "{tracked_done}"
+    );
+    Ok(())
+}
