@@ -83,7 +83,10 @@ Detailed configuration guides for specific features:
 
 | Document | Description |
 |----------|-------------|
-| **[Configuration](./configuration.md)** | Feature-specific configuration guide |
+| **[Configuration](./configuration.md)** | Feature-level configuration map and operator guidance |
+| **[Agent and Runner Configuration](./configuration-agent.md)** | Runner, model, phase, CI gate, permission, and retry settings |
+| **[Queue and Parallel Configuration](./configuration-operations.md)** | Queue paths, task aging, auto-archive, and parallel workspace settings |
+| **[Integration and Profile Configuration](./configuration-integrations.md)** | Notifications, webhooks, plugins, profiles, and environment variables |
 | **[Complete Configuration Example](./configuration-example.md)** | Long assembled configuration sample |
 | **[Profiles](./profiles.md)** | Configuration profiles for quick workflow switching |
 | **[Prompts](./prompts.md)** | Custom prompt templates and overrides |
