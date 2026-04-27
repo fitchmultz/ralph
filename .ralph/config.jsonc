@@ -14,18 +14,18 @@
     "phases": 3,
     "phase_overrides": {
       "phase1": {
-        "runner": "codex",
-        "model": "gpt-5.5",
+        "runner": "pi",
+        "model": "openai-codex/gpt-5.5",
         "reasoning_effort": "high"
       },
       "phase2": {
-        "runner": "codex",
-        "model": "gpt-5.3-codex",
+        "runner": "pi",
+        "model": "openai-codex/gpt-5.3-codex",
         "reasoning_effort": "xhigh"
       },
       "phase3": {
-        "runner": "codex",
-        "model": "gpt-5.5",
+        "runner": "pi",
+        "model": "openai-codex/gpt-5.5",
         "reasoning_effort": "high"
       }
     }
