@@ -30,7 +30,8 @@ use crate::cli::machine::args::{
     MachineWorkspaceCommand,
 };
 use crate::cli::machine::common::{
-    build_config_resolve_document, build_workspace_overview_document, machine_safety_context,
+    build_config_resolve_document, build_config_resolve_resume_preview,
+    build_workspace_overview_document, machine_safety_context,
 };
 use crate::cli::machine::io::print_json;
 use crate::cli::machine::{queue, run, task};
@@ -61,9 +62,7 @@ pub fn handle_machine(args: MachineArgs, force: bool) -> Result<()> {
             MachineConfigCommand::Resolve => {
                 let resolved = config::resolve_from_cwd()?;
                 let (repo_trusted, dirty_repo) = machine_safety_context(&resolved)?;
-                let resume_preview = crate::cli::machine::common::build_resume_preview(
-                    &resolved, None, true, true, false,
-                )?;
+                let resume_preview = build_config_resolve_resume_preview(&resolved)?;
                 print_json(&build_config_resolve_document(
                     &resolved,
                     repo_trusted,

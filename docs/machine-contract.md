@@ -80,9 +80,17 @@ RalphMac and other machine clients should treat these resolved paths as the cano
 - fall back to a fresh invocation
 - refuse to resume
 
+`resume_preview` is optional by design. When the active queue file is unavailable,
+`machine config resolve` still succeeds for config/path introspection and omits
+`resume_preview` (or emits `null`) instead of failing the command.
+
 ### `machine workspace overview` (`version: 1`)
 
 Returns a single document that embeds the same payloads as `machine queue read` and `machine config resolve` under `queue` and `config` respectively, so clients can refresh both in one subprocess round-trip.
+
+Because this command embeds `machine queue read`, queue availability is still
+required; missing active queue files remain a structured failure on this
+surface.
 
 The embedded `queue.paths` and `config.paths` payloads are the canonical first-load source for app watcher targets, queue access checks, and workspace diagnostics.
 

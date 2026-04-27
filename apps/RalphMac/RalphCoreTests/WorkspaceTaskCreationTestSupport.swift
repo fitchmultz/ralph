@@ -101,3 +101,61 @@ enum WorkspaceTaskCreationTestSupport {
         try RalphCoreTestSupport.makeTemporaryDirectory(prefix: prefix)
     }
 }
+
+extension WorkspaceQueueRefreshTests {
+    static func workspaceOverviewCapabilitySpecDocument(
+        supportsWorkspaceOverview: Bool
+    ) -> MachineCLISpecDocument {
+        let queueCommand = commandSpec(
+            name: "queue",
+            path: ["ralph", "machine", "queue"]
+        )
+        let workspaceOverviewCommand = commandSpec(
+            name: "overview",
+            path: ["ralph", "machine", "workspace", "overview"]
+        )
+        let workspaceCommand = commandSpec(
+            name: "workspace",
+            path: ["ralph", "machine", "workspace"],
+            subcommands: supportsWorkspaceOverview ? [workspaceOverviewCommand] : []
+        )
+        let machineSubcommands = supportsWorkspaceOverview
+            ? [queueCommand, workspaceCommand]
+            : [queueCommand]
+
+        return MachineCLISpecDocument(
+            version: RalphMachineContract.cliSpecVersion,
+            spec: RalphCLISpecDocument(
+                version: RalphCLISpecDocument.expectedVersion,
+                root: commandSpec(
+                    name: "ralph",
+                    path: ["ralph"],
+                    subcommands: [
+                        commandSpec(
+                            name: "machine",
+                            path: ["ralph", "machine"],
+                            subcommands: machineSubcommands
+                        )
+                    ]
+                )
+            )
+        )
+    }
+
+    static func commandSpec(
+        name: String,
+        path: [String],
+        subcommands: [RalphCLICommandSpec] = []
+    ) -> RalphCLICommandSpec {
+        RalphCLICommandSpec(
+            name: name,
+            path: path,
+            about: nil,
+            longAbout: nil,
+            afterLongHelp: nil,
+            hidden: false,
+            args: [],
+            subcommands: subcommands
+        )
+    }
+}

@@ -94,3 +94,102 @@ fn machine_workspace_overview_returns_queue_and_config_in_one_document() -> Resu
     );
     Ok(())
 }
+
+#[test]
+fn machine_config_resolve_succeeds_without_queue_file_and_omits_resume_preview() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+    let queue_path = dir.path().join(".ralph/queue.jsonc");
+    std::fs::remove_file(&queue_path)?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "config", "resolve"]);
+    assert!(
+        status.success(),
+        "machine config resolve should succeed without a queue file\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        stderr.trim().is_empty(),
+        "machine config resolve should not emit stderr on success: {stderr}"
+    );
+
+    let document: Value = serde_json::from_str(&stdout)?;
+    assert_eq!(document["version"], 4);
+    assert!(document["paths"]["queue_path"].is_string());
+    assert!(document["config"].is_object());
+    assert!(document["execution_controls"]["runners"].is_array());
+    assert!(
+        document.get("resume_preview").is_none() || document["resume_preview"].is_null(),
+        "resume_preview should be omitted or null when queue file is unavailable: {stdout}"
+    );
+    assert!(
+        !queue_path.exists(),
+        "machine config resolve must not recreate missing queue files"
+    );
+    Ok(())
+}
+
+#[test]
+fn machine_workspace_overview_still_fails_without_queue_file() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+    std::fs::remove_file(dir.path().join(".ralph/queue.jsonc"))?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "workspace", "overview"]);
+    assert!(
+        !status.success(),
+        "machine workspace overview should still fail without a queue file\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        stdout.trim().is_empty(),
+        "failure stdout should stay empty: {stdout}"
+    );
+
+    let document: Value = serde_json::from_str(&stderr)?;
+    assert_eq!(document["version"], 1);
+    assert_eq!(document["code"], "queue_corrupted");
+    assert_eq!(document["message"], "No Ralph queue file found.");
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn machine_config_resolve_fails_when_queue_path_metadata_is_inaccessible() -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = setup_ralph_repo()?;
+    let restricted_dir = dir.path().join("restricted");
+    let queue_path = restricted_dir.join("queue.jsonc");
+    let config_path = dir.path().join(".ralph/config.jsonc");
+    let config_contents = format!(
+        "{{\n  \"queue\": {{\n    \"file\": {}\n  }}\n}}\n",
+        serde_json::to_string(&queue_path.display().to_string())?
+    );
+
+    std::fs::create_dir(&restricted_dir)?;
+    std::fs::write(&config_path, config_contents)?;
+    std::fs::set_permissions(&restricted_dir, std::fs::Permissions::from_mode(0o000))?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "config", "resolve"]);
+
+    std::fs::set_permissions(&restricted_dir, std::fs::Permissions::from_mode(0o755))?;
+
+    assert!(
+        !status.success(),
+        "machine config resolve should fail when queue-path metadata cannot be inspected\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        stdout.trim().is_empty(),
+        "failure stdout should stay empty: {stdout}"
+    );
+
+    let document: Value = serde_json::from_str(&stderr)?;
+    assert_eq!(document["version"], 1);
+    assert_eq!(document["code"], "permission_denied");
+    assert_eq!(document["message"], "Permission denied.");
+    assert!(
+        document["detail"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("inspect queue file"),
+        "structured detail should explain the failed queue-path inspection: {stderr}"
+    );
+    Ok(())
+}

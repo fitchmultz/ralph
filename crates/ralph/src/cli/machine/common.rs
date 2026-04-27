@@ -25,7 +25,7 @@
 
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::commands::runner::capabilities::built_in_runner_catalog;
 use crate::config;
@@ -223,6 +223,19 @@ pub(super) fn build_resume_preview(
         .decision
         .as_ref()
         .map(machine_resume_decision_from_runtime))
+}
+
+pub(super) fn build_config_resolve_resume_preview(
+    resolved: &config::Resolved,
+) -> anyhow::Result<Option<MachineResumeDecision>> {
+    match resolved
+        .queue_path
+        .try_exists()
+        .with_context(|| format!("inspect queue file {}", resolved.queue_path.display()))?
+    {
+        false => Ok(None),
+        true => build_resume_preview(resolved, None, true, true, false),
+    }
 }
 
 pub(super) fn machine_resume_decision_from_runtime(
