@@ -21,6 +21,7 @@
 
 use super::super::*;
 use super::support::{reset_webhook_test_state, sample_failure_record, webhook_test_config};
+use crate::contracts::WebhookConfig;
 use crate::webhook::types::{WebhookContext, WebhookMessage, WebhookPayload};
 use anyhow::{Context, Result};
 use serial_test::serial;
@@ -79,6 +80,22 @@ fn diagnostics_snapshot_includes_metrics_and_recent_failures() {
     assert_eq!(snapshot.retry_attempts_total, 1);
     assert_eq!(snapshot.recent_failures.len(), 1);
     assert_eq!(snapshot.recent_failures[0].id, "wf-1");
+}
+
+#[test]
+#[serial]
+fn diagnostics_capacity_is_zero_when_runtime_not_needed() {
+    reset_webhook_test_state();
+    let repo_root = tempfile::tempdir().expect("tempdir");
+
+    crate::webhook::diagnostics::set_queue_capacity(64);
+
+    let snapshot = diagnostics_snapshot(repo_root.path(), &WebhookConfig::default(), 10)
+        .expect("status snapshot");
+
+    assert_eq!(snapshot.queue_capacity, 0);
+
+    reset_webhook_test_state();
 }
 
 #[test]

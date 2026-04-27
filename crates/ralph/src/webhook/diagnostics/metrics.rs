@@ -116,13 +116,17 @@ pub fn diagnostics_snapshot(
     let recent_failures = records.into_iter().rev().take(limit).collect::<Vec<_>>();
 
     let state = metrics();
-    let configured_capacity = config
-        .queue_capacity
-        .map(|value| value.clamp(1, 10_000) as usize)
-        .unwrap_or(500);
-    let queue_capacity = match state.queue_capacity.load(Ordering::SeqCst) {
-        0 => configured_capacity,
-        value => value,
+    let queue_capacity = if !config.needs_runtime() {
+        0
+    } else {
+        let configured_capacity = config
+            .queue_capacity
+            .map(|value| value.clamp(1, 10_000) as usize)
+            .unwrap_or(500);
+        match state.queue_capacity.load(Ordering::SeqCst) {
+            0 => configured_capacity,
+            value => value,
+        }
     };
 
     Ok(WebhookDiagnostics {

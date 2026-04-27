@@ -81,6 +81,13 @@ fn dispatcher_for_config_with_factory(
 ) -> Option<Arc<WebhookDispatcher>> {
     let mut old_dispatcher = None;
     let dispatcher = with_dispatcher_state_write(|state| {
+        if !config.needs_runtime() {
+            old_dispatcher = state.dispatcher.take();
+            state.startup = DispatcherStartupState::default();
+            diagnostics::set_queue_capacity(0);
+            return None;
+        }
+
         let settings = DispatcherSettings::for_mode(config, &state.mode);
         let needs_rebuild = state
             .dispatcher

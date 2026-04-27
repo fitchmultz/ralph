@@ -213,6 +213,20 @@ impl WebhookConfig {
                 .any(|e| e.as_str() == event || e.as_str() == "*"),
         }
     }
+
+    /// Return true when webhook runtime resources are needed.
+    ///
+    /// Dispatcher threads should only start when webhooks are globally enabled and
+    /// a non-empty URL is configured. Full URL safety validation remains the
+    /// responsibility of `validate_webhook_settings`; this helper is only the
+    /// cheap resource-allocation gate.
+    pub(crate) fn needs_runtime(&self) -> bool {
+        self.enabled.unwrap_or(false)
+            && self
+                .url
+                .as_deref()
+                .is_some_and(|url| !url.trim().is_empty())
+    }
 }
 
 /// Validate webhook URL when `agent.webhook.enabled` is true (requires non-empty URL and safety rules).

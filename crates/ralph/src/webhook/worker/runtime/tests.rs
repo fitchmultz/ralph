@@ -105,11 +105,77 @@ impl ThreadSpawner for TrackingSpawner {
     }
 }
 
+fn enabled_config() -> WebhookConfig {
+    WebhookConfig {
+        enabled: Some(true),
+        url: Some("https://example.com/ralph-webhook".to_string()),
+        ..Default::default()
+    }
+}
+
 fn queue_config(capacity: u32) -> WebhookConfig {
     WebhookConfig {
         queue_capacity: Some(capacity),
-        ..Default::default()
+        ..enabled_config()
     }
+}
+
+#[test]
+#[serial]
+fn default_webhook_config_does_not_start_dispatcher() {
+    reset_dispatcher_for_tests();
+
+    let tracking = TrackingSpawner::default();
+    let dispatcher = dispatcher_for_config_with_spawner(&WebhookConfig::default(), &tracking);
+
+    assert!(dispatcher.is_none());
+    assert_eq!(tracking.spawn_calls.load(Ordering::SeqCst), 0);
+
+    reset_dispatcher_for_tests();
+}
+
+#[test]
+#[serial]
+fn enabled_without_url_does_not_start_dispatcher() {
+    reset_dispatcher_for_tests();
+
+    let config = WebhookConfig {
+        enabled: Some(true),
+        url: None,
+        ..Default::default()
+    };
+    let tracking = TrackingSpawner::default();
+    let dispatcher = dispatcher_for_config_with_spawner(&config, &tracking);
+
+    assert!(dispatcher.is_none());
+    assert_eq!(tracking.spawn_calls.load(Ordering::SeqCst), 0);
+
+    reset_dispatcher_for_tests();
+}
+
+#[test]
+#[serial]
+fn inactive_config_tears_down_existing_runtime() {
+    reset_dispatcher_for_tests();
+
+    let tracking = TrackingSpawner::default();
+    let active = dispatcher_for_config_with_spawner(&enabled_config(), &tracking)
+        .expect("active dispatcher");
+    assert_eq!(tracking.spawn_calls.load(Ordering::SeqCst), 5);
+    drop(active);
+
+    let inactive = WebhookConfig {
+        enabled: Some(false),
+        url: Some("https://example.com/ralph-webhook".to_string()),
+        ..Default::default()
+    };
+    let dispatcher = dispatcher_for_config_with_spawner(&inactive, &tracking);
+
+    assert!(dispatcher.is_none());
+    assert_eq!(tracking.join_calls.load(Ordering::SeqCst), 5);
+    assert_eq!(tracking.exit_calls.load(Ordering::SeqCst), 5);
+
+    reset_dispatcher_for_tests();
 }
 
 #[test]
@@ -117,13 +183,12 @@ fn queue_config(capacity: u32) -> WebhookConfig {
 fn thread_spawn_failure_is_recoverable_on_later_attempt() {
     reset_dispatcher_for_tests();
 
-    let dispatcher =
-        dispatcher_for_config_with_spawner(&WebhookConfig::default(), &FailingThreadSpawner);
+    let config = enabled_config();
+    let dispatcher = dispatcher_for_config_with_spawner(&config, &FailingThreadSpawner);
     assert!(dispatcher.is_none());
 
     let tracking = TrackingSpawner::default();
-    let recovered =
-        dispatcher_for_config_with_spawner(&WebhookConfig::default(), &tracking).expect("recovery");
+    let recovered = dispatcher_for_config_with_spawner(&config, &tracking).expect("recovery");
     assert_eq!(tracking.spawn_calls.load(Ordering::SeqCst), 5);
 
     drop(recovered);
@@ -135,13 +200,12 @@ fn thread_spawn_failure_is_recoverable_on_later_attempt() {
 fn startup_handshake_timeout_is_recoverable_on_later_attempt() {
     reset_dispatcher_for_tests();
 
-    let dispatcher =
-        dispatcher_for_config_with_spawner(&WebhookConfig::default(), &SilentThreadSpawner);
+    let config = enabled_config();
+    let dispatcher = dispatcher_for_config_with_spawner(&config, &SilentThreadSpawner);
     assert!(dispatcher.is_none());
 
     let tracking = TrackingSpawner::default();
-    let recovered =
-        dispatcher_for_config_with_spawner(&WebhookConfig::default(), &tracking).expect("recovery");
+    let recovered = dispatcher_for_config_with_spawner(&config, &tracking).expect("recovery");
     assert_eq!(tracking.spawn_calls.load(Ordering::SeqCst), 5);
 
     drop(recovered);
@@ -154,8 +218,8 @@ fn reset_dispatcher_joins_spawned_threads() {
     reset_dispatcher_for_tests();
 
     let tracking = TrackingSpawner::default();
-    let dispatcher = dispatcher_for_config_with_spawner(&WebhookConfig::default(), &tracking)
-        .expect("dispatcher");
+    let dispatcher =
+        dispatcher_for_config_with_spawner(&enabled_config(), &tracking).expect("dispatcher");
     assert_eq!(tracking.spawn_calls.load(Ordering::SeqCst), 5);
 
     drop(dispatcher);
