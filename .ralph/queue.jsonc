@@ -40,44 +40,6 @@
       }
     },
     {
-      "id": "RQ-0044",
-      "status": "todo",
-      "title": "Stop webhook shutdown from flushing delayed retries immediately",
-      "description": "Principles violated: F (fail fast appropriately), G (least astonishment), H (operational hygiene). The webhook retry scheduler currently drains every pending retry into the ready queue when shutdown starts, which bypasses the configured backoff and can block teardown on a bounded send. Why it matters: a retry scheduled far into the future can fire immediately during dispatcher rebuilds or process shutdown, creating surprising retry bursts and slower exits exactly when Ralph is trying to stop cleanly. Minimal fix: treat shutdown as cancellation for pending retries, or persist/reclassify them without re-enqueueing them immediately; do not block scheduler teardown on bounded ready-queue sends. Acceptance criteria: shutdown no longer causes delayed retries to execute early, dispatcher teardown remains bounded, focused scheduler tests cover shutdown cancellation behavior, and `cargo test -p ralph-agent-loop webhook` passes.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "webhook",
-        "retries"
-      ],
-      "scope": [
-        "crates/ralph/src/webhook/worker/runtime/scheduler.rs",
-        "crates/ralph/src/webhook/worker/runtime/dispatcher.rs",
-        "cargo test -p ralph-agent-loop webhook::worker::runtime::scheduler::tests::scheduler_drains_pending_retries_when_shutdown_begins -- --exact"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/webhook/worker/runtime/scheduler.rs:63-90 and 141-181 :: retry_scheduler_loop calls flush_pending_retries on shutdown/disconnect and flush_pending_retries does blocking ready_sender.send(...) for every pending retry",
-        "path: crates/ralph/src/webhook/worker/runtime/dispatcher.rs:191-220 :: WebhookDispatcher::drop joins the scheduler before dropping the ready queue, so teardown waits for the retry drain path",
-        "workflow: cargo test -p ralph-agent-loop webhook::worker::runtime::scheduler::tests::scheduler_drains_pending_retries_when_shutdown_begins -- --exact :: current passing test proves a retry scheduled 60 seconds out is delivered immediately once shutdown begins"
-      ],
-      "plan": [
-        "Replace shutdown-time retry draining with explicit cancellation, persistence, or safe failure accounting that does not enqueue delayed retries early.",
-        "Ensure scheduler teardown cannot block indefinitely on bounded ready-queue sends while shutdown is in progress.",
-        "Update scheduler tests to assert that pending retries are cancelled or recorded safely rather than executed early during shutdown.",
-        "Verify by running `cargo test -p ralph-agent-loop webhook` and confirming delayed retries are not re-enqueued immediately when dispatcher shutdown starts."
-      ],
-      "notes": [],
-      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
-      "created_at": "2026-04-27T03:11:26Z",
-      "updated_at": "2026-04-27T03:11:26Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0045",
       "status": "todo",
       "title": "Restore resolved queue and done paths in parallel-worker cleanup",

@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "task_kind": "queue_shaping",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "skill": "comprehensive-codebase-audit",
-        "model_used": "gpt-5.4"
+        "task_kind": "queue_shaping",
+        "skill": "comprehensive-codebase-audit"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.4",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -686,8 +686,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "model_used": "gpt-5.4"
       }
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
       }
     },
     {
@@ -829,9 +829,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "runner_used": "codex",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4"
       }
     },
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
         "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -2012,6 +2012,45 @@
       "created_at": "2026-04-27T00:18:10Z",
       "updated_at": "2026-04-27T02:46:03.892874000Z",
       "completed_at": "2026-04-27T02:46:03.892874000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0044",
+      "status": "done",
+      "title": "Stop webhook shutdown from flushing delayed retries immediately",
+      "description": "Principles violated: F (fail fast appropriately), G (least astonishment), H (operational hygiene). The webhook retry scheduler currently drains every pending retry into the ready queue when shutdown starts, which bypasses the configured backoff and can block teardown on a bounded send. Why it matters: a retry scheduled far into the future can fire immediately during dispatcher rebuilds or process shutdown, creating surprising retry bursts and slower exits exactly when Ralph is trying to stop cleanly. Minimal fix: treat shutdown as cancellation for pending retries, or persist/reclassify them without re-enqueueing them immediately; do not block scheduler teardown on bounded ready-queue sends. Acceptance criteria: shutdown no longer causes delayed retries to execute early, dispatcher teardown remains bounded, focused scheduler tests cover shutdown cancellation behavior, and `cargo test -p ralph-agent-loop webhook` passes.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "retries"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/worker/runtime/scheduler.rs",
+        "crates/ralph/src/webhook/worker/runtime/dispatcher.rs",
+        "cargo test -p ralph-agent-loop webhook::worker::runtime::scheduler::tests::scheduler_drains_pending_retries_when_shutdown_begins -- --exact"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/webhook/worker/runtime/scheduler.rs:63-90 and 141-181 :: retry_scheduler_loop calls flush_pending_retries on shutdown/disconnect and flush_pending_retries does blocking ready_sender.send(...) for every pending retry",
+        "path: crates/ralph/src/webhook/worker/runtime/dispatcher.rs:191-220 :: WebhookDispatcher::drop joins the scheduler before dropping the ready queue, so teardown waits for the retry drain path",
+        "workflow: cargo test -p ralph-agent-loop webhook::worker::runtime::scheduler::tests::scheduler_drains_pending_retries_when_shutdown_begins -- --exact :: current passing test proves a retry scheduled 60 seconds out is delivered immediately once shutdown begins"
+      ],
+      "plan": [
+        "Replace shutdown-time retry draining with explicit cancellation, persistence, or safe failure accounting that does not enqueue delayed retries early.",
+        "Ensure scheduler teardown cannot block indefinitely on bounded ready-queue sends while shutdown is in progress.",
+        "Update scheduler tests to assert that pending retries are cancelled or recorded safely rather than executed early during shutdown.",
+        "Verify by running `cargo test -p ralph-agent-loop webhook` and confirming delayed retries are not re-enqueued immediately when dispatcher shutdown starts."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:28:56.693547000Z",
+      "completed_at": "2026-04-27T03:28:56.693547000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
