@@ -187,9 +187,11 @@ check_source_snapshot_artifacts() {
         cd "$REPO_ROOT" && find . \( -type f -o -type l \) -print0
     )
 
-    report_path_violations \
-        "Source snapshot contains local/runtime artifacts that must be excluded before publication checks can pass" \
-        "${violations[@]}" || return 1
+    if [ "${#violations[@]}" -gt 0 ]; then
+        report_path_violations \
+            "Source snapshot contains local/runtime artifacts that must be excluded before publication checks can pass" \
+            "${violations[@]}" || return 1
+    fi
 
     ralph_log_success "No local/runtime artifacts detected in source snapshot mode"
 }
@@ -204,8 +206,12 @@ check_tracked_runtime_artifacts() {
         collect_tracked_runtime_build_path_violations \
         collect_tracked_ralph_allowlist_violations || return 1
 
-    report_path_violations "Tracked runtime/build artifacts detected" "${tracked_violations[@]}" || return 1
-    report_path_violations "Tracked .ralph files outside the public allowlist detected" "${unexpected[@]}" || return 1
+    if [ "${#tracked_violations[@]}" -gt 0 ]; then
+        report_path_violations "Tracked runtime/build artifacts detected" "${tracked_violations[@]}" || return 1
+    fi
+    if [ "${#unexpected[@]}" -gt 0 ]; then
+        report_path_violations "Tracked .ralph files outside the public allowlist detected" "${unexpected[@]}" || return 1
+    fi
 
     ralph_log_success "No tracked runtime/build artifacts detected"
 }
@@ -216,7 +222,9 @@ check_local_only_tracking() {
     local violations=()
 
     scan_tracked_paths collect_tracked_local_only_violations || return 1
-    report_path_violations "Tracked local-only files detected" "${violations[@]}" || return 1
+    if [ "${#violations[@]}" -gt 0 ]; then
+        report_path_violations "Tracked local-only files detected" "${violations[@]}" || return 1
+    fi
 
     ralph_log_success "No tracked local-only files detected"
 }

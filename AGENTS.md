@@ -178,6 +178,8 @@ Derived summary; `docs/configuration.md` is the configuration source of truth.
 - Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,queue.jsonc,done.json,done.jsonc,cache/productivity.json}`.
 - Worker post-run supervision should fail fast if those bookkeeping paths remain dirty after restore (never proceed to commit/rebase with queue/done/productivity drift).
 - Worker post-run restore must purge generated runtime artifacts under `.ralph/cache/{plans,phase2_final,parallel}` plus `.ralph/{logs,cache/session.jsonc,cache/migrations.jsonc}` before deciding repo dirtiness.
+- For untracked or gitignored queue/done paths (including `.jsonc` and custom paths), worker queue/done files are result snapshots only; coordinator/root files are the source of truth and must be updated by task-level reconciliation of successful worker done records, never by whole-file worker copyback.
+- Queue/done tracking authority is all-or-nothing in parallel mode: tracked+tracked stays git-authoritative; untracked/ignored+untracked/ignored uses coordinator reconciliation; split tracked/untracked queue-done states must fail loudly.
 
 ### Parallel Worker Shutdown
 - Parallel worker subprocesses should be terminated gracefully first (`SIGINT`) to let worker-side cleanup run before hard kill escalation.

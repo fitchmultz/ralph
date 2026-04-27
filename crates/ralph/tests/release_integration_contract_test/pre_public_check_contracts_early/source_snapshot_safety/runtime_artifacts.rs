@@ -62,6 +62,7 @@ fn agent_ci_succeeds_outside_git_via_source_snapshot_safety_mode() {
         repo_root,
         &[
             "Makefile",
+            "mk/root.mk",
             "mk/rust.mk",
             "mk/repo-safety.mk",
             "mk/ci.mk",
@@ -95,7 +96,7 @@ fn agent_ci_succeeds_outside_git_via_source_snapshot_safety_mode() {
     let wrapper_makefile = repo_root.join("OracleAgentCI.mk");
     write_file(
         &wrapper_makefile,
-        "include Makefile\n\n# Test-only stubs so the contract test exercises routing instead of full toolchains.\ntarget/tmp/stamps/ralph-release-build.stamp:\n\t@mkdir -p target/tmp/stamps\n\t@touch $@\n\t@echo stub-release-stamp\n\ncheck-file-size-limits deps format-check type-check lint test build generate install-verify install macos-preflight macos-build macos-test macos-test-contracts:\n\t@echo stub-$@\n",
+        "include mk/root.mk\n\n# Test-only stubs so the contract test exercises routing instead of full toolchains.\ntarget/tmp/stamps/ralph-release-build.stamp:\n\t@mkdir -p target/tmp/stamps\n\t@touch $@\n\t@echo stub-release-stamp\n\ncheck-file-size-limits deps format-check type-check lint test build generate install-verify install macos-preflight macos-build macos-test macos-test-contracts:\n\t@echo stub-$@\n",
     );
 
     let fake_bin_dir = repo_root.join("test-bin");

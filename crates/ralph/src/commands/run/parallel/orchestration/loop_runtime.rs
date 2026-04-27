@@ -29,7 +29,9 @@ use crate::queue;
 use super::preflight::{PreparedParallelRun, prepare_parallel_run};
 use super::shutdown::finalize_parallel_run;
 use crate::commands::run::RunLoopOutcome;
-use crate::commands::run::parallel::orchestration::events::handle_finished_workers;
+use crate::commands::run::parallel::orchestration::events::{
+    FinishedWorkerHandlingContext, handle_finished_workers,
+};
 use crate::commands::run::parallel::state::{self, WorkerRecord};
 use crate::commands::run::parallel::sync::sync_ralph_state;
 use crate::commands::run::parallel::worker::{
@@ -88,7 +90,7 @@ fn drive_parallel_loop(
 
         spawn_available_workers(resolved, opts, queue_lock, prepared)?;
 
-        drain_and_handle_finished(resolved, prepared)?;
+        drain_and_handle_finished(resolved, queue_lock, prepared)?;
 
         if prepared.guard.in_flight().is_empty()
             && let Some(outcome) = terminal_idle_outcome(resolved, opts, queue_lock, prepared)?
@@ -104,10 +106,13 @@ fn drive_parallel_loop(
                 handle_finished_workers(
                     finished,
                     &mut prepared.guard,
-                    &prepared.state_path,
-                    &prepared.settings.workspace_root,
-                    resolved,
-                    &prepared.target_branch,
+                    FinishedWorkerHandlingContext {
+                        state_path: &prepared.state_path,
+                        workspace_root: &prepared.settings.workspace_root,
+                        resolved,
+                        target_branch: &prepared.target_branch,
+                        queue_lock,
+                    },
                     &mut prepared.stats,
                 )?;
             }
@@ -192,16 +197,20 @@ fn spawn_available_workers(
 
 fn drain_and_handle_finished(
     resolved: &config::Resolved,
+    queue_lock: &crate::lock::DirLock,
     prepared: &mut PreparedParallelRun,
 ) -> Result<()> {
     let finished = prepared.guard.drain_finished_workers();
     handle_finished_workers(
         finished,
         &mut prepared.guard,
-        &prepared.state_path,
-        &prepared.settings.workspace_root,
-        resolved,
-        &prepared.target_branch,
+        FinishedWorkerHandlingContext {
+            state_path: &prepared.state_path,
+            workspace_root: &prepared.settings.workspace_root,
+            resolved,
+            target_branch: &prepared.target_branch,
+            queue_lock,
+        },
         &mut prepared.stats,
     )
 }

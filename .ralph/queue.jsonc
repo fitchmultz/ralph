@@ -2,107 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0056",
-      "status": "doing",
-      "title": "Deeply investigate and fix parallel-mode queue/done sync for gitignored JSONC queues",
-      "description": "Perform a thorough root-cause investigation and remediation for `ralph run loop --parallel 2` when a target repository keeps `.ralph/queue.jsonc` and `.ralph/done.jsonc` gitignored. Prior attempted fixes are not sufficient: after parallel workspace agents finish, commit, and push, the source/root repository's queue and done JSONC files can remain stale instead of reflecting completed worker bookkeeping. The outcome must be a durable, tested parallel-mode synchronization contract that updates coordinator-resolved queue/done paths for gitignored JSONC files without relying on git-tracked propagation.",
-      "priority": "critical",
-      "tags": [
-        "parallel-mode",
-        "queue-sync",
-        "gitignored-files",
-        "bug",
-        "data-integrity"
-      ],
-      "scope": [
-        "AGENTS.md",
-        ".ralph/queue.jsonc",
-        ".ralph/done.jsonc",
-        "crates/ralph/src/commands/run/parallel/",
-        "crates/ralph/src/commands/run/parallel/sync/",
-        "crates/ralph/src/commands/run/parallel/integration/",
-        "crates/ralph/src/commands/run/parallel/orchestration/",
-        "crates/ralph/src/commands/run/parallel/worker.rs",
-        "crates/ralph/src/commands/run/parallel/worker_process.rs",
-        "crates/ralph/src/queue/",
-        "crates/ralph/src/fsutil/atomic.rs",
-        "crates/ralph/src/undo/",
-        "crates/ralph/src/runutil/shell/",
-        "crates/ralph/tests/run_parallel_test/",
-        "crates/ralph/tests/parallel_done_json_safety_test/",
-        "crates/ralph/tests/",
-        "ralph run loop --parallel 2",
-        "cargo test run_parallel",
-        "make agent-ci"
-      ],
-      "evidence": [
-        "User report on 2026-04-27: in a repository where `done.jsonc` and `queue.jsonc` are gitignored, running `ralph run loop --parallel 2` still leaves the source/root repo's queue and done JSONC files not updated after workspace agents finish, commit, and push.",
-        "User report says prior attempted fixes were made but the bug still reproduces, so this needs root-cause investigation rather than another narrow patch.",
-        "Repository guidance says worker workspace setup mirrors repo-local `.ralph/` runtime files recursively, excluding only ephemeral `.ralph/{cache,workspaces,logs,lock}/`, and must seed queue/done from coordinator-resolved paths including `.jsonc` and custom paths so gitignored `.ralph` repos work in parallel mode.",
-        "Repository guidance says parallel worker post-run bookkeeping restore must target workspace-local `.ralph/{queue.json,queue.jsonc,done.json,done.jsonc,cache/productivity.json}` and fail fast if bookkeeping paths remain dirty after restore.",
-        "Because queue/done are gitignored, normal worker commit/push propagation cannot be the source of truth for coordinator queue/done updates; integration must explicitly collect, merge, validate, and atomically write the coordinator-resolved files.",
-        "Investigation finding: `handle_finished_workers` treats a successful worker by fast-forwarding the coordinator branch and then calling `sync::sync_worker_bookkeeping_back_to_source(resolved, &workspace.path)` (`crates/ralph/src/commands/run/parallel/orchestration/events.rs:108-112`). There is no coordinator-side merge/reconciliation step in that path.",
-        "Investigation finding: `sync_worker_bookkeeping_back_to_source` delegates to `sync_worker_bookkeeping_file_back_to_source` for queue and done (`crates/ralph/src/commands/run/parallel/sync/mod.rs:86-102`). For tracked files it returns early and trusts git; for untracked/gitignored files it copies the entire workspace file over the source file (`sync/mod.rs:129-166`).",
-        "Investigation finding: worker integration rebuilds bookkeeping from `origin/<target>` only when the queue/done path exists in the remote ref; if the path is gitignored/untracked, `restore_bookkeeping_path_from_ref` logs that it is not tracked and leaves the worker's local copy intact (`crates/ralph/src/commands/run/parallel/integration/bookkeeping.rs:157-200`).",
-        "Investigation finding: `archive_current_task` then archives only the current worker task against that worker-local snapshot and saves the worker-local queue/done (`integration/bookkeeping.rs:219-262`). For two parallel workers seeded from the same initial ignored queue, each workspace can legitimately contain only its own completion plus stale state for the sibling task.",
-        "Likely causal chain: because gitignored queue/done cannot be refreshed from `origin/<target>`, each worker reconciles against its initial seeded snapshot; coordinator success handling then copies whole ignored bookkeeping files back to the root. With multiple finished workers this is last-writer-wins rather than a merge, so one worker's stale snapshot can overwrite another worker's completed state, making the root queue/done appear stale or partially updated after `ralph run loop --parallel 2`.",
-        "Coverage gap found: existing tests cover single-worker ignored-bookkeeping copyback (`sync/tests/bookkeeping.rs:183-218` and `orchestration/events.rs:570-629`) and tracked-path git authority (`sync/tests/bookkeeping.rs:255-289`), but not two concurrent ignored JSONC workers finishing from the same seed queue where both completions must be merged into the coordinator root files.",
-        "Design risk found: the ignored-bookkeeping copyback path performs raw file copy, not queue validation, undo checkpoint creation, task-level reconciliation, or atomic merge against the current coordinator source file.",
-        "Additional gitignored-file concern: parallel workspace setup intentionally syncs only gitignored non-`.ralph` files whose basename is `.env` or `.env.*` (`sync/gitignored.rs`). This is narrow by design, but repos that need other ignored runtime/config files for agent execution may fail in workers unless those files are tracked, moved under supported `.ralph` runtime config, or explicitly handled by a future allowlist policy.",
-        "Additional gitignored-file note: ignored `.env*` files are intentionally copied into local worker workspaces so parallel agents inherit the same local runtime configuration. This is acceptable because the files remain local; the practical requirement is cleanup/hygiene so `.ralph/workspaces` does not accumulate stale local runtime copies.",
-        "Additional gitignored-file concern: `sync_file_if_exists` uses `fs::copy` directly, so ignored-file sync and current queue/done copyback are not atomic and do not preserve richer metadata. This is acceptable for initial workspace seeding but risky for coordinator source-of-truth queue/done writeback."
-      ],
-      "plan": [
-        "Build a minimal reproduction with a temp repository where `.ralph/queue.jsonc` and `.ralph/done.jsonc` are gitignored, at least two runnable tasks exist, and `ralph run loop --parallel 2` completes worker work.",
-        "Trace the full coordinator-to-worker lifecycle: queue/done path resolution, workspace seeding, worker local queue/done mutation, post-run restore/bookkeeping, integration handoff, merge/push, and root/coordinator queue/done writeback.",
-        "Identify exactly where gitignored JSONC queue/done state is lost, skipped, overwritten, or assumed to be git-propagated; document the causal chain in tests or comments near the fix.",
-        "Implement a single canonical sync path that reads worker-result bookkeeping, reconciles completed/rejected/todo task transitions, validates dependencies/relationships, creates undo checkpoints when rewriting coordinator queue/done, and atomically writes coordinator-resolved `.jsonc` or custom paths.",
-        "Preserve data integrity under partial worker failure, concurrent worker completion, merge/rebase retries, custom queue/done paths, JSON vs JSONC names, and dirty root `.ralph` runtime files; fail loudly rather than silently dropping worker bookkeeping.",
-        "Add regression tests for gitignored `.ralph/queue.jsonc` and `.ralph/done.jsonc` in parallel loop mode, including a case where both workers finish and the root queue is drained while root done contains both completed tasks.",
-        "Run focused parallel-mode tests, queue validation tests, and `make agent-ci` before marking complete.",
-        "Add a focused failing regression test that simulates two successful workers with gitignored `.ralph/queue.jsonc` and `.ralph/done.jsonc`, each worker containing a different archived task from the same original queue snapshot; assert the coordinator root queue removes both completed tasks and root done contains both tasks after `handle_finished_workers` drains both completions.",
-        "Replace ignored/untracked whole-file copyback with coordinator-owned reconciliation: load the current coordinator queue/done, ingest each finished worker's task-level terminal result and follow-up proposal output, validate the merged queue set, create an undo checkpoint for coordinator file rewrites, and atomically save root queue/done.",
-        "Decide how to preserve worker-produced completion metadata when merging: either use the worker done entry for the completed task after validating it is terminal and matches the worker task id, or archive in the coordinator using the current completion time; document the chosen source of truth.",
-        "Ensure processing multiple `FinishedWorker` values in one drain is order-independent for ignored queue/done files; no worker's stale sibling-task snapshot should be able to resurrect a task or drop another worker's done entry.",
-        "Perform a post-fix loose-end sweep for duplicate sync paths, stale comments, stale tests that still assert whole-file copyback as desired behavior, and docs/AGENTS guidance that conflicts with the new coordinator reconciliation source of truth."
-      ],
-      "notes": [
-        "Top priority because this is data-integrity/user-visible task state loss in parallel execution.",
-        "Do not depend on git to carry `.ralph/queue.jsonc` or `.ralph/done.jsonc` when those files are ignored; coordinator writeback must be explicit.",
-        "Avoid adding a second sync mechanism if one already exists; find the canonical path and fix it end-to-end.",
-        "If the bug reveals stale docs or AGENTS guidance, update them in the same change so future agents do not repeat the wrong assumption.",
-        "Current strongest hypothesis is not that sync never runs, but that sync is whole-file copyback from stale per-worker snapshots; the symptom can manifest as no visible root update for some completed work or only the last processed worker's bookkeeping surviving.",
-        "A minimal unit/regression test may not need to spawn real agents: constructing two finished worker workspaces and calling `handle_finished_workers` should expose the last-writer-wins defect quickly. Add an end-to-end `ralph run loop --parallel 2` fixture afterward if practical.",
-        "The investigation did not find broad ignored-file syncing beyond `.env*`; queue/done are special-cased separately. Keep that boundary explicit when fixing queue/done so the remediation does not accidentally broaden ignored-file propagation.",
-        "If future users report missing ignored runtime inputs in parallel workers, handle that as a separate allowlist/trust-design task rather than piggybacking on queue/done bookkeeping sync.",
-        "Locked design decision: for gitignored or untracked queue/done paths, coordinator/root files are the source of truth; worker queue/done files are result snapshots, not whole-file authoritative replacements.",
-        "Locked design decision: never copy worker queue/done files wholesale back to root for gitignored or untracked queue/done; merge only task-level terminal results into the current coordinator queue/done state.",
-        "Locked design decision: use the worker's terminal task record as authoritative completion metadata only for that worker's assigned task id; do not accept worker snapshot mutations to unrelated sibling tasks through queue/done copyback.",
-        "Locked design decision: a successful worker must produce the assigned task as `done` for this remediation. Supporting `rejected` from successful parallel workers is out of scope until explicitly designed and tested.",
-        "Locked design decision: coordinator rewrites of gitignored/untracked queue/done must create an undo checkpoint first, run under the coordinator queue lock, validate the merged queue set, and write atomically.",
-        "Locked design decision: processing multiple finished workers must be order-independent; no stale worker snapshot may resurrect a completed task or drop another worker's done entry.",
-        "Locked design decision: keep tracked queue/done behavior git-authoritative. Apply coordinator merge/writeback only for untracked or ignored paths, and explicitly handle or fail split tracked/untracked queue/done states with clear tests and messaging.",
-        "Locked design decision: do not broaden generic ignored-file sync as part of this queue/done remediation; `.env*` local copy behavior remains intentional. Broader ignored runtime-file policy is tracked separately by RQ-0057.",
-        "Full-cutover directive: remove or retire the stale whole-file copyback path for ignored/untracked queue/done rather than layering a second merge path beside it. There should be one canonical coordinator reconciliation path for untracked/ignored queue/done after this task.",
-        "Full-cutover directive: update all comments, docs, tests, and AGENTS guidance that imply ignored queue/done can be copied wholesale from workers so future work does not reintroduce last-writer-wins behavior.",
-        "Full-cutover directive: if split tracked/untracked queue-done handling is complex or ambiguous, fail preflight with a clear operator message instead of silently choosing a partial behavior."
-      ],
-      "request": "add a top priority task to do a thorough deep investigation and remediation for handling of done.jsonc and queue.jsonc in parallel mode where repos have both of those files gitignored. we had made some attempted fixes to this previously but i am still seeing situations where i run `ralph run loop --parallel 2` in a repo where the done and queue jsonc files are gitignored and the source/root repo directory done and queue files do not get updated after the workspace agents finish and commit and push.",
-      "created_at": "2026-04-27T14:04:31Z",
-      "updated_at": "2026-04-27T14:40:26.722873000Z",
-      "started_at": "2026-04-27T14:40:26.722873000Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [
-        "RQ-0057"
-      ],
-      "custom_fields": {
-        "reported_command": "ralph run loop --parallel 2",
-        "severity_reason": "parallel-mode task state/data integrity loss",
-        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete"
-      }
-    },
-    {
       "id": "RQ-0057",
       "status": "todo",
       "title": "Investigate and design trusted ignored-file sync for parallel workers",
@@ -309,8 +208,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0",
-        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0."
+        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0.",
+        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0"
       }
     },
     {

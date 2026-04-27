@@ -88,13 +88,18 @@ pub(super) fn announce_blocked_tasks_at_loop_start(
     log::warn!("Use `ralph run parallel retry --task <TASK_ID>` to retry a blocked task.");
 }
 
+pub(super) struct FinishedWorkerHandlingContext<'a> {
+    pub(super) state_path: &'a Path,
+    pub(super) workspace_root: &'a Path,
+    pub(super) resolved: &'a config::Resolved,
+    pub(super) target_branch: &'a str,
+    pub(super) queue_lock: &'a crate::lock::DirLock,
+}
+
 pub(super) fn handle_finished_workers(
     finished: Vec<FinishedWorker>,
     guard: &mut ParallelCleanupGuard,
-    state_path: &Path,
-    workspace_root: &Path,
-    resolved: &config::Resolved,
-    target_branch: &str,
+    context: FinishedWorkerHandlingContext<'_>,
     stats: &mut ParallelRunStats,
 ) -> Result<()> {
     for finished_worker in finished {
@@ -107,8 +112,16 @@ pub(super) fn handle_finished_workers(
 
         if status.success() {
             log::info!("Worker {} completed successfully", task_id);
-            refresh_coordinator_branch(&resolved.repo_root, target_branch)?;
-            sync::sync_worker_bookkeeping_back_to_source(resolved, &workspace.path)?;
+            refresh_coordinator_branch(&context.resolved.repo_root, context.target_branch)?;
+            sync::bookkeeping::reconcile_successful_workers(
+                context.resolved,
+                context.queue_lock,
+                &[sync::bookkeeping::SuccessfulWorkerBookkeeping {
+                    task_id: task_id.clone(),
+                    workspace_path: workspace.path.clone(),
+                }],
+                "parallel worker bookkeeping reconciliation",
+            )?;
 
             stats.record_success();
 
@@ -166,11 +179,11 @@ pub(super) fn handle_finished_workers(
                     status.code()
                 );
 
-                remove_workspace_best_effort(workspace_root, &workspace, "worker failure");
+                remove_workspace_best_effort(context.workspace_root, &workspace, "worker failure");
             }
         }
 
-        state::save_state(state_path, guard.state_file())?;
+        state::save_state(context.state_path, guard.state_file())?;
         guard.remove_worker(&task_id);
     }
 
@@ -193,7 +206,7 @@ mod tests {
         self, ParallelStateFile, WorkerLifecycle, WorkerRecord,
     };
     use crate::commands::run::parallel::worker::start_worker_monitor;
-    use crate::contracts::Config;
+    use crate::contracts::{Config, QueueFile, Task, TaskStatus};
     use crate::git::WorkspaceSpec;
     use crate::testsupport::git as git_test;
     use anyhow::Result;
@@ -211,6 +224,23 @@ mod tests {
         let state_file =
             ParallelStateFile::new("2026-04-25T00:00:00Z".to_string(), "main".to_string());
         ParallelCleanupGuard::new_simple(state_path, state_file, workspace_root)
+    }
+
+    macro_rules! handle_finished_workers_for_test {
+        ($finished:expr, $guard:expr, $state_path:expr, $workspace_root:expr, $resolved:expr, $target_branch:expr, $stats:expr, $queue_lock:expr $(,)?) => {{
+            handle_finished_workers(
+                $finished,
+                $guard,
+                FinishedWorkerHandlingContext {
+                    state_path: $state_path,
+                    workspace_root: $workspace_root,
+                    resolved: $resolved,
+                    target_branch: $target_branch,
+                    queue_lock: $queue_lock,
+                },
+                $stats,
+            )
+        }};
     }
 
     fn register_finished_worker_monitor(
@@ -268,6 +298,18 @@ mod tests {
         }
     }
 
+    fn task(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
+            status,
+            title: format!("Task {id}"),
+            created_at: Some("2026-04-27T00:00:00Z".to_string()),
+            updated_at: Some("2026-04-27T00:00:00Z".to_string()),
+            completed_at: (status == TaskStatus::Done).then(|| "2026-04-27T00:01:00Z".to_string()),
+            ..Task::default()
+        }
+    }
+
     fn initialized_remote_backed_repo(temp: &TempDir) -> Result<(std::path::PathBuf, String)> {
         let remote = temp.path().join("origin.git");
         std::fs::create_dir_all(&remote)?;
@@ -276,7 +318,10 @@ mod tests {
         let repo_root = temp.path().join("repo");
         std::fs::create_dir_all(&repo_root)?;
         git_test::init_repo(&repo_root)?;
+        std::fs::create_dir_all(repo_root.join(".ralph"))?;
         std::fs::write(repo_root.join("README.md"), "test repo")?;
+        crate::queue::save_queue(&repo_root.join(".ralph/queue.jsonc"), &QueueFile::default())?;
+        crate::queue::save_queue(&repo_root.join(".ralph/done.jsonc"), &QueueFile::default())?;
         git_test::commit_all(&repo_root, "initial commit")?;
         let branch = git_test::git_output(&repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
         git_test::add_remote(&repo_root, "origin", &remote)?;
@@ -298,8 +343,9 @@ mod tests {
             "2026-04-25T00:00:00Z".to_string(),
         ));
 
+        let queue_lock = crate::queue::acquire_queue_lock(&repo_root, "test", false)?;
         let mut stats = ParallelRunStats::default();
-        handle_finished_workers(
+        handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -312,6 +358,7 @@ mod tests {
             &test_resolved(&repo_root),
             &branch,
             &mut stats,
+            &queue_lock,
         )?;
 
         let saved = state::load_state(&state_path)?.expect("saved state");
@@ -351,8 +398,9 @@ mod tests {
             .to_string(),
         )?;
 
+        let queue_lock = crate::queue::acquire_queue_lock(temp.path(), "test", false)?;
         let mut stats = ParallelRunStats::default();
-        handle_finished_workers(
+        handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -365,6 +413,7 @@ mod tests {
             &test_resolved(temp.path()),
             "main",
             &mut stats,
+            &queue_lock,
         )?;
 
         let saved = state::load_state(&state_path)?.expect("saved state");
@@ -390,8 +439,9 @@ mod tests {
             "2026-04-25T00:00:00Z".to_string(),
         ));
 
+        let queue_lock = crate::queue::acquire_queue_lock(temp.path(), "test", false)?;
         let mut stats = ParallelRunStats::default();
-        handle_finished_workers(
+        handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -404,6 +454,7 @@ mod tests {
             &test_resolved(temp.path()),
             "main",
             &mut stats,
+            &queue_lock,
         )?;
 
         let saved = state::load_state(&state_path)?.expect("saved state");
@@ -429,8 +480,9 @@ mod tests {
             "2026-04-25T00:00:00Z".to_string(),
         ));
 
+        let queue_lock = crate::queue::acquire_queue_lock(&repo_root, "test", false)?;
         let mut stats = ParallelRunStats::default();
-        let err = handle_finished_workers(
+        let err = handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -443,6 +495,7 @@ mod tests {
             &test_resolved(&repo_root),
             &branch,
             &mut stats,
+            &queue_lock,
         )
         .expect_err("state save should fail");
 
@@ -464,8 +517,9 @@ mod tests {
             "2026-04-25T00:00:00Z".to_string(),
         ));
 
+        let queue_lock = crate::queue::acquire_queue_lock(temp.path(), "test", false)?;
         let mut stats = ParallelRunStats::default();
-        let err = handle_finished_workers(
+        let err = handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -478,6 +532,7 @@ mod tests {
             &test_resolved(&temp.path().join("not-a-git-repo")),
             "main",
             &mut stats,
+            &queue_lock,
         )
         .expect_err("coordinator refresh failure should block successful worker completion");
 
@@ -532,8 +587,9 @@ mod tests {
             "2026-04-25T00:00:00Z".to_string(),
         ));
 
+        let queue_lock = crate::queue::acquire_queue_lock(&repo_root, "test", false)?;
         let mut stats = ParallelRunStats::default();
-        let err = handle_finished_workers(
+        let err = handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -546,6 +602,7 @@ mod tests {
             &test_resolved(&repo_root),
             &branch,
             &mut stats,
+            &queue_lock,
         )
         .expect_err("non-fast-forward tracked bookkeeping refresh must surface");
 
@@ -567,14 +624,15 @@ mod tests {
     }
 
     #[test]
-    fn finished_success_refreshes_ignored_source_bookkeeping_from_worker() -> Result<()> {
+    fn finished_success_reconciles_ignored_source_bookkeeping_from_worker_done_task() -> Result<()>
+    {
         let temp = TempDir::new()?;
         let repo_root = temp.path().join("repo");
-        std::fs::create_dir_all(&repo_root)?;
+        std::fs::create_dir_all(repo_root.join(".ralph"))?;
         git_test::init_repo(&repo_root)?;
         std::fs::write(
             repo_root.join(".gitignore"),
-            ".ralph/queue.jsonc\n.ralph/done.jsonc\n",
+            ".ralph/queue.jsonc\n.ralph/done.jsonc\n.ralph/cache/\n",
         )?;
         git_test::git_run(&repo_root, &["add", ".gitignore"])?;
         git_test::git_run(&repo_root, &["commit", "-m", "ignore bookkeeping"])?;
@@ -584,15 +642,28 @@ mod tests {
         git_test::init_bare_repo(&remote)?;
         git_test::add_remote(&repo_root, "origin", &remote)?;
         git_test::push_branch(&repo_root, &branch)?;
-        std::fs::write(repo_root.join(".ralph/queue.jsonc"), "{stale_queue}")?;
-        std::fs::write(repo_root.join(".ralph/done.jsonc"), "{stale_done}")?;
+
+        let resolved = test_resolved(&repo_root);
+        crate::queue::save_queue(
+            &resolved.queue_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![task("RQ-0006", TaskStatus::Todo)],
+            },
+        )?;
+        crate::queue::save_queue(&resolved.done_path, &QueueFile::default())?;
 
         let state_path = temp.path().join("state.json");
         let mut guard = create_guard(&temp, state_path.clone());
         let workspace = worker_workspace(&temp, "RQ-0006")?;
         std::fs::create_dir_all(workspace.path.join(".ralph"))?;
-        std::fs::write(workspace.path.join(".ralph/queue.jsonc"), "{fresh_queue}")?;
-        std::fs::write(workspace.path.join(".ralph/done.jsonc"), "{fresh_done}")?;
+        crate::queue::save_queue(
+            &workspace.path.join(".ralph/done.jsonc"),
+            &QueueFile {
+                version: 1,
+                tasks: vec![task("RQ-0006", TaskStatus::Done)],
+            },
+        )?;
         register_finished_worker_monitor(&mut guard, &workspace, "RQ-0006")?;
         guard.state_file_mut().upsert_worker(WorkerRecord::new(
             "RQ-0006",
@@ -600,8 +671,9 @@ mod tests {
             "2026-04-25T00:00:00Z".to_string(),
         ));
 
+        let queue_lock = crate::queue::acquire_queue_lock(&repo_root, "test", false)?;
         let mut stats = ParallelRunStats::default();
-        handle_finished_workers(
+        handle_finished_workers_for_test!(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -611,19 +683,20 @@ mod tests {
             &mut guard,
             &state_path,
             &temp.path().join("workspaces"),
-            &test_resolved(&repo_root),
+            &resolved,
             &branch,
             &mut stats,
+            &queue_lock,
         )?;
 
-        assert_eq!(
-            std::fs::read_to_string(repo_root.join(".ralph/queue.jsonc"))?,
-            "{fresh_queue}"
+        assert!(
+            crate::queue::load_queue(&resolved.queue_path)?
+                .tasks
+                .is_empty()
         );
-        assert_eq!(
-            std::fs::read_to_string(repo_root.join(".ralph/done.jsonc"))?,
-            "{fresh_done}"
-        );
+        let done = crate::queue::load_queue(&resolved.done_path)?;
+        assert_eq!(done.tasks.len(), 1);
+        assert_eq!(done.tasks[0].id, "RQ-0006");
         assert_eq!(stats.succeeded(), 1);
         Ok(())
     }
