@@ -41,44 +41,6 @@
       }
     },
     {
-      "id": "RQ-0034",
-      "status": "todo",
-      "title": "Split `WorkspaceQueueRefreshTests.swift` to satisfy enforced hard file-size limit",
-      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). The test file exceeds the hard 1,000-line guardrail and currently hard-fails the repo size gate. Why it matters: `make ci-fast`/`make check-file-size-limits` fails immediately, blocking routine verification workflows and forcing unrelated work to stop. Minimal fix: split queue refresh test scenarios into focused companion test files with shared fixtures and keep each file under enforced limits.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "tests",
-        "ci",
-        "macos"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCoreTests/WorkspaceQueueRefreshTests.swift",
-        "make check-file-size-limits"
-      ],
-      "evidence": [
-        "workflow: make check-file-size-limits :: `ERROR: hard file-size limit exceeded: 1052 apps/RalphMac/RalphCoreTests/WorkspaceQueueRefreshTests.swift`",
-        "workflow: CARGO_TARGET_DIR=/tmp/ralph-scan-target make ci-fast :: exits non-zero at file-size-limit gate before lint/test phases.",
-        "path: apps/RalphMac/RalphCoreTests/WorkspaceQueueRefreshTests.swift :: 1052 LOC exceeds hard limit of 1000."
-      ],
-      "plan": [
-        "Partition queue refresh tests into behavior-focused files (for example load semantics, refresh triggers, reconciliation edge cases) with shared support helpers.",
-        "Keep individual Swift test files under 1,000 LOC and preserve existing test intent/naming clarity.",
-        "Run macOS test slices touching moved tests to confirm no regressions.",
-        "Verify by running `make check-file-size-limits` and confirming no hard-limit violations remain."
-      ],
-      "notes": [],
-      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
-      "created_at": "2026-04-27T00:18:10Z",
-      "updated_at": "2026-04-27T00:18:10Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0035",
       "status": "todo",
       "title": "Split `docs/guides/advanced.md` below soft file-size threshold",
