@@ -1,17 +1,19 @@
 {
   "recommendations": [
-    "rust-lang.rust-analyzer",
     "llvm-vs-code-extensions.lldb-dap",
-    "swiftlang.swift-vscode",
-    "tamasfe.even-better-toml",
     "ms-vscode.makefile-tools",
-    "redhat.vscode-yaml"
+    "redhat.vscode-yaml",
+    "rust-lang.rust-analyzer",
+    "swiftlang.swift-vscode",
+    "tamasfe.even-better-toml"
   ],
   "unwantedRecommendations": [
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
-    "ms-python.python",
     "ms-python.black-formatter",
-    "ms-python.pylint"
+    "ms-python.pylint",
+    "ms-python.python",
+    "rvest.vs-code-prettier-eslint",
+    "vadimcn.vscode-lldb"
   ]
 }
