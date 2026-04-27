@@ -194,9 +194,9 @@
       "relates_to": [],
       "custom_fields": {
         "skill": "comprehensive-codebase-audit",
+        "model_used": "gpt-5.4",
         "task_kind": "queue_shaping",
-        "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
         "runner_used": "codex",
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths"
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
         "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -830,9 +830,9 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "runner_used": "codex"
       }
     },
     {
@@ -1581,6 +1581,46 @@
       "created_at": "2026-04-27T00:18:10Z",
       "updated_at": "2026-04-27T01:37:20.039163000Z",
       "completed_at": "2026-04-27T01:37:20.039163000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0031",
+      "status": "done",
+      "title": "Align `machine queue read` runnability output with queue validation state",
+      "description": "Principles violated: E (make bugs hard to write), G (least astonishment), J (consistency/integrity). `machine queue read` currently emits runnable task selection and `next_runnable_task_id` even when `queue validate` reports structural invalidity. Why it matters: app/automation surfaces can present a runnable queue while the canonical continuation gate is stalled, creating cross-surface drift and unsafe operator guidance. Minimal fix: validate queue/read payload before reporting runnability, and gate or annotate runnability/next-task fields when structural errors exist.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "machine-contract",
+        "queue",
+        "app-parity"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/machine/common.rs",
+        "crates/ralph/src/cli/machine/queue.rs",
+        "docs/machine-contract.md"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/machine/common.rs:84-103 :: `build_queue_read_document` loads queue/done and computes runnability without queue validation.",
+        "repro: temp queue with task missing `created_at`, run `/tmp/ralph-scan-target/debug/ralph queue validate` and `/tmp/ralph-scan-target/debug/ralph machine queue read` :: expected queue-read state to reflect invalid/stalled continuation :: actual validate exits 1 (`Missing created_at`) while machine queue read exits 0 and returns `next_runnable_task_id: RQ-0001`",
+        "path: docs/machine-contract.md:206 :: `runnability.summary.blocking` is documented as queue/read source of truth for operator blocking state"
+      ],
+      "plan": [
+        "Introduce shared validation-aware queue-read assembly so machine queue-read consumers cannot bypass structural validity checks.",
+        "Define machine queue-read behavior for invalid queues (for example explicit invalid/continuation block with null next-runnable).",
+        "Add regression tests covering missing required task fields and mismatched queue-read vs queue-validate outputs.",
+        "Verify by rerunning the missing-`created_at` repro and confirming queue-read no longer reports runnable next-task when validation fails."
+      ],
+      "notes": [],
+      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
+      "created_at": "2026-04-27T00:18:10Z",
+      "updated_at": "2026-04-27T01:38:25.849027000Z",
+      "completed_at": "2026-04-27T01:38:25.849027000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

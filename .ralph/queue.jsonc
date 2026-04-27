@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0031",
-      "status": "todo",
-      "title": "Align `machine queue read` runnability output with queue validation state",
-      "description": "Principles violated: E (make bugs hard to write), G (least astonishment), J (consistency/integrity). `machine queue read` currently emits runnable task selection and `next_runnable_task_id` even when `queue validate` reports structural invalidity. Why it matters: app/automation surfaces can present a runnable queue while the canonical continuation gate is stalled, creating cross-surface drift and unsafe operator guidance. Minimal fix: validate queue/read payload before reporting runnability, and gate or annotate runnability/next-task fields when structural errors exist.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "machine-contract",
-        "queue",
-        "app-parity"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/machine/common.rs",
-        "crates/ralph/src/cli/machine/queue.rs",
-        "docs/machine-contract.md"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/cli/machine/common.rs:84-103 :: `build_queue_read_document` loads queue/done and computes runnability without queue validation.",
-        "repro: temp queue with task missing `created_at`, run `/tmp/ralph-scan-target/debug/ralph queue validate` and `/tmp/ralph-scan-target/debug/ralph machine queue read` :: expected queue-read state to reflect invalid/stalled continuation :: actual validate exits 1 (`Missing created_at`) while machine queue read exits 0 and returns `next_runnable_task_id: RQ-0001`",
-        "path: docs/machine-contract.md:206 :: `runnability.summary.blocking` is documented as queue/read source of truth for operator blocking state"
-      ],
-      "plan": [
-        "Introduce shared validation-aware queue-read assembly so machine queue-read consumers cannot bypass structural validity checks.",
-        "Define machine queue-read behavior for invalid queues (for example explicit invalid/continuation block with null next-runnable).",
-        "Add regression tests covering missing required task fields and mismatched queue-read vs queue-validate outputs.",
-        "Verify by rerunning the missing-`created_at` repro and confirming queue-read no longer reports runnable next-task when validation fails."
-      ],
-      "notes": [],
-      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
-      "created_at": "2026-04-27T00:18:10Z",
-      "updated_at": "2026-04-27T00:18:10Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0033",
       "status": "todo",
       "title": "Expose plugin-registry load failures as structured machine diagnostics",
