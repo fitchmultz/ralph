@@ -108,17 +108,21 @@ fn release_pipeline_uses_github_draft_then_publish_flow() {
 
 #[test]
 fn makefile_release_build_uses_shared_bundle_entrypoint() {
-    let makefile = read_repo_file("Makefile");
+    let make_surface = format!(
+        "{}\n{}",
+        read_repo_file("Makefile"),
+        read_repo_file("mk/rust.mk")
+    );
     assert!(
-        makefile.contains("scripts/ralph-cli-bundle.sh --configuration Release"),
+        make_surface.contains("scripts/ralph-cli-bundle.sh --configuration Release"),
         "Makefile release builds should route through the shared CLI bundling entrypoint"
     );
     assert!(
-        !makefile.contains("cargo build --workspace --release --locked"),
+        !make_surface.contains("cargo build --workspace --release --locked"),
         "Makefile should not keep a separate direct cargo release-build path"
     );
     assert!(
-        !makefile.contains("publish-crate:"),
+        !make_surface.contains("publish-crate:"),
         "Makefile should not expose a direct crates.io publish bypass outside the release transaction"
     );
 }

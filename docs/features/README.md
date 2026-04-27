@@ -73,7 +73,7 @@ Tools for managing and monitoring your development workflow:
 |----------|-------------|
 | **[App (macOS)](./app.md)** | macOS SwiftUI app for interactive task management |
 | **[Scan](./scan.md)** | AI-powered repository scanning for task discovery |
-| **[Daemon and Watch](./daemon-and-watch.md)** | Background execution and automatic task detection |
+| **[Daemon and Watch](./daemon-and-watch.md)** | Background execution and automatic task detection, with focused daemon, watch, operations, and troubleshooting guides |
 
 ---
 
@@ -153,7 +153,8 @@ Ralph uses JSON schemas for validation:
 - [Notifications](./notifications.md) — Desktop notifications
 
 **Automate task detection**
-- [Daemon and Watch](./daemon-and-watch.md) — Watch mode for TODO comments
+- [Watch Mode](./daemon-watch/watch.md) — Watch mode for TODO/FIXME/HACK/XXX comments
+- [Daemon and Watch](./daemon-and-watch.md) — Background workflow overview
 - [Scan](./scan.md) — Repository scanning
 
 **Handle failures and recovery**

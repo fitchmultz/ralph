@@ -111,7 +111,12 @@ fn release_policy_treats_cargo_lock_as_release_metadata() {
 
 #[test]
 fn release_metadata_includes_every_generated_schema() {
-    let generated_schema_paths = parse_makefile_generated_schema_paths(&read_repo_file("Makefile"));
+    let make_surface = format!(
+        "{}\n{}",
+        read_repo_file("Makefile"),
+        read_repo_file("mk/rust.mk")
+    );
+    let generated_schema_paths = parse_makefile_generated_schema_paths(&make_surface);
     assert!(
         !generated_schema_paths.is_empty(),
         "Makefile generate should produce committed schemas"

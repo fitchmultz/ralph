@@ -62,6 +62,11 @@ fn agent_ci_succeeds_outside_git_via_source_snapshot_safety_mode() {
         repo_root,
         &[
             "Makefile",
+            "mk/rust.mk",
+            "mk/repo-safety.mk",
+            "mk/ci.mk",
+            "mk/macos.mk",
+            "mk/coverage.mk",
             "Cargo.toml",
             "Cargo.lock",
             "VERSION",
