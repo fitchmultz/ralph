@@ -63,8 +63,8 @@
         "RQ-0056"
       ],
       "custom_fields": {
-        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers.",
-        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths."
+        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths.",
+        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers."
       }
     },
     {
@@ -149,67 +149,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
-      }
-    },
-    {
-      "id": "RQ-0050",
-      "status": "todo",
-      "title": "Bump Ralph's pinned Rust baseline from 1.94.1 to 1.95.0",
-      "description": "Update the repository's explicit Rust override to match the system global stable toolchain (`rustc 1.95.0`, `cargo 1.95.0`) and record the baseline in the active source-of-truth docs. The earlier queue shaping accidentally trusted the repo-local `rust-toolchain.toml` override, so this task must reconcile `rust-toolchain.toml`, crate `rust-version`, lockfile behavior, release/versioning scripts, and CI docs around the intended Rust 1.95.0 development baseline.",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "toolchain",
-        "docs",
-        "maintenance"
-      ],
-      "scope": [
-        "rust-toolchain.toml",
-        "crates/ralph/Cargo.toml",
-        "Cargo.lock",
-        "docs/index.md",
-        "docs/guides/stack-audit-2026-03.md",
-        "docs/decisions.md",
-        "docs/guides/ci-strategy.md",
-        "docs/releasing.md",
-        "scripts/versioning.sh",
-        "Makefile",
-        "make version-check",
-        "make agent-ci"
-      ],
-      "evidence": [
-        "`rustup default` reports `stable-aarch64-apple-darwin (default)`, and outside the repo (`/tmp`) `rustc --version` reports `rustc 1.95.0 (59807616e 2026-04-14)` with `cargo 1.95.0 (f2d3ce0bd 2026-03-21)`.",
-        "Inside this repository, `rustup show active-toolchain` reports `1.94.1-aarch64-apple-darwin (overridden by '/Users/mitchfultz/Projects/AI/ralph/rust-toolchain.toml')`, so the repo-local override masked the global Rust update.",
-        "Rust 1.95.0 release notes were published as the GitHub release `https://github.com/rust-lang/rust/releases/tag/1.95.0` and include language, library, rustdoc, compiler/security, platform, and compatibility changes that should replace the previous 1.94.1 task plan."
-      ],
-      "plan": [
-        "Update the pinned toolchain to Rust 1.95.0 and decide whether crate `rust-version` should remain `1.94` for consumer MSRV or move to `1.95` with a documented rationale.",
-        "Run versioning and metadata checks to catch generated schema or lockfile drift after the toolchain bump.",
-        "Create or update the active stack/toolchain audit record with the 1.95.0 delta instead of treating the archived March 1.94.0 audit as current.",
-        "Document the root cause of the version mismatch: repo-local `rust-toolchain.toml` overrides global rustup stable inside the project.",
-        "Run `make version-check` and the applicable `make agent-ci` tier after changes."
-      ],
-      "notes": [
-        "Do not rely on `rustc --version` from the repository alone when checking system updates; compare `rustup default`, `rustup show active-toolchain`, and a directory outside the override.",
-        "Do not broaden remote CI; local `make agent-ci` remains the canonical gate."
-      ],
-      "request": "Rust has been updated on this system. Research new features and best practices for the new version and create tasks in the ralph queue.jsonc to have the project updated to use all best practices with the newest version.",
-      "created_at": "2026-04-27T13:56:36Z",
-      "updated_at": "2026-04-27T13:59:11Z",
-      "depends_on": [],
-      "blocks": [
-        "RQ-0051",
-        "RQ-0052",
-        "RQ-0053",
-        "RQ-0054",
-        "RQ-0055"
-      ],
-      "relates_to": [],
-      "custom_fields": {
-        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0.",
-        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0"
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
       }
     },
     {
