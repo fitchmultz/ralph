@@ -17,7 +17,7 @@
 //! Invariants/Assumptions:
 //! - Keep behavior aligned with Ralph's canonical CLI, machine-contract, and queue semantics.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -106,15 +106,15 @@ pub(super) fn handle_finished_workers(
         } = finished_worker;
 
         if status.success() {
+            log::info!("Worker {} completed successfully", task_id);
+            refresh_coordinator_branch(&resolved.repo_root, target_branch)?;
+            sync::sync_worker_bookkeeping_back_to_source(resolved, &workspace.path)?;
+
             stats.record_success();
 
             if let Some(worker) = guard.state_file_mut().get_worker_mut(&task_id) {
                 worker.mark_completed(timeutil::now_utc_rfc3339_or_fallback());
             }
-
-            log::info!("Worker {} completed successfully", task_id);
-            refresh_coordinator_branch_best_effort(&resolved.repo_root, target_branch);
-            sync::sync_worker_bookkeeping_back_to_source(resolved, &workspace.path)?;
         } else {
             stats.record_failure();
 
@@ -177,14 +177,13 @@ pub(super) fn handle_finished_workers(
     Ok(())
 }
 
-fn refresh_coordinator_branch_best_effort(repo_root: &Path, target_branch: &str) {
-    if let Err(err) = crate::git::branch::fast_forward_branch_to_origin(repo_root, target_branch) {
-        log::warn!(
-            "Worker completed, but local branch refresh to origin/{} failed: {:#}",
-            target_branch,
-            err
-        );
-    }
+fn refresh_coordinator_branch(repo_root: &Path, target_branch: &str) -> Result<()> {
+    crate::git::branch::fast_forward_branch_to_origin(repo_root, target_branch).with_context(|| {
+        format!(
+            "worker completed, but local branch refresh to origin/{} failed; resolve the coordinator checkout before continuing so tracked queue/done bookkeeping cannot remain stale",
+            target_branch
+        )
+    })
 }
 
 #[cfg(test)]
@@ -269,10 +268,27 @@ mod tests {
         }
     }
 
+    fn initialized_remote_backed_repo(temp: &TempDir) -> Result<(std::path::PathBuf, String)> {
+        let remote = temp.path().join("origin.git");
+        std::fs::create_dir_all(&remote)?;
+        git_test::init_bare_repo(&remote)?;
+
+        let repo_root = temp.path().join("repo");
+        std::fs::create_dir_all(&repo_root)?;
+        git_test::init_repo(&repo_root)?;
+        std::fs::write(repo_root.join("README.md"), "test repo")?;
+        git_test::commit_all(&repo_root, "initial commit")?;
+        let branch = git_test::git_output(&repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        git_test::add_remote(&repo_root, "origin", &remote)?;
+        git_test::push_branch(&repo_root, &branch)?;
+        Ok((repo_root, branch))
+    }
+
     #[test]
     fn finished_success_marks_completed_persists_state_and_removes_worker() -> Result<()> {
         let temp = TempDir::new()?;
         let state_path = temp.path().join("state.json");
+        let (repo_root, branch) = initialized_remote_backed_repo(&temp)?;
         let mut guard = create_guard(&temp, state_path.clone());
         let workspace = worker_workspace(&temp, "RQ-0006")?;
         register_finished_worker_monitor(&mut guard, &workspace, "RQ-0006")?;
@@ -293,8 +309,8 @@ mod tests {
             &mut guard,
             &state_path,
             &temp.path().join("workspaces"),
-            &test_resolved(temp.path()),
-            "main",
+            &test_resolved(&repo_root),
+            &branch,
             &mut stats,
         )?;
 
@@ -402,6 +418,7 @@ mod tests {
     fn finished_worker_state_save_failure_keeps_guard_tracking() -> Result<()> {
         let temp = TempDir::new()?;
         let bad_state_path = temp.path().join("state-dir");
+        let (repo_root, branch) = initialized_remote_backed_repo(&temp)?;
         std::fs::create_dir_all(&bad_state_path)?;
         let mut guard = create_guard(&temp, bad_state_path.clone());
         let workspace = worker_workspace(&temp, "RQ-0006")?;
@@ -423,8 +440,8 @@ mod tests {
             &mut guard,
             &bad_state_path,
             &temp.path().join("workspaces"),
-            &test_resolved(temp.path()),
-            "main",
+            &test_resolved(&repo_root),
+            &branch,
             &mut stats,
         )
         .expect_err("state save should fail");
@@ -435,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn finished_success_tolerates_branch_refresh_failure() -> Result<()> {
+    fn finished_success_surfaces_branch_refresh_failure() -> Result<()> {
         let temp = TempDir::new()?;
         let state_path = temp.path().join("state.json");
         let mut guard = create_guard(&temp, state_path.clone());
@@ -448,7 +465,7 @@ mod tests {
         ));
 
         let mut stats = ParallelRunStats::default();
-        handle_finished_workers(
+        let err = handle_finished_workers(
             vec![crate::commands::run::parallel::worker::FinishedWorker {
                 task_id: "RQ-0006".to_string(),
                 task_title: "Task".to_string(),
@@ -461,9 +478,91 @@ mod tests {
             &test_resolved(&temp.path().join("not-a-git-repo")),
             "main",
             &mut stats,
-        )?;
+        )
+        .expect_err("coordinator refresh failure should block successful worker completion");
 
-        assert_eq!(stats.succeeded(), 1);
+        assert!(
+            err.to_string().contains("local branch refresh"),
+            "unexpected error: {err:#}"
+        );
+        assert_eq!(stats.succeeded(), 0);
+        assert!(guard.in_flight().contains_key("RQ-0006"));
+        Ok(())
+    }
+
+    #[test]
+    fn finished_success_errors_when_tracked_bookkeeping_refresh_cannot_fast_forward() -> Result<()>
+    {
+        let temp = TempDir::new()?;
+        let remote = temp.path().join("origin.git");
+        std::fs::create_dir_all(&remote)?;
+        git_test::init_bare_repo(&remote)?;
+
+        let repo_root = temp.path().join("repo");
+        std::fs::create_dir_all(repo_root.join(".ralph"))?;
+        git_test::init_repo(&repo_root)?;
+        std::fs::write(repo_root.join(".ralph/queue.jsonc"), "{stale_queue}")?;
+        std::fs::write(repo_root.join(".ralph/done.jsonc"), "{stale_done}")?;
+        git_test::commit_all(&repo_root, "tracked stale bookkeeping")?;
+        let branch = git_test::git_output(&repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        git_test::add_remote(&repo_root, "origin", &remote)?;
+        git_test::push_branch(&repo_root, &branch)?;
+
+        std::fs::write(repo_root.join(".ralph/queue.jsonc"), "{remote_fresh_queue}")?;
+        std::fs::write(repo_root.join(".ralph/done.jsonc"), "{remote_fresh_done}")?;
+        git_test::commit_all(&repo_root, "remote fresh bookkeeping")?;
+        git_test::push_branch(&repo_root, &branch)?;
+        git_test::git_run(&repo_root, &["reset", "--hard", "HEAD~1"])?;
+        std::fs::write(repo_root.join("local-only.txt"), "local divergence")?;
+        git_test::commit_all(&repo_root, "local divergent commit")?;
+
+        let state_path = temp.path().join("state.json");
+        let mut guard = create_guard(&temp, state_path.clone());
+        let workspace = worker_workspace(&temp, "RQ-0006")?;
+        std::fs::create_dir_all(workspace.path.join(".ralph"))?;
+        std::fs::write(
+            workspace.path.join(".ralph/queue.jsonc"),
+            "{workspace_queue}",
+        )?;
+        std::fs::write(workspace.path.join(".ralph/done.jsonc"), "{workspace_done}")?;
+        register_finished_worker_monitor(&mut guard, &workspace, "RQ-0006")?;
+        guard.state_file_mut().upsert_worker(WorkerRecord::new(
+            "RQ-0006",
+            workspace.path.clone(),
+            "2026-04-25T00:00:00Z".to_string(),
+        ));
+
+        let mut stats = ParallelRunStats::default();
+        let err = handle_finished_workers(
+            vec![crate::commands::run::parallel::worker::FinishedWorker {
+                task_id: "RQ-0006".to_string(),
+                task_title: "Task".to_string(),
+                workspace,
+                status: synthetic_status(0),
+            }],
+            &mut guard,
+            &state_path,
+            &temp.path().join("workspaces"),
+            &test_resolved(&repo_root),
+            &branch,
+            &mut stats,
+        )
+        .expect_err("non-fast-forward tracked bookkeeping refresh must surface");
+
+        assert!(
+            err.to_string().contains("local branch refresh"),
+            "unexpected error: {err:#}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(repo_root.join(".ralph/queue.jsonc"))?,
+            "{stale_queue}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(repo_root.join(".ralph/done.jsonc"))?,
+            "{stale_done}"
+        );
+        assert_eq!(stats.succeeded(), 0);
+        assert!(guard.in_flight().contains_key("RQ-0006"));
         Ok(())
     }
 
@@ -479,6 +578,12 @@ mod tests {
         )?;
         git_test::git_run(&repo_root, &["add", ".gitignore"])?;
         git_test::git_run(&repo_root, &["commit", "-m", "ignore bookkeeping"])?;
+        let branch = git_test::git_output(&repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        let remote = temp.path().join("origin.git");
+        std::fs::create_dir_all(&remote)?;
+        git_test::init_bare_repo(&remote)?;
+        git_test::add_remote(&repo_root, "origin", &remote)?;
+        git_test::push_branch(&repo_root, &branch)?;
         std::fs::write(repo_root.join(".ralph/queue.jsonc"), "{stale_queue}")?;
         std::fs::write(repo_root.join(".ralph/done.jsonc"), "{stale_done}")?;
 
@@ -507,7 +612,7 @@ mod tests {
             &state_path,
             &temp.path().join("workspaces"),
             &test_resolved(&repo_root),
-            "main",
+            &branch,
             &mut stats,
         )?;
 
