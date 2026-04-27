@@ -28,6 +28,7 @@
 //! - Prompts require both stdin and stdout to be TTYs.
 //! - If non_interactive is true, all prompts are skipped (use --auto-fix to apply changes).
 //! - README sync may also be invoked directly by command routing for agent-facing commands.
+//! - Read-only startup sanity mode preserves diagnostics while suppressing all writes/prompts.
 
 mod migrations;
 mod readme;
@@ -68,6 +69,27 @@ pub fn refresh_readme_if_needed(resolved: &Resolved) -> Result<Option<String>> {
     check_and_update_readme(resolved)
 }
 
+/// Startup sanity execution mode for a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartupSanityMode {
+    /// Skip startup sanity checks.
+    None,
+    /// Run startup sanity checks in inspect-only mode (no writes or prompts).
+    ReadOnly,
+    /// Run startup sanity checks with writes/prompts allowed by CLI flags.
+    Mutating,
+}
+
+/// Whether startup sanity writes are permitted.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SanityWritePolicy {
+    /// Sanity checks may apply writes based on other options.
+    #[default]
+    AllowWrites,
+    /// Sanity checks must remain read-only.
+    ReadOnly,
+}
+
 /// Options for controlling sanity check behavior.
 #[derive(Debug, Clone, Default)]
 pub struct SanityOptions {
@@ -77,12 +99,19 @@ pub struct SanityOptions {
     pub skip: bool,
     /// Skip interactive prompts even if running in a TTY.
     pub non_interactive: bool,
+    /// Write policy for sanity checks.
+    pub write_policy: SanityWritePolicy,
 }
 
 impl SanityOptions {
+    /// Whether sanity checks may apply filesystem writes.
+    pub fn allows_writes(&self) -> bool {
+        matches!(self.write_policy, SanityWritePolicy::AllowWrites)
+    }
+
     /// Check if we can prompt the user for input.
     pub fn can_prompt(&self) -> bool {
-        !self.non_interactive && is_tty()
+        self.allows_writes() && !self.non_interactive && is_tty()
     }
 }
 
@@ -124,17 +153,37 @@ pub fn run_sanity_checks(resolved: &Resolved, options: &SanityOptions) -> Result
 
     log::debug!("Running sanity checks...");
     let mut result = SanityResult::default();
+    let effective_auto_fix = options.auto_fix && options.allows_writes();
+    let effective_non_interactive = options.non_interactive || !options.allows_writes();
 
-    // Check 1: README auto-update (automatic, no prompt)
-    match check_and_update_readme(resolved) {
-        Ok(Some(fix_msg)) => {
-            result.auto_fixes.push(fix_msg);
+    // Check 1: README health
+    if options.allows_writes() {
+        match check_and_update_readme(resolved) {
+            Ok(Some(fix_msg)) => {
+                result.auto_fixes.push(fix_msg);
+            }
+            Ok(None) => {
+                log::debug!("README is current");
+            }
+            Err(e) => {
+                return Err(e).context("check/update .ralph/README.md");
+            }
         }
-        Ok(None) => {
-            log::debug!("README is current");
-        }
-        Err(e) => {
-            return Err(e).context("check/update .ralph/README.md");
+    } else {
+        match readme::check_readme_without_update(resolved) {
+            Ok(Some(message)) => {
+                result.needs_attention.push(SanityIssue {
+                    severity: IssueSeverity::Warning,
+                    message,
+                    fix_available: true,
+                });
+            }
+            Ok(None) => {
+                log::debug!("README is current");
+            }
+            Err(e) => {
+                return Err(e).context("check/read-only .ralph/README.md");
+            }
         }
     }
 
@@ -154,8 +203,8 @@ pub fn run_sanity_checks(resolved: &Resolved, options: &SanityOptions) -> Result
 
     match check_and_handle_migrations(
         &mut ctx,
-        options.auto_fix,
-        options.non_interactive,
+        effective_auto_fix,
+        effective_non_interactive,
         is_tty,
         prompt_yes_no,
     ) {
@@ -173,7 +222,12 @@ pub fn run_sanity_checks(resolved: &Resolved, options: &SanityOptions) -> Result
     }
 
     // Check 3: Unknown config keys
-    match check_unknown_keys(resolved, options.auto_fix, options.non_interactive, is_tty) {
+    match check_unknown_keys(
+        resolved,
+        effective_auto_fix,
+        effective_non_interactive,
+        is_tty,
+    ) {
         Ok(unknown_fixes) => {
             result.auto_fixes.extend(unknown_fixes);
         }
@@ -234,18 +288,21 @@ fn is_tty() -> bool {
     atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
 }
 
-/// Check if sanity checks should run for a given command.
-pub fn should_run_sanity_checks(command: &crate::cli::Command) -> bool {
+/// Resolve startup sanity mode for a given command.
+pub fn startup_sanity_mode(command: &crate::cli::Command) -> StartupSanityMode {
     use crate::cli;
 
     match command {
-        cli::Command::Run(_) => true,
-        cli::Command::Queue(args) => {
-            matches!(args.command, cli::queue::QueueCommand::Validate)
-        }
-        cli::Command::Doctor(_) => false,
-        _ => false,
+        cli::Command::Run(_) => StartupSanityMode::Mutating,
+        cli::Command::Queue(_) => StartupSanityMode::None,
+        cli::Command::Doctor(_) => StartupSanityMode::None,
+        _ => StartupSanityMode::None,
     }
+}
+
+/// Check if sanity checks should run for a given command.
+pub fn should_run_sanity_checks(command: &crate::cli::Command) -> bool {
+    !matches!(startup_sanity_mode(command), StartupSanityMode::None)
 }
 
 /// Report sanity check results to the user.
@@ -294,8 +351,21 @@ mod tests {
             non_interactive: true,
             auto_fix: false,
             skip: false,
+            write_policy: SanityWritePolicy::AllowWrites,
         };
         assert!(!opts.can_prompt());
+    }
+
+    #[test]
+    fn sanity_options_read_only_disables_prompts() {
+        let opts = SanityOptions {
+            non_interactive: false,
+            auto_fix: false,
+            skip: false,
+            write_policy: SanityWritePolicy::ReadOnly,
+        };
+        assert!(!opts.can_prompt());
+        assert!(!opts.allows_writes());
     }
 
     #[test]
@@ -324,5 +394,20 @@ mod tests {
 
         let cli = crate::cli::Cli::parse_from(["ralph", "completions", "bash"]);
         assert!(!should_refresh_readme_for_command(&cli.command));
+    }
+
+    #[test]
+    fn startup_sanity_mode_classifies_commands() {
+        let cli = crate::cli::Cli::parse_from(["ralph", "run", "one", "--id", "RQ-0001"]);
+        assert_eq!(
+            startup_sanity_mode(&cli.command),
+            StartupSanityMode::Mutating
+        );
+
+        let cli = crate::cli::Cli::parse_from(["ralph", "queue", "validate"]);
+        assert_eq!(startup_sanity_mode(&cli.command), StartupSanityMode::None);
+
+        let cli = crate::cli::Cli::parse_from(["ralph", "queue", "list"]);
+        assert_eq!(startup_sanity_mode(&cli.command), StartupSanityMode::None);
     }
 }

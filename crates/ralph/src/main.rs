@@ -94,7 +94,8 @@ fn run(args: Vec<OsString>) -> Result<()> {
 
     // Ensure README guidance stays current for agent-facing commands even when
     // full sanity checks are skipped for this command.
-    let should_run_sanity = sanity::should_run_sanity_checks(&cli.command);
+    let sanity_mode = sanity::startup_sanity_mode(&cli.command);
+    let should_run_sanity = !matches!(sanity_mode, sanity::StartupSanityMode::None);
     let should_refresh_readme = sanity::should_refresh_readme_for_command(&cli.command);
     if should_refresh_readme && (cli.no_sanity_checks || !should_run_sanity) {
         let resolved = ralph::config::resolve_from_cwd_for_doctor()?;
@@ -107,7 +108,7 @@ fn run(args: Vec<OsString>) -> Result<()> {
     if should_run_sanity && !cli.no_sanity_checks {
         let resolved = ralph::config::resolve_from_cwd_for_doctor()?;
         // Extract non_interactive flag from run commands
-        let non_interactive = match &cli.command {
+        let run_non_interactive = match &cli.command {
             cli::Command::Run(run_args) => match &run_args.command {
                 cli::run::RunCommand::One(one_args) => one_args.non_interactive,
                 cli::run::RunCommand::Loop(loop_args) => loop_args.non_interactive,
@@ -116,16 +117,26 @@ fn run(args: Vec<OsString>) -> Result<()> {
             },
             _ => false,
         };
-        let options = sanity::SanityOptions {
-            auto_fix: cli.auto_fix,
-            skip: false,
-            non_interactive,
+        let options = match sanity_mode {
+            sanity::StartupSanityMode::Mutating => sanity::SanityOptions {
+                auto_fix: cli.auto_fix,
+                skip: false,
+                non_interactive: run_non_interactive,
+                write_policy: sanity::SanityWritePolicy::AllowWrites,
+            },
+            sanity::StartupSanityMode::ReadOnly => sanity::SanityOptions {
+                auto_fix: false,
+                skip: false,
+                non_interactive: true,
+                write_policy: sanity::SanityWritePolicy::ReadOnly,
+            },
+            sanity::StartupSanityMode::None => unreachable!("checked above"),
         };
         let sanity_result = sanity::run_sanity_checks(&resolved, &options)?;
 
         // If there are issues that need attention and we're not in auto-fix mode,
         // we might want to warn the user
-        if !sanity::report_sanity_results(&sanity_result, cli.auto_fix) {
+        if !sanity::report_sanity_results(&sanity_result, options.auto_fix) {
             anyhow::bail!(
                 "Sanity checks failed. Please resolve the issues above or run with --auto-fix."
             );

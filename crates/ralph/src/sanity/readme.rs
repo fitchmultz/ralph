@@ -17,8 +17,8 @@
 //! - Used through the crate module tree or integration test harness.
 //!
 //! Invariants:
-//! - README auto-update is always automatic, never prompts user
-//! - Missing README is auto-created from the embedded template
+//! - Write-enabled mode auto-updates README without prompting.
+//! - Read-only mode never writes README and only reports drift.
 
 use crate::config::Resolved;
 use anyhow::{Context, Result};
@@ -77,6 +77,41 @@ pub(crate) fn check_and_update_readme(resolved: &Resolved) -> Result<Option<Stri
                 log::debug!("README create write returned status: {:?}", status);
                 Ok(None)
             }
+        }
+        readme::ReadmeCheckResult::NotApplicable => {
+            log::debug!("README.md is not applicable");
+            Ok(None)
+        }
+    }
+}
+
+/// Check README status without writing changes.
+///
+/// Returns `Ok(Some(message))` when README is missing/outdated and needs a write-enabled refresh.
+/// Returns `Ok(None)` when README is current or not applicable.
+pub(crate) fn check_readme_without_update(resolved: &Resolved) -> Result<Option<String>> {
+    use crate::commands::init::readme;
+
+    match readme::check_readme_current(resolved)? {
+        readme::ReadmeCheckResult::Current(version) => {
+            log::debug!("README is current (version {})", version);
+            Ok(None)
+        }
+        readme::ReadmeCheckResult::Outdated {
+            current_version,
+            embedded_version,
+        } => {
+            let msg = format!(
+                ".ralph/README.md is outdated (version {} < {}). Run `ralph init --update-readme --non-interactive` or another write-enabled command to refresh it.",
+                current_version, embedded_version
+            );
+            log::warn!("{}", msg);
+            Ok(Some(msg))
+        }
+        readme::ReadmeCheckResult::Missing => {
+            let msg = ".ralph/README.md is missing. Run `ralph init --update-readme --non-interactive` or another write-enabled command to create it.".to_string();
+            log::warn!("{}", msg);
+            Ok(Some(msg))
         }
         readme::ReadmeCheckResult::NotApplicable => {
             log::debug!("README.md is not applicable");
@@ -155,6 +190,54 @@ mod tests {
             check,
             crate::commands::init::ReadmeCheckResult::Current(v) if v == README_VERSION
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn check_readme_without_update_reports_missing_without_creating_file() -> Result<()> {
+        let dir = TempDir::new()?;
+        let resolved = resolved_for(&dir);
+
+        let warning = check_readme_without_update(&resolved)?;
+        assert!(
+            warning
+                .as_deref()
+                .is_some_and(|msg| msg.contains("README.md is missing")),
+            "expected missing warning, got: {:?}",
+            warning
+        );
+
+        let readme_path = resolved.repo_root.join(".ralph/README.md");
+        assert!(
+            !readme_path.exists(),
+            "README should not be created in read-only mode"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn check_readme_without_update_reports_outdated_without_rewriting_file() -> Result<()> {
+        let dir = TempDir::new()?;
+        let resolved = resolved_for(&dir);
+        let readme_path = resolved.repo_root.join(".ralph/README.md");
+        std::fs::create_dir_all(readme_path.parent().expect("parent"))?;
+        let stale_content = "<!-- RALPH_README_VERSION: 1 -->\n# Old";
+        std::fs::write(&readme_path, stale_content)?;
+
+        let warning = check_readme_without_update(&resolved)?;
+        assert!(
+            warning
+                .as_deref()
+                .is_some_and(|msg| msg.contains("README.md is outdated")),
+            "expected outdated warning, got: {:?}",
+            warning
+        );
+
+        let persisted = std::fs::read_to_string(&readme_path)?;
+        assert_eq!(
+            persisted, stale_content,
+            "read-only check should not rewrite outdated README"
+        );
         Ok(())
     }
 }

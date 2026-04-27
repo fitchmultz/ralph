@@ -29,6 +29,7 @@ use std::process::Command;
 use test_support::{
     QueueDoneSnapshot, git_add_all_commit, git_init, make_test_task, run_in_dir, seed_ralph_dir,
     snapshot_queue_done, temp_dir_outside_repo, write_done, write_queue,
+    write_valid_single_todo_queue,
 };
 
 fn git_status_porcelain(dir: &Path) -> Result<String> {
@@ -57,6 +58,18 @@ fn assert_repo_clean_and_files_unchanged(
     assert!(status.is_empty(), "{context}: repo became dirty: {status}");
 
     Ok(())
+}
+
+fn list_ralph_entries(dir: &Path) -> Result<Vec<String>> {
+    let mut names = std::fs::read_dir(dir.join(".ralph"))?
+        .map(|entry| {
+            entry
+                .map(|value| value.file_name().to_string_lossy().into_owned())
+                .context("read .ralph entry")
+        })
+        .collect::<Result<Vec<_>>>()?;
+    names.sort();
+    Ok(names)
 }
 
 fn make_parent_task() -> Task {
@@ -101,6 +114,7 @@ fn read_only_commands_leave_repo_clean_on_success() -> Result<()> {
     let dir = setup_valid_repo()?;
 
     let commands: &[&[&str]] = &[
+        &["queue", "validate"],
         &["queue", "list", "--include-done"],
         &["queue", "search", "Child", "--include-done"],
         &["queue", "show", "RQ-0002"],
@@ -125,6 +139,67 @@ fn read_only_commands_leave_repo_clean_on_success() -> Result<()> {
             dir.path(),
             &before,
             &format!("read-only command {:?}", args),
+        )?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn queue_validate_stays_clean_without_startup_readme_sanity() -> Result<()> {
+    let dir = temp_dir_outside_repo();
+    git_init(dir.path())?;
+    write_valid_single_todo_queue(dir.path())?;
+    git_add_all_commit(dir.path(), "seed minimal queue repo")?;
+
+    let readme_path = dir.path().join(".ralph/README.md");
+    assert!(
+        !readme_path.exists(),
+        "fixture should start without .ralph/README.md"
+    );
+
+    for args in [
+        &["queue", "validate"][..],
+        &["--auto-fix", "queue", "validate"][..],
+    ] {
+        let before_snapshot = snapshot_queue_done(dir.path())?;
+        let before_entries = list_ralph_entries(dir.path())?;
+
+        let (status, _stdout, stderr) = run_in_dir(dir.path(), args);
+        anyhow::ensure!(
+            status.success(),
+            "queue validate failed for {:?}\nstderr:\n{stderr}",
+            args
+        );
+
+        assert!(
+            !readme_path.exists(),
+            "queue validate must not create .ralph/README.md for {:?}",
+            args
+        );
+        let after_entries = list_ralph_entries(dir.path())?;
+        assert_eq!(
+            before_entries, after_entries,
+            "queue validate must not add .ralph files for {:?}",
+            args
+        );
+        assert!(
+            !stderr.contains("Created README at version"),
+            "queue validate should not report README creation for {:?}: {stderr}",
+            args
+        );
+        assert!(
+            !stderr.contains("README.md is missing"),
+            "queue validate should not emit README startup warnings for {:?}: {stderr}",
+            args
+        );
+        assert_repo_clean_and_files_unchanged(
+            dir.path(),
+            &before_snapshot,
+            &format!(
+                "queue validate should stay read-only with missing README for {:?}",
+                args
+            ),
         )?;
     }
 

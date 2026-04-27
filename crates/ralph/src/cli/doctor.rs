@@ -59,6 +59,7 @@ pub fn handle_doctor(args: DoctorArgs) -> Result<()> {
             auto_fix: args.auto_fix,
             skip: false,
             non_interactive: false, // doctor is always interactive by default
+            write_policy: sanity::SanityWritePolicy::AllowWrites,
         };
         let sanity_result = sanity::run_sanity_checks(&resolved, &options)?;
 

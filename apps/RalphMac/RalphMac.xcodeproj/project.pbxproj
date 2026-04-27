@@ -185,6 +185,7 @@
 		C2F200000000000000000018 /* ANSIParserColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F100000000000000000018 /* ANSIParserColorTests.swift */; };
 		C2F200000000000000000019 /* ANSIParserControlAndStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F100000000000000000019 /* ANSIParserControlAndStreamTests.swift */; };
 		C2F20000000000000000001A /* ANSIParserEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F10000000000000000001A /* ANSIParserEdgeCaseTests.swift */; };
+		C2F20000000000000000001B /* WorkspaceQueueRefreshBasicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F10000000000000000001B /* WorkspaceQueueRefreshBasicTests.swift */; };
 		C3A024010000000000000001 /* WorkspaceRunState+ConsoleRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000001 /* WorkspaceRunState+ConsoleRendering.swift */; };
 		C3A024010000000000000002 /* WorkspaceRunState+OperatorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000002 /* WorkspaceRunState+OperatorState.swift */; };
 		C3A024010000000000000003 /* Workspace+RunControlOperatorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A024020000000000000003 /* Workspace+RunControlOperatorState.swift */; };
@@ -497,6 +498,7 @@
 		C2F100000000000000000018 /* ANSIParserColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ANSIParserColorTests.swift; sourceTree = "<group>"; };
 		C2F100000000000000000019 /* ANSIParserControlAndStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ANSIParserControlAndStreamTests.swift; sourceTree = "<group>"; };
 		C2F10000000000000000001A /* ANSIParserEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ANSIParserEdgeCaseTests.swift; sourceTree = "<group>"; };
+		C2F10000000000000000001B /* WorkspaceQueueRefreshBasicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceQueueRefreshBasicTests.swift; sourceTree = "<group>"; };
 		C3A024020000000000000001 /* WorkspaceRunState+ConsoleRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceRunState+ConsoleRendering.swift"; sourceTree = "<group>"; };
 		C3A024020000000000000002 /* WorkspaceRunState+OperatorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceRunState+OperatorState.swift"; sourceTree = "<group>"; };
 		C3A024020000000000000003 /* Workspace+RunControlOperatorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workspace+RunControlOperatorState.swift"; sourceTree = "<group>"; };
@@ -752,6 +754,7 @@
 				C2F10000000000000000000C /* WorkspaceTaskCreationTestSupport.swift */,
 				C2F10000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift */,
 				C2F10000000000000000000E /* WorkspaceQueueRefreshTests.swift */,
+				C2F10000000000000000001B /* WorkspaceQueueRefreshBasicTests.swift */,
 				C2F10000000000000000000F /* QueueFileWatcherTests.swift */,
 				C2F100000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift */,
 				WTDTFILEREF0012345678901 /* WorkspaceTaskDecomposeTests.swift */,
@@ -1256,6 +1259,7 @@
 				C2F20000000000000000000C /* WorkspaceTaskCreationTestSupport.swift in Sources */,
 				C2F20000000000000000000D /* WorkspaceTaskCreationIntegrationTests.swift in Sources */,
 				C2F20000000000000000000E /* WorkspaceQueueRefreshTests.swift in Sources */,
+				C2F20000000000000000001B /* WorkspaceQueueRefreshBasicTests.swift in Sources */,
 				C2F20000000000000000000F /* QueueFileWatcherTests.swift in Sources */,
 				C2F200000000000000000010 /* WorkspaceBackgroundTaskOwnershipTests.swift in Sources */,
 				WTDTBUILD001234567890123 /* WorkspaceTaskDecomposeTests.swift in Sources */,
