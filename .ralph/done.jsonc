@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "skill": "comprehensive-codebase-audit",
+        "task_kind": "queue_shaping",
         "model_used": "gpt-5.4",
-        "task_kind": "queue_shaping"
+        "runner_used": "codex"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
         "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "runner_used": "codex"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "source_report": "/tmp/ralph-report.md"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
+        "model_used": "gpt-5.4",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "runner_used": "codex"
       }
     },
     {
@@ -956,8 +956,8 @@
       "relates_to": [],
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "model_used": "gpt-5.4",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "runner_used": "codex"
       }
     },
@@ -2249,6 +2249,45 @@
       "created_at": "2026-04-27T03:11:26Z",
       "updated_at": "2026-04-27T03:45:12.135805000Z",
       "completed_at": "2026-04-27T03:45:12.135805000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0046",
+      "status": "done",
+      "title": "Make push_upstream_with_rebase fail or recover when a no-upstream branch is behind remote",
+      "description": "Principles violated: F (fail fast appropriately), J (consistency/integrity), H (operational hygiene). `push_upstream_with_rebase()` can return success for a branch with no upstream even when the local branch is already behind `origin/<branch>`, because the early no-upstream path only checks whether HEAD is ahead of the fallback ref and returns `Ok(())` when it is not. Why it matters: worker finalization and other publish paths can silently leave a branch behind remote while reporting success, which defeats the whole purpose of the rebase-aware push helper in concurrent update scenarios. Minimal fix: when no upstream is configured, treat behind-or-diverged `origin/<branch>` state as work to repair with fetch/rebase/upstream setup rather than as a successful no-op. Acceptance criteria: a regression reproduces the behind-without-upstream scenario and proves the helper either rebases/pushes to a synced state or returns an explicit error, and the git commit helper tests pass.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "git",
+        "parallel"
+      ],
+      "scope": [
+        "crates/ralph/src/git/commit/rebase_push.rs",
+        "crates/ralph/src/git/commit/tests.rs",
+        "cargo test -p ralph-agent-loop git"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/git/commit/rebase_push.rs:42-60 :: the no-upstream path computes ahead against fallback_upstream and returns Ok(()) when HEAD is not ahead, even before checking whether the branch is behind remote",
+        "workflow: temp path harness calling ralph::git::push_upstream_with_rebase on a no-upstream branch after `git fetch origin ralph/RQ-0940` :: observed RESULT=Ok(()) while `git status --short --branch` still reported `## ralph/RQ-0940...origin/ralph/RQ-0940 [behind 1]`",
+        "path: crates/ralph/src/git/commit/tests.rs:25-90 :: current coverage exercises non-fast-forward recovery and remote-existing upstream setup, but not the behind-without-upstream case"
+      ],
+      "plan": [
+        "Update the no-upstream branch path to distinguish clean synced state from behind-or-diverged fallback-upstream state before returning success.",
+        "Repair behind state by fetching, rebasing, and setting upstream when appropriate, or return an explicit error if automatic recovery is unsafe.",
+        "Add a regression that reproduces the fetched-behind no-upstream scenario and asserts the helper does not report success while still behind remote.",
+        "Verify by running the git helper regression and the broader git commit helper tests, then confirm the reproduced temp harness no longer returns `Ok(())` while behind."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T04:24:56.345504000Z",
+      "completed_at": "2026-04-27T04:24:56.345504000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

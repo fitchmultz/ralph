@@ -1,43 +1,4 @@
 {
   "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0046",
-      "status": "todo",
-      "title": "Make push_upstream_with_rebase fail or recover when a no-upstream branch is behind remote",
-      "description": "Principles violated: F (fail fast appropriately), J (consistency/integrity), H (operational hygiene). `push_upstream_with_rebase()` can return success for a branch with no upstream even when the local branch is already behind `origin/<branch>`, because the early no-upstream path only checks whether HEAD is ahead of the fallback ref and returns `Ok(())` when it is not. Why it matters: worker finalization and other publish paths can silently leave a branch behind remote while reporting success, which defeats the whole purpose of the rebase-aware push helper in concurrent update scenarios. Minimal fix: when no upstream is configured, treat behind-or-diverged `origin/<branch>` state as work to repair with fetch/rebase/upstream setup rather than as a successful no-op. Acceptance criteria: a regression reproduces the behind-without-upstream scenario and proves the helper either rebases/pushes to a synced state or returns an explicit error, and the git commit helper tests pass.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "git",
-        "parallel"
-      ],
-      "scope": [
-        "crates/ralph/src/git/commit/rebase_push.rs",
-        "crates/ralph/src/git/commit/tests.rs",
-        "cargo test -p ralph-agent-loop git"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/git/commit/rebase_push.rs:42-60 :: the no-upstream path computes ahead against fallback_upstream and returns Ok(()) when HEAD is not ahead, even before checking whether the branch is behind remote",
-        "workflow: temp path harness calling ralph::git::push_upstream_with_rebase on a no-upstream branch after `git fetch origin ralph/RQ-0940` :: observed RESULT=Ok(()) while `git status --short --branch` still reported `## ralph/RQ-0940...origin/ralph/RQ-0940 [behind 1]`",
-        "path: crates/ralph/src/git/commit/tests.rs:25-90 :: current coverage exercises non-fast-forward recovery and remote-existing upstream setup, but not the behind-without-upstream case"
-      ],
-      "plan": [
-        "Update the no-upstream branch path to distinguish clean synced state from behind-or-diverged fallback-upstream state before returning success.",
-        "Repair behind state by fetching, rebasing, and setting upstream when appropriate, or return an explicit error if automatic recovery is unsafe.",
-        "Add a regression that reproduces the fetched-behind no-upstream scenario and asserts the helper does not report success while still behind remote.",
-        "Verify by running the git helper regression and the broader git commit helper tests, then confirm the reproduced temp harness no longer returns `Ok(())` while behind."
-      ],
-      "notes": [],
-      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
-      "created_at": "2026-04-27T03:11:26Z",
-      "updated_at": "2026-04-27T03:11:26Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    }
-  ]
+  "tasks": []
 }
