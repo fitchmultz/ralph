@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "skill": "comprehensive-codebase-audit",
-        "task_kind": "queue_shaping",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "task_kind": "queue_shaping",
+        "model_used": "gpt-5.4",
+        "skill": "comprehensive-codebase-audit"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
         "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -829,9 +829,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex"
       }
     },
@@ -891,9 +891,9 @@
       "relates_to": [],
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "runner_used": "codex",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -955,8 +955,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "runner_used": "codex",
         "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md"
       }
@@ -1462,6 +1462,46 @@
       "created_at": "2026-04-26T16:17:04Z",
       "updated_at": "2026-04-26T23:57:25.708297000Z",
       "completed_at": "2026-04-26T23:57:25.708297000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0030",
+      "status": "done",
+      "title": "Decouple `machine config resolve` from required queue-file presence",
+      "description": "Principles violated: E (make bugs hard to write), F (fail fast appropriately), J (consistency/integrity). `machine config resolve` currently hard-fails when `.ralph/queue.jsonc` is missing because resume preview calls strict queue load. Why it matters: machine clients cannot fetch resolved paths/safety/config in bootstrap or degraded states, even though the contract describes config/paths with optional `resume_preview`. Minimal fix: make resume preview resilient to missing queue files (for example, default queue context with `resume_preview: null` or a structured no-session preview) while keeping command success for config introspection.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "machine-contract",
+        "queue",
+        "app-parity"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/machine/common.rs",
+        "crates/ralph/src/cli/machine/handle.rs",
+        "docs/machine-contract.md"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/machine/common.rs:204-206 :: `build_resume_preview` uses `crate::queue::load_queue(&resolved.queue_path)?`",
+        "repro: temp repo with `.ralph/config.jsonc` and trust file but no queue file, run `/tmp/ralph-scan-target/debug/ralph machine config resolve` :: expected config/paths document with optional or absent resume preview :: actual exit 1 with machine_error code `queue_corrupted` and message `No Ralph queue file found.`",
+        "path: docs/machine-contract.md:62-79 :: `machine config resolve` documents resolved paths/config with optional `resume_preview`"
+      ],
+      "plan": [
+        "Update resume preview construction to handle missing queue file without aborting `machine config resolve`.",
+        "Keep `resume_preview` optional and emit a stable no-session/none shape when queue state is unavailable.",
+        "Add machine-contract regression coverage for `machine config resolve` in a repo missing queue files.",
+        "Verify by running the missing-queue repro and confirming exit 0 with valid JSON stdout."
+      ],
+      "notes": [],
+      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
+      "created_at": "2026-04-27T00:18:10Z",
+      "updated_at": "2026-04-27T01:01:42.740697000Z",
+      "completed_at": "2026-04-27T01:01:42.740697000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
