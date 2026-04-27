@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "task_kind": "queue_shaping",
         "model_used": "gpt-5.4",
-        "skill": "comprehensive-codebase-audit"
+        "skill": "comprehensive-codebase-audit",
+        "runner_used": "codex"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -610,9 +610,9 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -687,9 +687,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -829,9 +829,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex"
       }
     },
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
       }
     },
     {
@@ -2169,6 +2169,47 @@
       "created_at": "2026-04-27T03:11:26Z",
       "updated_at": "2026-04-27T03:40:26.407592000Z",
       "completed_at": "2026-04-27T03:40:26.407592000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0047",
+      "status": "done",
+      "title": "Propagate repo context through task-level webhook notifications",
+      "description": "Principles violated: H (operational hygiene), J (consistency/integrity), G (least astonishment). Task-level webhook helpers still build `WebhookContext::default()` even when call sites already know the repo root and task execution context, and failure persistence falls back to the current working directory when `repo_root` is absent. Why it matters: failed-delivery diagnostics and replay can be attributed to the wrong repo in multi-repo or moved-repo workflows, and task-level failure records lose branch/commit context that loop-level events already preserve. Minimal fix: route task start/complete/reject notifications through the context-carrying variants and make repo-root persistence explicit instead of relying on cwd fallback. Acceptance criteria: task-level webhook payloads include repo_root at a minimum, failure-store persistence no longer depends on cwd for normal task events, and focused webhook payload/diagnostics tests pass.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "diagnostics"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/notifications.rs",
+        "crates/ralph/src/commands/run/context.rs",
+        "crates/ralph/src/cli/task/status.rs",
+        "crates/ralph/src/webhook/diagnostics/failure_store.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/webhook/notifications.rs:29-49 :: send_webhook constructs payloads with WebhookContext::default() for task-level helpers",
+        "path: crates/ralph/src/commands/run/context.rs:56-74 :: mark_task_doing uses notify_task_started without propagating resolved repo context",
+        "path: crates/ralph/src/cli/task/status.rs:107-150 :: handle_done and handle_reject emit task webhooks without repo context even though resolved data is available",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:216-229 :: resolve_repo_root_from_runtime falls back to current_dir whenever payload.context.repo_root is absent"
+      ],
+      "plan": [
+        "Introduce or reuse task-level webhook helpers that accept explicit WebhookContext and thread resolved repo_root, branch, and other cheap context through existing call sites.",
+        "Reduce failure-store reliance on cwd fallback for normal task events so diagnostics stay attached to the emitting repo.",
+        "Add focused webhook payload and diagnostics tests that assert task-level events persist repo_root and resolve failure-store paths from payload context.",
+        "Verify by running the relevant webhook payload and diagnostics tests and confirming task-level failure records no longer depend on cwd fallback."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:41:57.406340000Z",
+      "completed_at": "2026-04-27T03:41:57.406340000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

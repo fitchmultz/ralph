@@ -40,46 +40,6 @@
       }
     },
     {
-      "id": "RQ-0047",
-      "status": "todo",
-      "title": "Propagate repo context through task-level webhook notifications",
-      "description": "Principles violated: H (operational hygiene), J (consistency/integrity), G (least astonishment). Task-level webhook helpers still build `WebhookContext::default()` even when call sites already know the repo root and task execution context, and failure persistence falls back to the current working directory when `repo_root` is absent. Why it matters: failed-delivery diagnostics and replay can be attributed to the wrong repo in multi-repo or moved-repo workflows, and task-level failure records lose branch/commit context that loop-level events already preserve. Minimal fix: route task start/complete/reject notifications through the context-carrying variants and make repo-root persistence explicit instead of relying on cwd fallback. Acceptance criteria: task-level webhook payloads include repo_root at a minimum, failure-store persistence no longer depends on cwd for normal task events, and focused webhook payload/diagnostics tests pass.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "webhook",
-        "diagnostics"
-      ],
-      "scope": [
-        "crates/ralph/src/webhook/notifications.rs",
-        "crates/ralph/src/commands/run/context.rs",
-        "crates/ralph/src/cli/task/status.rs",
-        "crates/ralph/src/webhook/diagnostics/failure_store.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/webhook/notifications.rs:29-49 :: send_webhook constructs payloads with WebhookContext::default() for task-level helpers",
-        "path: crates/ralph/src/commands/run/context.rs:56-74 :: mark_task_doing uses notify_task_started without propagating resolved repo context",
-        "path: crates/ralph/src/cli/task/status.rs:107-150 :: handle_done and handle_reject emit task webhooks without repo context even though resolved data is available",
-        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:216-229 :: resolve_repo_root_from_runtime falls back to current_dir whenever payload.context.repo_root is absent"
-      ],
-      "plan": [
-        "Introduce or reuse task-level webhook helpers that accept explicit WebhookContext and thread resolved repo_root, branch, and other cheap context through existing call sites.",
-        "Reduce failure-store reliance on cwd fallback for normal task events so diagnostics stay attached to the emitting repo.",
-        "Add focused webhook payload and diagnostics tests that assert task-level events persist repo_root and resolve failure-store paths from payload context.",
-        "Verify by running the relevant webhook payload and diagnostics tests and confirming task-level failure records no longer depend on cwd fallback."
-      ],
-      "notes": [],
-      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
-      "created_at": "2026-04-27T03:11:26Z",
-      "updated_at": "2026-04-27T03:11:26Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0049",
       "status": "todo",
       "title": "Investigate tracked queue and done staleness after best-effort coordinator refresh failures",
