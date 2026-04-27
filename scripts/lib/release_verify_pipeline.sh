@@ -25,13 +25,8 @@ release_run_ship_gate() {
     ralph_log_step "Running ship gate"
     cd "$REPO_ROOT"
 
-    if [ "$(uname -s)" = "Darwin" ] && command -v xcodebuild >/dev/null 2>&1; then
-        ralph_log_info "Running macOS ship gate"
-        "$make_cmd" macos-ci
-    else
-        ralph_log_info "Running Rust ship gate"
-        "$make_cmd" ci
-    fi
+    ralph_log_info "Running shared release gate"
+    "$make_cmd" release-gate
 
     local collected_dirty_lines
     collected_dirty_lines=$(release_collect_dirty_lines "$REPO_ROOT") || return 1

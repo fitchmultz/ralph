@@ -13,7 +13,7 @@ Purpose: provide the shortest safe path to ship a Ralph release with the transac
 - `CHANGELOG.md` has release-worthy notes under `## [Unreleased]`.
 - `gh auth status` succeeds.
 - crates.io publish credentials are available.
-- `rustc --version` matches `rust-toolchain.toml`, or your shell is using the pinned rustup toolchain.
+- `make rust-toolchain-drift-check` passes, proving the repo-pinned Rust baseline still matches global rustup stable for this release window.
 
 ## Recommended Flow
 
@@ -50,6 +50,7 @@ scripts/release.sh reconcile <version>
 
 ## Evidence to Capture
 
+- `make rust-toolchain-drift-check` output, or the embedded `release-gate` output from `make release-verify VERSION=<version>`
 - `make release-verify VERSION=<version>` output
 - final `git status --short`
 - `gh release view v<version>`
@@ -58,6 +59,7 @@ scripts/release.sh reconcile <version>
 ## Notes
 
 - `Cargo.lock` is release metadata, not incidental noise.
+- Rust source-build baseline drift is handled by `make rust-toolchain-drift-check`; intentional adoption updates `rust-toolchain.toml` and crate `rust-version` together, not `scripts/versioning.sh sync` alone.
 - A successful `make release-verify` intentionally leaves release metadata dirty until `make release` turns it into the release commit.
 - `target/release-artifacts/` is disposable output owned by the release scripts.
 - `scripts/release.sh reconcile <version>` is the only supported continuation path after a partial remote failure.

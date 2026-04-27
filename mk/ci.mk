@@ -23,7 +23,7 @@ ci: ci-fast build generate install-verify
 	@echo ""
 	@echo "  ✓ CI completed"
 
-release-gate:
+release-gate: rust-toolchain-drift-check
 	@if [ "$$(uname -s)" = "Darwin" ] && command -v xcodebuild >/dev/null 2>&1; then \
 		echo "  → Running macOS release gate"; \
 		$(MAKE) --no-print-directory macos-ci; \

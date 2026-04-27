@@ -12,11 +12,21 @@ $(RALPH_RELEASE_BUILD_STAMP): $(RALPH_RELEASE_STAMP_INPUTS) $(RALPH_CRATE_SOURCE
 	@echo "  ✓ Release build complete"
 
 # Optional but cheap: fail fast if lockfile or network access is busted
-deps:
+deps: rust-toolchain-check
 	@echo "→ Fetching deps (locked)..."
 	@$(RALPH_ENV_RESET); cargo fetch --locked
 	@./scripts/versioning.sh check
 	@echo "  ✓ Deps fetched"
+
+rust-toolchain-check:
+	@echo "→ Checking repo Rust toolchain baseline..."
+	@./scripts/check-rust-toolchain.sh
+	@echo "  ✓ Rust toolchain baseline OK"
+
+rust-toolchain-drift-check:
+	@echo "→ Checking repo Rust toolchain against global stable..."
+	@./scripts/check-rust-toolchain.sh --fail-on-global-stable-drift
+	@echo "  ✓ Rust toolchain drift check OK"
 
 install-verify: $(RALPH_RELEASE_BUILD_STAMP)
 	@ralph_bin_path="$(CURDIR)/target/release/$(BIN_NAME)"; \

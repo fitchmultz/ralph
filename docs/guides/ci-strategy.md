@@ -32,11 +32,12 @@ Behavior:
 - **Tier B — `make ci-fast`**: any non-docs path that is not a Rust crate path and not a macOS ship-surface path (for example repo-only metadata like `.gitignore`).
 - **Tier C — `make ci`**: any change under `crates/**`, plus release/build script changes and `Makefile` edits that touch Rust release/build/install targets (release-shaped Rust: `ci-fast` + release build + schema generation + install checks).
 - **Tier D — `make macos-ci`**: any path that affects the app bundle, committed schemas, toolchain, macOS/Xcode bundling scripts, or `Makefile` macOS build/test targets (`apps/RalphMac/**`, `apps/AGENTS.md`, `schemas/**`, `scripts/ralph-cli-bundle.sh`, `scripts/macos-*.sh`, `scripts/lib/xcodebuild-lock.sh`, `VERSION`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `.cargo/**`).
+- `make ci-fast` runs `make rust-toolchain-check` through `deps`, which verifies the repo-pinned `rust-toolchain.toml` channel, crate `rust-version`, active local rustup override, `rustc`, `cargo`, `rustfmt`, and `clippy` agree.
 - `scripts/agent-ci-surface.sh`, `scripts/lib/release_policy.sh`, and CI/router-only `Makefile` edits deliberately stay below tier D so local tooling changes do not rebuild the Mac app.
 - Tier C **does not** run Xcode or Swift tests; it can miss Swift-side integration drift until a tier D run. Use `RALPH_AGENT_CI_MIN_TIER=macos-ci` or run `make macos-ci` before merge when that risk matters (see below).
 - On source snapshots without `.git/`, falls back to `make release-gate` so verification stays platform-aware instead of assuming macOS-only tooling.
 - The source-snapshot path still fails closed on local/runtime artifacts such as `target/`, unallowlisted `.ralph/*` content, repo-local env files (`.env`, `.env.*`, `.envrc` except `.env.example`), local notes (`.scratchpad.md`, `.FIX_TRACKING.md`), and `apps/RalphMac/build/`.
-- Toolchain drift checks should compare the repo-local override with the global rustup stable toolchain when intentionally bumping Ralph's Rust baseline; the repo-local `rust-toolchain.toml` wins inside the workspace.
+- Toolchain drift checks compare the repo-local override with the global rustup stable toolchain during release/public readiness; the repo-local `rust-toolchain.toml` wins inside the workspace.
 
 Optional environment (see `make help`):
 
@@ -71,9 +72,9 @@ Fast Rust/CLI gate is `make ci-fast`:
 - `check-env-safety` (runs required-file + secret checks everywhere, and adds tracked runtime/local-only file validation when git metadata is available)
 - `check-backup-artifacts`
 - `check-file-size-limits` (same policy behavior as `ci-docs`)
-- `deps`
+- `deps`, including `rust-toolchain-check` and release version metadata checks
 - `format-check`
-- `lint` (`cargo clippy --all-targets --all-features`, which also type-checks the Rust surface)
+- `lint` (`cargo clippy --all-targets/--all-features`, which also type-checks the Rust surface)
 - `test`
 
 File-size guard behavior:
@@ -130,6 +131,7 @@ make release-gate
 
 Behavior:
 
+- first runs `rust-toolchain-drift-check`, which fails when global rustup stable outside the repo override differs from the repo-pinned toolchain
 - runs `macos-ci` on macOS when Xcode is available
 - otherwise runs `ci`
 - is the shared gate used by `make release-verify` and `scripts/pre-public-check.sh`
@@ -147,6 +149,15 @@ make coverage
 ```
 
 `make security-audit` runs `cargo audit --deny warnings` against `Cargo.lock` and requires `cargo-audit` (`cargo install cargo-audit --locked`). Use it during dependency refreshes, Rust baseline audits, and release/public-readiness preparation. It is intentionally not part of the default day-to-day `make agent-ci` tiers so advisory database/network/tool availability does not make every local edit depend on external RustSec freshness.
+
+When a system Rust update is reported, use this local comparison procedure before deciding whether Ralph should adopt it:
+
+```bash
+rustup update stable
+make rust-toolchain-drift-check
+```
+
+If the drift check fails, compare the evidence it prints: global stable is newer than the repo-pinned channel, while commands inside the repository still use `rust-toolchain.toml`. Intentional adoption requires updating `rust-toolchain.toml` and `crates/ralph/Cargo.toml` `rust-version` together, then running `make agent-ci` and the release/public gates for the change surface.
 
 Use `make macos-ui-retest` for interactive iteration. Use `make macos-test-ui-artifacts` when you need a preserved `.xcresult` bundle plus `summary.txt` under a timestamped artifact directory.
 

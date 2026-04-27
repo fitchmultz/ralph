@@ -457,7 +457,7 @@ public_requires_rust_release_gate_for_path() {
 public_requires_rust_release_gate_for_script_path() {
     local path="$1"
     case "$path" in
-        scripts/build-release-artifacts.sh|scripts/release.sh|scripts/versioning.sh|scripts/profile-ship-gate.sh)
+        scripts/build-release-artifacts.sh|scripts/release.sh|scripts/versioning.sh|scripts/profile-ship-gate.sh|scripts/check-rust-toolchain.sh|scripts/lib/release_verify_pipeline.sh)
             return 0
             ;;
     esac

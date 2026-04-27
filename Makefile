@@ -82,6 +82,7 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help install install-verify macos-install-app update security-audit lint lint-fix format format-check type-check clean clean-temp test generate docs build ci ci-fast ci-docs deps \
+	rust-toolchain-check rust-toolchain-drift-check \
 	changelog changelog-preview changelog-check version-check version-sync publish-check release release-dry-run release-verify release-artifacts pre-commit pre-public-check release-gate \
 	profile-ship-gate profile-ship-gate-clean agent-ci check-env-safety check-backup-artifacts check-file-size-limits check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
@@ -115,6 +116,8 @@ help:
 	@echo "  make generate     # Regenerate committed JSON schemas via release binary"
 	@echo "  make update       # Update Rust deps to latest stable; use release-gate/macos-ci to verify the app toolchain"
 	@echo "  make security-audit # Audit Cargo.lock against RustSec advisories (requires cargo-audit)"
+	@echo "  make rust-toolchain-check # Verify repo-pinned Rust toolchain baseline"
+	@echo "  make rust-toolchain-drift-check # Compare repo-pinned Rust against global rustup stable"
 	@echo "  make macos-install-app # Copy latest Release RalphMac.app into Applications"
 	@echo "  make version-check # Verify VERSION, Cargo, and Xcode version metadata are synchronized"
 	@echo "  make version-sync VERSION=x.y.z # Sync repo version metadata from one canonical semver"

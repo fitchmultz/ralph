@@ -258,6 +258,36 @@ fn classifier_routes_cli_bundle_script_to_macos_ci() {
 }
 
 #[test]
+fn classifier_routes_rust_toolchain_check_script_to_ci() {
+    let temp_repo = init_temp_repo();
+    let repo_path = temp_repo.path();
+
+    write_file(
+        &repo_path.join("scripts/check-rust-toolchain.sh"),
+        "#!/usr/bin/env bash\n# toolchain check touched\n",
+    );
+
+    assert_eq!(run_classifier(repo_path, "--target"), "ci");
+    assert!(
+        run_classifier(repo_path, "--reason").contains("release/build script"),
+        "expected release/build script routing explanation"
+    );
+}
+
+#[test]
+fn classifier_routes_release_verify_pipeline_script_to_ci() {
+    let temp_repo = init_temp_repo();
+    let repo_path = temp_repo.path();
+
+    write_file(
+        &repo_path.join("scripts/lib/release_verify_pipeline.sh"),
+        "#!/usr/bin/env bash\n# release verify touched\n",
+    );
+
+    assert_eq!(run_classifier(repo_path, "--target"), "ci");
+}
+
+#[test]
 fn classifier_ignores_previous_branch_commits_when_local_diff_is_docs_only() {
     let temp_repo = init_temp_repo();
     let repo_path = temp_repo.path();
