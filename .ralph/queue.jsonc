@@ -1,43 +1,4 @@
 {
   "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0040",
-      "status": "todo",
-      "title": "Reduce `docs/features/daemon-and-watch.md` and `Makefile` soft-limit warnings",
-      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). Both the daemon/watch feature doc and root Makefile exceed soft file-size thresholds, producing recurring warnings in size gates. Why it matters: gate warning volume grows and hides higher-severity signals, while large mixed-scope files make maintenance slower and riskier. Minimal fix: split daemon/watch documentation into linked subpages and extract Makefile sections into included `.mk` fragments with stable top-level targets.",
-      "priority": "low",
-      "tags": [
-        "maintenance",
-        "docs",
-        "build",
-        "ci"
-      ],
-      "scope": [
-        "docs/features/daemon-and-watch.md",
-        "Makefile",
-        "make check-file-size-limits"
-      ],
-      "evidence": [
-        "workflow: make check-file-size-limits :: warns `835 docs/features/daemon-and-watch.md` and `831 Makefile` above soft threshold.",
-        "path: Makefile :: one monolithic target surface currently mixes help text, CI routing, build/test/release targets, and macOS-specific workflows."
-      ],
-      "plan": [
-        "Split daemon/watch content into focused docs (overview, operations, troubleshooting) and maintain a concise feature index page.",
-        "Refactor Makefile into include-based fragments (for example ci, macos, release) while preserving command compatibility.",
-        "Run command discovery/help checks to confirm no target regressions after Makefile refactor.",
-        "Verify by running `make check-file-size-limits` and confirming both paths are removed from soft warnings."
-      ],
-      "notes": [],
-      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
-      "created_at": "2026-04-27T00:18:10Z",
-      "updated_at": "2026-04-27T00:18:10Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    }
-  ]
+  "tasks": []
 }
