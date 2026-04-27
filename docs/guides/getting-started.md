@@ -693,6 +693,9 @@ Now that you're up and running, here's where to go next:
 
 ### Advanced Features
 
+For deeper multi-phase, parallel, profile, plugin, and automation patterns, see the [Advanced Usage Guide](advanced.md).
+
+
 **Scan for Tasks:**
 
 Automatically discover tasks in your codebase:
