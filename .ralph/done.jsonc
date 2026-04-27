@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "skill": "comprehensive-codebase-audit",
-        "task_kind": "queue_shaping"
+        "task_kind": "queue_shaping",
+        "runner_used": "codex",
+        "skill": "comprehensive-codebase-audit"
       }
     },
     {
@@ -539,9 +539,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths"
       }
     },
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -829,8 +829,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
+        "runner_used": "codex",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "source_report": "/tmp/ralph-report.md"
       }
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "runner_used": "codex",
-        "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
-        "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -1933,6 +1933,46 @@
       "created_at": "2026-04-27T00:18:10Z",
       "updated_at": "2026-04-27T02:25:27.432348000Z",
       "completed_at": "2026-04-27T02:25:27.432348000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0041",
+      "status": "done",
+      "title": "Sync session-management `machine config resolve` example with live contract values",
+      "description": "Principles violated: J (consistency/integrity), G (least astonishment). The session-management doc example for `execution_controls` no longer matches actual machine output (`reasoning_efforts` and `parallel_workers.max`). Why it matters: app/automation implementers can encode incorrect bounds or omit valid effort values when following stale examples. Minimal fix: update the example payload to match current emitted contract values and add a contract-test-backed doc check if available.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "docs",
+        "machine-contract",
+        "app-parity"
+      ],
+      "scope": [
+        "docs/features/session-management.md",
+        "crates/ralph/src/cli/machine/common.rs",
+        "/tmp/ralph-scan-target/debug/ralph machine config resolve"
+      ],
+      "evidence": [
+        "path: docs/features/session-management.md:181-189 :: example lists `reasoning_efforts` as low/medium/high and `parallel_workers.max` as 32.",
+        "workflow: /tmp/ralph-scan-target/debug/ralph machine config resolve | jq :: observed `reasoning_efforts=[\"low\",\"medium\",\"high\",\"xhigh\"]` and `parallel_workers.max=255`.",
+        "path: crates/ralph/src/cli/machine/common.rs:174-188 :: `execution_controls` builder includes `xhigh` and sets max workers to `u8::MAX`."
+      ],
+      "plan": [
+        "Update the session-management machine config sample payload to match current machine contract values.",
+        "Cross-check adjacent docs for copied stale execution-controls examples.",
+        "Add or extend a doc-contract check that compares example fields against current builder defaults when feasible.",
+        "Verify by rerunning `ralph machine config resolve` and confirming documentation example fields match emitted values."
+      ],
+      "notes": [],
+      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
+      "created_at": "2026-04-27T00:18:10Z",
+      "updated_at": "2026-04-27T02:27:30.941214000Z",
+      "completed_at": "2026-04-27T02:27:30.941214000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
