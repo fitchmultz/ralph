@@ -64,8 +64,8 @@ pub(crate) fn set_queue_capacity(capacity: usize) {
 
 pub(crate) fn note_queue_dequeue() {
     let depth = &metrics().queue_depth;
-    let _ = depth.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
-        Some(current.saturating_sub(1))
+    depth.update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+        current.saturating_sub(1)
     });
 }
 

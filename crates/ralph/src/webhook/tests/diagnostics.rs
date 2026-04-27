@@ -84,6 +84,28 @@ fn diagnostics_snapshot_includes_metrics_and_recent_failures() {
 
 #[test]
 #[serial]
+fn diagnostics_queue_dequeue_saturates_at_zero() {
+    reset_webhook_test_state();
+    let repo_root = tempfile::tempdir().expect("tempdir");
+
+    crate::webhook::diagnostics::note_queue_dequeue();
+    crate::webhook::diagnostics::note_queue_dequeue();
+
+    let snapshot = diagnostics_snapshot(repo_root.path(), &WebhookConfig::default(), 10)
+        .expect("status snapshot");
+    assert_eq!(snapshot.queue_depth, 0);
+
+    crate::webhook::diagnostics::note_enqueue_success();
+    crate::webhook::diagnostics::note_queue_dequeue();
+    crate::webhook::diagnostics::note_queue_dequeue();
+
+    let snapshot = diagnostics_snapshot(repo_root.path(), &WebhookConfig::default(), 10)
+        .expect("status snapshot");
+    assert_eq!(snapshot.queue_depth, 0);
+}
+
+#[test]
+#[serial]
 fn diagnostics_capacity_is_zero_when_runtime_not_needed() {
     reset_webhook_test_state();
     let repo_root = tempfile::tempdir().expect("tempdir");
