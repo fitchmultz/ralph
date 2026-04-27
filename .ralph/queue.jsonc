@@ -1,4 +1,274 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0043",
+      "status": "todo",
+      "title": "Redact secret-bearing webhook payload fields before persisting failures",
+      "description": "Principles violated: I (security baseline), J (consistency/integrity), H (operational hygiene). Persisted webhook failure records sanitize `destination` and `error` but still clone `msg.payload` verbatim, so operator-supplied notes and other payload text leak into `.ralph/cache/webhooks/failures.json`. Why it matters: rejected-task notes and other webhook payload text can contain tokens, customer data, or raw error material, and the failure store keeps that content on disk for replay and local inspection. Minimal fix: sanitize or omit secret-bearing payload fields before writing `WebhookFailureRecord`, while keeping enough safe metadata for diagnostics and replay selection. Acceptance criteria: a failing-webhook regression proves persisted failure records no longer contain raw secret-bearing `payload.note` or equivalent unsanitized payload text, replay remains functional with the retained safe payload shape, and `cargo test -p ralph-agent-loop webhook` passes.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "security"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/diagnostics/failure_store.rs",
+        "crates/ralph/src/cli/task/status.rs",
+        "cargo test -p ralph-agent-loop webhook"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:98-112 :: persist_failed_delivery_at_path stores payload: msg.payload.clone() after only sanitizing destination and error",
+        "path: crates/ralph/src/cli/task/status.rs:134-149 :: handle_reject forwards operator-supplied reject notes into notify_task_failed",
+        "workflow: temp path harness using ralph::webhook::send_webhook_payload with note=token=supersecret :: observed .ralph/cache/webhooks/failures.json persisted payload.note=token=supersecret while destination/error were redacted"
+      ],
+      "plan": [
+        "Sanitize or drop secret-bearing payload fields before persisting WebhookFailureRecord entries instead of cloning the raw payload verbatim.",
+        "Preserve only the safe payload metadata needed for replay selection and operator triage, or introduce a separately sanitized persisted payload shape.",
+        "Add focused tests covering reject notes and other payload text that contain secret-like substrings.",
+        "Verify by running `cargo test -p ralph-agent-loop webhook` and confirming persisted failure-store records no longer contain raw secret-bearing payload text."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0044",
+      "status": "todo",
+      "title": "Stop webhook shutdown from flushing delayed retries immediately",
+      "description": "Principles violated: F (fail fast appropriately), G (least astonishment), H (operational hygiene). The webhook retry scheduler currently drains every pending retry into the ready queue when shutdown starts, which bypasses the configured backoff and can block teardown on a bounded send. Why it matters: a retry scheduled far into the future can fire immediately during dispatcher rebuilds or process shutdown, creating surprising retry bursts and slower exits exactly when Ralph is trying to stop cleanly. Minimal fix: treat shutdown as cancellation for pending retries, or persist/reclassify them without re-enqueueing them immediately; do not block scheduler teardown on bounded ready-queue sends. Acceptance criteria: shutdown no longer causes delayed retries to execute early, dispatcher teardown remains bounded, focused scheduler tests cover shutdown cancellation behavior, and `cargo test -p ralph-agent-loop webhook` passes.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "retries"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/worker/runtime/scheduler.rs",
+        "crates/ralph/src/webhook/worker/runtime/dispatcher.rs",
+        "cargo test -p ralph-agent-loop webhook::worker::runtime::scheduler::tests::scheduler_drains_pending_retries_when_shutdown_begins -- --exact"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/webhook/worker/runtime/scheduler.rs:63-90 and 141-181 :: retry_scheduler_loop calls flush_pending_retries on shutdown/disconnect and flush_pending_retries does blocking ready_sender.send(...) for every pending retry",
+        "path: crates/ralph/src/webhook/worker/runtime/dispatcher.rs:191-220 :: WebhookDispatcher::drop joins the scheduler before dropping the ready queue, so teardown waits for the retry drain path",
+        "workflow: cargo test -p ralph-agent-loop webhook::worker::runtime::scheduler::tests::scheduler_drains_pending_retries_when_shutdown_begins -- --exact :: current passing test proves a retry scheduled 60 seconds out is delivered immediately once shutdown begins"
+      ],
+      "plan": [
+        "Replace shutdown-time retry draining with explicit cancellation, persistence, or safe failure accounting that does not enqueue delayed retries early.",
+        "Ensure scheduler teardown cannot block indefinitely on bounded ready-queue sends while shutdown is in progress.",
+        "Update scheduler tests to assert that pending retries are cancelled or recorded safely rather than executed early during shutdown.",
+        "Verify by running `cargo test -p ralph-agent-loop webhook` and confirming delayed retries are not re-enqueued immediately when dispatcher shutdown starts."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0045",
+      "status": "todo",
+      "title": "Restore resolved queue and done paths in parallel-worker cleanup",
+      "description": "Principles violated: J (consistency/integrity), C (DRY knowledge), H (operational hygiene). Parallel-worker post-run cleanup hardcodes `.ralph/queue.jsonc` and `.ralph/done.jsonc` instead of using the resolved queue and done paths that worker execution already honors. Why it matters: repos with custom `queue.file` or `queue.done_file` can leave their real bookkeeping files dirty after worker supervision, so custom queue/done artifacts can leak into worker commits or block finalization even though the default paths were restored. Minimal fix: drive cleanup and dirty-path detection from `resolved.queue_path` / `resolved.done_path` plus the workspace-mapped equivalents instead of hardcoded default filenames. Acceptance criteria: a regression with custom queue and done paths proves worker cleanup restores the real bookkeeping files and leaves no lingering bookkeeping dirtiness, and the targeted parallel supervision tests pass.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "bookkeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/parallel_worker/bookkeeping.rs",
+        "crates/ralph/src/commands/run/supervision/parallel_worker/tests.rs",
+        "cargo test -p ralph-agent-loop parallel"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/supervision/parallel_worker/bookkeeping.rs:25-50 and 74-80 :: RESTORED_BOOKKEEPING_FILES and PARALLEL_BOOKKEEPING_PATHS hardcode default .ralph queue/done paths instead of resolved queue_path/done_path",
+        "path: crates/ralph/src/commands/run/supervision/parallel_worker/tests.rs:81-154 :: restore_bookkeeping_uses_workspace_paths_when_coordinator_paths_are_overridden only changes coordinator paths while the workspace restore still targets hardcoded .ralph/queue.jsonc and .ralph/done.jsonc",
+        "workflow: cargo test -p ralph-agent-loop parallel :: current suite passes without a regression that exercises custom workspace bookkeeping paths during post-run supervision cleanup"
+      ],
+      "plan": [
+        "Replace the hardcoded restore and bookkeeping-dirtiness path lists with resolved queue and done paths mapped into the worker workspace.",
+        "Keep generated cache cleanup separate from resolved bookkeeping restoration so custom queue/done paths remain the single source of truth.",
+        "Add a targeted supervision regression that uses custom queue and done paths and asserts the real bookkeeping files are restored cleanly.",
+        "Verify by running `cargo test -p ralph-agent-loop parallel` and confirming custom queue/done supervision no longer leaves bookkeeping dirtiness behind."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0046",
+      "status": "todo",
+      "title": "Make push_upstream_with_rebase fail or recover when a no-upstream branch is behind remote",
+      "description": "Principles violated: F (fail fast appropriately), J (consistency/integrity), H (operational hygiene). `push_upstream_with_rebase()` can return success for a branch with no upstream even when the local branch is already behind `origin/<branch>`, because the early no-upstream path only checks whether HEAD is ahead of the fallback ref and returns `Ok(())` when it is not. Why it matters: worker finalization and other publish paths can silently leave a branch behind remote while reporting success, which defeats the whole purpose of the rebase-aware push helper in concurrent update scenarios. Minimal fix: when no upstream is configured, treat behind-or-diverged `origin/<branch>` state as work to repair with fetch/rebase/upstream setup rather than as a successful no-op. Acceptance criteria: a regression reproduces the behind-without-upstream scenario and proves the helper either rebases/pushes to a synced state or returns an explicit error, and the git commit helper tests pass.",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "git",
+        "parallel"
+      ],
+      "scope": [
+        "crates/ralph/src/git/commit/rebase_push.rs",
+        "crates/ralph/src/git/commit/tests.rs",
+        "cargo test -p ralph-agent-loop git"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/git/commit/rebase_push.rs:42-60 :: the no-upstream path computes ahead against fallback_upstream and returns Ok(()) when HEAD is not ahead, even before checking whether the branch is behind remote",
+        "workflow: temp path harness calling ralph::git::push_upstream_with_rebase on a no-upstream branch after `git fetch origin ralph/RQ-0940` :: observed RESULT=Ok(()) while `git status --short --branch` still reported `## ralph/RQ-0940...origin/ralph/RQ-0940 [behind 1]`",
+        "path: crates/ralph/src/git/commit/tests.rs:25-90 :: current coverage exercises non-fast-forward recovery and remote-existing upstream setup, but not the behind-without-upstream case"
+      ],
+      "plan": [
+        "Update the no-upstream branch path to distinguish clean synced state from behind-or-diverged fallback-upstream state before returning success.",
+        "Repair behind state by fetching, rebasing, and setting upstream when appropriate, or return an explicit error if automatic recovery is unsafe.",
+        "Add a regression that reproduces the fetched-behind no-upstream scenario and asserts the helper does not report success while still behind remote.",
+        "Verify by running the git helper regression and the broader git commit helper tests, then confirm the reproduced temp harness no longer returns `Ok(())` while behind."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0047",
+      "status": "todo",
+      "title": "Propagate repo context through task-level webhook notifications",
+      "description": "Principles violated: H (operational hygiene), J (consistency/integrity), G (least astonishment). Task-level webhook helpers still build `WebhookContext::default()` even when call sites already know the repo root and task execution context, and failure persistence falls back to the current working directory when `repo_root` is absent. Why it matters: failed-delivery diagnostics and replay can be attributed to the wrong repo in multi-repo or moved-repo workflows, and task-level failure records lose branch/commit context that loop-level events already preserve. Minimal fix: route task start/complete/reject notifications through the context-carrying variants and make repo-root persistence explicit instead of relying on cwd fallback. Acceptance criteria: task-level webhook payloads include repo_root at a minimum, failure-store persistence no longer depends on cwd for normal task events, and focused webhook payload/diagnostics tests pass.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "diagnostics"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/notifications.rs",
+        "crates/ralph/src/commands/run/context.rs",
+        "crates/ralph/src/cli/task/status.rs",
+        "crates/ralph/src/webhook/diagnostics/failure_store.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/webhook/notifications.rs:29-49 :: send_webhook constructs payloads with WebhookContext::default() for task-level helpers",
+        "path: crates/ralph/src/commands/run/context.rs:56-74 :: mark_task_doing uses notify_task_started without propagating resolved repo context",
+        "path: crates/ralph/src/cli/task/status.rs:107-150 :: handle_done and handle_reject emit task webhooks without repo context even though resolved data is available",
+        "path: crates/ralph/src/webhook/diagnostics/failure_store.rs:216-229 :: resolve_repo_root_from_runtime falls back to current_dir whenever payload.context.repo_root is absent"
+      ],
+      "plan": [
+        "Introduce or reuse task-level webhook helpers that accept explicit WebhookContext and thread resolved repo_root, branch, and other cheap context through existing call sites.",
+        "Reduce failure-store reliance on cwd fallback for normal task events so diagnostics stay attached to the emitting repo.",
+        "Add focused webhook payload and diagnostics tests that assert task-level events persist repo_root and resolve failure-store paths from payload context.",
+        "Verify by running the relevant webhook payload and diagnostics tests and confirming task-level failure records no longer depend on cwd fallback."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0048",
+      "status": "todo",
+      "title": "Skip parallel webhook dispatcher startup when webhooks are disabled or unconfigured",
+      "description": "Principles violated: A (KISS), B (YAGNI), H (operational hygiene). Parallel preflight unconditionally starts the webhook runtime, and dispatcher construction does not check whether webhooks are enabled or even have a URL before spawning worker and scheduler threads. Why it matters: every parallel run pays thread and global-runtime overhead even in repos that do not use webhooks, and startup noise or failures can surface for a feature that is effectively off. Minimal fix: gate `init_worker_for_parallel` and dispatcher creation on resolved webhook enablement plus URL presence, and keep diagnostics capacity zero when no runtime is needed. Acceptance criteria: disabled/unconfigured webhook configs do not spawn dispatcher threads during parallel preflight, enabled configs still initialize correctly, and the focused runtime tests cover both gated and active cases.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "webhook",
+        "parallel"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/orchestration/preflight.rs",
+        "crates/ralph/src/webhook/worker/runtime/state.rs",
+        "crates/ralph/src/webhook/worker/runtime/tests.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/orchestration/preflight.rs:135-149 :: parallel preflight always calls init_worker_for_parallel before any webhook event is emitted",
+        "path: crates/ralph/src/webhook/worker/runtime/state.rs:78-115 :: dispatcher_for_config_with_factory builds a dispatcher from settings without checking enabled/url first",
+        "path: crates/ralph/src/webhook/worker/runtime/tests.rs:120-127 :: thread_spawn_failure_is_recoverable_on_later_attempt uses WebhookConfig::default() and still expects 5 spawned threads on recovery",
+        "workflow: cargo test -p ralph-agent-loop webhook::worker::runtime::tests::thread_spawn_failure_is_recoverable_on_later_attempt -- --exact :: current passing test proves default webhook config still drives dispatcher startup"
+      ],
+      "plan": [
+        "Add an explicit resolved-config gate so disabled or URL-less webhook configs do not start the dispatcher in parallel preflight or runtime lookup paths.",
+        "Keep dispatcher rebuild behavior unchanged for enabled configs while ensuring diagnostics capacity and counters stay idle when no runtime is active.",
+        "Extend runtime tests to cover both gated-off and enabled startup behavior.",
+        "Verify by running the focused runtime tests and confirming default webhook config no longer spawns dispatcher threads."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0049",
+      "status": "todo",
+      "title": "Investigate tracked queue and done staleness after best-effort coordinator refresh failures",
+      "description": "Principles violated: J (consistency/integrity), G (least astonishment), H (operational hygiene). The successful worker-finish path tolerates coordinator branch refresh failures, and tracked queue/done files are explicitly excluded from workspace-to-source mirroring, so tracked source bookkeeping may stay stale whenever the local fast-forward step cannot run cleanly. Why it matters: operators can see a successful worker and updated remote branch while their local tracked queue/done files still show pre-integration state, which invites repeated work or incorrect manual recovery. Minimal fix if confirmed: either make tracked bookkeeping refresh explicit after a successful worker push or surface a blocking error when the source branch cannot be refreshed cleanly. Acceptance criteria: a focused regression or temp harness proves whether tracked source queue/done can stay stale after a successful worker completion with refresh failure; go if stale local bookkeeping persists, no-go if source files are already refreshed or the flow correctly blocks.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "investigate"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/orchestration/events.rs",
+        "crates/ralph/src/commands/run/parallel/sync/mod.rs",
+        "crates/ralph/src/commands/run/parallel/orchestration/events.rs::tests"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/orchestration/events.rs:115-117 and 180-187 :: successful worker completion only does a best-effort fast-forward refresh before syncing bookkeeping back to source",
+        "path: crates/ralph/src/commands/run/parallel/sync/mod.rs:80-85 and 158-166 :: tracked queue/done files are left to git branch updates and are never mirrored back from the workspace on success",
+        "path: crates/ralph/src/commands/run/parallel/orchestration/events.rs:438-467 :: finished_success_tolerates_branch_refresh_failure proves success is still reported when coordinator refresh fails, but there is no assertion that tracked source bookkeeping stays current"
+      ],
+      "plan": [
+        "Build a focused temp-repo repro where queue/done are tracked, worker completion succeeds, and local coordinator refresh is forced to fail.",
+        "Observe whether the local tracked queue/done files remain stale even though the worker success path returns Ok and remote integration succeeds.",
+        "If confirmed, implement explicit tracked bookkeeping refresh or promote the refresh failure to a surfaced operator-facing failure path.",
+        "Verify by adding a regression for the forced-refresh-failure scenario and confirming the local source queue/done files are either refreshed or the run surfaces a blocking error instead of silently succeeding."
+      ],
+      "notes": [],
+      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
+      "created_at": "2026-04-27T03:11:26Z",
+      "updated_at": "2026-04-27T03:11:26Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    }
+  ]
 }
