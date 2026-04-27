@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.4:xhigh"
+        "model_used": "openai-codex/gpt-5.4:xhigh",
+        "runner_used": "pi"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "skill": "comprehensive-codebase-audit",
         "task_kind": "queue_shaping",
-        "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -610,9 +610,9 @@
       "relates_to": [],
       "custom_fields": {
         "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "model_used": "gpt-5.4"
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
       }
     },
     {
@@ -688,8 +688,8 @@
       "custom_fields": {
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -1737,6 +1737,43 @@
       "created_at": "2026-04-27T00:18:10Z",
       "updated_at": "2026-04-27T02:11:00.505798000Z",
       "completed_at": "2026-04-27T02:11:00.505798000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0035",
+      "status": "done",
+      "title": "Split `docs/guides/advanced.md` below soft file-size threshold",
+      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). `advanced.md` exceeds the repo soft size guardrail and contributes to recurring gate warnings. Why it matters: oversized docs are harder to navigate and keep current, and warning noise can hide higher-severity gate signals. Minimal fix: split into linked sub-guides by advanced workflow domain and keep index-style navigation in the parent guide.",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "docs",
+        "ci"
+      ],
+      "scope": [
+        "docs/guides/advanced.md",
+        "make check-file-size-limits"
+      ],
+      "evidence": [
+        "workflow: make check-file-size-limits :: warns `976 docs/guides/advanced.md` above soft threshold.",
+        "workflow: CARGO_TARGET_DIR=/tmp/ralph-scan-target make ci-fast :: stops early at file-size checks, surfacing this warning set every run."
+      ],
+      "plan": [
+        "Identify logical advanced-guide sections suitable for dedicated child documents.",
+        "Move content into split docs and leave concise, canonical navigation in `advanced.md`.",
+        "Update cross-links and index references to new document locations.",
+        "Verify by running `make check-file-size-limits` and confirming `docs/guides/advanced.md` no longer appears in soft offenders."
+      ],
+      "notes": [],
+      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
+      "created_at": "2026-04-27T00:18:10Z",
+      "updated_at": "2026-04-27T02:12:40.061088000Z",
+      "completed_at": "2026-04-27T02:12:40.061088000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
