@@ -40,44 +40,6 @@
       }
     },
     {
-      "id": "RQ-0045",
-      "status": "todo",
-      "title": "Restore resolved queue and done paths in parallel-worker cleanup",
-      "description": "Principles violated: J (consistency/integrity), C (DRY knowledge), H (operational hygiene). Parallel-worker post-run cleanup hardcodes `.ralph/queue.jsonc` and `.ralph/done.jsonc` instead of using the resolved queue and done paths that worker execution already honors. Why it matters: repos with custom `queue.file` or `queue.done_file` can leave their real bookkeeping files dirty after worker supervision, so custom queue/done artifacts can leak into worker commits or block finalization even though the default paths were restored. Minimal fix: drive cleanup and dirty-path detection from `resolved.queue_path` / `resolved.done_path` plus the workspace-mapped equivalents instead of hardcoded default filenames. Acceptance criteria: a regression with custom queue and done paths proves worker cleanup restores the real bookkeeping files and leaves no lingering bookkeeping dirtiness, and the targeted parallel supervision tests pass.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "bookkeeping"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/supervision/parallel_worker/bookkeeping.rs",
-        "crates/ralph/src/commands/run/supervision/parallel_worker/tests.rs",
-        "cargo test -p ralph-agent-loop parallel"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/commands/run/supervision/parallel_worker/bookkeeping.rs:25-50 and 74-80 :: RESTORED_BOOKKEEPING_FILES and PARALLEL_BOOKKEEPING_PATHS hardcode default .ralph queue/done paths instead of resolved queue_path/done_path",
-        "path: crates/ralph/src/commands/run/supervision/parallel_worker/tests.rs:81-154 :: restore_bookkeeping_uses_workspace_paths_when_coordinator_paths_are_overridden only changes coordinator paths while the workspace restore still targets hardcoded .ralph/queue.jsonc and .ralph/done.jsonc",
-        "workflow: cargo test -p ralph-agent-loop parallel :: current suite passes without a regression that exercises custom workspace bookkeeping paths during post-run supervision cleanup"
-      ],
-      "plan": [
-        "Replace the hardcoded restore and bookkeeping-dirtiness path lists with resolved queue and done paths mapped into the worker workspace.",
-        "Keep generated cache cleanup separate from resolved bookkeeping restoration so custom queue/done paths remain the single source of truth.",
-        "Add a targeted supervision regression that uses custom queue and done paths and asserts the real bookkeeping files are restored cleanly.",
-        "Verify by running `cargo test -p ralph-agent-loop parallel` and confirming custom queue/done supervision no longer leaves bookkeeping dirtiness behind."
-      ],
-      "notes": [],
-      "request": "scan: parallel run bookkeeping, worker workspace sync, git push/rebase races, and webhook delivery retries/redaction",
-      "created_at": "2026-04-27T03:11:26Z",
-      "updated_at": "2026-04-27T03:11:26Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0046",
       "status": "todo",
       "title": "Make push_upstream_with_rebase fail or recover when a no-upstream branch is behind remote",
