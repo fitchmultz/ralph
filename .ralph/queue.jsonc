@@ -49,42 +49,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0036",
-      "status": "todo",
-      "title": "Split `docs/features/plugins.md` below soft file-size threshold",
-      "description": "Principles violated: A (KISS), D (localize change), H (operational hygiene). The plugins feature doc is above the soft size guardrail. Why it matters: plugin behavior and safety rules are high-change areas; monolithic docs increase drift risk and slow targeted updates. Minimal fix: split plugin architecture, lifecycle, and operator workflows into smaller linked docs while preserving one canonical entry point.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "docs",
-        "plugins"
-      ],
-      "scope": [
-        "docs/features/plugins.md",
-        "make check-file-size-limits"
-      ],
-      "evidence": [
-        "workflow: make check-file-size-limits :: warns `975 docs/features/plugins.md` above soft threshold.",
-        "path: docs/features/plugins.md :: single-file feature reference currently carries multiple concerns (architecture, usage, troubleshooting) in one surface."
-      ],
-      "plan": [
-        "Refactor plugin doc into topic-specific files with stable anchors from the parent feature page.",
-        "Keep compatibility and trust-safety guidance centralized and cross-linked.",
-        "Run markdown link checks and docs sanity checks after split.",
-        "Verify by running `make check-file-size-limits` and confirming `docs/features/plugins.md` is removed from soft warnings."
-      ],
-      "notes": [],
-      "request": "scan: queue/load/save correctness, runner subprocess boundaries, macOS app <-> CLI parity, and trust/untrusted-repo safety",
-      "created_at": "2026-04-27T00:18:10Z",
-      "updated_at": "2026-04-27T00:18:10Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0038",
       "status": "todo",
       "title": "Split `docs/features/configuration.md` below soft file-size threshold",
