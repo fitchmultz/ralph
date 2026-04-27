@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -194,9 +194,9 @@
       "relates_to": [],
       "custom_fields": {
         "task_kind": "queue_shaping",
+        "skill": "comprehensive-codebase-audit",
         "runner_used": "codex",
-        "model_used": "gpt-5.4",
-        "skill": "comprehensive-codebase-audit"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -610,8 +610,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "runner_used": "codex"
       }
     },
@@ -687,9 +687,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -761,9 +761,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4",
         "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
       }
     },
     {
@@ -2399,10 +2399,10 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
-        "reported_command": "ralph run loop --parallel 2",
         "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "model_used": "openai-codex/gpt-5.5",
         "runner_used": "pi",
+        "reported_command": "ralph run loop --parallel 2",
         "severity_reason": "parallel-mode task state/data integrity loss"
       }
     },
@@ -2529,8 +2529,8 @@
         "RQ-0056"
       ],
       "custom_fields": {
-        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers.",
-        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths."
+        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths.",
+        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers."
       }
     },
     {
@@ -2715,8 +2715,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
       }
     },
     {
@@ -2825,6 +2825,63 @@
       "relates_to": [],
       "custom_fields": {
         "rust_feature": "Rust 1.95 compiler/security, rustdoc, and LLVM updates"
+      }
+    },
+    {
+      "id": "RQ-0055",
+      "status": "done",
+      "title": "Codify Rust 1.95.0 best-practice verification in local gates",
+      "description": "After the Rust 1.95.0 baseline, language/API adoption, compatibility audit, and dependency/security/doc checks are complete, consolidate recurring verification into Ralph's canonical local gates. The outcome should be a clear `make agent-ci` / release-gate story that catches future toolchain drift, including repo-local rustup overrides masking global stable updates, without duplicating CI logic or creating another source of truth.",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ci",
+        "verification",
+        "maintenance"
+      ],
+      "scope": [
+        "Makefile",
+        "scripts/versioning.sh",
+        "scripts/pre-public-check.sh",
+        "docs/guides/ci-strategy.md",
+        "docs/guides/local-smoke-test.md",
+        "docs/releasing.md",
+        "docs/guides/release-runbook.md",
+        "AGENTS.md",
+        "make agent-ci",
+        "make release-gate"
+      ],
+      "evidence": [
+        "Repository guidance says `make agent-ci` is the canonical local gate and `make release-gate` is required for release windows.",
+        "The root cause of the initial wrong-version task set was that the repo-local `rust-toolchain.toml` override reported 1.94.1 inside the project while global rustup stable was 1.95.0.",
+        "Rust 1.95.0 introduces language/API adoption opportunities plus compatibility and security checks that should be verified consistently instead of through ad hoc audits."
+      ],
+      "plan": [
+        "Review the outcomes of RQ-0050 through RQ-0054 and identify which checks belong in routine branch CI, release gates, documentation, or one-off audit notes.",
+        "Update Makefile/scripts/docs so toolchain version checks, Rust 1.95 compatibility lints, Clippy, dependency/security checks, rustdoc checks, and docs drift checks are covered at the right cadence.",
+        "Add a lightweight documented procedure for comparing repo-local active toolchain against global rustup stable when a system Rust update is reported.",
+        "Avoid duplicate workflows; keep GitHub Actions out of scope unless maintainers make a new explicit decision.",
+        "Run `make agent-ci` and, if release-facing files changed, `make release-gate` or the documented narrower equivalent."
+      ],
+      "notes": [
+        "This task intentionally depends on the other Rust 1.95.0 work so it can consolidate final policy rather than guessing upfront.",
+        "If a check is too expensive for routine use, document why it belongs in release/public-readiness gates instead."
+      ],
+      "request": "Rust has been updated on this system. Research new features and best practices for the new version and create tasks in the ralph queue.jsonc to have the project updated to use all best practices with the newest version.",
+      "created_at": "2026-04-27T13:56:36Z",
+      "updated_at": "2026-04-27T17:10:17.902168000Z",
+      "completed_at": "2026-04-27T17:10:17.902168000Z",
+      "depends_on": [
+        "RQ-0050",
+        "RQ-0051",
+        "RQ-0052",
+        "RQ-0053",
+        "RQ-0054"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "purpose": "Consolidate Rust 1.95.0 best-practice verification"
       }
     }
   ]
