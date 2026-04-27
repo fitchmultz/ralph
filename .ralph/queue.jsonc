@@ -2,57 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0053",
-      "status": "todo",
-      "title": "Run the Rust 1.95 compatibility and future-incompatibility audit",
-      "description": "Use Rust 1.95.0's compatibility notes as a checklist for build, lint, target, and code-generation risks. The task should make any new warnings or behavior changes explicit, especially custom target JSON destabilization, ambiguous glob-imported traits, derive helper attribute conflicts, array coercion inference changes, non-exhaustive enum matching changes, and stricter feature-attribute checking.",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "compatibility",
-        "ci",
-        "migration"
-      ],
-      "scope": [
-        ".cargo/config.toml",
-        "Cargo.toml",
-        "crates/ralph/Cargo.toml",
-        "crates/ralph/src/",
-        "crates/ralph/tests/",
-        "scripts/",
-        "docs/guides/ci-strategy.md",
-        "cargo check --all-targets --all-features",
-        "cargo clippy --all-targets --all-features -- -D warnings",
-        "make agent-ci"
-      ],
-      "evidence": [
-        "Rust 1.95.0 compatibility notes include future-incompatibility lint `ambiguous_glob_imported_traits`, stricter visibility/import errors, derive helper attribute conflict warnings, lifetime-bound checks, JSON target spec destabilization requiring `-Z unstable-options`, and array coercion inference changes.",
-        "Ralph has platform-specific code for Unix/Windows process handling, macOS app integration, and many test hubs with broad imports, so a compatibility audit is higher value than relying on a normal build alone.",
-        "The repo's canonical local gate is `make agent-ci`; any new Rust 1.95 compatibility checks should flow through local gates rather than remote CI."
-      ],
-      "plan": [
-        "Run full check/clippy/test gates under Rust 1.95.0 and capture all new warnings or errors.",
-        "Search scripts and config for custom JSON target specs, `-Z` flags, target-specific rustflags, and assumptions affected by LLVM 22 or platform support changes.",
-        "Audit broad glob imports and derives for future-incompatibility warnings; replace risky patterns with explicit imports or attributes where practical.",
-        "Update docs or Makefile checks if a durable compatibility guard should be added."
-      ],
-      "notes": [
-        "If the repo keeps `rust-version = 1.94` while developing with 1.95, document which 1.95-only syntax/APIs are allowed in the binary crate and why.",
-        "Do not silence future-incompatibility lints without a documented reason and cleanup path."
-      ],
-      "request": "Rust has been updated on this system. Research new features and best practices for the new version and create tasks in the ralph queue.jsonc to have the project updated to use all best practices with the newest version.",
-      "created_at": "2026-04-27T13:56:36Z",
-      "updated_at": "2026-04-27T13:59:11Z",
-      "depends_on": [
-        "RQ-0050"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "rust_feature": "Rust 1.95 compatibility notes"
-      }
-    },
-    {
       "id": "RQ-0054",
       "status": "todo",
       "title": "Refresh dependencies, Clippy, rustdoc, and security posture under Rust 1.95.0",
