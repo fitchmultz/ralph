@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.4:xhigh"
+        "model_used": "openai-codex/gpt-5.4:xhigh",
+        "runner_used": "pi"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "task_kind": "queue_shaping",
-        "skill": "comprehensive-codebase-audit"
+        "skill": "comprehensive-codebase-audit",
+        "runner_used": "codex",
+        "task_kind": "queue_shaping"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths"
       }
     },
     {
@@ -610,9 +610,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
+        "runner_used": "codex"
       }
     },
     {
@@ -761,9 +761,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
-        "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -2399,11 +2399,11 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
-        "runner_used": "pi",
         "reported_command": "ralph run loop --parallel 2",
+        "runner_used": "pi",
         "severity_reason": "parallel-mode task state/data integrity loss",
-        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete"
+        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "model_used": "openai-codex/gpt-5.5"
       }
     },
     {
@@ -2941,6 +2941,65 @@
       "updated_at": "2026-04-28T17:59:06.353614000Z",
       "completed_at": "2026-04-28T17:59:06.353614000Z",
       "started_at": "2026-04-28T17:32:40.558905000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "openai-codex/gpt-5.5",
+        "runner_used": "pi"
+      }
+    },
+    {
+      "id": "RQ-0060",
+      "status": "done",
+      "title": "Suppress pi-facing runner buffer truncation warning noise",
+      "description": "Stop surfacing Ralph's internal runner output buffer truncation warning during pi-runner usage while preserving the bounded-buffer safeguard itself. The current stream buffering path logs `Runner output buffer exceeded 10MB limit; truncating older content`, which leaks an implementation-detail warning into operator-visible output during pi sessions. The desired outcome is that pi runs no longer show this warning on our side, buffer truncation still protects memory usage, and regression coverage proves the suppression does not hide real failures or break runner stream handling.",
+      "priority": "high",
+      "tags": [
+        "pi",
+        "runner",
+        "streaming",
+        "logging",
+        "ux",
+        "bug"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/stream_buffer.rs",
+        "crates/ralph/src/runner/execution/stream.rs",
+        "crates/ralph/src/runner/execution/stream_reader.rs",
+        "crates/ralph/src/runner/execution/process/mod.rs",
+        "crates/ralph/src/runner/execution/builtin_plugins/pi.rs",
+        "crates/ralph/src/runner/execution/tests/stream.rs",
+        "crates/ralph/src/runner/execution/tests/stream/readers.rs",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "User request: suppress the operator-visible warning seen during pi runner sessions: `[2026-04-28T18:18:14Z WARN  ralph::runner::execution::stream::stream_buffer] Runner output buffer exceeded 10MB limit; truncating older content`.",
+        "`crates/ralph/src/runner/execution/stream_buffer.rs` is the single shared buffer truncation helper. `append_to_buffer(...)` enforces `MAX_BUFFER_SIZE` by preserving the newest text, using UTF-8-safe `floor_char_boundary(...)`, and currently emits the noisy `log::warn!` once per reader via `exceeded_logged`.",
+        "`crates/ralph/src/runner/execution/stream_reader.rs` routes both raw stderr (`spawn_reader` -> `handle_raw_text`) and JSON stdout (`spawn_json_reader` -> `handle_json_text`) through `append_to_buffer(...)`; the helper's warning therefore affects pi even though the truncation safeguard is cross-runner shared behavior.",
+        "`crates/ralph/src/runner/execution/process/mod.rs` wires every plugin runner, including pi, to `spawn_json_reader` for stdout and `spawn_reader` for stderr. Pi's built-in plugin (`builtin_plugins/pi.rs`) emits JSON mode output, but does not own the buffer warning.",
+        "Existing reader regression tests live under `crates/ralph/src/runner/execution/tests/stream/readers.rs` and already exercise buffer and line limits; they are the narrowest test surface to extend for tail preservation, warning suppression, and non-warning failure signaling."
+      ],
+      "plan": [
+        "Remove or downgrade the `log::warn!` in `append_to_buffer(...)` so bounded-buffer truncation is silent in normal operator-visible logging while retaining the exact 10MB truncation behavior and UTF-8-safe tail preservation.",
+        "Keep the separate `Runner output line exceeded ...` warnings in `stream_reader.rs` unless implementation evidence proves they are the same pi-facing noise; line truncation is a different signal from bounded capture tail management.",
+        "Update stream regression coverage around oversized raw and JSON runner output to prove buffers remain bounded at `MAX_BUFFER_SIZE`, newest content is retained, reader threads still complete successfully, and the buffer-truncation warning text is not logged or emitted through output handlers.",
+        "Add any small test-only helper needed near the stream tests or stream_buffer unit tests; avoid widening production APIs unless required, and keep new helpers `#[cfg(test)]`.",
+        "Run focused stream tests first, then `make agent-ci`; fix any failures before reporting completion."
+      ],
+      "notes": [
+        "Phase 1 reconnaissance found no need to change pi command construction. The implementation-detail warning originates in Ralph's shared stream buffer, not in the pi plugin.",
+        "Preferred implementation is to make buffer truncation non-warning logging (ideally no log, or at most `debug`/`trace`) rather than global log filtering. Global filtering would risk hiding unrelated warnings and would not prove the shared buffer behavior remains correct.",
+        "If using log-capture assertions, account for Rust's process-global logger: follow existing best-effort in-memory logger patterns or use direct stream_buffer unit tests where possible.",
+        "Suppressed shared runner buffer truncation warning by removing the warn path.",
+        "Kept runner output buffers bounded with UTF-8-safe tail truncation, including mid-character boundaries.",
+        "Added raw/JSON oversized-output and read-error regression coverage; make agent-ci passed."
+      ],
+      "request": "The following warning appears when using the pi runner. It is a warning pi outputs. suppress this so it doesnt show on our side: [2026-04-28T18:18:14Z WARN  ralph::runner::execution::stream::stream_buffer] Runner output buffer exceeded 10MB limit; truncating older content",
+      "created_at": "2026-04-28T18:19:42Z",
+      "updated_at": "2026-04-28T18:55:33.910585000Z",
+      "completed_at": "2026-04-28T18:55:33.910585000Z",
+      "started_at": "2026-04-28T18:22:46.230606000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

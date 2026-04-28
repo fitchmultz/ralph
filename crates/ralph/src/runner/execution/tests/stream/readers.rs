@@ -53,6 +53,14 @@ impl Read for ChunkedReader {
     }
 }
 
+struct ErrorReader;
+
+impl Read for ErrorReader {
+    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+        Err(io::Error::other("simulated read failure"))
+    }
+}
+
 #[test]
 fn max_line_length_constant_is_10mb() {
     // Verify the constant is set to expected 10MB value (reduced from 100MB)
@@ -147,27 +155,72 @@ fn spawn_json_reader_handles_multiple_lines_within_limit() {
 }
 
 #[test]
-fn spawn_reader_enforces_buffer_limit() {
-    // Create input that exceeds MAX_BUFFER_SIZE
-    // Use owned data to satisfy 'static requirement
-    let oversized_data: Vec<u8> = vec![b'x'; MAX_BUFFER_SIZE + 10000];
-    let reader = Cursor::new(oversized_data);
+fn spawn_json_reader_enforces_buffer_limit_and_preserves_latest_tail() {
+    let tail_marker = "TAIL_JSON_MARKER";
+    let mut input = String::new();
+    let line = "{\"type\":\"text\",\"part\":{\"text\":\"payload\"}}\n";
+    while input.len() <= MAX_BUFFER_SIZE + 10_000 {
+        input.push_str(line);
+    }
+    let tail_line = format!(
+        "{{\"type\":\"text\",\"part\":{{\"text\":\"{}\"}}}}\n",
+        tail_marker
+    );
+    input.push_str(&tail_line);
+
+    let reader = Cursor::new(input.into_bytes());
     let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let session_id_buf: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+
+    let handle = spawn_json_reader(
+        reader,
+        StreamSink::Stdout,
+        Arc::clone(&buffer),
+        None,
+        OutputStream::HandlerOnly,
+        session_id_buf,
+    );
+
+    let result = handle.join().unwrap();
+    assert!(result.is_ok());
+
+    let guard = buffer.lock().unwrap();
+    assert!(guard.len() <= MAX_BUFFER_SIZE);
+    assert!(guard.contains(tail_marker));
+    assert!(guard.ends_with(&tail_line));
+}
+
+#[test]
+fn spawn_reader_enforces_buffer_limit_and_preserves_latest_tail() {
+    let tail_marker = "TAIL_MARKER";
+    let mut oversized_data = vec![b'x'; MAX_BUFFER_SIZE + 10_000];
+    oversized_data.extend_from_slice(tail_marker.as_bytes());
+    let reader = Cursor::new(oversized_data.clone());
+    let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let handled = Arc::new(Mutex::new(Vec::new()));
+    let handler: OutputHandler = Arc::new(Box::new({
+        let handled = Arc::clone(&handled);
+        move |text: &str| handled.lock().unwrap().push(text.to_string())
+    }));
 
     let handle = spawn_reader(
         reader,
         StreamSink::Stderr,
         Arc::clone(&buffer),
-        None,
+        Some(handler),
         OutputStream::HandlerOnly,
     );
 
     let result = handle.join().unwrap();
     assert!(result.is_ok());
 
-    // The buffer should be truncated to MAX_BUFFER_SIZE
     let guard = buffer.lock().unwrap();
     assert!(guard.len() <= MAX_BUFFER_SIZE);
+    assert!(guard.ends_with(tail_marker));
+
+    let handled = handled.lock().unwrap().concat();
+    assert_eq!(handled.len(), oversized_data.len());
+    assert!(handled.ends_with(tail_marker));
 }
 
 #[test]
@@ -260,6 +313,46 @@ fn spawn_reader_handles_empty_input() {
 
     let guard = buffer.lock().unwrap();
     assert!(guard.is_empty());
+}
+
+#[test]
+fn spawn_reader_propagates_read_errors() {
+    let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+
+    let handle = spawn_reader(
+        ErrorReader,
+        StreamSink::Stderr,
+        Arc::clone(&buffer),
+        None,
+        OutputStream::HandlerOnly,
+    );
+
+    let result = handle.join().unwrap();
+    let err = result.expect_err("reader should report read failures");
+    let message = format!("{err:#}");
+    assert!(message.contains("read child output"));
+    assert!(message.contains("simulated read failure"));
+}
+
+#[test]
+fn spawn_json_reader_propagates_read_errors() {
+    let buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let session_id_buf: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+
+    let handle = spawn_json_reader(
+        ErrorReader,
+        StreamSink::Stdout,
+        Arc::clone(&buffer),
+        None,
+        OutputStream::HandlerOnly,
+        session_id_buf,
+    );
+
+    let result = handle.join().unwrap();
+    let err = result.expect_err("json reader should report read failures");
+    let message = format!("{err:#}");
+    assert!(message.contains("read child output"));
+    assert!(message.contains("simulated read failure"));
 }
 
 #[test]

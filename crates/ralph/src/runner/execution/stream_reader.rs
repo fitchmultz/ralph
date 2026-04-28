@@ -49,7 +49,6 @@ pub(crate) fn spawn_reader<R: Read + Send + 'static>(
     thread::spawn(move || {
         let mut buf = [0u8; 8192];
         let mut decoder = Utf8ChunkDecoder::default();
-        let mut buffer_exceeded_logged = false;
         loop {
             let read = reader.read(&mut buf).context("read child output")?;
             if read == 0 {
@@ -58,20 +57,10 @@ pub(crate) fn spawn_reader<R: Read + Send + 'static>(
             sink.write_all(&buf[..read], output_stream)
                 .context("stream child output")?;
             let text = decoder.decode(&buf[..read]);
-            handle_raw_text(
-                &text,
-                &buffer,
-                &mut buffer_exceeded_logged,
-                output_handler.as_ref(),
-            )?;
+            handle_raw_text(&text, &buffer, output_handler.as_ref())?;
         }
         let text = decoder.finish();
-        handle_raw_text(
-            &text,
-            &buffer,
-            &mut buffer_exceeded_logged,
-            output_handler.as_ref(),
-        )?;
+        handle_raw_text(&text, &buffer, output_handler.as_ref())?;
         Ok(())
     })
 }
@@ -145,7 +134,6 @@ struct Utf8ChunkDecoder {
 struct JsonReaderState {
     line_buf: String,
     line_length_exceeded: bool,
-    buffer_exceeded_logged: bool,
     tool_tracker: ToolCallTracker,
 }
 
@@ -201,7 +189,6 @@ impl Utf8ChunkDecoder {
 fn handle_raw_text(
     text: &str,
     buffer: &Arc<Mutex<String>>,
-    buffer_exceeded_logged: &mut bool,
     output_handler: Option<&OutputHandler>,
 ) -> anyhow::Result<()> {
     if text.is_empty() {
@@ -212,7 +199,7 @@ fn handle_raw_text(
     let mut guard = buffer
         .lock()
         .map_err(|_| anyhow::anyhow!("lock output buffer"))?;
-    append_to_buffer(&mut guard, text, buffer_exceeded_logged);
+    append_to_buffer(&mut guard, text);
 
     if let Some(handler) = output_handler {
         handler(text);
@@ -263,7 +250,7 @@ fn handle_json_text(
     let mut guard = buffer
         .lock()
         .map_err(|_| anyhow::anyhow!("lock output buffer"))?;
-    append_to_buffer(&mut guard, text, &mut state.buffer_exceeded_logged);
+    append_to_buffer(&mut guard, text);
 
     Ok(())
 }

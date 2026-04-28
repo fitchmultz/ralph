@@ -20,36 +20,50 @@
 
 use crate::constants::buffers::MAX_BUFFER_SIZE;
 
-/// Append text to buffer, truncating older content if MAX_BUFFER_SIZE would be exceeded.
-/// Returns true if truncation occurred for the first time, false otherwise.
-pub(super) fn append_to_buffer(
-    buffer: &mut String,
-    text: &str,
-    exceeded_logged: &mut bool,
-) -> bool {
+/// Append text to a bounded runner-output buffer, truncating older content when needed.
+pub(super) fn append_to_buffer(buffer: &mut String, text: &str) {
     if buffer.len() + text.len() > MAX_BUFFER_SIZE {
-        let should_log = !*exceeded_logged;
-        if should_log {
-            log::warn!(
-                "Runner output buffer exceeded {}MB limit; truncating older content",
-                MAX_BUFFER_SIZE / (1024 * 1024)
-            );
-            *exceeded_logged = true;
-        }
         if text.len() >= MAX_BUFFER_SIZE {
             buffer.clear();
-            let start = text.floor_char_boundary(text.len() - MAX_BUFFER_SIZE);
+            let start = text.ceil_char_boundary(text.len() - MAX_BUFFER_SIZE);
             buffer.push_str(&text[start..]);
         } else {
             let keep_from = buffer.len() + text.len() - MAX_BUFFER_SIZE;
-            let start = buffer.floor_char_boundary(keep_from);
+            let start = buffer.ceil_char_boundary(keep_from);
             let remaining = buffer.split_off(start);
             *buffer = remaining;
             buffer.push_str(text);
         }
-        should_log
     } else {
         buffer.push_str(text);
-        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn append_to_buffer_stays_bounded_across_repeated_truncation() {
+        let mut buffer = "a".repeat(MAX_BUFFER_SIZE - 4);
+
+        append_to_buffer(&mut buffer, "123456");
+        assert_eq!(buffer.len(), MAX_BUFFER_SIZE);
+        assert!(buffer.ends_with("123456"));
+
+        append_to_buffer(&mut buffer, "zz");
+        assert_eq!(buffer.len(), MAX_BUFFER_SIZE);
+        assert!(buffer.ends_with("zz"));
+    }
+
+    #[test]
+    fn append_to_buffer_oversized_chunk_keeps_latest_utf8_tail() {
+        let mut buffer = "old-prefix".to_string();
+        let oversized = format!("{}t", "😀".repeat(MAX_BUFFER_SIZE / 4));
+
+        append_to_buffer(&mut buffer, &oversized);
+        assert!(buffer.len() <= MAX_BUFFER_SIZE);
+        assert!(buffer.ends_with('t'));
+        assert!(!buffer.contains("old-prefix"));
     }
 }
