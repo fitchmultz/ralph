@@ -120,6 +120,67 @@ fn sync_ralph_state_copies_allowlisted_ignored_glob_matches() -> Result<()> {
 }
 
 #[test]
+fn sync_ralph_state_copies_allowlisted_file_under_ignored_directory_root() -> Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::create_dir_all(&workspace_root)?;
+
+    fs::write(repo_root.join(".gitignore"), "config/\n")?;
+    fs::create_dir_all(repo_root.join("config"))?;
+    fs::write(repo_root.join("config/local.json"), "local config")?;
+    fs::write(repo_root.join("config/other.json"), "do not copy")?;
+
+    let resolved =
+        build_test_resolved_with_ignored_allowlist(&repo_root, vec!["config/local.json"]);
+
+    sync_gitignored_impl::preflight_parallel_ignored_file_allowlist(&resolved, &workspace_root)?;
+    sync_ralph_state(&resolved, &workspace_root)?;
+
+    assert_eq!(
+        fs::read_to_string(workspace_root.join("config/local.json"))?,
+        "local config"
+    );
+    assert!(!workspace_root.join("config/other.json").exists());
+    Ok(())
+}
+
+#[test]
+fn sync_ralph_state_copies_allowlisted_glob_under_ignored_directory_root() -> Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::create_dir_all(&workspace_root)?;
+
+    fs::write(repo_root.join(".gitignore"), "config/\n")?;
+    fs::create_dir_all(repo_root.join("config"))?;
+    fs::write(repo_root.join("config/local-a.json"), "a")?;
+    fs::write(repo_root.join("config/local-b.json"), "b")?;
+    fs::write(repo_root.join("config/other.json"), "other")?;
+
+    let resolved =
+        build_test_resolved_with_ignored_allowlist(&repo_root, vec!["config/local-*.json"]);
+
+    sync_gitignored_impl::preflight_parallel_ignored_file_allowlist(&resolved, &workspace_root)?;
+    sync_ralph_state(&resolved, &workspace_root)?;
+
+    assert_eq!(
+        fs::read_to_string(workspace_root.join("config/local-a.json"))?,
+        "a"
+    );
+    assert_eq!(
+        fs::read_to_string(workspace_root.join("config/local-b.json"))?,
+        "b"
+    );
+    assert!(!workspace_root.join("config/other.json").exists());
+    Ok(())
+}
+
+#[test]
 fn preflight_parallel_ignored_file_allowlist_reports_missing_matches() -> Result<()> {
     let temp = TempDir::new()?;
     let repo_root = temp.path().join("repo");

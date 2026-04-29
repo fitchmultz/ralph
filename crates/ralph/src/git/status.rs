@@ -149,28 +149,23 @@ pub fn is_path_tracked(repo_root: &Path, rel_path: &str) -> Result<bool, GitErro
     }
 }
 
-/// Returns a list of gitignored paths (tracked ignore + local excludes).
+/// Returns a list of concrete gitignored paths (tracked ignore + local excludes).
 ///
-/// Uses `git ls-files -i -o --exclude-standard -z --directory` to get
-/// NUL-delimited paths relative to the repo root.
+/// Uses `git ls-files -i -o --exclude-standard -z` to get NUL-delimited paths
+/// relative to the repo root. Do not pass `--directory`: allowlist evaluation
+/// needs to see files beneath ignored directory roots instead of collapsed
+/// parent directory entries.
 pub fn ignored_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
     let output = git_output(
         repo_root,
-        &[
-            "ls-files",
-            "-i",
-            "-o",
-            "--exclude-standard",
-            "-z",
-            "--directory",
-        ],
+        &["ls-files", "-i", "-o", "--exclude-standard", "-z"],
     )
     .with_context(|| format!("run git ls-files -i -o in {}", repo_root.display()))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         return Err(GitError::CommandFailed {
-            args: "ls-files -i -o --exclude-standard -z --directory".to_string(),
+            args: "ls-files -i -o --exclude-standard -z".to_string(),
             code: output.status.code(),
             stderr: stderr.trim().to_string(),
         });

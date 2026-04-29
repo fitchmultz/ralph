@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0061",
-      "status": "todo",
-      "title": "Support allowlisted files beneath ignored directory roots",
-      "description": "Parallel ignored-file sync currently cannot copy allowlisted files when Git reports only an ignored parent directory entry instead of the nested file path. Why it matters: repos that ignore a whole directory such as `config/` cannot use `parallel.ignored_file_allowlist` to sync specific files inside that directory, even though the config contract says repo-relative file paths and file globs are supported. Minimal fix: change ignored-path enumeration and matching so preflight and sync can inspect concrete ignored files under ignored directory roots without broadening sync to whole directory trees.",
-      "priority": "high",
-      "tags": [
-        "scan",
-        "parallel",
-        "sync",
-        "gitignored"
-      ],
-      "scope": [
-        "crates/ralph/src/git/status.rs",
-        "crates/ralph/src/commands/run/parallel/sync/gitignored.rs",
-        "crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs",
-        "cargo test -p ralph-agent-loop"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/git/status.rs:152-166 :: `ignored_paths` shells out to `git ls-files -i -o --exclude-standard -z --directory`, which collapses ignored directory trees to directory entries instead of nested file paths.",
-        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:85-123 :: preflight skips entries ending in `/` and fails with `matched no existing gitignored files`, so an allowlist entry cannot match a file hidden behind an ignored parent directory entry.",
-        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:156-171 :: runtime sync also skips directory entries and only copies `source.is_file()` matches, so the same blind spot persists during actual workspace seeding.",
-        "path: crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs:65-141 :: current coverage exercises individually ignored files and same-directory globs, but not a `.gitignore` rule like `config/` plus an allowlist entry such as `config/local.json`.",
-        "command: tmp=$(mktemp -d) && cd \"$tmp\" && git init -q && printf 'config/\\n' > .gitignore && mkdir -p config && echo '{}' > config/local.json && printf 'with --directory: ' && git ls-files -i -o --exclude-standard -z --directory | perl -0ne 'print join(q(,), grep { length } split(/\\0/, $_))' && printf '\\nwithout --directory: ' && git ls-files -i -o --exclude-standard -z | perl -0ne 'print join(q(,), grep { length } split(/\\0/, $_))' && printf '\\n' :: output was `with --directory: config/` and `without --directory: config/local.json`."
-      ],
-      "plan": [
-        "Adjust ignored-path discovery or downstream expansion so allowlist evaluation can see concrete ignored files inside ignored directories while still refusing broad directory mirroring.",
-        "Add regression coverage for both preflight and `sync_ralph_state` using a repo that ignores `config/` but allowlists `config/local.json` and a narrow file glob under that directory.",
-        "Verify by running targeted Rust tests for the new ignored-directory-root cases and `make agent-ci`, then confirm the nested allowlisted file is copied into the worker workspace."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-04-29T00:48:35Z",
-      "updated_at": "2026-04-29T00:48:35Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0062",
       "status": "todo",
       "title": "Block ignored-file sync from following repo-escaping symlinks",

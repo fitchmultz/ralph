@@ -64,7 +64,8 @@ fn ignored_paths_lists_gitignored_entries() -> Result<()> {
     let ignored = ignored_paths(&repo_root)?;
 
     assert!(ignored.contains(&".env".to_string()));
-    assert!(ignored.contains(&"ignored_dir/".to_string()));
+    assert!(ignored.contains(&"ignored_dir/file.txt".to_string()));
+    assert!(!ignored.contains(&"ignored_dir/".to_string()));
     Ok(())
 }
 

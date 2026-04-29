@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -195,8 +195,8 @@
       "custom_fields": {
         "model_used": "gpt-5.4",
         "skill": "comprehensive-codebase-audit",
-        "runner_used": "codex",
-        "task_kind": "queue_shaping"
+        "task_kind": "queue_shaping",
+        "runner_used": "codex"
       }
     },
     {
@@ -539,9 +539,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
         "runner_used": "codex",
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths"
       }
     },
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "runner_used": "codex"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
       }
     },
     {
@@ -890,9 +890,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md"
       }
     },
@@ -955,9 +955,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
         "model_used": "gpt-5.4"
       }
     },
@@ -2399,11 +2399,11 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "reported_command": "ralph run loop --parallel 2",
-        "runner_used": "pi",
-        "severity_reason": "parallel-mode task state/data integrity loss",
+        "model_used": "openai-codex/gpt-5.5",
         "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
-        "model_used": "openai-codex/gpt-5.5"
+        "runner_used": "pi",
+        "reported_command": "ralph run loop --parallel 2",
+        "severity_reason": "parallel-mode task state/data integrity loss"
       }
     },
     {
@@ -2462,8 +2462,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0",
-        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0."
+        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0.",
+        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0"
       }
     },
     {
@@ -2715,8 +2715,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
       }
     },
     {
@@ -3004,7 +3004,67 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5"
+      }
+    },
+    {
+      "id": "RQ-0061",
+      "status": "done",
+      "title": "Support allowlisted files beneath ignored directory roots",
+      "description": "Parallel ignored-file sync currently cannot copy allowlisted files when Git reports only an ignored parent directory entry instead of the nested file path. Why it matters: repos that ignore a whole directory such as `config/` cannot use `parallel.ignored_file_allowlist` to sync specific files inside that directory, even though the config contract says repo-relative file paths and file globs are supported. Minimal fix: change ignored-path enumeration and matching so preflight and sync can inspect concrete ignored files under ignored directory roots without broadening sync to whole directory trees.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "parallel",
+        "sync",
+        "gitignored",
+        "git"
+      ],
+      "scope": [
+        "crates/ralph/src/git/status.rs",
+        "crates/ralph/src/git/status/tests.rs",
+        "crates/ralph/src/commands/run/parallel/sync/gitignored.rs",
+        "crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs",
+        "cargo test -p ralph-agent-loop git::status::tests::ignored_paths",
+        "cargo test -p ralph-agent-loop commands::run::parallel::sync::tests::gitignored",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/git/status.rs:152-166 :: `ignored_paths` currently runs `git ls-files -i -o --exclude-standard -z --directory`; the `--directory` flag intentionally collapses ignored directory trees to entries such as `config/` instead of concrete files such as `config/local.json`.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:73-124 :: preflight compiles allowlist patterns, enumerates `git::ignored_paths`, skips entries ending in `/`, and then requires each pattern to match at least one concrete `source.is_file()` path; a collapsed ignored directory therefore reports `matched no existing gitignored files` even when an allowlisted file exists under it.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:143-172 :: runtime sync uses the same `git::ignored_paths` enumeration and `classify_gitignored_entry`; directory entries are skipped and only `source.is_file()` paths are copied, so worker workspace seeding has the same blind spot as preflight.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:192-239,261-270 :: allowlist validation already rejects directory patterns (`ends_with('/')`), absolute paths, `..`, `.` components, and denied prefixes; the fix should preserve these safety boundaries and avoid converting an allowlisted directory root into broad recursive mirroring.",
+        "path: crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs:65-141 :: current sync coverage includes individually ignored files and same-directory glob matches, but not a `.gitignore` rule like `config/` paired with allowlist entries such as `config/local.json` or `config/local-*.json`.",
+        "path: crates/ralph/src/git/status/tests.rs:47-70 :: existing `ignored_paths_lists_gitignored_entries` asserts the old collapsed `ignored_dir/` behavior; this expectation must be updated if `ignored_paths` is changed to enumerate concrete files.",
+        "command evidence from task: in a temp repo with `.gitignore` containing `config/` and `config/local.json` on disk, `git ls-files -i -o --exclude-standard -z --directory` outputs `config/`, while the same command without `--directory` outputs `config/local.json`."
+      ],
+      "plan": [
+        "Prefer changing `git::ignored_paths` to remove the `--directory` argument so it returns concrete ignored file paths. Update its doc comment, error args string, and status tests accordingly. This centralizes the behavior and lets both preflight and runtime sync inspect nested ignored files without adding a second expansion path.",
+        "Preserve the existing safety policy in `gitignored.rs`: do not allow allowlist entries ending in `/`, keep denied-prefix filtering, keep workspace-root exclusion, and continue copying only `source.is_file()` entries. The implementation must not recursively mirror an ignored directory just because its parent directory is ignored.",
+        "Add regression tests in `commands/run/parallel/sync/tests/gitignored.rs` for an ignored directory root (`config/`) plus an explicit allowlist entry (`config/local.json`) covering both successful preflight and `sync_ralph_state` copying, while confirming an unallowlisted sibling remains absent from the workspace.",
+        "Add a second regression for a narrow glob beneath an ignored directory root, such as `.gitignore` = `config/` and allowlist = `config/local-*.json`, proving only matching files copy and nonmatching files under the ignored directory do not copy.",
+        "Run targeted tests first (`cargo test -p ralph-agent-loop git::status::tests::ignored_paths` and `cargo test -p ralph-agent-loop commands::run::parallel::sync::tests::gitignored`), then run `make agent-ci` before claiming completion."
+      ],
+      "notes": [
+        "Phase 1 planning inspected the relevant implementation and tests only; no source changes or test commands were run in planning mode.",
+        "If removing `--directory` exposes performance concerns in very large ignored trees, prefer retaining concrete-file enumeration for correctness and rely on denylist/workspace filters plus file-only copying for safety; do not reintroduce collapsed directory entries as the sole input to allowlist matching.",
+        "Reviewed Phase 2 diff for RQ-0061; no Phase 3 code refinements required.",
+        "Verified git::ignored_paths now enumerates concrete ignored files without --directory.",
+        "Confirmed nested explicit and glob allowlist tests cover preflight plus sync and preserve sibling exclusion.",
+        "Targeted tests passed: cargo test -p ralph-agent-loop git::status::tests::ignored_paths; cargo test -p ralph-agent-loop commands::run::parallel::sync::tests::gitignored."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-29T00:48:35Z",
+      "updated_at": "2026-04-29T01:05:20.879036000Z",
+      "completed_at": "2026-04-29T01:05:20.879036000Z",
+      "started_at": "2026-04-29T00:52:21.381571000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "openai-codex/gpt-5.5:high",
+        "scan_agent": "scan-general",
         "runner_used": "pi"
       }
     }
