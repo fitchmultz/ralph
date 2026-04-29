@@ -28,7 +28,7 @@ fn main() {
     let args = normalize_repo_prompt_args(std::env::args_os());
     let is_machine_command = is_machine_command_args(&args);
 
-    if let Err(err) = run(args) {
+    if let Err(err) = run(args, is_machine_command) {
         if is_machine_command {
             if let Err(print_err) = ralph::cli::machine::print_machine_error(&err) {
                 use colored::Colorize;
@@ -49,12 +49,16 @@ fn main() {
     }
 }
 
-fn run(args: Vec<OsString>) -> Result<()> {
+fn run(args: Vec<OsString>, is_machine_command: bool) -> Result<()> {
     // Load .env file, warning on errors but ignoring "not found"
     if let Err(e) = dotenvy::dotenv() {
         // Only warn on non-NotFound errors (e.g., permission denied, parse errors)
         if is_not_found_error(&e) {
             // Silently ignore - no .env file is expected
+        } else if is_machine_command {
+            // Machine commands must keep stderr JSON-only. The logger is not initialized
+            // yet, so suppress startup dotenv prose until structured machine output owns
+            // the streams.
         } else {
             // Note: Logger isn't initialized yet, use eprintln
             // Redact to avoid accidentally logging secrets from malformed .env files

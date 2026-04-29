@@ -1,4 +1,343 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0066",
+      "status": "todo",
+      "title": "Quarantine corrupt session cache instead of aborting recovery",
+      "description": "A corrupt or unreadable session cache currently bubbles up as an error before Ralph can make a resume/fresh/blocking decision. Goal: treat bad session cache as a recoverable state: preserve diagnostics, quarantine the bad file, and continue with a safe explicit recovery outcome when possible.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "session",
+        "recovery",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/session/persistence.rs",
+        "crates/ralph/src/session/validation.rs",
+        "crates/ralph/src/session/decision.rs",
+        "crates/ralph/src/session/tests.rs",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/session/persistence.rs:52-60 returns errors directly for read_session_file and parse_session_file failures.",
+        "crates/ralph/src/session/validation.rs:96-106 propagates load_session errors instead of returning an explicit validation/recovery state.",
+        "crates/ralph/src/session/decision.rs:140-146 calls check_session before constructing ResumeResolution, so corrupt cache bypasses ResumeDecision/BlockingState narration.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Extend session validation with an explicit corrupt/unreadable session result that includes a redacted diagnostic message and cache path.",
+        "On corrupt cache, create a quarantine/backup or undo-safe diagnostic artifact before clearing or ignoring the bad session file.",
+        "Map the state to ResumeResolution: safe fresh fallback for non-interactive runs when allowed, otherwise a runner_recovery BlockingState with exact next steps.",
+        "Add tests for malformed session.jsonc, unreadable session cache, non-interactive fallback, and machine blocking output.",
+        "Verify by running cargo test -p ralph session:: and make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0067",
+      "status": "todo",
+      "title": "Defer retry warnings until runner recovery is exhausted",
+      "description": "Retry admission and auto-revert paths log warnings during in-flight self-healing. Goal: collect retry diagnostics per attempt, keep in-flight logs at debug/trace, and emit ample redacted detail only on terminal failure or operator-visible recovery output.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "retry",
+        "logging",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/execution/orchestration/core.rs",
+        "crates/ralph/src/runutil/execution/retry_policy.rs",
+        "crates/ralph/src/runutil/execution/orchestration/tests.rs",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/runutil/execution/orchestration/core.rs:114-127 logs warn! when auto-revert before retry fails, even though retry/fallback logic may still succeed later.",
+        "crates/ralph/src/runutil/execution/retry_policy.rs:31-39 logs warn! and skips retry when repo cleanliness probing fails; this is a terminal decision path but not attached to the final runner diagnostic surface.",
+        "User focus requires hiding errors and warnings until all retries and self-healing are exhausted, then providing ample logging.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Introduce a retry diagnostic accumulator for auto-revert and retry-admission failures.",
+        "Downgrade in-flight retry/self-healing logs to debug unless no retry/fallback remains possible.",
+        "Attach accumulated retry diagnostics to the final RunAbort/safeguard dump/operator message when recovery exhausts.",
+        "Add tests that successful retry after an auto-revert warning path does not emit warning-level output and terminal failure includes collected diagnostics.",
+        "Verify by running cargo test -p ralph runutil::execution and make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0068",
+      "status": "todo",
+      "title": "Classify missing CLI binaries as cli_unavailable in machine errors",
+      "description": "The machine contract defines a typed cli_unavailable code, but the classifier does not currently map common missing-binary/spawn failures to it. Goal: make app-side recovery typed and stable instead of falling through to Unknown or unrelated generic codes.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "machine",
+        "typing",
+        "macos"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/machine.rs",
+        "crates/ralph/src/cli/machine/error.rs",
+        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/contracts/machine.rs:57-69 defines MachineErrorCode::CliUnavailable.",
+        "crates/ralph/src/cli/machine/error.rs:42-116 classifies task conflict, permission, queue, config, version, network, and resource-busy errors, but has no branch for command-not-found, executable missing, spawn ENOENT, or CLI unavailable failures.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced.",
+        "Reproduction steps: force a machine subcommand path to use a missing executable/spawn failure and inspect the emitted MachineErrorDocument code."
+      ],
+      "plan": [
+        "Add classifier predicates for no such file or directory, command not found, executable not found, spawn ENOENT, and bundled CLI unavailable phrases before generic parse/unknown branches.",
+        "Return MachineErrorCode::CliUnavailable with a stable user-facing message and non-retryable flag unless the source is a transient resource-busy condition.",
+        "Add Rust machine error tests and align RalphMac recovery classification if it currently relies on Unknown fallbacks.",
+        "Verify by running cargo test -p ralph cli::machine::error and make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0069",
+      "status": "todo",
+      "title": "Validate runner session IDs before persisting them",
+      "description": "Session-id recovery accepts broad JSON keys and scans all stdout, which can persist unrelated IDs from runner chatter. Goal: only store IDs from runner-specific session-start/resume events and preserve last known-good state when output is ambiguous.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "session",
+        "typing",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/json.rs",
+        "crates/ralph/src/runner/execution/process/mod.rs",
+        "crates/ralph/src/runutil/execution/continue_session.rs",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/runner/execution/json.rs:21-39 parses the first JSON object starting at the first '{' in any line as a compatibility fallback.",
+        "crates/ralph/src/runner/execution/json.rs:42-58 accepts type=session id plus generic thread_id, session_id, or sessionID without runner/event-shape validation.",
+        "crates/ralph/src/runner/execution/process/mod.rs:260-265 falls back to scanning full stdout for a session id if the streaming reader did not capture one.",
+        "A wrong stored session id can make future continue paths retry invalid state before falling back, adding user-visible recovery noise.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Define runner-specific accepted session event shapes and ID validation rules for each supported runner.",
+        "Use the structured stream-captured session id as authoritative; make full-stdout fallback opt-in and shape-validated.",
+        "Preserve the previous known-good session id when output contains ambiguous JSON but no confirmed session event.",
+        "Add tests with log lines containing unrelated thread_id/session_id fields and confirmed session-start events.",
+        "Verify by running cargo test -p ralph runner::execution and make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0070",
+      "status": "todo",
+      "title": "Stop showing retry progress as Mac error messages",
+      "description": "Mac workspace repository loads write retry progress into the same error-message fields used for terminal failures. Goal: keep retry progress non-alarming while self-healing continues, then show a recovery sheet/error only after all attempts are exhausted.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "macos",
+        "ux",
+        "retry"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/Workspace.swift",
+        "apps/RalphMac/RalphCore/Workspace+GraphData.swift",
+        "apps/RalphMac/RalphCore/Workspace+TaskLoading.swift",
+        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift",
+        "make macos-test-contracts"
+      ],
+      "evidence": [
+        "apps/RalphMac/RalphCore/Workspace.swift:460-469 wires RetryProgressHandler to handleRetryMessage during retry attempts.",
+        "apps/RalphMac/RalphCore/Workspace.swift:486-495 only classifies RecoveryError and shows the recovery sheet after the final thrown error, which is correct terminal behavior.",
+        "apps/RalphMac/RalphCore/Workspace+GraphData.swift:35-37 builds 'Retrying load graph...' copy and apps/RalphMac/RalphCore/Workspace+GraphData.swift:51-55 writes it into graphDataErrorMessage, the same field used for terminal failures.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Introduce separate non-error retry/progress state for repository loads, or keep progress internal unless the view has an explicit neutral status surface.",
+        "Update graph/task/config/analytics load call sites so retry progress does not populate *ErrorMessage fields.",
+        "Keep terminal failure classification unchanged and ensure final failure includes retry attempt count and last redacted error detail.",
+        "Add RalphCore tests asserting transient retry progress does not set error-message properties and terminal failure still does.",
+        "Verify by running the focused RalphCore retry tests or make macos-test-contracts, then make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0071",
+      "status": "todo",
+      "title": "Suppress Mac watcher degraded warnings during active retry",
+      "description": "Queue watcher health reports a warning for degraded state while the watcher still has a scheduled retry. Goal: render active self-healing as neutral/informational status and reserve warning/error severity for exhausted or operator-action states.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "macos",
+        "watcher",
+        "ux"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift",
+        "apps/RalphMac/RalphCore/QueueFileWatcherRuntime.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunControlWatcherHealthTests.swift",
+        "make macos-test-contracts"
+      ],
+      "evidence": [
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift:274-288 treats idle/watching/stopped as no issue and starting as info.",
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift:288-304 maps QueueWatcherHealth.State.degraded to severity .warning even when nextRetryAt is present and recovery is still scheduled.",
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift:305-314 maps exhausted failed state to severity .error, which is the appropriate operator-visible terminal state.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Change degraded watcher health with a future nextRetryAt to info or neutral status rather than warning.",
+        "Keep warning/error severity for degraded-without-retry or failed states that need operator attention.",
+        "Ensure the operational summary and quick actions use the new severity consistently and include retry schedule details only in diagnostics/logs.",
+        "Add watcher-health tests for starting, degraded-with-retry, degraded-without-retry, and failed summaries.",
+        "Verify by running the focused watcher health tests or make macos-test-contracts, then make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0072",
+      "status": "todo",
+      "title": "Retry Mac CLI health timeouts before warning users",
+      "description": "A single CLI health timeout immediately becomes an unavailable warning in operational health. Goal: self-heal transient health-check timeouts with bounded retries before surfacing a warning, and include attempt diagnostics only if the final health state remains unavailable.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "macos",
+        "health",
+        "reliability"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift",
+        "apps/RalphMac/RalphCore/Workspace+HealthAndCaching.swift",
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift",
+        "apps/RalphMac/RalphCoreTests/CLIHealthCheckerTests.swift",
+        "make macos-test-contracts"
+      ],
+      "evidence": [
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:74-99 starts exactly one health-check task per request; there is no retry loop around performHealthCheck.",
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:193-218 maps TimeoutError directly to CLIHealthStatus.unavailable(.timeout).",
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift:221-246 renders timeout as 'CLI health check timed out' with severity .warning.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Add a small bounded retry/backoff policy for TimeoutError and transient process errors in CLIHealthChecker without retrying permanent missing/executable/permission failures.",
+        "Track attempt count and last redacted diagnostic inside CLIHealthStatus or associated diagnostics for terminal timeout states.",
+        "Keep operational health quiet or informational while retries are pending; show warning only after the final failed attempt.",
+        "Add CLIHealthChecker tests for timeout-then-success, timeout-exhausted, and permanent no-retry failures.",
+        "Verify by running CLIHealthCheckerTests or make macos-test-contracts, then make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0073",
+      "status": "todo",
+      "title": "Align Mac RetryConfiguration semantics with actual attempts",
+      "description": "RetryConfiguration is named and documented as maxRetries, but RetryHelper interprets it as total attempts. This can lead maintainers to believe users get more self-healing attempts than they actually do. Goal: make the type/API documentation and tests unambiguous.",
+      "priority": "low",
+      "tags": [
+        "scan",
+        "macos",
+        "typing",
+        "retry"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift",
+        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift",
+        "make macos-test-contracts"
+      ],
+      "evidence": [
+        "apps/RalphMac/RalphCore/RetryHelper.swift:26-41 defines public let maxRetries and comments 'Default configuration: 3 retries'.",
+        "apps/RalphMac/RalphCore/RetryHelper.swift:151-172 loops for attempt in 1...configuration.maxRetries and reports maxAttempts=configuration.maxRetries, so the value is total attempts, not retries after the first failure.",
+        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift:60-80 uses maxRetries: 3 and succeeds on the third total attempt, confirming current behavior.",
+        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
+      ],
+      "plan": [
+        "Choose one canonical semantic: rename/document the property as maxAttempts, or change implementation to perform initial attempt plus maxRetries retry attempts.",
+        "Update comments, call sites, and tests so progress labels and attempt counts match the chosen semantic.",
+        "If API compatibility requires retaining maxRetries, add an explicit deprecation/comment shim with a cleanup path.",
+        "Verify by running RetryHelperTests/RetryIntegrationTests or make macos-test-contracts, then make agent-ci."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T03:24:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    }
+  ]
 }

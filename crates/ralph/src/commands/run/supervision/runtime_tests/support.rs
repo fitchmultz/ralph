@@ -160,6 +160,7 @@ pub(super) fn continue_session_with(
         session_id: session_id.map(str::to_string),
         output_handler: None,
         output_stream: crate::runner::OutputStream::Terminal,
+        run_event_handler: None,
         ci_failure_retry_count: 0,
         task_id: "RQ-0001".to_string(),
         last_ci_error_pattern: None,

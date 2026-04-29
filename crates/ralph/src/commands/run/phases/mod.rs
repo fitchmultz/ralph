@@ -85,6 +85,7 @@ pub struct PhaseInvocation<'a> {
     pub policy: &'a promptflow::PromptPolicy,
     pub output_handler: Option<runner::OutputHandler>,
     pub output_stream: runner::OutputStream,
+    pub run_event_handler: Option<crate::commands::run::RunEventHandler>,
     pub project_type: ProjectType,
     pub git_revert_mode: GitRevertMode,
     pub git_publish_mode: GitPublishMode,

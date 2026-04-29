@@ -28,6 +28,7 @@ fn continue_session_for_ci_tests() -> crate::commands::run::supervision::Continu
         session_id: Some("sess-123".to_string()),
         output_handler: None,
         output_stream: crate::runner::OutputStream::Terminal,
+        run_event_handler: None,
         ci_failure_retry_count: CI_GATE_AUTO_RETRY_LIMIT,
         task_id: "RQ-0947".to_string(),
         last_ci_error_pattern: None,

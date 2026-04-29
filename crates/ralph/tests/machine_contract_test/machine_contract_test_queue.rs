@@ -51,6 +51,28 @@ fn machine_queue_read_returns_versioned_snapshot() -> Result<()> {
 }
 
 #[test]
+fn machine_queue_read_suppresses_invalid_dotenv_warning() -> Result<()> {
+    let dir = setup_ralph_repo()?;
+    std::fs::write(
+        dir.path().join(".env"),
+        "INVALID LINE WITHOUT EQUALS SIGN\nVALID_KEY=valid\n",
+    )?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["machine", "queue", "read"]);
+    assert!(
+        status.success(),
+        "machine queue read failed with malformed .env\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        stderr.trim().is_empty(),
+        "machine command must not emit prose stderr for malformed .env; stderr was:\n{stderr}"
+    );
+    let document: Value = serde_json::from_str(&stdout)?;
+    assert_eq!(document["version"], 1);
+    Ok(())
+}
+
+#[test]
 fn machine_queue_read_failure_returns_structured_error_document() -> Result<()> {
     let dir = tempfile::tempdir()?;
 

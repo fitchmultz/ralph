@@ -42,6 +42,7 @@ pub(crate) struct ContinueSession {
     pub session_id: Option<String>,
     pub output_handler: Option<crate::runner::OutputHandler>,
     pub output_stream: crate::runner::OutputStream,
+    pub run_event_handler: Option<crate::commands::run::RunEventHandler>,
     /// Number of automatic "fix CI and rerun" retries already sent for the current CI gate loop.
     /// Used to auto-enforce CI compliance without prompting for the first N failures.
     pub ci_failure_retry_count: u8,
@@ -221,10 +222,7 @@ pub(crate) fn resume_continue_session(
     };
 
     let elapsed = start.elapsed();
-    eprintln!("{}", decision.message);
-    if !decision.detail.trim().is_empty() {
-        eprintln!("  {}", decision.detail);
-    }
+    crate::commands::run::emit_resume_decision(&decision, session.run_event_handler.as_ref());
 
     if let Some(new_id) = output.session_id.as_ref() {
         session.session_id = Some(new_id.clone());

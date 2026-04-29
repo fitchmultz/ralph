@@ -102,22 +102,21 @@ pub(super) fn continue_or_rerun(
     if let Some(session_id) = continue_session_id {
         match backend.resume_session(attempt.resume_session_request(session_id, continue_message)) {
             Ok(output) => {
-                eprintln!(
-                    "Resume: continuing the existing runner session for phase {:?}.",
+                log::debug!(
+                    "resume: continuing the existing runner session for phase {:?}",
                     attempt.phase_type
                 );
                 return Ok(output);
             }
             Err(err) if should_fallback_to_fresh_continue(attempt.runner_kind, &err) => {
-                eprintln!(
-                    "Resume: existing runner session could not be reused; starting a fresh invocation."
+                log::debug!(
+                    "resume: existing runner session could not be reused; starting a fresh invocation: {err}"
                 );
-                eprintln!("  {}", err);
             }
             Err(err) => return Err(err),
         }
     } else {
-        eprintln!("Resume: no runner session id was available; starting a fresh invocation.");
+        log::debug!("resume: no runner session id was available; starting a fresh invocation");
     }
 
     backend.run_prompt(

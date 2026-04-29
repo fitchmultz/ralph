@@ -98,6 +98,7 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             session_id: output.session_id.clone(),
             output_handler: ctx.output_handler.clone(),
             output_stream: ctx.output_stream,
+            run_event_handler: ctx.run_event_handler.clone(),
             ci_failure_retry_count: 0,
             task_id: ctx.task_id.to_string(),
             last_ci_error_pattern: None,

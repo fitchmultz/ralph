@@ -345,6 +345,7 @@ impl<'a> PhaseExecutionContext<'a> {
             policy: self.policy,
             output_handler: self.output_handler.clone(),
             output_stream: self.output_stream,
+            run_event_handler: self.run_event_handler.clone(),
             project_type: self.project_type,
             git_revert_mode: self.git_revert_mode,
             git_publish_mode: self.git_publish_mode,

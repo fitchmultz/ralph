@@ -23,7 +23,7 @@ use crate::commands::run::supervision::resume_continue_session;
 use crate::contracts::Runner;
 use crate::testsupport::runner::create_fake_runner;
 use crate::testsupport::{INTERRUPT_TEST_MUTEX, reset_ctrlc_interrupt_flag};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use tempfile::TempDir;
 
 fn interrupt_guard() -> MutexGuard<'static, ()> {
@@ -31,6 +31,73 @@ fn interrupt_guard() -> MutexGuard<'static, ()> {
     let guard = interrupt_mutex.lock().expect("interrupt mutex poisoned");
     reset_ctrlc_interrupt_flag();
     guard
+}
+
+#[test]
+fn resume_continue_session_emits_resume_decision_event_for_invalid_session_fallback()
+-> anyhow::Result<()> {
+    let _interrupt_guard = interrupt_guard();
+    let temp_dir = TempDir::new()?;
+    let args_path = temp_dir.path().join("runner-args.txt");
+    let runner_script = format!(
+        r#"#!/bin/sh
+set -e
+for arg in "$@"; do
+  if [ "$arg" = "-s" ] || [ "$arg" = "--session" ]; then
+    echo 'ZodError: invalid_format sessionID' >&2
+    echo 'Invalid string: must start with "ses"' >&2
+    exit 0
+  fi
+done
+echo "$@" > "{args_path}"
+echo '{{"type":"text","part":{{"text":"fresh"}}}}'
+echo '{{"sessionID":"sess-fresh"}}'
+"#,
+        args_path = args_path.display()
+    );
+    let runner_path = create_fake_runner(temp_dir.path(), "opencode", &runner_script)?;
+
+    let mut resolved = resolved_for_repo(temp_dir.path());
+    resolved.config.agent.opencode_bin = Some(runner_path.to_string_lossy().to_string());
+
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let handler: crate::commands::run::RunEventHandler = Arc::new(Box::new({
+        let captured = Arc::clone(&captured);
+        move |event| captured.lock().expect("event mutex poisoned").push(event)
+    }));
+    let mut session = continue_session_with(
+        Runner::Opencode,
+        Some("bad-session"),
+        crate::commands::run::PhaseType::Implementation,
+    );
+    session.run_event_handler = Some(handler);
+    session.output_stream = crate::runner::OutputStream::HandlerOnly;
+
+    let resumed = resume_continue_session(&resolved, &mut session, "hello", None)?;
+
+    assert_eq!(
+        resumed.decision.reason,
+        crate::session::ResumeReason::RunnerSessionInvalid
+    );
+    assert_eq!(session.session_id.as_deref(), Some("sess-fresh"));
+    let args = std::fs::read_to_string(&args_path)?;
+    assert!(
+        !args.split_whitespace().any(|arg| arg == "-s"),
+        "fresh invocation should not include resume session args, got: {args}"
+    );
+    assert!(
+        captured
+            .lock()
+            .expect("event mutex poisoned")
+            .iter()
+            .any(|event| matches!(
+                event,
+                crate::commands::run::RunEvent::ResumeDecision { decision }
+                    if decision.reason == crate::session::ResumeReason::RunnerSessionInvalid
+            )),
+        "expected resume_continue_session to emit a structured resume decision event"
+    );
+    Ok(())
 }
 
 #[test]

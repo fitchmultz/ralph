@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "task_kind": "queue_shaping",
-        "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "skill": "comprehensive-codebase-audit",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "task_kind": "queue_shaping"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -609,9 +609,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
         "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex"
       }
     },
@@ -687,9 +687,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "model_used": "gpt-5.4",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above"
+        "model_used": "gpt-5.4",
+        "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "runner_used": "codex"
       }
     },
     {
@@ -2399,11 +2399,11 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "reported_command": "ralph run loop --parallel 2",
-        "runner_used": "pi",
-        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "severity_reason": "parallel-mode task state/data integrity loss",
         "model_used": "openai-codex/gpt-5.5",
-        "severity_reason": "parallel-mode task state/data integrity loss"
+        "reported_command": "ralph run loop --parallel 2",
+        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "runner_used": "pi"
       }
     },
     {
@@ -2462,8 +2462,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0.",
-        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0"
+        "research_source_1": "https://github.com/rust-lang/rust/releases/tag/1.95.0",
+        "root_cause": "Repo-local rust-toolchain.toml overrode global stable, causing the first pass to research 1.94.1 instead of 1.95.0."
       }
     },
     {
@@ -3063,9 +3063,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3180,9 +3180,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3252,6 +3252,75 @@
         "model_used": "openai-codex/gpt-5.5:high",
         "runner_used": "pi",
         "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0065",
+      "status": "done",
+      "title": "Keep machine-mode recovery output JSON-only",
+      "description": "Machine/app integrations expect structured JSON or NDJSON, but several recovery and startup paths still write prose to stderr before or during self-healing. Goal: suppress human-facing warnings while recovery is in flight and route terminal diagnostics through machine events/documents so app callers get stable typed output.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "machine",
+        "reliability",
+        "ux",
+        "recovery"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/runutil/execution/continue_session.rs",
+        "crates/ralph/src/commands/run/supervision/continue_session.rs",
+        "crates/ralph/src/commands/run/phases/phase1.rs",
+        "crates/ralph/src/commands/run/phases/phase3/finalization.rs",
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/src/commands/run/parallel/integration/driver.rs",
+        "crates/ralph/src/cli/machine/run.rs",
+        "crates/ralph/tests/dotenv_warning_test.rs",
+        "crates/ralph/tests/machine_contract_test/machine_contract_test_run.rs",
+        "crates/ralph/src/commands/run/supervision/runtime_tests/resume_session.rs",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/main.rs computes is_machine_command before run(args), but run(args) still eprintlns malformed .env warnings at startup before Clap parsing/logging; this can put prose on stderr for machine commands before any structured machine error/reporting path owns output.",
+        "crates/ralph/src/main.rs:is_machine_command_args already supports a lightweight pre-parse of globals and the machine subcommand, so the startup dotenv warning can be gated with that precomputed bool without adding a full early Clap parse.",
+        "crates/ralph/src/runutil/execution/continue_session.rs:continue_or_rerun eprintlns Resume: messages from low-level runner execution while fallback is still self-healing; callers cannot currently opt out for machine output.",
+        "crates/ralph/src/commands/run/supervision/continue_session.rs:resume_continue_session builds a typed ResumeDecision but immediately eprintlns decision.message/detail after successful continuation, even when invoked through machine run handlers.",
+        "crates/ralph/src/commands/run/mod.rs already has RunEvent::ResumeDecision and emit_resume_decision that routes decisions to a machine event handler when present and otherwise prints human-facing eprintln output.",
+        "crates/ralph/src/cli/machine/run.rs maps RunEvent::ResumeDecision into versioned MachineRunEventEnvelope kind resume_decision with a machine_resume_decision_from_runtime payload, so machine mode already has a structured event contract for terminal/non-terminal resume diagnostics.",
+        "Current ContinueSession lacks a run_event_handler field; resume_continue_session callers in phase1/phase3 finalization/CI/parallel integration therefore cannot propagate machine handlers down to the resume decision emission point without a small API extension.",
+        "Existing regression homes: crates/ralph/tests/dotenv_warning_test.rs covers human .env warnings; crates/ralph/tests/machine_contract_test/machine_contract_test_run.rs covers machine run NDJSON/error contracts; crates/ralph/src/commands/run/supervision/runtime_tests/resume_session.rs covers resume fallback decisions."
+      ],
+      "plan": [
+        "Change main.rs so run(args, is_machine_command) suppresses malformed .env prose for machine commands; keep existing warning behavior for human commands and continue redacting warning text. Add/adjust main unit coverage for is_machine_command_args only if needed by the signature change.",
+        "Introduce a small structured/human output bridge for continue-session decisions: add an Option<RunEventHandler> to supervision::ContinueSession (or an equivalent explicit output context) and replace direct eprintln in resume_continue_session with crate::commands::run::emit_resume_decision(&decision, session.run_event_handler.as_ref()).",
+        "Populate ContinueSession.run_event_handler at construction sites that already have access to a machine/human run_event_handler (phase execution contexts, CI continue context, phase3 finalization, parallel integration). Leave it None for purely human paths so existing CLI prose remains unchanged.",
+        "Demote low-level runutil::execution::continue_or_rerun Resume eprintln calls to log::debug! (or remove them if covered by higher-level decisions) so self-healing resume-to-fresh fallback does not write prose before callers can emit structured events. Preserve unknown resume failures as hard errors.",
+        "Add a machine contract regression for malformed .env during a machine command: write invalid .env in a temp Ralph repo, run a simple successful machine command such as machine run stop or machine queue validate, assert stderr is empty and stdout parses as JSON/NDJSON only. Keep the existing human dotenv warning test passing.",
+        "Add/extend resume fallback regression coverage so machine run resume fallback emits a resume_decision NDJSON event rather than prose. Prefer an integration test in machine_contract_test_run.rs using a fake runner/session fixture if practical; otherwise add focused unit/runtime coverage around ContinueSession with a capturing RunEventHandler and assert no direct stderr dependency remains.",
+        "Run focused tests for dotenv warning and machine run/resume contracts, then run make agent-ci. If validation reveals adjacent prose stderr in machine paths, trace and route those through machine events/documents before completion."
+      ],
+      "notes": [
+        "Phase 1 planning only: no source/test implementation was changed in this phase.",
+        "Backwards compatibility with prose-on-stderr during machine commands is intentionally not required; stable JSON/NDJSON machine output is the contract. Human CLI warning/resume narration should remain unless it conflicts with machine output purity.",
+        "Execution agent may adapt the exact API shape if reality differs, but should keep one canonical path: typed ResumeDecision -> RunEvent::ResumeDecision -> machine resume_decision event for machine runs, and eprintln only when no handler exists.",
+        "Reviewed Phase 2 implementation for machine-mode JSON-only startup and resume recovery output.",
+        "Refined resume fallback regression to cover invalid-session fresh fallback with structured RunEvent emission.",
+        "Validated cargo fmt --check, focused regression tests, and make agent-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T04:05:39.254661000Z",
+      "completed_at": "2026-04-29T04:05:39.254661000Z",
+      "started_at": "2026-04-29T03:35:04.948194000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5:high"
       }
     }
   ]

@@ -78,6 +78,7 @@ fn build_continue_session(
         session_id,
         output_handler: ctx.output_handler.clone(),
         output_stream: ctx.output_stream,
+        run_event_handler: ctx.run_event_handler.clone(),
         ci_failure_retry_count: 0,
         task_id: ctx.task_id.to_string(),
         last_ci_error_pattern: None,
