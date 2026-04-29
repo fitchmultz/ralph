@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.4:xhigh",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.4:xhigh"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "skill": "comprehensive-codebase-audit",
         "task_kind": "queue_shaping",
-        "model_used": "gpt-5.4"
+        "skill": "comprehensive-codebase-audit",
+        "model_used": "gpt-5.4",
+        "runner_used": "codex"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "runner_used": "codex",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
         "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources"
       }
     },
     {
@@ -761,9 +761,9 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "gpt-5.4",
-        "runner_used": "codex",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
+        "runner_used": "codex"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
         "runner_used": "codex",
-        "source_report": "/tmp/ralph-report.md"
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "source_report": "/tmp/ralph-report.md",
+        "runner_used": "codex",
         "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "runner_used": "codex"
+        "source_report": "/tmp/ralph-report.md",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -955,9 +955,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.4",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "runner_used": "codex",
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md"
       }
     },
@@ -2399,11 +2399,11 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
-        "reported_command": "ralph run loop --parallel 2",
         "runner_used": "pi",
+        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "severity_reason": "parallel-mode task state/data integrity loss",
         "model_used": "openai-codex/gpt-5.5",
-        "severity_reason": "parallel-mode task state/data integrity loss"
+        "reported_command": "ralph run loop --parallel 2"
       }
     },
     {
@@ -2715,8 +2715,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
       }
     },
     {
@@ -3063,9 +3063,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
+        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "scan_agent": "scan-general"
+        "runner_used": "pi"
       }
     },
     {
@@ -3122,9 +3122,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5:high",
+        "scan_agent": "scan-general",
         "runner_used": "pi",
-        "scan_agent": "scan-general"
+        "model_used": "openai-codex/gpt-5.5:high"
       }
     },
     {
@@ -3180,9 +3180,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
         "scan_agent": "scan-general",
-        "model_used": "openai-codex/gpt-5.5:high"
+        "model_used": "openai-codex/gpt-5.5:high",
+        "runner_used": "pi"
       }
     },
     {
@@ -3249,9 +3249,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "openai-codex/gpt-5.5:high",
         "runner_used": "pi",
-        "scan_agent": "scan-general",
-        "model_used": "openai-codex/gpt-5.5:high"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3318,9 +3318,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "model_used": "openai-codex/gpt-5.5:high",
         "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.5:high"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3449,9 +3449,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
+        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "scan_agent": "scan-general"
+        "runner_used": "pi"
       }
     },
     {
@@ -3512,8 +3512,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5:high",
         "scan_agent": "scan-general",
+        "model_used": "openai-codex/gpt-5.5:high",
         "runner_used": "pi"
       }
     },
@@ -3575,9 +3575,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3643,9 +3643,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3705,6 +3705,74 @@
         "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.5:high",
         "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0072",
+      "status": "done",
+      "title": "Retry Mac CLI health timeouts before warning users",
+      "description": "A single CLI health timeout immediately becomes an unavailable warning in operational health. Goal: self-heal transient health-check timeouts with bounded retries before surfacing a warning, and include attempt diagnostics only if the final health state remains unavailable.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "macos",
+        "health",
+        "reliability",
+        "retry"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift",
+        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift",
+        "apps/RalphMac/RalphCore/RetryHelper.swift",
+        "apps/RalphMac/RalphCore/RalphCLITransientErrorPolicy.swift",
+        "apps/RalphMac/RalphCore/Workspace+HealthAndCaching.swift",
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift",
+        "apps/RalphMac/RalphCoreTests/CLIHealthCheckerTests.swift",
+        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift",
+        "apps/RalphMac/RalphCoreTests/RetryIntegrationTests.swift",
+        "make macos-test-contracts",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:63-107 creates and awaits one Task per checkHealth call; the task calls performHealthCheck directly with no retry/progress state.",
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:151-235 performs workspace/executable validation and maps TimeoutError directly to CLIHealthStatus.unavailable(.timeout), while RalphCLIClientError.executableNotFound/executableNotExecutable are permanent failures.",
+        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:241-258 runs the machine system info health command once and currently treats any non-zero status as cliNotExecutable rather than classifying retryable transient stderr/exit codes.",
+        "apps/RalphMac/RalphCore/RalphCLIClient+Retry.swift:28-60 plus RetryHelper.swift:101-176 provide existing bounded retry/backoff primitives; TimeoutError is defined there and RetryHelper.defaultShouldRetry already delegates transient process classifications to RalphCLITransientErrorPolicy.",
+        "apps/RalphMac/RalphCore/RalphCLITransientErrorPolicy.swift:32-88 is the canonical transient policy for retryable process exit codes/stderr and POSIX/Cocoa transient errors; health-check retry admission should reuse it rather than fork patterns.",
+        "apps/RalphMac/RalphCore/Workspace+HealthAndCaching.swift:42-81 sets isCheckingHealth while checkHealth awaits and only writes diagnosticsState.cliHealthStatus after the awaited status returns, so retry-in-progress attempts can stay quiet if CLIHealthChecker does not emit unavailable intermediate states.",
+        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift:159-222 renders any final .unavailable(.timeout) as a warning titled 'CLI health check timed out'; diagnostic text can be enriched there from terminal health-check attempt metadata.",
+        "apps/RalphMac/RalphCoreTests/CLIHealthCheckerTests.swift:90-221 already uses shell-script fixtures for available, missing executable, timeout process cleanup, and cancellation; it is the right place for timeout-then-success, timeout-exhausted, retryable process-error, and permanent no-retry regression coverage."
+      ],
+      "plan": [
+        "Introduce health-check-specific retry configuration in CLIHealthChecker with a small default total-attempt budget and short deterministic-friendly backoff, implemented by reusing RetryHelper/RalphCLITransientErrorPolicy where practical.",
+        "Split permanent preflight failures (workspace inaccessible, permission denied, executable missing, not executable) from retryable probe failures so permanent failures return immediately and do not spawn repeated checks.",
+        "Have the actual CLI probe throw a typed health-probe error for TimeoutError and retryable non-zero process outputs; retry those only, and classify the exhausted final error back into CLIHealthStatus.unavailable.",
+        "Add terminal attempt diagnostics to CLIHealthStatus (or a nested optional diagnostics struct) carrying attempts/maxAttempts and a redacted final reason/message; preserve available/unknown/permanent statuses without noisy diagnostics unless useful.",
+        "Keep Workspace+HealthAndCaching behavior mostly unchanged: isCheckingHealth remains true while the internal retry loop runs, diagnosticsState.cliHealthStatus is updated only once with the terminal status, and operational health is refreshed only after the terminal status.",
+        "Update WorkspaceOperationalHealth.fromCLIStatus so terminal timeout/transient failures mention exhausted attempts in the message/recovery suggestion, while no issue is emitted during in-progress retries because no intermediate unavailable status is published.",
+        "Add CLIHealthCheckerTests for timeout-then-success, timeout-exhausted with attempts, retryable process-error then success, and permanent executable missing/no-retry. Update any retry helper tests only if implementation touches shared retry semantics.",
+        "Verify Phase 2 with focused CLIHealthCheckerTests when possible, then make macos-test-contracts, then make agent-ci."
+      ],
+      "notes": [
+        "Phase 1 planning only; no source or test implementation was changed.",
+        "Existing RetryConfiguration.maxRetries appears to mean total attempts, not retries after the first attempt; avoid changing that semantic in this task because RQ-0073 tracks the API/documentation cleanup.",
+        "If adding a public property to CLIHealthStatus breaks exhaustive initializers, update test and production call sites explicitly rather than adding compatibility shims.",
+        "Reviewed Phase 2 retry implementation for RQ-0072; no code refinements were needed.",
+        "Verified CLIHealthChecker retry and diagnostics coverage with focused RalphCoreTests/CLIHealthCheckerTests.",
+        "Verified macOS deterministic contracts with make macos-test-contracts."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T08:00:09.235411000Z",
+      "completed_at": "2026-04-29T08:00:09.235411000Z",
+      "started_at": "2026-04-29T07:43:28.327153000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "openai-codex/gpt-5.5:high",
+        "scan_agent": "scan-general",
+        "runner_used": "pi"
       }
     }
   ]

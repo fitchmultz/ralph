@@ -144,6 +144,156 @@ final class CLIHealthCheckerTests: RalphCoreTestCase {
         )
     }
 
+    func testCheckHealth_missingExecutableDoesNotAttachRetryDiagnostics() async throws {
+        let tempDir = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "ralph-health-missing-no-retry")
+        defer { RalphCoreTestSupport.assertRemoved(tempDir) }
+
+        let checker = CLIHealthChecker()
+        let status = await checker.checkHealth(
+            workspaceID: UUID(),
+            workspaceURL: tempDir,
+            timeout: 0.2,
+            executableURL: URL(fileURLWithPath: "/definitely/not/a/real/ralph-binary"),
+            retryConfiguration: RetryConfiguration(
+                maxRetries: 3,
+                baseDelay: 0.01,
+                maxDelay: 0.01,
+                jitterRange: 0...0
+            )
+        )
+
+        XCTAssertEqual(status.availability, .unavailable(reason: .cliNotFound))
+        XCTAssertNil(status.diagnostics)
+    }
+
+    func testCheckHealth_retriesTimeoutThenSucceedsWithoutDiagnostics() async throws {
+        let tempDir = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "ralph-health-timeout-retry-success")
+        defer { RalphCoreTestSupport.assertRemoved(tempDir) }
+
+        let attemptsURL = tempDir.appendingPathComponent("attempts", isDirectory: false)
+        let script = """
+        #!/bin/sh
+        ATTEMPTS="\(attemptsURL.path)"
+        if [ -f "$ATTEMPTS" ]; then
+          ATTEMPT=$(cat "$ATTEMPTS")
+        else
+          ATTEMPT=0
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+        echo $ATTEMPT > "$ATTEMPTS"
+
+        if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
+          if [ "$ATTEMPT" -eq 1 ]; then
+            sleep 3
+          fi
+          echo '{"version":1,"cli_version":"9.9.9"}'
+          exit 0
+        fi
+        exit 64
+        """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: tempDir, body: script)
+
+        let checker = CLIHealthChecker()
+        let status = await checker.checkHealth(
+            workspaceID: UUID(),
+            workspaceURL: tempDir,
+            timeout: 1,
+            executableURL: scriptURL,
+            retryConfiguration: RetryConfiguration(
+                maxRetries: 2,
+                baseDelay: 0.01,
+                maxDelay: 0.01,
+                jitterRange: 0...0
+            )
+        )
+
+        XCTAssertEqual(status.availability, .available)
+        XCTAssertNil(status.diagnostics)
+        XCTAssertEqual(try recordedAttempts(at: attemptsURL), 2)
+    }
+
+    func testCheckHealth_timeoutExhaustedReportsAttemptDiagnostics() async throws {
+        let tempDir = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "ralph-health-timeout-exhausted")
+        defer { RalphCoreTestSupport.assertRemoved(tempDir) }
+
+        let attemptsURL = tempDir.appendingPathComponent("attempts", isDirectory: false)
+        let script = """
+        #!/bin/sh
+        ATTEMPTS="\(attemptsURL.path)"
+        if [ -f "$ATTEMPTS" ]; then ATTEMPT=$(cat "$ATTEMPTS"); else ATTEMPT=0; fi
+        ATTEMPT=$((ATTEMPT + 1))
+        echo $ATTEMPT > "$ATTEMPTS"
+        if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
+          sleep 3
+          exit 0
+        fi
+        exit 64
+        """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: tempDir, body: script)
+
+        let checker = CLIHealthChecker()
+        let status = await checker.checkHealth(
+            workspaceID: UUID(),
+            workspaceURL: tempDir,
+            timeout: 1,
+            executableURL: scriptURL,
+            retryConfiguration: RetryConfiguration(
+                maxRetries: 2,
+                baseDelay: 0.01,
+                maxDelay: 0.01,
+                jitterRange: 0...0
+            )
+        )
+
+        XCTAssertEqual(status.availability, .unavailable(reason: .timeout))
+        XCTAssertEqual(status.diagnostics?.attempts, 2)
+        XCTAssertEqual(status.diagnostics?.maxAttempts, 2)
+        XCTAssertTrue(status.diagnostics?.finalMessage?.localizedCaseInsensitiveContains("timed out") == true)
+        XCTAssertEqual(try recordedAttempts(at: attemptsURL), 2)
+    }
+
+    func testCheckHealth_retriesRetryableProcessFailureThenSucceedsWithoutDiagnostics() async throws {
+        let tempDir = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "ralph-health-process-retry-success")
+        defer { RalphCoreTestSupport.assertRemoved(tempDir) }
+
+        let attemptsURL = tempDir.appendingPathComponent("attempts", isDirectory: false)
+        let script = """
+        #!/bin/sh
+        ATTEMPTS="\(attemptsURL.path)"
+        if [ -f "$ATTEMPTS" ]; then ATTEMPT=$(cat "$ATTEMPTS"); else ATTEMPT=0; fi
+        ATTEMPT=$((ATTEMPT + 1))
+        echo $ATTEMPT > "$ATTEMPTS"
+        if [ "$1" = "--no-color" ] && [ "$2" = "machine" ] && [ "$3" = "system" ] && [ "$4" = "info" ]; then
+          if [ "$ATTEMPT" -eq 1 ]; then
+            echo "resource temporarily unavailable" >&2
+            exit 75
+          fi
+          echo '{"version":1,"cli_version":"9.9.9"}'
+          exit 0
+        fi
+        exit 64
+        """
+        let scriptURL = try RalphMockCLITestSupport.makeExecutableScript(in: tempDir, body: script)
+
+        let checker = CLIHealthChecker()
+        let status = await checker.checkHealth(
+            workspaceID: UUID(),
+            workspaceURL: tempDir,
+            timeout: 2,
+            executableURL: scriptURL,
+            retryConfiguration: RetryConfiguration(
+                maxRetries: 2,
+                baseDelay: 0.01,
+                maxDelay: 0.01,
+                jitterRange: 0...0
+            )
+        )
+
+        XCTAssertEqual(status.availability, .available)
+        XCTAssertNil(status.diagnostics)
+        XCTAssertEqual(try recordedAttempts(at: attemptsURL), 2)
+    }
+
     func testCheckHealth_timeoutTerminatesUnderlyingProcess() async throws {
         let tempDir = try RalphCoreTestSupport.makeTemporaryDirectory(prefix: "ralph-health-timeout")
         defer { RalphCoreTestSupport.assertRemoved(tempDir) }
@@ -167,7 +317,13 @@ final class CLIHealthCheckerTests: RalphCoreTestCase {
                 workspaceID: UUID(),
                 workspaceURL: tempDir,
                 timeout: 3,
-                executableURL: scriptURL
+                executableURL: scriptURL,
+                retryConfiguration: RetryConfiguration(
+                    maxRetries: 1,
+                    baseDelay: 0.01,
+                    maxDelay: 0.01,
+                    jitterRange: 0...0
+                )
             )
         }
 
@@ -242,5 +398,29 @@ final class CLIHealthCheckerTests: RalphCoreTestCase {
 
         let log = try String(contentsOf: logURL, encoding: .utf8)
         XCTAssertFalse(log.contains("finished"))
+    }
+
+    func testOperationalIssueFromTimeoutStatusMentionsExhaustedAttempts() {
+        let status = CLIHealthStatus(
+            availability: .unavailable(reason: .timeout),
+            lastChecked: Date(),
+            workspaceURL: RalphCoreTestSupport.workspaceURL(label: "cli-health-timeout-issue"),
+            diagnostics: CLIHealthStatus.Diagnostics(
+                attempts: 3,
+                maxAttempts: 3,
+                finalMessage: "CLI health check timed out"
+            )
+        )
+
+        let issue = WorkspaceOperationalIssue.fromCLIStatus(status)
+        XCTAssertEqual(issue?.severity, .warning)
+        XCTAssertTrue(issue?.message.contains("3 attempts") == true)
+        XCTAssertTrue(issue?.recoverySuggestion?.contains("retried automatically") == true)
+    }
+
+    private func recordedAttempts(at attemptsURL: URL) throws -> Int {
+        let text = try String(contentsOf: attemptsURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return try XCTUnwrap(Int(text))
     }
 }

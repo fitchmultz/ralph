@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0072",
-      "status": "todo",
-      "title": "Retry Mac CLI health timeouts before warning users",
-      "description": "A single CLI health timeout immediately becomes an unavailable warning in operational health. Goal: self-heal transient health-check timeouts with bounded retries before surfacing a warning, and include attempt diagnostics only if the final health state remains unavailable.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "macos",
-        "health",
-        "reliability"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift",
-        "apps/RalphMac/RalphCore/Workspace+HealthAndCaching.swift",
-        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift",
-        "apps/RalphMac/RalphCoreTests/CLIHealthCheckerTests.swift",
-        "make macos-test-contracts"
-      ],
-      "evidence": [
-        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:74-99 starts exactly one health-check task per request; there is no retry loop around performHealthCheck.",
-        "apps/RalphMac/RalphCore/RalphCLIHealthChecker.swift:193-218 maps TimeoutError directly to CLIHealthStatus.unavailable(.timeout).",
-        "apps/RalphMac/RalphCore/WorkspaceOperationalHealth.swift:221-246 renders timeout as 'CLI health check timed out' with severity .warning.",
-        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
-      ],
-      "plan": [
-        "Add a small bounded retry/backoff policy for TimeoutError and transient process errors in CLIHealthChecker without retrying permanent missing/executable/permission failures.",
-        "Track attempt count and last redacted diagnostic inside CLIHealthStatus or associated diagnostics for terminal timeout states.",
-        "Keep operational health quiet or informational while retries are pending; show warning only after the final failed attempt.",
-        "Add CLIHealthChecker tests for timeout-then-success, timeout-exhausted, and permanent no-retry failures.",
-        "Verify by running CLIHealthCheckerTests or make macos-test-contracts, then make agent-ci."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-04-29T03:24:54Z",
-      "updated_at": "2026-04-29T03:24:54Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0073",
       "status": "todo",
       "title": "Align Mac RetryConfiguration semantics with actual attempts",

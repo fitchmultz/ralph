@@ -199,6 +199,11 @@ public extension WorkspaceOperationalIssue {
             return nil
         }
 
+        let attemptSuffix = status.diagnostics.flatMap { diagnostics in
+            diagnostics.attempts > 1 ? " after \(diagnostics.attempts) attempts" : nil
+        } ?? ""
+
+        let unknownMessage = status.diagnostics?.finalMessage
         let details: (String, String, String?) = switch reason {
         case .cliNotFound:
             (
@@ -221,8 +226,10 @@ public extension WorkspaceOperationalIssue {
         case .timeout:
             (
                 "CLI health check timed out",
-                "The workspace health probe did not complete before the timeout.",
-                "Retry the health check after the system load settles."
+                "The workspace health probe did not complete before the timeout\(attemptSuffix).",
+                (status.diagnostics?.attempts ?? 1) > 1
+                    ? "Ralph retried automatically and still could not complete the health check. Retry after system load settles."
+                    : "Retry the health check after the system load settles."
             )
         case .permissionDenied:
             (
@@ -233,7 +240,9 @@ public extension WorkspaceOperationalIssue {
         case .unknown(let description):
             (
                 "CLI health check failed",
-                description,
+                (status.diagnostics?.attempts ?? 1) > 1
+                    ? "\(unknownMessage ?? description) (after \(status.diagnostics?.attempts ?? 1) attempts)."
+                    : unknownMessage ?? description,
                 "Inspect workspace diagnostics and recent logs for more detail."
             )
         }

@@ -26,6 +26,18 @@
 public import Foundation
 
 public struct CLIHealthStatus: Sendable, Equatable {
+    public struct Diagnostics: Sendable, Equatable {
+        public let attempts: Int
+        public let maxAttempts: Int
+        public let finalMessage: String?
+
+        public init(attempts: Int, maxAttempts: Int, finalMessage: String? = nil) {
+            self.attempts = attempts
+            self.maxAttempts = maxAttempts
+            self.finalMessage = finalMessage
+        }
+    }
+
     public enum Availability: Sendable, Equatable {
         case available
         case unavailable(reason: UnavailabilityReason)
@@ -57,6 +69,19 @@ public struct CLIHealthStatus: Sendable, Equatable {
     public let availability: Availability
     public let lastChecked: Date
     public let workspaceURL: URL
+    public let diagnostics: Diagnostics?
+
+    public init(
+        availability: Availability,
+        lastChecked: Date,
+        workspaceURL: URL,
+        diagnostics: Diagnostics? = nil
+    ) {
+        self.availability = availability
+        self.lastChecked = lastChecked
+        self.workspaceURL = workspaceURL
+        self.diagnostics = diagnostics
+    }
 
     public var isAvailable: Bool {
         if case .available = availability { return true }
@@ -70,12 +95,19 @@ public actor CLIHealthChecker {
     private var checkTaskTokens: [UUID: UUID] = [:]
 
     public static let defaultTimeout: TimeInterval = 30
+    public static let defaultHealthRetryConfiguration = RetryConfiguration(
+        maxRetries: 3,
+        baseDelay: 0.2,
+        maxDelay: 1.0,
+        jitterRange: 0.02...0.05
+    )
 
     public func checkHealth(
         workspaceID: UUID,
         workspaceURL: URL,
         timeout: TimeInterval = defaultTimeout,
-        executableURL: URL? = nil
+        executableURL: URL? = nil,
+        retryConfiguration: RetryConfiguration = defaultHealthRetryConfiguration
     ) async -> CLIHealthStatus {
         checkTasks[workspaceID]?.cancel()
 
@@ -85,7 +117,8 @@ public actor CLIHealthChecker {
                 workspaceID: workspaceID,
                 workspaceURL: workspaceURL,
                 timeout: timeout,
-                executableURL: executableURL
+                executableURL: executableURL,
+                retryConfiguration: retryConfiguration
             )
         }
 
@@ -146,7 +179,8 @@ public actor CLIHealthChecker {
         workspaceID _: UUID,
         workspaceURL: URL,
         timeout: TimeInterval,
-        executableURL: URL?
+        executableURL: URL?,
+        retryConfiguration: RetryConfiguration
     ) async -> CLIHealthStatus {
         guard !Task.isCancelled else {
             return CLIHealthStatus(
@@ -190,14 +224,19 @@ public actor CLIHealthChecker {
                 try RalphCLIClient.bundled()
             }
 
-            let supportsVersion = try await checkVersionCommandHealth(client: client, timeout: timeout)
-            guard supportsVersion else {
-                return CLIHealthStatus(
-                    availability: .unavailable(reason: .cliNotExecutable),
-                    lastChecked: Date(),
-                    workspaceURL: workspaceURL
-                )
-            }
+            let healthRetryConfiguration = retryConfiguration.normalizedForHealthChecks()
+            let retryHelper = RetryHelper(configuration: healthRetryConfiguration)
+            try await retryHelper.execute(
+                operation: { [self, client, timeout] in
+                    try await self.checkVersionCommandHealth(client: client, timeout: timeout)
+                },
+                shouldRetry: { error in
+                    guard let probeError = error as? CLIHealthProbeError else {
+                        return RetryHelper.defaultShouldRetry(error)
+                    }
+                    return probeError.isRetryable
+                }
+            )
 
             return CLIHealthStatus(
                 availability: .available,
@@ -210,11 +249,16 @@ public actor CLIHealthChecker {
                 lastChecked: Date(),
                 workspaceURL: workspaceURL
             )
-        } catch is TimeoutError {
+        } catch let probeError as CLIHealthProbeError {
             return CLIHealthStatus(
-                availability: .unavailable(reason: .timeout),
+                availability: .unavailable(reason: probeError.unavailabilityReason),
                 lastChecked: Date(),
-                workspaceURL: workspaceURL
+                workspaceURL: workspaceURL,
+                diagnostics: CLIHealthStatus.Diagnostics(
+                    attempts: probeError.attempts(maxAttempts: retryConfiguration.normalizedHealthAttemptCount),
+                    maxAttempts: retryConfiguration.normalizedHealthAttemptCount,
+                    finalMessage: probeError.diagnosticMessage
+                )
             )
         } catch RalphCLIClientError.executableNotFound {
             return CLIHealthStatus(
@@ -240,13 +284,41 @@ public actor CLIHealthChecker {
     private func checkVersionCommandHealth(
         client: RalphCLIClient,
         timeout: TimeInterval
-    ) async throws -> Bool {
-        let systemInfoResult = try await runHealthCommand(
-            client: client,
-            arguments: ["--no-color", "machine", "system", "info"],
-            timeout: timeout
-        )
-        return systemInfoResult.status.code == 0
+    ) async throws {
+        do {
+            let systemInfoResult = try await runHealthCommand(
+                client: client,
+                arguments: ["--no-color", "machine", "system", "info"],
+                timeout: timeout
+            )
+            guard systemInfoResult.status.code == 0 else {
+                let processError = RetryableError.processError(
+                    exitCode: systemInfoResult.status.code,
+                    stderr: systemInfoResult.stderr
+                )
+                if RetryHelper.defaultShouldRetry(processError) {
+                    throw CLIHealthProbeError.transientProcess(
+                        exitCode: systemInfoResult.status.code,
+                        stderr: systemInfoResult.stderr
+                    )
+                }
+                throw CLIHealthProbeError.nonRetryableProcess(
+                    exitCode: systemInfoResult.status.code,
+                    stderr: systemInfoResult.stderr
+                )
+            }
+        } catch is TimeoutError {
+            throw CLIHealthProbeError.timeout
+        } catch let probeError as CLIHealthProbeError {
+            throw probeError
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            if RetryHelper.defaultShouldRetry(error) {
+                throw CLIHealthProbeError.underlying(error)
+            }
+            throw error
+        }
     }
 
     private func runHealthCommand(
@@ -257,6 +329,78 @@ public actor CLIHealthChecker {
         try await client.runAndCollect(
             arguments: arguments,
             timeoutConfiguration: TimeoutConfiguration(timeout: timeout)
+        )
+    }
+}
+
+private enum CLIHealthProbeError: Error, Sendable {
+    case timeout
+    case transientProcess(exitCode: Int32, stderr: String)
+    case nonRetryableProcess(exitCode: Int32, stderr: String)
+    case underlying(any Error)
+
+    var unavailabilityReason: CLIHealthStatus.UnavailabilityReason {
+        switch self {
+        case .timeout:
+            return .timeout
+        case .transientProcess, .nonRetryableProcess, .underlying:
+            return .unknown(diagnosticMessage)
+        }
+    }
+
+    var diagnosticMessage: String {
+        switch self {
+        case .timeout:
+            return "CLI health check timed out"
+        case .transientProcess(let exitCode, let stderr), .nonRetryableProcess(let exitCode, let stderr):
+            let trimmed = Self.trim(stderr)
+            if trimmed.isEmpty {
+                return "CLI health command failed with exit code \(exitCode)"
+            }
+            return "CLI health command failed with exit code \(exitCode): \(trimmed)"
+        case .underlying(let error):
+            return error.localizedDescription
+        }
+    }
+
+    var isRetryable: Bool {
+        switch self {
+        case .timeout, .transientProcess:
+            return true
+        case .underlying(let error):
+            return RetryHelper.defaultShouldRetry(error)
+        case .nonRetryableProcess:
+            return false
+        }
+    }
+
+    func attempts(maxAttempts: Int) -> Int {
+        switch self {
+        case .timeout, .transientProcess, .underlying:
+            return maxAttempts
+        case .nonRetryableProcess:
+            return 1
+        }
+    }
+
+    private static func trim(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > 300 else { return trimmed }
+        return String(trimmed.prefix(300)) + "…"
+    }
+}
+
+private extension RetryConfiguration {
+    var normalizedHealthAttemptCount: Int {
+        max(1, maxRetries)
+    }
+
+    func normalizedForHealthChecks() -> RetryConfiguration {
+        RetryConfiguration(
+            maxRetries: normalizedHealthAttemptCount,
+            baseDelay: baseDelay,
+            maxDelay: maxDelay,
+            jitterRange: jitterRange
         )
     }
 }
