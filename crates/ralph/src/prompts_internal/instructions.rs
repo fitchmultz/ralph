@@ -48,7 +48,7 @@ pub(crate) fn wrap_with_instruction_files(
     let mut preamble = String::new();
     preamble.push_str(
         r#"## AGENTS / GLOBAL INSTRUCTIONS (AUTHORITATIVE)
-The following instruction files are authoritative for this run. Follow them exactly.
+The following configured instruction files are authoritative for this run. Follow hard invariants exactly, and apply advisory guidance with outcome-first judgment.
 
 "#,
     );

@@ -10,6 +10,11 @@ BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 CARGO_PACKAGE_NAME ?= ralph-agent-loop
 CARGO_HTTP_MULTIPLEXING ?= false
+RUST_JOBS ?= 8
+SCCACHE ?= /opt/homebrew/bin/sccache
+AGENT_ID ?= manual
+AGENT_TARGET := $(CURDIR)/target/agents/$(AGENT_ID)
+RALPH_CARGO_MODE ?= local
 XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
 # Pin destination arch to avoid xcodebuild's "first of multiple matching destinations" warning.
 # Override if you intentionally want a different destination.
@@ -31,9 +36,9 @@ XCODE_RESULT_BUNDLE_PATH ?=
 RALPH_UI_ARTIFACTS_ROOT ?= target/ui-artifacts
 MACOS_APP_INSTALL_DIR ?= /Applications
 XCODE_BUILD_LOCK_DIR ?= target/tmp/locks/xcodebuild.lock
-# Default to tool-managed Rust/nextest parallelism for fastest local iteration.
-# Set an explicit cap (for example `RALPH_CI_JOBS=4`) on shared workstations.
-RALPH_CI_JOBS ?= 0
+# Default to bounded Rust/nextest parallelism for predictable local and agent runs.
+# Set an explicit cap (for example `RUST_JOBS=4`) on shared workstations.
+RALPH_CI_JOBS ?= $(RUST_JOBS)
 # Default to xcodebuild-managed parallelism for best local throughput.
 # Set an explicit cap (for example `RALPH_XCODE_JOBS=4`) on shared workstations.
 RALPH_XCODE_JOBS ?= 0
@@ -52,11 +57,18 @@ RALPH_RUST_TOOLCHAIN_FILE := rust-toolchain.toml
 RALPH_PINNED_RUST_TOOLCHAIN := $(shell sed -n 's/^[[:space:]]*channel = "\(.*\)"/\1/p' $(RALPH_RUST_TOOLCHAIN_FILE) 2>/dev/null | head -1)
 RALPH_PINNED_RUSTC := $(shell if command -v rustup >/dev/null 2>&1 && [ -n "$(RALPH_PINNED_RUST_TOOLCHAIN)" ]; then rustup which rustc --toolchain "$(RALPH_PINNED_RUST_TOOLCHAIN)" 2>/dev/null; fi)
 RALPH_PINNED_RUST_BIN_DIR := $(patsubst %/,%,$(dir $(RALPH_PINNED_RUSTC)))
-# Command prefix placeholder for consistency across targets.
-RALPH_ENV_RESET := :
+# Shell snippets that make Cargo build mode explicit for every recipe.
+RALPH_RUSTUP_ENV_RESET := :
 ifneq ($(strip $(RALPH_PINNED_RUST_BIN_DIR)),)
-RALPH_ENV_RESET := export PATH="$(RALPH_PINNED_RUST_BIN_DIR):$$PATH"; export RUSTC="$(RALPH_PINNED_RUSTC)"
+RALPH_RUSTUP_ENV_RESET := export PATH="$(RALPH_PINNED_RUST_BIN_DIR):$$PATH"; export RUSTC="$(RALPH_PINNED_RUSTC)"
 endif
+
+ifeq ($(RALPH_CARGO_MODE),agent)
+RALPH_CARGO_ENV_RESET := export CARGO_TARGET_DIR="$(AGENT_TARGET)"; export RUSTC_WRAPPER="$(SCCACHE)"; export CARGO_INCREMENTAL=0; export CARGO_BUILD_JOBS="$(RUST_JOBS)"
+else
+RALPH_CARGO_ENV_RESET := unset RUSTC_WRAPPER RUSTFLAGS CARGO_ENCODED_RUSTFLAGS CARGO_TARGET_DIR CARGO_INCREMENTAL; export CARGO_BUILD_JOBS="$(RUST_JOBS)"
+endif
+RALPH_ENV_RESET := $(RALPH_RUSTUP_ENV_RESET); $(RALPH_CARGO_ENV_RESET)
 
 CARGO_JOBS_FLAG := $(if $(filter-out 0,$(RALPH_CI_JOBS)),--jobs $(RALPH_CI_JOBS),)
 NEXTEST_JOBS_FLAG := $(if $(filter-out 0,$(RALPH_CI_JOBS)),--jobs $(RALPH_CI_JOBS),)
@@ -127,7 +139,8 @@ help:
 	@echo "  make check-file-size-limits # Enforce warn-on-soft/fail-on-hard file-size guardrail"
 	@echo ""
 	@echo "Resource knobs (optional):"
-	@echo "  RALPH_CI_JOBS=4     # Example cap for shared workstations (0 = tool default, fastest local iteration)"
+	@echo "  RUST_JOBS=4         # Example Rust/nextest job cap for shared workstations (default 8)"
+	@echo "  AGENT_ID=agent-a    # Isolated target/agents/<id> directory for make agent-ci"
 	@echo "  RALPH_XCODE_JOBS=4  # Example cap for shared workstations (0 = xcodebuild default)"
 	@echo "  XCODE_ARCHS=$$(uname -m) # Host-arch Xcode CI/test builds (override only for cross-arch validation)"
 	@echo "  rust-toolchain.toml is respected automatically when rustup is available"

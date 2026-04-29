@@ -44,8 +44,11 @@ pub fn execute_phase2_implementation(
     logging::with_scope(&label, || {
         if total_phases == 3 {
             let handoff_template = prompts::load_phase2_handoff_checklist(&ctx.resolved.repo_root)?;
-            let handoff_checklist =
-                prompts::render_phase2_handoff_checklist(&handoff_template, &ctx.resolved.config)?;
+            let handoff_checklist = prompts::render_phase2_handoff_checklist(
+                &handoff_template,
+                ctx.task_id,
+                &ctx.resolved.config,
+            )?;
             let p2_template = prompts::load_worker_phase2_handoff_prompt(&ctx.resolved.repo_root)?;
             let p2_prompt = promptflow::build_phase2_handoff_prompt(
                 &p2_template,

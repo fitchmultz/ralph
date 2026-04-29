@@ -121,8 +121,8 @@ profile_dir="debug"
 build_args=(-p ralph-agent-loop --locked)
 case "$CONFIGURATION" in
     Release)
-        profile_dir="release"
-        build_args+=(--release)
+        profile_dir="dist"
+        build_args+=(--profile dist)
         ;;
     Debug)
         ;;
@@ -132,11 +132,17 @@ case "$CONFIGURATION" in
         ;;
 esac
 
+target_root="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
+case "$target_root" in
+    /*) ;;
+    *) target_root="$REPO_ROOT/$target_root" ;;
+esac
+
 if [ -n "$TARGET_TRIPLE" ]; then
     build_args+=(--target "$TARGET_TRIPLE")
-    binary_path="$REPO_ROOT/target/$TARGET_TRIPLE/$profile_dir/ralph"
+    binary_path="$target_root/$TARGET_TRIPLE/$profile_dir/ralph"
 else
-    binary_path="$REPO_ROOT/target/$profile_dir/ralph"
+    binary_path="$target_root/$profile_dir/ralph"
 fi
 
 if [ -n "$JOBS" ] && [ "$JOBS" != "0" ]; then

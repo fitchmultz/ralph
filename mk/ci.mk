@@ -45,12 +45,12 @@ agent-ci:
 	@force_macos="$${RALPH_AGENT_CI_FORCE_MACOS:-0}"; \
 	if [ "$$force_macos" = "1" ]; then \
 		echo "  → RALPH_AGENT_CI_FORCE_MACOS=1; running macOS gate"; \
-		$(MAKE) --no-print-directory macos-ci; \
+		RALPH_CARGO_MODE=agent $(MAKE) --no-print-directory macos-ci; \
 		exit 0; \
 	fi; \
 	if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
 		echo "  → Not in a git worktree; using platform-aware release gate fallback"; \
-		$(MAKE) --no-print-directory release-gate; \
+		RALPH_CARGO_MODE=agent $(MAKE) --no-print-directory release-gate; \
 		exit 0; \
 	fi; \
 	eval "$$(scripts/agent-ci-surface.sh --emit-eval)"; \
@@ -79,4 +79,4 @@ agent-ci:
 		esac; \
 	fi; \
 	echo "  → $$RALPH_AGENT_CI_REASON"; \
-	$(MAKE) --no-print-directory "$$target_name"
+	RALPH_CARGO_MODE=agent $(MAKE) --no-print-directory "$$target_name"

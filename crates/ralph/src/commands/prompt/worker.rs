@@ -237,7 +237,7 @@ fn build_phase2_prompt(
     if total_phases == 3 {
         let handoff_template = prompts::load_phase2_handoff_checklist(&resolved.repo_root)?;
         let handoff_checklist =
-            prompts::render_phase2_handoff_checklist(&handoff_template, &resolved.config)?;
+            prompts::render_phase2_handoff_checklist(&handoff_template, task_id, &resolved.config)?;
         let phase2_template = prompts::load_worker_phase2_handoff_prompt(&resolved.repo_root)?;
         promptflow::build_phase2_handoff_prompt(
             &phase2_template,

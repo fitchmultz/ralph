@@ -1,9 +1,11 @@
 <!-- Purpose: Phase 2 implementation prompt wrapper (3-phase workflow handoff). -->
 # IMPLEMENTATION MODE - PHASE 2 OF {{TOTAL_PHASES}}
+Task: `{{TASK_ID}}`
 
-CURRENT TASK: {{TASK_ID}}. Stay on this task.
+# Goal
+Implement the approved plan and leave a concise, useful handoff for Phase 3 review. Do not perform terminal task bookkeeping.
 
-Task status is already set to `doing` by Ralph. Leave it unchanged.
+Task status is already `doing`; leave it unchanged.
 
 {{ITERATION_CONTEXT}}
 
@@ -11,20 +13,21 @@ Task status is already set to `doing` by Ralph. Leave it unchanged.
 
 {{REPOPROMPT_BLOCK}}
 
-# APPROVED PLAN
-
+# Approved Plan
 {{PLAN_TEXT}}
 
----
+# Execution Rules
+- Implement the plan, adapting only where repo reality requires it.
+- Resolve follow-ups, inconsistencies, missing tests, and suspicious leads in Phase 2 when they are in scope.
+- Leave the working tree ready for Phase 3 review.
+- If independent follow-up work remains, write or mention `.ralph/cache/followups/{{TASK_ID}}.json` for Phase 3/coordinator handling.
 
-Note: Your final response will be passed into Phase 3 as context only. End with a concise handoff summary that Phase 3 can use.
-PREFERRED: resolve follow-ups, inconsistencies, missing tests, or suspicious leads in Phase 2 instead of deferring them.
-If you discovered independent follow-up work, mention whether `.ralph/cache/followups/{{TASK_ID}}.json` exists for Phase 3 to apply.
-If you are truly blocked, clearly describe the blocker and the concrete remediation steps for the next run.
-
-Proceed with the implementation of the plan above. Stop after Phase 2 handoff.
-
----
+# Handoff Output Contract
+End with a concise handoff summary:
+- changed files and user-visible behavior
+- validation run and result, or why it could not run
+- follow-up proposal status
+- unresolved risks/blockers and concrete remediation steps if blocked
 
 {{ITERATION_COMPLETION_BLOCK}}
 

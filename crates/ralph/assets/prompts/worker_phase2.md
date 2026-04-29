@@ -1,13 +1,11 @@
 <!-- Purpose: Phase 2 implementation prompt wrapper (2-phase workflow). -->
 # IMPLEMENTATION MODE - PHASE 2 OF {{TOTAL_PHASES}}
+Task: `{{TASK_ID}}`
 
-## PARALLEL EXECUTION (WHEN AVAILABLE)
-If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
-Sequential execution is always valid.
+# Goal
+Implement the approved plan, adapt it to repo reality where needed, validate the result, and complete final task bookkeeping through the checklist.
 
-CURRENT TASK: {{TASK_ID}}. Stay on this task.
-
-Task status is already set to `doing` by Ralph. Leave it unchanged.
+Task status is already `doing`; leave it unchanged until checklist instructions say otherwise.
 
 {{ITERATION_CONTEXT}}
 
@@ -15,15 +13,14 @@ Task status is already set to `doing` by Ralph. Leave it unchanged.
 
 {{REPOPROMPT_BLOCK}}
 
-# APPROVED PLAN
-
+# Approved Plan
 {{PLAN_TEXT}}
 
----
-
-Proceed with the implementation of the plan above.
-
----
+# Execution Rules
+- Use the approved plan as the starting contract.
+- If repo reality conflicts with the plan, preserve the task goal and choose the smallest safe adaptation.
+- Update all downstream docs/config/tests/user surfaces affected by the change.
+- Prefer finishing current scope over deferring work.
 
 {{ITERATION_COMPLETION_BLOCK}}
 

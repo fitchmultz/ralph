@@ -6,12 +6,20 @@ members = [
 
 [profile.dev]
 debug = "line-tables-only"
-codegen-units = 256
+incremental = true
 
 [profile.test]
 debug = "line-tables-only"
+incremental = true
 
 [profile.release]
+lto = "off"
+codegen-units = 16
+debug = false
+strip = "none"
+
+[profile.dist]
+inherits = "release"
 lto = "thin"
 codegen-units = 1
 panic = "abort"

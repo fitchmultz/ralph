@@ -1,11 +1,9 @@
 <!-- Purpose: Phase 1 planning prompt wrapper. -->
 # PLANNING MODE - PHASE 1 OF {{TOTAL_PHASES}}
+Task: `{{TASK_ID}}`
 
-## PARALLEL EXECUTION (WHEN AVAILABLE)
-If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
-Sequential execution is always valid.
-
-CURRENT TASK: {{TASK_ID}}. Stay on this task.
+# Goal
+Produce a standalone implementation plan for the current task. Do not implement source/config/docs changes in this phase.
 
 {{ITERATION_CONTEXT}}
 
@@ -13,46 +11,36 @@ CURRENT TASK: {{TASK_ID}}. Stay on this task.
 
 {{REPOPROMPT_BLOCK}}
 
-## OUTPUT REQUIREMENT: PLAN ONLY
-You are in Phase 1 (Planning). REQUIRED: do not implement changes in this phase.
-Your goal is to understand the task, refresh task metadata, and produce a detailed plan.
-
+# Task Refresh
 {{TASK_REFRESH_INSTRUCTION}}
 
-## PHASE 1 BOUNDARIES
-REQUIRED:
-- limit file edits to:
-  - `{{config.queue.file}}` only when the Task Refresh Step requires it
-  - the plan cache file at `{{PLAN_PATH}}`
-- do not modify source, config, or docs outside those files
-- do not run tests, the configured CI gate command (`{{config.agent.ci_gate_display}}`) when enabled, or implementation validation commands
-- do not run `git add`, `git commit`, or `git push`
+# Phase 1 Constraints
+Allowed edits only:
+- `{{config.queue.file}}` when the task refresh step requires it
+- `{{PLAN_PATH}}` for the final plan
 
-If implementation work starts accidentally, stop and revert any disallowed edits.
+Do not edit source, config, or docs outside those files. Do not run implementation validation commands, the configured CI gate (`{{config.agent.ci_gate_display}}`), `git add`, `git commit`, or `git push`.
 
-## PLAN OUTPUT
-REQUIRED: write the final plan directly to this file:
+If implementation work starts accidentally, stop and revert disallowed edits.
+
+# Plan Output Contract
+Write the final plan directly to:
 
 {{PLAN_PATH}}
 
-A brief confirmation is sufficient; do not echo the full plan text back unless the harness requires it.
-Use the available tooling to write the plan file directly.
+The Phase 2 agent may only have this plan plus task context. Make it self-contained.
 
-The Execution Agent (Phase 2) who reads this plan has **NO KNOWLEDGE** of the user's original request, this conversation, or the task history.
-- **Your plan is their ONLY Reality.**
-- You must explicitly define the **Task Goal** inside the plan.
-- You must explain the **"Why"** inside the plan.
-- Do NOT reference "as discussed" or "per the prompt." The executioner in Phase 2 does not know what those are.
+Required sections:
+- Task goal and why it matters
+- Current evidence and relevant files/commands inspected
+- Proposed changes, including important files/symbols likely touched
+- Acceptance criteria and validation commands
+- Risks, assumptions, and fallback/adaptation guidance
+- Compatibility or migration notes when behavior changes
 
-**CORE DOCTRINE:**
-1. **Standalone Intel:** The Directive must be self-contained. If the executioner reads it without any other context, they must understand the full scope of the mission.
-2. **Maximum Fabrication:** Provide explicit **actual** code snippets for the Executioner to implement. You should NOT provide ENTIRE files but SHOULD provide code snippets to guide the implementation.
-3. **Strategic Intent over Rigid Compliance:** Your specific instructions are authoritative *unless* they conflict with reality. If a file is missing from your context, the agent is authorized to adapt your strategy/code to fix it. Explicitly mention this.
+Include focused code or command snippets when they materially reduce ambiguity. Do not paste whole files. State that Phase 2 may adapt the plan if repo reality differs, while preserving the task goal and safety constraints.
 
-You acknowledge that your plan may not be 100% comprehensive:
-- **Your Job:** Write the highest-quality, First Principles directive possible based on the files you read and context you were provided.
-- **The Executioner's Job:** Implement your plan, but also *hunt down* related files you overlooked and update them to match your directive.
-- **Backwards compatibility:** Backwards compatibility is NOT a priority unless explicitly requested in the user's request. Plan to replace old/improper functionality instead.
-
-Treat any `context_builder` response as planning input only. Do NOT start implementing code after you receive it.
-Do NOT switch tasks: plan ONLY for the current task and ignore any other IDs mentioned in tool output.
+# Stop Rules
+- Treat `context_builder` output as planning input only.
+- Plan only for `{{TASK_ID}}`; ignore other task IDs mentioned in tool output unless they are dependencies/evidence for this task.
+- Final response may be a brief confirmation that the plan was written; do not echo the full plan unless required by the harness.

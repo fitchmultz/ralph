@@ -1,37 +1,38 @@
+<!-- Purpose: Prompt for focused Git merge conflict resolution. -->
 # Merge Conflict Resolution
+You are resolving Git merge conflicts for a Ralph workspace.
 
-## PARALLEL EXECUTION (WHEN AVAILABLE)
-If your environment supports parallel agents or sub-agents, prefer using them for independent work such as search, file analysis, validation, or review.
-Sequential execution is always valid.
+# Goal
+Produce a conflict-free working tree that preserves both upstream intent and task intent with minimal unrelated change.
 
-You are resolving Git merge conflicts.
-
-Conflicted files:
+# Conflicted Files
 {{CONFLICT_FILES}}
 
-## Special Guidance for `{{config.queue.file}}` / `{{config.queue.done_file}}`
+# Special Guidance for `{{config.queue.file}}` / `{{config.queue.done_file}}`
+If `{{config.queue.file}}` is conflicted:
+- Preserve **all** tasks from both sides; do not drop tasks to make the merge easier.
+- Preserve file order semantics: file order is execution order. Keep relative order stable unless a direct conflict requires a local choice.
+- Do not renumber/rename task IDs unless needed for a true duplicate-ID collision.
+- If a duplicate ID must be resolved, prefer Ralph tooling when available. Otherwise choose a unique ID consistent with the queue format and update all references (`depends_on`, `blocks`, `relates_to`, `duplicates`).
+- Keep timestamps valid RFC3339; do not invent timestamps unless the chosen content requires one.
 
-If either of these files appears in the conflict list above, follow these additional rules to preserve Ralph's queue semantics:
+If `{{config.queue.done_file}}` is conflicted:
+- Keep only terminal tasks (`done`/`rejected`) there.
+- Do not move active tasks into done as part of conflict resolution.
 
-### If `{{config.queue.file}}` is conflicted:
-- Preserve **all** tasks from both sides; do not drop tasks to "make it merge".
-- Preserve task ordering semantics: **file order is execution order**; do not sort/reorder tasks unless required to resolve a direct conflict, and keep relative order stable.
-- Do not renumber/rename task IDs unless necessary to resolve a true duplicate-ID collision; never delete tasks to resolve collisions.
-- If an ID collision must be resolved: choose a new unique ID and update every reference to it (`depends_on`, `blocks`, `relates_to`, `duplicates`) to keep the graph consistent.
-- Keep `created_at`/`updated_at` as valid RFC3339 strings; do not invent new timestamps unless already required by the chosen side's content.
+For both files:
+- Remove all conflict markers.
+- Preserve the root queue/done structure and schema.
+- Run `ralph queue validate` if either queue/done file was touched and fix validation errors.
 
-### If `{{config.queue.done_file}}` is conflicted:
-- Keep only terminal tasks (`done`/`rejected`) in `{{config.queue.done_file}}`.
-- Do not move active tasks from `{{config.queue.file}}` into `{{config.queue.done_file}}` as part of conflict resolution.
+# General Resolution Flow
+1. Open each conflicted file.
+2. Resolve markers while preserving both sides' intended behavior.
+3. Keep edits focused on conflict resolution.
+4. Run `git status --porcelain` or equivalent and confirm no unmerged paths remain.
+5. Run targeted validation when the conflict touched executable behavior.
 
-### For both files:
-- Remove all conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) and ensure strict queue/done file validity (no syntax errors, no malformed structure).
-- Ralph will run queue/done repair + semantic validation before commit, so your merge resolution must satisfy these invariants.
-
-## General Instructions
-
-- Open each conflicted file and resolve the conflicts.
-- Remove all conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
-- Do not change unrelated files.
-- Ensure `git status` shows no unmerged paths.
-- Keep changes minimal and focused on resolving conflicts.
+# Final Response Shape
+- Files resolved
+- Validation run and result
+- Semantic choices made, especially for queue/done conflicts or duplicate IDs

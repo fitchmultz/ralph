@@ -13,6 +13,15 @@
 - Type safety: use strict TypeScript configuration.
 - Secrets: never commit or print secrets; redact sensitive output before recording in documentation.
 
+
+## Agent Execution Style
+
+- Start from the requested outcome, success criteria, constraints, and validation evidence.
+- Keep plans and status updates concise; add detail only when it changes behavior or reduces risk.
+- Ask for clarification only when missing information would materially change the work or create meaningful risk.
+- Use available tools to verify facts instead of carrying stale assumptions forward.
+- Stop only when the outcome is complete, validation is run or explicitly blocked, and remaining risks are documented.
+
 ## Repository Map
 
 {repository_map}

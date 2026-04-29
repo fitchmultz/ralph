@@ -37,10 +37,10 @@ pub(crate) fn task_context_for_prompt(task: &Task) -> Result<String> {
     Ok(format!(
         r#"# CURRENT TASK (AUTHORITATIVE)
 
-You MUST work on this exact task and no other task.
-- Do NOT switch tasks based on queue order, "first todo", or "lowest ID".
-- Ignore `.ralph/done.jsonc` except as historical reference if explicitly needed.
-- Do NOT change task status manually.
+Work only on this task. This is a workflow invariant, not a suggestion.
+- Do not switch tasks based on queue order, "first todo", or "lowest ID".
+- Treat `.ralph/done.jsonc` only as historical reference when explicitly needed.
+- Do not change task status manually; use phase/checklist instructions.
 
 Task ID: {id}
 Title: {title}

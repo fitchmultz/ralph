@@ -1,36 +1,40 @@
-<!-- Purpose: Shared completion checklist injected into implementation-mode worker prompts. -->
-## IMPLEMENTATION COMPLETION CHECKLIST
-Run mode for this session: `{{RUN_MODE}}` (expected values: `normal`, `parallel-worker`).
+<!-- Purpose: Shared final completion checklist injected into implementation-mode worker prompts. -->
+# IMPLEMENTATION COMPLETION CHECKLIST
+Run mode: `{{RUN_MODE}}` (`normal` or `parallel-worker`).
 
-Follow this checklist. Items marked REQUIRED are machine-enforced or integration-critical.
+Complete these in order.
 
-1. PREFERRED: investigate and resolve any risks, bugs, or suspicious leads flagged during this run before completion. If a lead is a false positive, document why in your final response.
-2. Follow-up queue growth:
-   - REQUIRED: follow-ups cannot substitute for finishing the active task's current scope.
-   - REQUIRED: create follow-ups only for genuinely independent out-of-scope work or when this task's purpose is discovery/queue shaping.
-   - REQUIRED: if actionable follow-up work was found, write a `followups@v1` proposal to `.ralph/cache/followups/{{TASK_ID}}.json`.
-   - REQUIRED (`RUN_MODE=normal`): apply the proposal with `ralph task followups apply --task {{TASK_ID}}` before terminal task bookkeeping.
-   - REQUIRED (`RUN_MODE=parallel-worker`): do not apply the proposal; leave `.ralph/cache/followups/{{TASK_ID}}.json` for Ralph's coordinator to apply during integration.
-   - PREFERRED: skip the artifact entirely when there is no independent follow-up work.
-3. Finalize task bookkeeping:
-   - REQUIRED (`RUN_MODE=normal`): run `ralph task done --note "<note>" {{TASK_ID}}` or `ralph task reject --note "<note>" {{TASK_ID}}` for terminal state.
-   - REQUIRED (`RUN_MODE=parallel-worker`): do not run `ralph task done`; Ralph reconciles queue/done bookkeeping after your integration turn.
-   - PREFERRED: provide 1-5 short summary notes using repeated `--note` flags when using `ralph task done` or `ralph task reject`.
-   - PREFERRED: quickly scan other tasks in `{{config.queue.file}}` and refresh clearly stale assumptions, notes, or evidence when your changes invalidate them.
-4. If the task is incomplete but you are stopping:
-   - REQUIRED: leave it in `{{config.queue.file}}` as `doing` (or revert to `todo` if not continuing).
-   - REQUIRED: do not set `blocked`.
-5. REQUIRED:
-   - do not run `ralph queue archive` for single-task completion
-   - if `RUN_MODE=normal`, do not manually edit queue/done files; use `ralph task followups apply` for approved queue growth
-   - if `RUN_MODE=parallel-worker`, do not manually rewrite queue/done files unless resolving conflict markers during rebase
-6. REQUIRED: ensure `{{config.queue.file}}` remains valid queue JSON/JSONC and respects the queue contract.
-7. CI Gate (configured validation only; never a run toggle):
-   - `agent.ci_gate.enabled=false` skips Ralph-managed CI validation only. It does NOT disable this run, task execution, queue bookkeeping, or git publish behavior.
-   - if you made no changes, you may skip the CI gate and state that validation was unnecessary because there were no changes
-   - REQUIRED: if you made changes and `agent.ci_gate.enabled` is true (`{{config.agent.ci_gate_enabled}}`), run `{{config.agent.ci_gate_display}}` and fix all failures before ending your turn
-   - REQUIRED: if you made changes and `agent.ci_gate.enabled` is false, do not invent a CI requirement; state that configured CI validation was skipped because `agent.ci_gate.enabled=false`, and report any other verification you performed
-8. Git hygiene:
-   - REQUIRED: if `{{config.agent.git_publish_mode}}` is `commit_and_push`, do not run `git commit` or `git push` manually; Ralph handles publish.
-   - REQUIRED: if `RUN_MODE=parallel-worker`, leave the workspace rebased, conflict-free, and committed; when `agent.ci_gate.enabled` is true, also leave configured CI validation passing; when it is false, report that configured CI validation was skipped by configuration. Ralph will validate bookkeeping and push.
-   - PREFERRED: report the final repo state clearly when manual follow-up is still required.
+1. Outcome check
+   - Verify the active task scope is complete.
+   - Resolve in-scope risks, bugs, missing tests, or suspicious leads before completion when practical.
+   - If a lead is false, note why in the final response.
+
+2. Follow-up proposals
+   - follow-ups cannot substitute for finishing the active task's current scope.
+   - Create `.ralph/cache/followups/{{TASK_ID}}.json` only for independent out-of-scope work or explicit discovery/queue-shaping deliverables.
+   - `RUN_MODE=normal`: apply proposals with `ralph task followups apply --task {{TASK_ID}}` before terminal bookkeeping.
+   - `RUN_MODE=parallel-worker`: do not apply the proposal; leave the artifact for coordinator integration.
+   - If there is no independent follow-up work, skip the artifact.
+
+3. Validation
+   - CI Gate (configured validation only; never a run toggle): `agent.ci_gate.enabled=false` skips Ralph-managed CI validation only. It does NOT disable this run, task execution, queue bookkeeping, or git publish behavior.
+   - If no files changed, you may skip the configured CI gate and say why.
+   - If files changed and `agent.ci_gate.enabled` is true (`{{config.agent.ci_gate_enabled}}`), run `{{config.agent.ci_gate_display}}` and fix failures before ending.
+   - If files changed and `agent.ci_gate.enabled=false`, do not invent that CI requirement; state that configured CI validation was skipped because `agent.ci_gate.enabled=false`, and list other checks run.
+   - Ensure `{{config.queue.file}}` remains valid if queue state changed.
+
+4. Task bookkeeping
+   - `RUN_MODE=normal`: finish with `ralph task done --note "<note>" {{TASK_ID}}` or `ralph task reject --note "<note>" {{TASK_ID}}`.
+   - `RUN_MODE=parallel-worker`: do not run `ralph task done` or manually rewrite queue/done; Ralph reconciles bookkeeping after integration.
+   - Do not run `ralph queue archive` for single-task completion.
+   - If stopping incomplete, leave the task active and clearly report state and next step; do not set `blocked`.
+
+5. Git hygiene
+   - If `{{config.agent.git_publish_mode}}` is `commit_and_push`, do not manually commit or push; Ralph handles publish.
+   - In `parallel-worker` mode, leave the workspace rebased, conflict-free, committed, and CI-clean when enabled; Ralph validates bookkeeping and pushes.
+
+# Final Response Shape
+- Summary of completed outcome
+- Validation run and result
+- Task/follow-up bookkeeping performed
+- Remaining risks or blockers, if any

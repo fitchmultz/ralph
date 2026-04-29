@@ -73,9 +73,9 @@ fn worker_single_phase_includes_completion_workflow() -> Result<()> {
         1
     );
 
-    assert!(prompt.contains("IMPORTANT EXCEPTION (RALPH BOOKKEEPING)"));
+    assert!(prompt.contains("Task bookkeeping"));
+    assert!(prompt.contains("ralph task done"));
     assert!(prompt.contains(".ralph/queue.jsonc"));
-    assert!(prompt.contains(".ralph/done.jsonc"));
     Ok(())
 }
 

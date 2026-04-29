@@ -349,8 +349,12 @@ pub fn render_completion_checklist(
     )
 }
 
-pub fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {
-    prompts_internal::review::render_phase2_handoff_checklist(template, config)
+pub fn render_phase2_handoff_checklist(
+    template: &str,
+    task_id: &str,
+    config: &Config,
+) -> Result<String> {
+    prompts_internal::review::render_phase2_handoff_checklist(template, task_id, config)
 }
 
 pub fn render_iteration_checklist(

@@ -36,18 +36,18 @@ pub struct PromptPolicy {
     pub repoprompt_tool_injection: bool,
 }
 
-pub const PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION: &str = r#"## TASK REFRESH STEP (REQUIRED BEFORE PLANNING)
-Before producing the final plan, update only the current task in `.ralph/queue.jsonc`:
-- Refresh only: `scope`, `evidence`, `plan`, `notes`, `tags`, `depends_on`
-- Set `updated_at` to current UTC RFC3339 time
-- Preserve task identity/status fields (`id`, `title`, `status`, `priority`, `created_at`, `request`, `agent`)
-- Do not add or remove tasks
+pub const PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION: &str = r#"## Task Refresh Step
+Before writing the final plan, refresh only the current task in `.ralph/queue.jsonc` when repo reality has changed.
 
-After updating the task, re-read the updated task data and then produce the final plan."#;
+Allowed fields: `scope`, `evidence`, `plan`, `notes`, `tags`, `depends_on`, and `updated_at`.
+Preserve task identity/status fields: `id`, `title`, `status`, `priority`, `created_at`, `request`, and `agent`.
+Do not add, remove, complete, or reject tasks.
 
-pub const PHASE1_TASK_REFRESH_DISABLED_INSTRUCTION: &str = r#"## TASK REFRESH STEP
-Parallel worker mode is active for this run. Do NOT edit `.ralph/queue.jsonc`.
-Use current task metadata as-is and continue with planning only."#;
+After any update, re-read the task data and use the refreshed facts in the plan."#;
+
+pub const PHASE1_TASK_REFRESH_DISABLED_INSTRUCTION: &str = r#"## Task Refresh Step
+Parallel worker mode is active. Do not edit `.ralph/queue.jsonc`.
+Use current task metadata as evidence and continue with planning only."#;
 
 /// Path to the cached plan for a given task ID.
 pub fn plan_cache_path(repo_root: &Path, task_id: &str) -> PathBuf {

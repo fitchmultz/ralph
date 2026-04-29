@@ -17,23 +17,25 @@
 
 pub(crate) const ITERATION_CONTEXT_REFINEMENT: &str = r#"
 ## REFINEMENT CONTEXT
-A prior execution of this task already occurred in this run. Focus on refinement:
-- identify regressions or unintended behavior changes
-- simplify or harden the implementation where possible
-- do not assume the task is complete
-- if a plan already exists, reuse the same file path instead of creating a new planning artifact elsewhere
+A prior pass already worked on this task. Use that state as evidence, not proof of completion.
 
-The working tree may already be dirty from earlier work. Do not stop just because the repo is dirty.
+Success for this pass means:
+- regressions or unintended behavior changes are found and addressed
+- touched code is simplified or hardened where practical
+- any existing plan cache path is reused instead of creating a competing plan artifact
+- remaining risks are reported clearly for the next pass
+
+The working tree may already be dirty from earlier work. Inspect it, then continue; do not stop for expected task changes alone.
 "#;
 
 pub(crate) const ITERATION_COMPLETION_BLOCK: &str = r#"
 ## ITERATION COMPLETION RULES
-This run must not complete the task.
-- REQUIRED: do not run `ralph task done` or `ralph task reject`.
-- REQUIRED: leave the task status as `doing`.
-- REQUIRED: leave the working tree dirty for continued iteration.
+This is not the terminal completion run.
+- Do not run `ralph task done` or `ralph task reject`.
+- Leave the task status as `doing`.
+- Leave task work available for continued iteration; do not stash or revert completed in-scope work.
 "#;
 
-pub(crate) const PHASE3_COMPLETION_GUIDANCE_FINAL: &str = "Task status is already set to `doing` by Ralph. Leave it unchanged until terminal task bookkeeping is complete. PREFERRED: investigate and resolve any risks, bugs, or suspicious leads you flag before completion. If a lead is a false positive, document why in your final response.";
+pub(crate) const PHASE3_COMPLETION_GUIDANCE_FINAL: &str = "Task status is already `doing`. Leave it unchanged until the completion checklist performs terminal bookkeeping. Before completion, resolve in-scope risks, bugs, missing tests, or suspicious leads when practical; if a lead is false, state the evidence briefly.";
 
-pub(crate) const PHASE3_COMPLETION_GUIDANCE_NONFINAL: &str = "Task status is already set to `doing` by Ralph. Leave it unchanged. REQUIRED: do not run `ralph task done` or `ralph task reject` in this run. PREFERRED: investigate and resolve any risks, bugs, or suspicious leads you flag before ending the run. If a lead is a false positive, document why in your summary.";
+pub(crate) const PHASE3_COMPLETION_GUIDANCE_NONFINAL: &str = "Task status is already `doing`. Leave it unchanged. This is not a terminal run: do not run `ralph task done` or `ralph task reject`. Investigate in-scope risks and suspicious leads when practical, and summarize evidence plus next steps for the next pass.";

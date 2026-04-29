@@ -55,6 +55,9 @@ pub fn build_agent_integration_prompt(
         r#"# Parallel Integration (Mandatory) - Attempt {attempt}/{max_attempts}
 You are finalizing task `{task_id}` (`{task_title}`) for integration into `origin/{target_branch}`.
 
+## Goal
+Integrate the task branch with the latest target branch so Ralph can safely reconcile bookkeeping and push after your turn returns.
+
 ## Hard Requirement
 You MUST execute integration git operations yourself in this turn. Do not stop early.
 You are NOT done until all required checks are satisfied.
@@ -87,7 +90,7 @@ Before ending your response:
 - Shared bookkeeping files are not manually rewritten.
 - CI has passed when enabled.
 
-If any check fails, keep working in this same turn until fixed.
+If a check fails, keep working in this same turn unless continuing would risk unrelated user work; then report the blocker and exact next step.
 "#
     ))
 }

@@ -46,10 +46,10 @@ fn build_phase1_prompt_contains_required_elements() {
     .unwrap();
 
     assert!(prompt.contains("PLANNING MODE - PHASE 1 OF 2"));
-    assert!(prompt.contains("TASK REFRESH STEP"));
+    assert!(prompt.contains("Task Refresh"));
     assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
-    assert!(prompt.contains("PLAN ONLY"));
+    assert!(prompt.contains("Plan only"));
     assert!(prompt.contains(".ralph/cache/plans/RQ-1234.md"));
     assert!(prompt.contains(base));
     assert!(!prompt.contains("IMPLEMENTATION COMPLETION CHECKLIST"));
@@ -110,10 +110,10 @@ fn build_phase2_prompt_contains_required_elements() {
     .unwrap();
 
     assert!(prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 2"));
-    assert!(prompt.contains("CURRENT TASK: RQ-1234"));
+    assert!(prompt.contains("Task: `RQ-1234`"));
     assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(prompt.contains(checklist));
-    assert!(prompt.contains("APPROVED PLAN"));
+    assert!(prompt.contains("Approved Plan"));
     assert!(prompt.contains(plan));
     assert!(prompt.contains("BASE_PROMPT"));
 }
@@ -201,11 +201,11 @@ fn build_phase2_handoff_prompt_contains_required_elements() {
     .unwrap();
 
     assert!(prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 3"));
-    assert!(prompt.contains("CURRENT TASK: RQ-1234"));
+    assert!(prompt.contains("Task: `RQ-1234`"));
     assert!(prompt.contains(checklist));
-    assert!(prompt.contains("resolve follow-ups, inconsistencies, missing tests"));
+    assert!(prompt.contains("Resolve follow-ups, inconsistencies, missing tests"));
     assert!(prompt.contains("concrete remediation steps"));
-    assert!(prompt.contains("APPROVED PLAN"));
+    assert!(prompt.contains("Approved Plan"));
     assert!(prompt.contains(plan));
     assert!(prompt.contains("BASE_PROMPT"));
 }
@@ -240,15 +240,17 @@ fn build_phase3_prompt_contains_required_elements() {
     .unwrap();
 
     assert!(prompt.contains("CODE REVIEW MODE - PHASE 3 OF 3"));
-    assert!(prompt.contains("CURRENT TASK: RQ-0001"));
+    assert!(prompt.contains("Task: `RQ-0001`"));
     assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(prompt.contains("PRE-FLIGHT OVERRIDE"));
     assert!(prompt.contains(review));
     assert!(prompt.contains(phase2_final));
     assert!(prompt.contains("CHECKLIST"));
     assert!(prompt.contains(base));
-    assert!(prompt.contains("Leave it unchanged until terminal task bookkeeping is complete."));
-    assert!(prompt.contains("PREFERRED: investigate and resolve any risks"));
+    assert!(prompt.contains(
+        "Leave it unchanged until the completion checklist performs terminal bookkeeping."
+    ));
+    assert!(prompt.contains("resolve in-scope risks, bugs, missing tests"));
 }
 
 #[test]
@@ -258,7 +260,7 @@ fn iteration_checklist_requires_closing_flagged_issues() {
     let template = prompts::load_iteration_checklist(repo_root.path()).unwrap();
     let rendered = prompts::render_iteration_checklist(&template, "RQ-0002", &config).unwrap();
 
-    assert!(rendered.contains("PREFERRED: investigate and resolve suspicious leads"));
+    assert!(rendered.contains("Fix or document suspicious leads"));
 }
 
 #[test]
@@ -269,8 +271,8 @@ fn completion_checklist_requires_closing_flagged_issues() {
     let rendered =
         prompts::render_completion_checklist(&template, "RQ-0003", &config, false).unwrap();
 
-    assert!(rendered.contains("PREFERRED: investigate and resolve any risks"));
-    assert!(rendered.contains("Run mode for this session: `normal`"));
+    assert!(rendered.contains("Resolve in-scope risks, bugs, missing tests"));
+    assert!(rendered.contains("Run mode: `normal`"));
 }
 
 #[test]
@@ -278,8 +280,10 @@ fn phase2_handoff_checklist_discourages_deferrals() {
     let config = Config::default();
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_phase2_handoff_checklist(repo_root.path()).unwrap();
-    let rendered = prompts::render_phase2_handoff_checklist(&template, &config).unwrap();
+    let rendered = prompts::render_phase2_handoff_checklist(&template, "RQ-0004", &config).unwrap();
 
-    assert!(rendered.contains("PREFERRED: resolve follow-ups"));
+    assert!(rendered.contains("Resolve in-scope follow-ups"));
+    assert!(rendered.contains(".ralph/cache/followups/RQ-0004.json"));
+    assert!(!rendered.contains("{{TASK_ID}}"));
     assert!(rendered.contains("If you are truly blocked"));
 }

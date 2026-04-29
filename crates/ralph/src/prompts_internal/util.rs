@@ -50,43 +50,45 @@ pub(crate) struct RequiredPlaceholder {
 /// Instructions for tooling requirements when RepoPrompt tooling reminders are enabled.
 pub(crate) const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
 ## REPOPROMPT TOOLING (WHEN CONNECTED)
-You are running in a RepoPrompt-enabled environment. Prefer RepoPrompt tools when they are available in this harness.
+Prefer RepoPrompt tools when they are the best way to gather repo context, inspect structure, or apply focused edits. If RepoPrompt is unavailable or incomplete, use the best available tools in the current harness.
 
-When the RepoPrompt MCP server is connected, these tool groups are typically available:
+Useful RepoPrompt tool groups:
 - Targeting: `list_windows` + `select_window` (or pass `_windowID`), `manage_workspaces`, `list_tabs` / `select_tab` (or pass `_tabID`)
 - Discovery/context: `manage_selection`, `get_file_tree`, `file_search`, `read_file`, `get_code_structure`, `workspace_context`, `prompt`
 - Edits: `apply_edits`, `file_actions`
 - Read-only git: `git` (`status`, `diff`, `log`, `show`, `blame`)
 - Planning/review: `context_builder`, `list_models`, `chat_send`, `chats`
 
-If RepoPrompt is unavailable or incomplete, use the best available repository tools in the current harness.
+Tool budget: start with the smallest context that can answer the task, then expand only when a required file, symbol, validation signal, or decision input is missing.
 
-## CLI FALLBACK (WHEN MCP TOOLS ARE UNAVAILABLE)
-If RepoPrompt MCP tools are unavailable, prefer the RepoPrompt CLI when it exists:
-- Start with `rp-cli --help`; optionally use `rp -h` if the wrapper is installed.
-- `rp-cli` commonly uses `-e` to execute an expression (example: `rp-cli -e 'tree'`).
-- `rp` is a convenience wrapper with simpler syntax (example: `rp 'tree'`).
-- If `rp` is missing, fall back to `rp-cli`.
+## CLI FALLBACK
+If MCP tools are unavailable, prefer the RepoPrompt CLI when installed:
+- Start with `rp-cli --help`; use `rp -h` only if the wrapper exists.
+- `rp-cli` commonly supports `-e`, for example `rp-cli -e 'tree'`.
+- `rp` is a convenience wrapper, for example `rp 'tree'`.
 "#;
 
 pub(crate) const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
 ## REPOPROMPT PLANNING FLOW
-When `context_builder` is available, use it as the standard planning path. If it is unavailable, use the best available repo-inspection tools and still produce the required plan artifact.
-1. PREFERRED: do a quick repo reality check before planning:
-   - validate key assumptions from the task
-   - identify relevant files
-   - note capability gaps or parity needs across user-facing entrypoints
-2. PREFERRED: provide detailed `instructions` to `context_builder`, including the current task and generous file-selection guidance.
-3. Standard approach: set `response_type` to "plan" so the result is shaped for planning.
-4. RepoPrompt can draft the plan, but you own the final artifact. Correct it if repo reality disagrees.
-5. If follow-up is needed, append missing files to the existing selection and continue in the same chat context.
-6. PREFERRED: favor parity across CLI/API/UI/scripts when multiple entrypoints exist.
-7. REQUIRED: write the final plan to the plan cache path provided in the prompt. Phase 2 reads that file.
+When `context_builder` is available, use it to produce planning evidence. You still own the final plan artifact.
 
-## OUTPUT
-- REQUIRED: write the plan to the plan cache path provided in the prompt.
-- PREFERRED: reply with a brief confirmation instead of repeating the full plan text.
-- REQUIRED: do not start implementation in Phase 1.
+Outcome:
+- validate task assumptions against repo reality
+- identify relevant files and affected entrypoints
+- capture parity needs across CLI/API/UI/scripts when applicable
+- write a standalone plan to the provided plan cache path
+
+Suggested flow:
+1. Do a quick repo reality check before asking for a plan.
+2. Give `context_builder` the current task plus generous file-selection guidance.
+3. Use `response_type: "plan"` when supported.
+4. Correct the drafted plan if repo evidence disagrees.
+5. If a required file is missing from context, append it and continue in the same chat.
+
+Output:
+- write the final plan to the plan cache path provided in the prompt
+- reply with a brief confirmation instead of repeating the full plan unless required
+- do not start implementation in Phase 1
 "#;
 
 pub(crate) fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String {

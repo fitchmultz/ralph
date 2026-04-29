@@ -29,7 +29,8 @@ rust-toolchain-drift-check:
 	@echo "  ✓ Rust toolchain drift check OK"
 
 install-verify: $(RALPH_RELEASE_BUILD_STAMP)
-	@ralph_bin_path="$(CURDIR)/target/release/$(BIN_NAME)"; \
+	@$(RALPH_ENV_RESET); \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Release $(RALPH_CLI_BUILD_JOBS_ARG) --print-path)"; \
 	if [ ! -x "$$ralph_bin_path" ]; then \
 		echo "install-verify: missing release binary at $$ralph_bin_path (run make build first)" >&2; \
 		exit 1; \
@@ -114,15 +115,12 @@ test:
 	exit_code=0; \
 	if cargo nextest --version >/dev/null 2>&1; then \
 		echo "  → Using cargo-nextest for non-doc tests"; \
-		echo "  → Running doc tests concurrently with nextest"; \
-		cargo nextest run --workspace --all-targets --locked $(NEXTEST_JOBS_FLAG) -- --include-ignored >"$$unit_log" 2>&1 & \
-		unit_pid="$$!"; \
-		cargo test --workspace --doc --locked $(CARGO_JOBS_FLAG) -- --include-ignored $(CARGO_TEST_THREADS_FLAG) >"$$doc_log" 2>&1 & \
-		doc_pid="$$!"; \
+		echo "  → Running non-doc tests before doc tests to avoid Cargo artifact-lock contention"; \
 		set +e; \
-		wait "$$unit_pid"; \
+		cargo nextest run --workspace --all-targets --locked $(NEXTEST_JOBS_FLAG) -- --include-ignored >"$$unit_log" 2>&1; \
 		unit_status="$$?"; \
-		wait "$$doc_pid"; \
+		echo "  → Running doc tests"; \
+		cargo test --workspace --doc --locked $(CARGO_JOBS_FLAG) -- --include-ignored $(CARGO_TEST_THREADS_FLAG) >"$$doc_log" 2>&1; \
 		doc_status="$$?"; \
 		set -e; \
 		if [ "$$unit_status" -eq 0 ]; then \
@@ -168,13 +166,15 @@ test:
 build: $(RALPH_RELEASE_BUILD_STAMP)
 	@true
 
-# Use the already-built release binary (no cargo run, no debug compile)
+# Use the already-built dist binary (no cargo run, no debug compile)
 generate: $(RALPH_RELEASE_BUILD_STAMP)
-	@echo "→ Generating schemas (via release binary)..."
-	@mkdir -p schemas
-	@./target/release/$(BIN_NAME) config schema > schemas/config.schema.json
-	@./target/release/$(BIN_NAME) queue schema > schemas/queue.schema.json
-	@./target/release/$(BIN_NAME) machine schema > schemas/machine.schema.json
+	@echo "→ Generating schemas (via dist binary)..."
+	@$(RALPH_ENV_RESET); \
+	mkdir -p schemas; \
+	ralph_bin_path="$$(scripts/ralph-cli-bundle.sh --configuration Release $(RALPH_CLI_BUILD_JOBS_ARG) --print-path)"; \
+	"$$ralph_bin_path" config schema > schemas/config.schema.json; \
+	"$$ralph_bin_path" queue schema > schemas/queue.schema.json; \
+	"$$ralph_bin_path" machine schema > schemas/machine.schema.json
 	@echo "  ✓ Schemas generated"
 
 docs:

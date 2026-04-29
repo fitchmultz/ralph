@@ -67,11 +67,21 @@ pub(crate) fn render_completion_checklist(
     Ok(rendered)
 }
 
-pub(crate) fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {
+pub(crate) fn render_phase2_handoff_checklist(
+    template: &str,
+    task_id: &str,
+    config: &Config,
+) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::Phase2HandoffChecklist);
+    let id = task_id.trim();
+    if id.is_empty() {
+        bail!("Missing task id: phase2 handoff checklist requires a non-empty task id.");
+    }
+
     let expanded = super::util::expand_variables(template, config)?;
-    ensure_no_unresolved_placeholders(&expanded, template_meta.label)?;
-    Ok(expanded)
+    let rendered = expanded.replace("{{TASK_ID}}", id);
+    ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
+    Ok(rendered)
 }
 
 pub(crate) fn render_iteration_checklist(
