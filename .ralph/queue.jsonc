@@ -1,4 +1,180 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0061",
+      "status": "todo",
+      "title": "Support allowlisted files beneath ignored directory roots",
+      "description": "Parallel ignored-file sync currently cannot copy allowlisted files when Git reports only an ignored parent directory entry instead of the nested file path. Why it matters: repos that ignore a whole directory such as `config/` cannot use `parallel.ignored_file_allowlist` to sync specific files inside that directory, even though the config contract says repo-relative file paths and file globs are supported. Minimal fix: change ignored-path enumeration and matching so preflight and sync can inspect concrete ignored files under ignored directory roots without broadening sync to whole directory trees.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "parallel",
+        "sync",
+        "gitignored"
+      ],
+      "scope": [
+        "crates/ralph/src/git/status.rs",
+        "crates/ralph/src/commands/run/parallel/sync/gitignored.rs",
+        "crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs",
+        "cargo test -p ralph-agent-loop"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/git/status.rs:152-166 :: `ignored_paths` shells out to `git ls-files -i -o --exclude-standard -z --directory`, which collapses ignored directory trees to directory entries instead of nested file paths.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:85-123 :: preflight skips entries ending in `/` and fails with `matched no existing gitignored files`, so an allowlist entry cannot match a file hidden behind an ignored parent directory entry.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:156-171 :: runtime sync also skips directory entries and only copies `source.is_file()` matches, so the same blind spot persists during actual workspace seeding.",
+        "path: crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs:65-141 :: current coverage exercises individually ignored files and same-directory globs, but not a `.gitignore` rule like `config/` plus an allowlist entry such as `config/local.json`.",
+        "command: tmp=$(mktemp -d) && cd \"$tmp\" && git init -q && printf 'config/\\n' > .gitignore && mkdir -p config && echo '{}' > config/local.json && printf 'with --directory: ' && git ls-files -i -o --exclude-standard -z --directory | perl -0ne 'print join(q(,), grep { length } split(/\\0/, $_))' && printf '\\nwithout --directory: ' && git ls-files -i -o --exclude-standard -z | perl -0ne 'print join(q(,), grep { length } split(/\\0/, $_))' && printf '\\n' :: output was `with --directory: config/` and `without --directory: config/local.json`."
+      ],
+      "plan": [
+        "Adjust ignored-path discovery or downstream expansion so allowlist evaluation can see concrete ignored files inside ignored directories while still refusing broad directory mirroring.",
+        "Add regression coverage for both preflight and `sync_ralph_state` using a repo that ignores `config/` but allowlists `config/local.json` and a narrow file glob under that directory.",
+        "Verify by running targeted Rust tests for the new ignored-directory-root cases and `make agent-ci`, then confirm the nested allowlisted file is copied into the worker workspace."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T00:48:35Z",
+      "updated_at": "2026-04-29T00:48:35Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0062",
+      "status": "todo",
+      "title": "Block ignored-file sync from following repo-escaping symlinks",
+      "description": "Parallel ignored-file sync currently treats gitignored symlinks as regular files and copies their resolved content into worker workspaces without checking whether the target stays inside the repository. Why it matters: a trusted allowlist or default ignored-file sync entry can exfiltrate arbitrary local machine files into worker clones and downstream runner prompts. Minimal fix: canonicalize matched ignored files during preflight and sync, reject symlinks whose resolved target escapes the repo root, and add regression coverage for both escaping and safe in-repo cases.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "parallel",
+        "sync",
+        "gitignored",
+        "security"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/sync/gitignored.rs",
+        "crates/ralph/src/commands/run/parallel/sync/common.rs",
+        "crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs",
+        "cargo test -p ralph-agent-loop"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:103-114 :: preflight accepts a match as long as `source.is_dir()` is false and `source.is_file()` is true, which is also true for symlinks pointing to regular files outside the repo.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:165-171 :: runtime sync repeats the same `source.is_file()` gate before copying the matched path into the worker workspace.",
+        "path: crates/ralph/src/commands/run/parallel/sync/common.rs:24-33 :: `sync_file_if_exists` blindly calls `fs::copy(source, target)` and does not constrain symlink targets to the repo root.",
+        "path: crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs:25-260 :: current ignored-file sync tests do not cover symlinked allowlist entries or repo-escape checks.",
+        "command: tmp=$(mktemp -d) && outside=$(mktemp) && printf 'secret' > \"$outside\" && cd \"$tmp\" && git init -q && printf 'secret-link\\n' > .gitignore && ln -s \"$outside\" secret-link && { git ls-files -i -o --exclude-standard -z --directory | perl -0ne 'print qq([).join(q(],[), grep { length } split(/\\0/, $_)).qq(]\\n)'; printf 'islink=%s isfile=%s real=%s\\n' \"$(test -L secret-link && echo yes || echo no)\" \"$(test -f secret-link && echo yes || echo no)\" \"$(python3 -c 'import os; print(os.path.realpath(\"secret-link\"))')\"; } :: output showed `[secret-link]` plus `islink=yes isfile=yes`, proving the current path classification would admit an ignored symlink."
+      ],
+      "plan": [
+        "Introduce a canonical-path safety check for ignored-file matches and reject any symlink or resolved file path that escapes `repo_root` before sync begins.",
+        "Add regression tests for an ignored symlink to an external file and for an allowed ignored file that remains inside the repo.",
+        "Verify by running the focused ignored-file sync test suite and `make agent-ci`, then confirm the external-symlink case fails preflight with an explicit safety error."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T00:48:35Z",
+      "updated_at": "2026-04-29T00:48:35Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0063",
+      "status": "todo",
+      "title": "Stop zero-match allowlist entries from blocking unrelated machines",
+      "description": "Parallel preflight currently makes any `parallel.ignored_file_allowlist` entry that matches zero files a hard failure. Why it matters: trusted repo config and shared global config cannot safely express optional machine-local files like `config/*.local.json` unless every machine has at least one matching ignored file, which makes the feature brittle for team use. Minimal fix: redesign zero-match handling so optional absent files are skipped with explicit diagnostics while unsafe paths, directories, and workspace-root overlaps still fail fast.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "parallel",
+        "sync",
+        "gitignored",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/orchestration/preflight.rs",
+        "crates/ralph/src/commands/run/parallel/sync/gitignored.rs",
+        "crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs",
+        "docs/configuration/queue-and-parallel.md"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/orchestration/preflight.rs:110-115 :: every parallel run invokes `preflight_parallel_ignored_file_allowlist` before workers are spawned, so zero-match behavior is a hard gate for the whole run.",
+        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:116-121 :: preflight bails whenever an allowlist pattern matched no existing ignored files.",
+        "path: crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs:123-141 :: existing regression coverage explicitly locks in the current `matched no existing gitignored files` failure mode.",
+        "path: docs/configuration/queue-and-parallel.md:50-69 :: the canonical docs encourage trusted allowlist patterns for additional ignored local files, but they do not warn that every configured pattern must exist on every machine for parallel mode to start.",
+        "path: crates/ralph/src/config/validation/trust.rs:26-46 :: project-scoped `parallel.ignored_file_allowlist` is trust-gated, which implies maintainers may intentionally place these entries in shared repo config rather than only local global config."
+      ],
+      "plan": [
+        "Decide and implement the smallest durable contract for optional allowlist entries, such as warning-and-skip for zero matches while preserving hard failures for unsafe or ambiguous matches.",
+        "Update the focused preflight tests to cover both optional-missing patterns and still-fatal invalid cases, and add operator-visible diagnostics that report skipped allowlist entries.",
+        "Verify by running the targeted preflight tests and `make agent-ci`, then confirm a repo with an optional missing allowlist pattern can still start parallel mode while emitting a clear warning."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T00:48:35Z",
+      "updated_at": "2026-04-29T00:48:35Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0064",
+      "status": "todo",
+      "title": "Document the real allowlist contract in trust docs and init UX",
+      "description": "The operator-facing docs and init flow do not explain the allowlist contract as concretely as the runtime enforces it. Why it matters: feedback already points to confusion around natural entries like `node_modules/*`, and today users only learn some important rules from runtime failures. Minimal fix: update the canonical configuration/trust docs, schema description, and init/help messaging so they explicitly call out trust gating, valid file/glob examples, invalid examples such as `node_modules/*` and `dir/`, and the fact that this feature is for small ignored files rather than ignored directory trees.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "parallel",
+        "sync",
+        "gitignored",
+        "docs"
+      ],
+      "scope": [
+        "docs/configuration/queue-and-parallel.md",
+        "docs/configuration/trust-and-precedence.md",
+        "docs/features/configuration.md",
+        "docs/cli.md",
+        "docs/guides/local-smoke-test.md",
+        "docs/guides/getting-started.md",
+        "schemas/config.schema.json",
+        "crates/ralph/src/commands/init/wizard.rs"
+      ],
+      "evidence": [
+        "path: docs/configuration/queue-and-parallel.md:50-69 :: the canonical allowlist section shows valid examples and terse rules, but it does not include explicit invalid examples like `node_modules/*` or explain the small-file-only intent in operator terms.",
+        "path: schemas/config.schema.json:730-739 :: the schema description mentions rejected directories and heavy/runtime paths, but it does not surface concrete invalid examples or the trust requirement.",
+        "path: docs/configuration/trust-and-precedence.md:16-25 and docs/features/configuration.md:61-76 :: trust docs enumerate execution-sensitive project settings without naming `parallel.ignored_file_allowlist`, even though runtime trust validation treats it as trust-gated.",
+        "path: crates/ralph/src/config/validation/trust.rs:26-46 :: the runtime trust error explicitly includes `parallel.ignored_file_allowlist`, so the docs currently under-describe real behavior.",
+        "path: crates/ralph/src/commands/init/wizard.rs:375-400 and 466-470 :: interactive init offers only a multiselect of discovered files and then falls back to generic `Edit .ralph/config.jsonc` guidance, without teaching the exact config key or invalid patterns.",
+        "path: docs/cli.md:59-67 and docs/guides/local-smoke-test.md:22-39 :: the main CLI and smoke-test flows mention `ralph init` for trust/bootstrap only and do not point readers to the parallel ignored-file allowlist behavior.",
+        "path: docs/guides/getting-started.md:95-102 :: onboarding says users can review parallel sync extras, but it does not explain manual config for cases where discovery is insufficient."
+      ],
+      "plan": [
+        "Update the canonical docs and schema text to name `parallel.ignored_file_allowlist` as trust-gated, describe the supported file/glob contract in plain language, and add explicit invalid examples including `node_modules/*`, `target/**`, `dir/`, absolute paths, and `../...`.",
+        "Tighten init/help messaging so interactive and post-init flows show the exact config key plus one valid and one invalid example when users need to configure parallel sync extras manually.",
+        "Verify by checking the updated docs/help output for the new examples and trust guidance, then run `make agent-ci` to confirm the documentation and schema surfaces stay green."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-04-29T00:48:35Z",
+      "updated_at": "2026-04-29T00:48:35Z",
+      "depends_on": [
+        "RQ-0063"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    }
+  ]
 }
