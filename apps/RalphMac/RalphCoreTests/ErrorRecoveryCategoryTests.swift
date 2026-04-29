@@ -149,6 +149,34 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertTrue(recoveryError.suggestions.contains { $0.contains("permissions") })
     }
 
+    func testClassifyLegacyCommandNotFoundAsCLIUnavailable() {
+        let error = NSError(domain: "RalphCore.CLIProcess", code: 127, userInfo: [
+            NSLocalizedDescriptionKey: "sh: ralph: command not found"
+        ])
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadTasks")
+        XCTAssertEqual(recoveryError.category, .cliUnavailable)
+        XCTAssertTrue(recoveryError.message.localizedCaseInsensitiveContains("cli"))
+        XCTAssertTrue(recoveryError.suggestions.contains { $0.localizedCaseInsensitiveContains("installed") })
+    }
+
+    func testClassifyProcessSpawnENOENTAsCLIUnavailable() {
+        let stderr = "failed to spawn managed subprocess 'ralph machine queue read': No such file or directory (os error 2)"
+        let genericError = NSError(
+            domain: "RalphCore.CLIProcess",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: stderr]
+        )
+        let processError = RetryableError.processError(exitCode: 1, stderr: stderr)
+
+        let genericRecovery = RecoveryError.classify(error: genericError, operation: "loadTasks")
+        let processRecovery = RecoveryError.classify(error: processError, operation: "loadTasks")
+
+        XCTAssertEqual(genericRecovery.category, .cliUnavailable)
+        XCTAssertEqual(processRecovery.category, .cliUnavailable)
+        XCTAssertEqual(genericRecovery.message, processRecovery.message)
+    }
+
     func testClassifyPermissionError() {
         let error = NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES), userInfo: [
             NSLocalizedDescriptionKey: "Permission denied"
@@ -182,6 +210,19 @@ final class ErrorRecoveryCategoryTests: RalphCoreTestCase {
         XCTAssertTrue(recoveryError.message.localizedCaseInsensitiveContains("config"))
         XCTAssertTrue(recoveryError.suggestions.contains { $0.contains("ralph migrate --apply") })
         XCTAssertFalse(recoveryError.category.suggestedActions.contains(.validateQueue))
+    }
+
+    func testClassifyUnscopedMissingFileDoesNotBecomeCLIUnavailable() {
+        let configPath = RalphCoreTestSupport.workspaceURL(label: "missing-config")
+            .appendingPathComponent(".ralph/config.jsonc", isDirectory: false)
+            .path
+        let error = NSError(domain: "RalphCore.CLIProcess", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Error: load project config \(configPath): No such file or directory (os error 2)"
+        ])
+
+        let recoveryError = RecoveryError.classify(error: error, operation: "loadRunnerConfiguration")
+        XCTAssertEqual(recoveryError.category, .configIncompatible)
+        XCTAssertFalse(recoveryError.category.suggestedActions.contains(.reinstallCLI))
     }
 
     func testClassifyUnsupportedConfigVersionAsConfigIncompatible() {

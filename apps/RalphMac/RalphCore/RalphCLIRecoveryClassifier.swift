@@ -196,6 +196,16 @@ enum RalphCLIRecoveryClassifier {
             )
         }
 
+        if isCLIUnavailableDescription(normalized) {
+            return makeRecovery(
+                category: .cliUnavailable,
+                message: "Ralph CLI executable is not available",
+                underlyingError: description,
+                operation: operation,
+                workspaceURL: workspaceURL
+            )
+        }
+
         if normalized.contains("queue validation failed")
             || normalized.contains("done archive validation failed")
             || (normalized.contains("queue") && (normalized.contains("corrupt") || normalized.contains("invalid")))
@@ -294,6 +304,17 @@ enum RalphCLIRecoveryClassifier {
             operation: operation,
             workspaceURL: workspaceURL
         )
+    }
+
+    private static func isCLIUnavailableDescription(_ normalized: String) -> Bool {
+        normalized.contains("command not found")
+            || normalized.contains("executable not found")
+            || normalized.contains("ralph cli executable not found")
+            || normalized.contains("ralph cli executable is not available")
+            || normalized.contains("bundled cli unavailable")
+            || normalized.contains("failed to spawn")
+            || normalized.contains("spawn enoent")
+            || normalized.contains("spawn: enoent")
     }
 
     private static func classifyMachineError(

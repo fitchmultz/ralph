@@ -57,6 +57,12 @@ fn build_machine_error_document(err: &anyhow::Error) -> MachineErrorDocument {
             "No Ralph queue file found.",
             false,
         )
+    } else if is_cli_unavailable_error(&normalized) {
+        (
+            MachineErrorCode::CliUnavailable,
+            "Ralph CLI executable is not available.",
+            false,
+        )
     } else if normalized.contains("queue validation failed")
         || normalized.contains("done archive validation failed")
         || (normalized.contains("queue")
@@ -151,6 +157,17 @@ fn build_machine_error_document(err: &anyhow::Error) -> MachineErrorDocument {
     }
 }
 
+fn is_cli_unavailable_error(normalized: &str) -> bool {
+    normalized.contains("command not found")
+        || normalized.contains("executable not found")
+        || normalized.contains("ralph cli executable not found")
+        || normalized.contains("ralph cli executable is not available")
+        || normalized.contains("bundled cli unavailable")
+        || normalized.contains("failed to spawn")
+        || normalized.contains("spawn enoent")
+        || normalized.contains("spawn: enoent")
+}
+
 fn is_project_execution_trust_error(normalized: &str) -> bool {
     let canonical = ERR_PROJECT_EXECUTION_TRUST.to_ascii_lowercase();
     normalized.contains(&canonical)
@@ -194,6 +211,47 @@ mod tests {
                 .unwrap_or_default()
                 .contains("queue.jsonc")
         );
+    }
+
+    #[test]
+    fn build_machine_error_document_classifies_command_not_found_as_cli_unavailable() {
+        let err = anyhow::anyhow!("ralph: command not found");
+
+        let document = build_machine_error_document(&err);
+        assert_eq!(document.code, MachineErrorCode::CliUnavailable);
+        assert_eq!(document.message, "Ralph CLI executable is not available.");
+        assert!(!document.retryable);
+    }
+
+    #[test]
+    fn build_machine_error_document_classifies_spawn_enoent_as_cli_unavailable() {
+        let err = anyhow::anyhow!(
+            "failed to spawn managed subprocess 'ralph machine queue read': No such file or directory (os error 2)"
+        );
+
+        let document = build_machine_error_document(&err);
+        assert_eq!(document.code, MachineErrorCode::CliUnavailable);
+        assert!(!document.retryable);
+        assert!(
+            document
+                .detail
+                .as_deref()
+                .unwrap_or_default()
+                .contains("os error 2")
+        );
+    }
+
+    #[test]
+    fn build_machine_error_document_does_not_treat_unscoped_missing_files_as_cli_unavailable() {
+        let err = anyhow::anyhow!("load project config: No such file or directory (os error 2)");
+
+        let document = build_machine_error_document(&err);
+        assert_eq!(document.code, MachineErrorCode::ConfigIncompatible);
+        assert_eq!(
+            document.message,
+            "Workspace config is incompatible with this Ralph version."
+        );
+        assert!(!document.retryable);
     }
 
     #[test]

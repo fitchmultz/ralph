@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0068",
-      "status": "todo",
-      "title": "Classify missing CLI binaries as cli_unavailable in machine errors",
-      "description": "The machine contract defines a typed cli_unavailable code, but the classifier does not currently map common missing-binary/spawn failures to it. Goal: make app-side recovery typed and stable instead of falling through to Unknown or unrelated generic codes.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "machine",
-        "typing",
-        "macos"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/machine.rs",
-        "crates/ralph/src/cli/machine/error.rs",
-        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift",
-        "make agent-ci"
-      ],
-      "evidence": [
-        "crates/ralph/src/contracts/machine.rs:57-69 defines MachineErrorCode::CliUnavailable.",
-        "crates/ralph/src/cli/machine/error.rs:42-116 classifies task conflict, permission, queue, config, version, network, and resource-busy errors, but has no branch for command-not-found, executable missing, spawn ENOENT, or CLI unavailable failures.",
-        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced.",
-        "Reproduction steps: force a machine subcommand path to use a missing executable/spawn failure and inspect the emitted MachineErrorDocument code."
-      ],
-      "plan": [
-        "Add classifier predicates for no such file or directory, command not found, executable not found, spawn ENOENT, and bundled CLI unavailable phrases before generic parse/unknown branches.",
-        "Return MachineErrorCode::CliUnavailable with a stable user-facing message and non-retryable flag unless the source is a transient resource-busy condition.",
-        "Add Rust machine error tests and align RalphMac recovery classification if it currently relies on Unknown fallbacks.",
-        "Verify by running cargo test -p ralph cli::machine::error and make agent-ci."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-04-29T03:24:54Z",
-      "updated_at": "2026-04-29T03:24:54Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0069",
       "status": "todo",
       "title": "Validate runner session IDs before persisting them",

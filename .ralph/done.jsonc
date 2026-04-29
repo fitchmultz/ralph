@@ -194,8 +194,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
-        "skill": "comprehensive-codebase-audit",
         "task_kind": "queue_shaping",
+        "skill": "comprehensive-codebase-audit",
         "model_used": "gpt-5.4"
       }
     },
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
+        "model_used": "gpt-5.4",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -687,9 +687,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -761,9 +761,9 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "gpt-5.4",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
+        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
       }
     },
     {
@@ -830,9 +830,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
-        "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex"
       }
     },
     {
@@ -956,9 +956,9 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
-        "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "source_report": "/tmp/ralph-report.md"
       }
     },
     {
@@ -2399,11 +2399,11 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "runner_used": "pi",
-        "reported_command": "ralph run loop --parallel 2",
-        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
         "model_used": "openai-codex/gpt-5.5",
-        "severity_reason": "parallel-mode task state/data integrity loss"
+        "runner_used": "pi",
+        "severity_reason": "parallel-mode task state/data integrity loss",
+        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "reported_command": "ralph run loop --parallel 2"
       }
     },
     {
@@ -2529,8 +2529,8 @@
         "RQ-0056"
       ],
       "custom_fields": {
-        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths.",
-        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers."
+        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers.",
+        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths."
       }
     },
     {
@@ -2715,8 +2715,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
       }
     },
     {
@@ -2945,8 +2945,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5"
       }
     },
     {
@@ -3004,8 +3004,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5"
       }
     },
     {
@@ -3063,9 +3063,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5:high",
+        "runner_used": "pi",
         "scan_agent": "scan-general",
-        "runner_used": "pi"
+        "model_used": "openai-codex/gpt-5.5:high"
       }
     },
     {
@@ -3123,8 +3123,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.5:high",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "openai-codex/gpt-5.5:high"
       }
     },
     {
@@ -3180,9 +3180,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.5:high",
-        "scan_agent": "scan-general",
-        "runner_used": "pi"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3250,8 +3250,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.5:high"
+        "model_used": "openai-codex/gpt-5.5:high",
+        "runner_used": "pi"
       }
     },
     {
@@ -3318,8 +3318,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "pi",
+        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high"
       }
     },
@@ -3386,8 +3386,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.5:high",
+        "runner_used": "pi",
         "scan_agent": "scan-general"
       }
     },
@@ -3449,9 +3449,72 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "pi",
+        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high"
+      }
+    },
+    {
+      "id": "RQ-0068",
+      "status": "done",
+      "title": "Classify missing CLI binaries as cli_unavailable in machine errors",
+      "description": "The machine contract defines a typed cli_unavailable code, but the classifier does not currently map common missing-binary/spawn failures to it. Goal: make app-side recovery typed and stable instead of falling through to Unknown or unrelated generic codes.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "machine",
+        "typing",
+        "macos",
+        "cli-unavailable",
+        "recovery"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/machine.rs",
+        "crates/ralph/src/cli/machine/error.rs",
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift",
+        "apps/RalphMac/RalphCoreTests/ErrorRecoveryCategoryTests.swift",
+        "cargo test -p ralph cli::machine::error",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/contracts/machine.rs:57-69 defines MachineErrorCode::CliUnavailable as a stable machine error code.",
+        "crates/ralph/src/cli/machine/error.rs:38-137 builds MachineErrorDocument by phrase-matching sanitized errors, but currently maps missing queue files only when 'queue file' is present and otherwise falls through missing-binary/spawn ENOENT phrases to ParseError or Unknown.",
+        "crates/ralph/src/cli/machine/error.rs:176-244 contains colocated unit tests for machine error classification; this is the right place for missing binary regression coverage.",
+        "apps/RalphMac/RalphCore/ConfigModels.swift:188-199 already mirrors MachineErrorCode.cliUnavailable, so the Swift wire enum does not need a new case.",
+        "apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift:86-101 maps RalphCLIClientError.executableNotFound/executableNotExecutable to .cliUnavailable and lines 299-330 map structured MachineErrorDocument.cliUnavailable to .cliUnavailable, but legacy classifyDescription at lines 177-290 lacks missing-binary phrase coverage.",
+        "apps/RalphMac/RalphCoreTests/ErrorRecoveryCategoryTests.swift:134-150 covers direct RalphCLIClientError cli unavailable cases and lines 201-219 cover structured machine error decoding, but no test currently covers legacy/process stderr phrases such as command not found or failed to spawn ENOENT."
+      ],
+      "plan": [
+        "In crates/ralph/src/cli/machine/error.rs, add a small helper such as is_cli_unavailable_error(normalized: &str) and call it after the queue-missing special case but before generic queue/config/version/network/resource/parse branches so non-queue ENOENT/spawn failures classify as MachineErrorCode::CliUnavailable.",
+        "Keep the existing queue-file missing branch ahead of the new CLI-unavailable branch so 'read queue file ... No such file or directory (os error 2)' remains QueueCorrupted, not CliUnavailable.",
+        "Have the new Rust branch return message 'Ralph CLI executable is not available.' (or a similarly stable app-facing message) and retryable false; do not mark these as resource-busy/transient.",
+        "Cover common phrases in the helper: command not found, executable not found, no such file or directory/os error 2 when not identified as queue file, failed to spawn, spawn enoent, no such file or directory (os error 2), and bundled CLI unavailable / Ralph CLI executable not found.",
+        "Add Rust unit tests in the existing #[cfg(test)] module for at least command not found, failed to spawn ... os error 2, and one assertion that queue-missing still classifies as QueueCorrupted.",
+        "In apps/RalphMac/RalphCore/RalphCLIRecoveryClassifier.swift, add a matching helper for legacy/free-form descriptions and use it in classifyDescription after the queue-file missing check and before parse/unknown fallback so stderr/generic errors without structured JSON map to .cliUnavailable.",
+        "Add Swift tests in apps/RalphMac/RalphCoreTests/ErrorRecoveryCategoryTests.swift for generic NSError and RetryableError.processError missing-binary phrases, asserting both paths produce .cliUnavailable and stable reinstall/installed suggestions, while the existing missing queue file test remains .queueCorrupted.",
+        "Verify in Phase 2 with cargo test -p ralph cli::machine::error and make agent-ci; if the Swift-only focused test runner is available and cheap, also run the relevant RalphCoreTests/ErrorRecoveryCategoryTests target before make agent-ci."
+      ],
+      "notes": [
+        "Phase 1 only refreshed metadata and wrote .ralph/cache/plans/RQ-0068.md; no source files or tests were modified.",
+        "Ordering is the main correctness constraint: preserve queue-file missing classification before the broader no-such-file/ENOENT CLI-unavailable predicate.",
+        "Rust semantic reference lookup degraded because rust-analyzer failed to initialize during planning; use local file evidence and rg results as the implementation baseline.",
+        "Classified missing CLI/spawn failures as cli_unavailable in Rust machine errors and RalphMac fallback recovery.",
+        "Scoped ENOENT matching to spawn/executable phrases so missing queue/config files keep their existing categories.",
+        "Verified cargo test -p ralph-agent-loop cli::machine::error and make agent-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T05:52:52.106733000Z",
+      "completed_at": "2026-04-29T05:52:52.106733000Z",
+      "started_at": "2026-04-29T05:29:02.127722000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "openai-codex/gpt-5.5:high",
+        "runner_used": "pi",
+        "scan_agent": "scan-general"
       }
     }
   ]
