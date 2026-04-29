@@ -21,9 +21,52 @@
 //! - Filtering expectations remain narrow by design (`.env*` only).
 
 use super::*;
+use log::{LevelFilter, Log, Metadata, Record};
+use serial_test::serial;
+use std::sync::{Mutex, OnceLock};
 
 #[cfg(unix)]
 use std::os::unix::fs as unix_fs;
+
+struct GitignoredTestLogger;
+
+static LOGGER: GitignoredTestLogger = GitignoredTestLogger;
+static LOGGER_STATE: OnceLock<LoggerState> = OnceLock::new();
+static LOGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LoggerState {
+    TestLogger,
+    OtherLogger,
+}
+
+impl Log for GitignoredTestLogger {
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record<'_>) {
+        let logs = LOGS.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = logs.lock().expect("log mutex");
+        guard.push(record.args().to_string());
+    }
+
+    fn flush(&self) {}
+}
+
+fn take_logs() -> (LoggerState, Vec<String>) {
+    let state = *LOGGER_STATE.get_or_init(|| {
+        if log::set_logger(&LOGGER).is_ok() {
+            log::set_max_level(LevelFilter::Warn);
+            LoggerState::TestLogger
+        } else {
+            LoggerState::OtherLogger
+        }
+    });
+    let logs = LOGS.get_or_init(|| Mutex::new(Vec::new()));
+    let mut guard = logs.lock().expect("log mutex");
+    (state, guard.drain(..).collect())
+}
 
 #[test]
 fn sync_ralph_state_copies_allowlisted_env_files_but_skips_ignored_dirs() -> Result<()> {
@@ -343,7 +386,11 @@ fn sync_ralph_state_rejects_default_env_symlink_resolving_outside_repo() -> Resu
 }
 
 #[test]
-fn preflight_parallel_ignored_file_allowlist_reports_missing_matches() -> Result<()> {
+#[serial]
+fn preflight_parallel_ignored_file_allowlist_warns_and_skips_missing_matches() -> Result<()> {
+    let (logger_state, _) = take_logs();
+    let _ = take_logs();
+
     let temp = TempDir::new()?;
     let repo_root = temp.path().join("repo");
     let workspace_root = temp.path().join("workspace");
@@ -353,14 +400,76 @@ fn preflight_parallel_ignored_file_allowlist_reports_missing_matches() -> Result
 
     let resolved =
         build_test_resolved_with_ignored_allowlist(&repo_root, vec!["missing.local.json"]);
+
+    sync_gitignored_impl::preflight_parallel_ignored_file_allowlist(&resolved, &workspace_root)?;
+
+    let (_, logs) = take_logs();
+    if logger_state == LoggerState::TestLogger {
+        let joined = logs.join("\n");
+        assert!(
+            joined.contains("parallel.ignored_file_allowlist[0]"),
+            "{joined}"
+        );
+        assert!(joined.contains("missing.local.json"), "{joined}");
+        assert!(
+            joined.contains("matched no existing gitignored files"),
+            "{joined}"
+        );
+        assert!(joined.contains("skipping"), "{joined}");
+    }
+    Ok(())
+}
+
+#[test]
+fn sync_ralph_state_skips_missing_allowlist_entry_but_copies_matching_entry() -> Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::create_dir_all(&workspace_root)?;
+
+    fs::write(repo_root.join(".gitignore"), "config/\n")?;
+    fs::create_dir_all(repo_root.join("config"))?;
+    fs::write(repo_root.join("config/local.json"), "local config")?;
+
+    let resolved = build_test_resolved_with_ignored_allowlist(
+        &repo_root,
+        vec!["config/missing-*.json", "config/local.json"],
+    );
+
+    sync_gitignored_impl::preflight_parallel_ignored_file_allowlist(&resolved, &workspace_root)?;
+    sync_ralph_state(&resolved, &workspace_root)?;
+
+    assert_eq!(
+        fs::read_to_string(workspace_root.join("config/local.json"))?,
+        "local config"
+    );
+    assert!(!workspace_root.join("config/missing-a.json").exists());
+    Ok(())
+}
+
+#[test]
+fn preflight_parallel_ignored_file_allowlist_rejects_broad_glob_matching_denied_path() -> Result<()>
+{
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().join("repo");
+    let workspace_root = temp.path().join("workspace");
+    fs::create_dir_all(&repo_root)?;
+    git_test::init_repo(&repo_root)?;
+    fs::create_dir_all(&workspace_root)?;
+    fs::write(repo_root.join(".gitignore"), "target/\n")?;
+    fs::create_dir_all(repo_root.join("target"))?;
+    fs::write(repo_root.join("target/local.json"), "build artifact")?;
+
+    let resolved = build_test_resolved_with_ignored_allowlist(&repo_root, vec!["*/local.json"]);
     let err =
         sync_gitignored_impl::preflight_parallel_ignored_file_allowlist(&resolved, &workspace_root)
-            .expect_err("expected missing allowlist entry to fail");
+            .expect_err("expected broad glob matching denied ignored path to fail");
 
-    assert!(
-        err.to_string()
-            .contains("matched no existing gitignored files")
-    );
+    let msg = err.to_string();
+    assert!(msg.contains("denied runtime/build path"), "{msg}");
+    assert!(msg.contains("target/local.json"), "{msg}");
     Ok(())
 }
 

@@ -89,11 +89,19 @@ pub(crate) fn preflight_parallel_ignored_file_allowlist(
         let mut matches = Vec::new();
         for raw_rel in &ignored {
             let rel = normalize_git_entry_for_matching(raw_rel);
-            if rel.is_empty() || rel.ends_with('/') || denied_prefix(&rel).is_some() {
+            if rel.is_empty() {
                 continue;
             }
             if !pattern.glob.is_match(&rel) {
                 continue;
+            }
+            if let Some(prefix) = denied_prefix(&rel) {
+                bail!(
+                    "Parallel preflight: parallel.ignored_file_allowlist[{}] `{}` matched `{}`, which is under denied runtime/build path `{prefix}`. Remove or narrow the entry.",
+                    pattern.index,
+                    pattern.raw,
+                    rel
+                );
             }
             if workspace_rel_excludes(&rel, workspace_rel.as_deref()) {
                 bail!(
@@ -120,8 +128,8 @@ pub(crate) fn preflight_parallel_ignored_file_allowlist(
             }
         }
         if matches.is_empty() {
-            bail!(
-                "Parallel preflight: parallel.ignored_file_allowlist[{}] `{}` matched no existing gitignored files. Create the file, update .gitignore/.git/info/exclude, or remove the entry.",
+            log::warn!(
+                "Parallel preflight: parallel.ignored_file_allowlist[{}] `{}` matched no existing gitignored files; skipping optional ignored-file sync for this entry.",
                 pattern.index,
                 pattern.raw
             );

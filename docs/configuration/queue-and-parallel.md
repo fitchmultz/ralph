@@ -65,7 +65,8 @@ Rules:
 - entries are repo-relative file paths or glob patterns
 - directories, absolute paths, and `..` components are rejected
 - denied runtime/build paths such as `target/`, `node_modules/`, `.venv/`, `.git/`, and `.ralph/{cache,workspaces,logs,lock}/` are rejected
-- configured entries must match existing gitignored files during parallel preflight
+- entries that match no existing gitignored files are treated as optional and skipped with a warning during parallel preflight
+- invalid entries or entries that match unsafe paths still fail preflight, including directories, denied runtime/build paths, symlinks resolving outside the repo, and paths inside or overlapping the parallel workspace root
 - project config that sets this allowlist requires repo trust (`ralph init` creates trust during bootstrap; `ralph config trust init` is available for trust-only repair)
 
 ## Queue Configuration

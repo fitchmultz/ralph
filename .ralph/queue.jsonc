@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0063",
-      "status": "todo",
-      "title": "Stop zero-match allowlist entries from blocking unrelated machines",
-      "description": "Parallel preflight currently makes any `parallel.ignored_file_allowlist` entry that matches zero files a hard failure. Why it matters: trusted repo config and shared global config cannot safely express optional machine-local files like `config/*.local.json` unless every machine has at least one matching ignored file, which makes the feature brittle for team use. Minimal fix: redesign zero-match handling so optional absent files are skipped with explicit diagnostics while unsafe paths, directories, and workspace-root overlaps still fail fast.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "parallel",
-        "sync",
-        "gitignored",
-        "config"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/orchestration/preflight.rs",
-        "crates/ralph/src/commands/run/parallel/sync/gitignored.rs",
-        "crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs",
-        "docs/configuration/queue-and-parallel.md"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/commands/run/parallel/orchestration/preflight.rs:110-115 :: every parallel run invokes `preflight_parallel_ignored_file_allowlist` before workers are spawned, so zero-match behavior is a hard gate for the whole run.",
-        "path: crates/ralph/src/commands/run/parallel/sync/gitignored.rs:116-121 :: preflight bails whenever an allowlist pattern matched no existing ignored files.",
-        "path: crates/ralph/src/commands/run/parallel/sync/tests/gitignored.rs:123-141 :: existing regression coverage explicitly locks in the current `matched no existing gitignored files` failure mode.",
-        "path: docs/configuration/queue-and-parallel.md:50-69 :: the canonical docs encourage trusted allowlist patterns for additional ignored local files, but they do not warn that every configured pattern must exist on every machine for parallel mode to start.",
-        "path: crates/ralph/src/config/validation/trust.rs:26-46 :: project-scoped `parallel.ignored_file_allowlist` is trust-gated, which implies maintainers may intentionally place these entries in shared repo config rather than only local global config."
-      ],
-      "plan": [
-        "Decide and implement the smallest durable contract for optional allowlist entries, such as warning-and-skip for zero matches while preserving hard failures for unsafe or ambiguous matches.",
-        "Update the focused preflight tests to cover both optional-missing patterns and still-fatal invalid cases, and add operator-visible diagnostics that report skipped allowlist entries.",
-        "Verify by running the targeted preflight tests and `make agent-ci`, then confirm a repo with an optional missing allowlist pattern can still start parallel mode while emitting a clear warning."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-04-29T00:48:35Z",
-      "updated_at": "2026-04-29T00:48:35Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0064",
       "status": "todo",
       "title": "Document the real allowlist contract in trust docs and init UX",
