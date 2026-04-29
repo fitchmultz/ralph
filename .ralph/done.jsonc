@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "skill": "comprehensive-codebase-audit",
-        "runner_used": "codex",
-        "task_kind": "queue_shaping"
+        "model_used": "gpt-5.4",
+        "task_kind": "queue_shaping",
+        "runner_used": "codex"
       }
     },
     {
@@ -481,8 +481,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "HIGH: machine run loop reports idle and blocked states as completed"
       }
     },
     {
@@ -539,9 +539,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "runner_used": "codex",
         "model_used": "gpt-5.4",
+        "runner_used": "codex",
+        "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
         "source_report": "/tmp/ralph-report.md"
       }
     },
@@ -610,9 +610,9 @@
       "relates_to": [],
       "custom_fields": {
         "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
-        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -686,10 +686,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.4",
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
-        "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex"
       }
     },
     {
@@ -760,10 +760,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
-        "model_used": "gpt-5.4"
+        "runner_used": "codex",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
       }
     },
     {
@@ -829,10 +829,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4",
-        "runner_used": "codex"
+        "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
         "runner_used": "codex",
         "source_report": "/tmp/ralph-report.md",
-        "audit_finding": "LOW: app docs contain stale cross-surface statements"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -955,9 +955,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
+        "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex"
       }
     },
@@ -2399,11 +2399,11 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "severity_reason": "parallel-mode task state/data integrity loss",
-        "model_used": "openai-codex/gpt-5.5",
-        "reported_command": "ralph run loop --parallel 2",
         "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
-        "runner_used": "pi"
+        "model_used": "openai-codex/gpt-5.5",
+        "runner_used": "pi",
+        "reported_command": "ralph run loop --parallel 2",
+        "severity_reason": "parallel-mode task state/data integrity loss"
       }
     },
     {
@@ -2529,8 +2529,8 @@
         "RQ-0056"
       ],
       "custom_fields": {
-        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths.",
-        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers."
+        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers.",
+        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths."
       }
     },
     {
@@ -2715,8 +2715,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
       }
     },
     {
@@ -2945,8 +2945,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5"
       }
     },
     {
@@ -3004,8 +3004,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5",
-        "runner_used": "pi"
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5"
       }
     },
     {
@@ -3063,9 +3063,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5:high",
         "runner_used": "pi",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "openai-codex/gpt-5.5:high"
       }
     },
     {
@@ -3180,9 +3180,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
-        "runner_used": "pi",
-        "scan_agent": "scan-general"
+        "runner_used": "pi"
       }
     },
     {
@@ -3249,9 +3249,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "openai-codex/gpt-5.5:high",
         "runner_used": "pi",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "openai-codex/gpt-5.5:high"
       }
     },
     {
@@ -3314,6 +3314,74 @@
       "updated_at": "2026-04-29T04:05:39.254661000Z",
       "completed_at": "2026-04-29T04:05:39.254661000Z",
       "started_at": "2026-04-29T03:35:04.948194000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "pi",
+        "scan_agent": "scan-general",
+        "model_used": "openai-codex/gpt-5.5:high"
+      }
+    },
+    {
+      "id": "RQ-0066",
+      "status": "done",
+      "title": "Quarantine corrupt session cache instead of aborting recovery",
+      "description": "A corrupt or unreadable session cache currently bubbles up as an error before Ralph can make a resume/fresh/blocking decision. Goal: treat bad session cache as a recoverable state: preserve diagnostics, quarantine the bad file, and continue with a safe explicit recovery outcome when possible.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "session",
+        "recovery",
+        "reliability",
+        "machine"
+      ],
+      "scope": [
+        "crates/ralph/src/session/persistence.rs",
+        "crates/ralph/src/session/validation.rs",
+        "crates/ralph/src/session/decision.rs",
+        "crates/ralph/src/session/mod.rs",
+        "crates/ralph/src/session/tests.rs",
+        "crates/ralph/src/cli/machine/common.rs",
+        "apps/RalphMac/RalphCore/ConfigModels.swift",
+        "apps/RalphMac/RalphCoreTests/WorkspaceRunStateResumeBlockingTests.swift",
+        "cargo test -p ralph session::",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/session/persistence.rs:52-60: load_session reads .ralph/cache/session.jsonc with read_to_string and parses with serde_json, returning context-wrapped errors directly on unreadable or malformed cache files.",
+        "crates/ralph/src/session/validation.rs:31-36: SessionValidationResult has Valid/NoSession/Stale/Timeout only; no corrupt/unreadable cache classification exists.",
+        "crates/ralph/src/session/validation.rs:96-106: check_session calls load_session(cache_dir)? before validation, so bad cache IO/parse aborts recovery instead of returning an explicit state.",
+        "crates/ralph/src/session/decision.rs:56-83: ResumeReason and ResumeDecision::blocking_state do not include a corrupt-cache runner recovery reason.",
+        "crates/ralph/src/session/decision.rs:140-146: resolve_run_session_decision calls check_session before constructing ResumeResolution, so corrupt cache bypasses resume/fresh/refusal narration.",
+        "crates/ralph/src/session/decision.rs:336-359: existing maybe_clear_session/fresh_start_resolution seam gates cache mutation behind ResumeDecisionMode::Execute; preview callers must remain non-mutating.",
+        "crates/ralph/src/cli/machine/common.rs:336-361 maps ResumeReason to stable machine reason strings; any new reason must be added.",
+        "apps/RalphMac/RalphCore/ConfigModels.swift:301-317 derives preview blocking state for a hardcoded set of runner-recovery reasons; add the new corrupt-cache reason there if config preview should surface blocking.",
+        "crates/ralph/src/session/tests.rs already covers stale, timeout, prompt-required, preview-vs-execute cache clearing, and blocking_state for confirmation-required; add corrupt-cache regression coverage alongside these tests."
+      ],
+      "plan": [
+        "Add a small session-cache corruption diagnostic type plus load_session_diagnostic/check_session classification so malformed/unreadable session.jsonc returns SessionValidationResult::CorruptCache rather than bubbling an anyhow error.",
+        "Add execute-only quarantine behavior in session persistence: move/copy the bad .ralph/cache/session.jsonc to a timestamped quarantine artifact (for example .ralph/cache/session-quarantine/session.jsonc.corrupt.<timestamp>) and leave preview mode untouched.",
+        "Map CorruptCache into ResumeResolution. Recommended default: safe fresh fallback in AutoResume/non-interactive execution after successful quarantine; Prompt mode or preview should refuse with BlockingState::runner_recovery using a new reason such as session_cache_corrupt and detail that includes the cache path, quarantine path when available, sanitized diagnostic, and exact next steps.",
+        "Update stable reason serialization surfaces: ResumeReason enum, ResumeDecision::blocking_state, cli/machine/common.rs::machine_resume_reason, and RalphMac ConfigModels.asWorkspaceBlockingState for the new reason.",
+        "Add Rust regression tests for malformed JSON, unreadable cache/path-as-directory, preview leaves corrupt cache untouched, execute quarantines/removes original, non-interactive AutoResume falls back fresh, and Prompt/non-interactive blocking_state uses RunnerRecovery.",
+        "Add/adjust machine/app tests for the new reason string if existing coverage exercises preview blocking; otherwise add the smallest focused coverage in the existing machine/common or RalphCore test suites.",
+        "Verify in Phase 2 with cargo test -p ralph session:: plus any touched machine/app focused tests, then make agent-ci."
+      ],
+      "notes": [
+        "Phase 1 only: inspected code paths and wrote implementation directive; no source changes made.",
+        "Unreadable-file tests should avoid Unix-permission-only assumptions where possible; a session.jsonc directory reliably causes read_to_string to fail cross-platform.",
+        "Use crate::redaction::redact_text for diagnostics derived from IO/parse errors or raw cache content; do not log or surface unredacted cache content.",
+        "Classified malformed, unreadable, and uninspectable session caches as recoverable corrupt-cache validation states.",
+        "Execute-mode recovery quarantines corrupt session cache files and resumes fresh only when auto-resume is explicitly allowed.",
+        "Runner-recovery blocking is emitted only for refusing-to-resume corrupt-cache decisions; fresh fallback no longer surfaces as blocked.",
+        "Validated with cargo test -p ralph-agent-loop session:: and make agent-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T04:51:05.228013000Z",
+      "completed_at": "2026-04-29T04:51:05.228013000Z",
+      "started_at": "2026-04-29T04:06:44.068871000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

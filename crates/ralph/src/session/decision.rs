@@ -32,8 +32,8 @@ use serde::{Deserialize, Serialize};
 use crate::contracts::{BlockingState, QueueFile};
 
 use super::{
-    SessionValidationResult, check_session, clear_session, prompt_session_recovery,
-    prompt_session_recovery_timeout,
+    SessionCacheCorruption, SessionValidationResult, check_session, clear_session,
+    prompt_session_recovery, prompt_session_recovery_timeout, quarantine_session_cache,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -66,6 +66,7 @@ pub enum ResumeReason {
     ResumeTargetTerminal,
     RunnerSessionInvalid,
     MissingRunnerSessionId,
+    SessionCacheCorrupt,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -82,6 +83,10 @@ pub struct ResumeDecision {
 
 impl ResumeDecision {
     pub fn blocking_state(&self) -> Option<BlockingState> {
+        if self.status != ResumeStatus::RefusingToResume {
+            return None;
+        }
+
         let reason = match self.reason {
             ResumeReason::RunnerSessionInvalid => "runner_session_invalid",
             ResumeReason::MissingRunnerSessionId => "missing_runner_session_id",
@@ -89,6 +94,7 @@ impl ResumeDecision {
             ResumeReason::SessionTimedOutRequiresConfirmation => {
                 "session_timed_out_requires_confirmation"
             }
+            ResumeReason::SessionCacheCorrupt => "session_cache_corrupt",
             _ => return None,
         };
 
@@ -262,6 +268,13 @@ pub fn resolve_run_session_decision(
                 }
             }
         }
+        SessionValidationResult::CorruptCache(corruption) => corrupt_cache_resolution(
+            cache_dir,
+            options.mode,
+            options.behavior,
+            can_prompt,
+            corruption,
+        )?,
         SessionValidationResult::Stale { reason } => fresh_start_resolution(
             cache_dir,
             options.mode,
@@ -331,6 +344,74 @@ pub fn resolve_run_session_decision(
     };
 
     Ok(resolution)
+}
+
+fn corrupt_cache_resolution(
+    cache_dir: &Path,
+    mode: ResumeDecisionMode,
+    behavior: ResumeBehavior,
+    can_prompt: bool,
+    corruption: SessionCacheCorruption,
+) -> Result<ResumeResolution> {
+    let quarantine_detail = if matches!(mode, ResumeDecisionMode::Execute) {
+        match quarantine_session_cache(cache_dir)? {
+            Some(result) => format!(
+                " The corrupt cache was quarantined from {} to {}.",
+                result.original_path.display(),
+                result.quarantine_path.display()
+            ),
+            None => " No cache file remained to quarantine.".to_string(),
+        }
+    } else {
+        " Preview mode left the corrupt cache in place.".to_string()
+    };
+
+    if matches!(behavior, ResumeBehavior::AutoResume) && matches!(mode, ResumeDecisionMode::Execute)
+    {
+        return Ok(ResumeResolution {
+            resume_task_id: None,
+            completed_count: 0,
+            decision: Some(ResumeDecision {
+                status: ResumeStatus::FallingBackToFreshInvocation,
+                scope: ResumeScope::RunSession,
+                reason: ResumeReason::SessionCacheCorrupt,
+                task_id: None,
+                message: "Resume: starting fresh because the saved session cache is corrupt or unreadable."
+                    .to_string(),
+                detail: format!(
+                    "Ralph could not read {}: {}.{}",
+                    corruption.path.display(),
+                    corruption.diagnostic,
+                    quarantine_detail
+                ),
+            }),
+        });
+    }
+
+    let next_step = if can_prompt {
+        "Re-run with --resume only after inspecting the quarantined cache, or remove the bad cache and start fresh."
+    } else {
+        "Remove or quarantine the bad session cache, then re-run; use an interactive terminal or --resume only when the saved session is known safe."
+    };
+
+    Ok(ResumeResolution {
+        resume_task_id: None,
+        completed_count: 0,
+        decision: Some(ResumeDecision {
+            status: ResumeStatus::RefusingToResume,
+            scope: ResumeScope::RunSession,
+            reason: ResumeReason::SessionCacheCorrupt,
+            task_id: None,
+            message: "Resume: refusing to guess because the saved session cache is corrupt or unreadable."
+                .to_string(),
+            detail: format!(
+                "Ralph could not read {}: {}.{} {next_step}",
+                corruption.path.display(),
+                corruption.diagnostic,
+                quarantine_detail
+            ),
+        }),
+    })
 }
 
 fn maybe_clear_session(cache_dir: &Path, mode: ResumeDecisionMode) -> Result<()> {

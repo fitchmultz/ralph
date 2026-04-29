@@ -87,6 +87,38 @@ final class WorkspaceRunStateResumeBlockingTests: WorkspacePerformanceTestCase {
         )
     }
 
+    func test_machineResumeDecision_mapsCorruptSessionCacheToRunnerRecoveryBlocking() {
+        let decision = MachineResumeDecision(
+            status: "refusing_to_resume",
+            scope: "run_session",
+            reason: "session_cache_corrupt",
+            taskID: nil,
+            message: "Resume: refusing to guess because the saved session cache is corrupt or unreadable.",
+            detail: "Inspect .ralph/cache/session.jsonc."
+        )
+
+        let blocking = decision.asWorkspaceBlockingState()
+
+        XCTAssertEqual(blocking?.status, .stalled)
+        XCTAssertEqual(
+            blocking?.reason,
+            .runnerRecovery(scope: "run_session", reason: "session_cache_corrupt", taskID: nil)
+        )
+    }
+
+    func test_machineResumeDecision_doesNotBlockWhenCorruptSessionCacheFallsBackFresh() {
+        let decision = MachineResumeDecision(
+            status: "falling_back_to_fresh_invocation",
+            scope: "run_session",
+            reason: "session_cache_corrupt",
+            taskID: nil,
+            message: "Resume: starting fresh because the saved session cache is corrupt or unreadable.",
+            detail: "The corrupt cache was quarantined."
+        )
+
+        XCTAssertNil(decision.asWorkspaceBlockingState())
+    }
+
     func test_loadTasks_appliesPreflightBlockingStateAndClearsNextTask() async throws {
         var workspace: Workspace!
         let blockedTask = RalphMockCLITestSupport.task(

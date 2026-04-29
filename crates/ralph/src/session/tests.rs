@@ -77,6 +77,13 @@ fn test_session(task_id: &str) -> SessionState {
     test_session_with_time(task_id, TEST_NOW)
 }
 
+fn empty_queue() -> QueueFile {
+    QueueFile {
+        version: 1,
+        tasks: vec![],
+    }
+}
+
 #[test]
 fn get_git_head_commit_returns_current_head() -> anyhow::Result<()> {
     let temp_dir = TempDir::new()?;
@@ -161,15 +168,191 @@ fn validate_session_stale_when_task_missing() {
 #[test]
 fn check_session_returns_no_session_when_file_missing() {
     let temp_dir = TempDir::new().unwrap();
-    let queue = QueueFile {
-        version: 1,
-        tasks: vec![],
-    };
+    let queue = empty_queue();
 
     assert_eq!(
         check_session(temp_dir.path(), &queue, None).unwrap(),
         SessionValidationResult::NoSession
     );
+}
+
+#[test]
+fn check_session_classifies_malformed_json_as_corrupt_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    std::fs::write(session_path(&cache_dir), "{ definitely not valid json").unwrap();
+    let queue = empty_queue();
+
+    match check_session(&cache_dir, &queue, Some(24)).unwrap() {
+        SessionValidationResult::CorruptCache(corruption) => {
+            assert_eq!(corruption.path, session_path(&cache_dir));
+            assert!(corruption.diagnostic.contains("parse session file"));
+            assert!(!corruption.diagnostic.contains("definitely not valid json"));
+        }
+        other => panic!("expected corrupt cache, got {other:?}"),
+    }
+}
+
+#[test]
+fn check_session_classifies_session_path_directory_as_corrupt_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(session_path(&cache_dir)).unwrap();
+    let queue = empty_queue();
+
+    match check_session(&cache_dir, &queue, Some(24)).unwrap() {
+        SessionValidationResult::CorruptCache(corruption) => {
+            assert_eq!(corruption.path, session_path(&cache_dir));
+            assert!(corruption.diagnostic.contains("read session file"));
+        }
+        other => panic!("expected corrupt cache, got {other:?}"),
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn check_session_classifies_uninspectable_session_path_as_corrupt_cache() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    std::fs::write(session_path(&cache_dir), "{}").unwrap();
+
+    let original_mode = std::fs::metadata(&cache_dir).unwrap().permissions().mode();
+    let mut locked_permissions = std::fs::metadata(&cache_dir).unwrap().permissions();
+    locked_permissions.set_mode(0o000);
+    std::fs::set_permissions(&cache_dir, locked_permissions).unwrap();
+
+    let result = check_session(&cache_dir, &empty_queue(), Some(24));
+
+    let mut restored_permissions = std::fs::metadata(temp_dir.path().join("cache"))
+        .unwrap()
+        .permissions();
+    restored_permissions.set_mode(original_mode);
+    std::fs::set_permissions(&cache_dir, restored_permissions).unwrap();
+
+    match result.unwrap() {
+        SessionValidationResult::CorruptCache(corruption) => {
+            assert_eq!(corruption.path, session_path(&cache_dir));
+            assert!(corruption.diagnostic.contains("inspect session file"));
+        }
+        other => panic!("expected corrupt cache, got {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_run_session_decision_corrupt_json_falls_back_fresh_and_quarantines() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    std::fs::write(session_path(&cache_dir), "{ definitely not valid json").unwrap();
+    let queue = empty_queue();
+
+    let resolution = resolve_run_session_decision(
+        &cache_dir,
+        &queue,
+        RunSessionDecisionOptions {
+            timeout_hours: Some(24),
+            behavior: ResumeBehavior::AutoResume,
+            non_interactive: true,
+            explicit_task_id: None,
+            announce_missing_session: false,
+            mode: ResumeDecisionMode::Execute,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(resolution.resume_task_id, None);
+    let decision = resolution.decision.expect("decision");
+    assert_eq!(decision.status, ResumeStatus::FallingBackToFreshInvocation);
+    assert_eq!(decision.reason, ResumeReason::SessionCacheCorrupt);
+    assert!(decision.blocking_state().is_none());
+    assert!(!session_exists(&cache_dir));
+    let quarantine_dir = cache_dir.join("session-quarantine");
+    assert!(quarantine_dir.exists());
+    assert_eq!(std::fs::read_dir(quarantine_dir).unwrap().count(), 1);
+}
+
+#[test]
+fn resolve_run_session_decision_corrupt_json_preview_refuses_and_preserves_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    let original_path = session_path(&cache_dir);
+    std::fs::write(&original_path, "not-json").unwrap();
+    let queue = empty_queue();
+
+    let resolution = resolve_run_session_decision(
+        &cache_dir,
+        &queue,
+        RunSessionDecisionOptions {
+            timeout_hours: Some(24),
+            behavior: ResumeBehavior::Prompt,
+            non_interactive: true,
+            explicit_task_id: None,
+            announce_missing_session: false,
+            mode: ResumeDecisionMode::Preview,
+        },
+    )
+    .unwrap();
+
+    let decision = resolution.decision.expect("decision");
+    assert_eq!(decision.status, ResumeStatus::RefusingToResume);
+    assert_eq!(decision.reason, ResumeReason::SessionCacheCorrupt);
+    assert!(original_path.exists());
+    assert!(!cache_dir.join("session-quarantine").exists());
+}
+
+#[test]
+fn resolve_run_session_decision_corrupt_json_prompt_execute_refuses_and_quarantines() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache_dir = temp_dir.path().join("cache");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    std::fs::write(session_path(&cache_dir), "not-json").unwrap();
+    let queue = empty_queue();
+
+    let resolution = resolve_run_session_decision(
+        &cache_dir,
+        &queue,
+        RunSessionDecisionOptions {
+            timeout_hours: Some(24),
+            behavior: ResumeBehavior::Prompt,
+            non_interactive: true,
+            explicit_task_id: None,
+            announce_missing_session: false,
+            mode: ResumeDecisionMode::Execute,
+        },
+    )
+    .unwrap();
+
+    let decision = resolution.decision.expect("decision");
+    assert_eq!(decision.status, ResumeStatus::RefusingToResume);
+    assert_eq!(decision.reason, ResumeReason::SessionCacheCorrupt);
+    assert!(!session_exists(&cache_dir));
+    assert!(cache_dir.join("session-quarantine").exists());
+}
+
+#[test]
+fn resume_decision_blocking_state_for_corrupt_cache() {
+    let decision = ResumeDecision {
+        status: ResumeStatus::RefusingToResume,
+        scope: ResumeScope::RunSession,
+        reason: ResumeReason::SessionCacheCorrupt,
+        task_id: None,
+        message:
+            "Resume: refusing to guess because the saved session cache is corrupt or unreadable."
+                .to_string(),
+        detail: "Inspect .ralph/cache/session.jsonc.".to_string(),
+    };
+
+    let blocking = decision.blocking_state().expect("blocking state");
+    assert!(matches!(
+        blocking.reason,
+        crate::contracts::BlockingReason::RunnerRecovery { ref reason, .. }
+            if reason == "session_cache_corrupt"
+    ));
 }
 
 #[test]
@@ -415,10 +598,7 @@ fn resolve_run_session_decision_hides_missing_session_when_not_requested() {
     let temp_dir = TempDir::new().unwrap();
     let cache_dir = temp_dir.path().join("cache");
     std::fs::create_dir_all(&cache_dir).unwrap();
-    let queue = QueueFile {
-        version: 1,
-        tasks: vec![],
-    };
+    let queue = empty_queue();
 
     let resolution = resolve_run_session_decision(
         &cache_dir,

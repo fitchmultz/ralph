@@ -32,7 +32,9 @@ pub use decision::{
     ResumeScope, ResumeStatus, RunSessionDecisionOptions, resolve_run_session_decision,
 };
 pub use persistence::{
-    clear_session, get_git_head_commit, load_session, save_session, session_exists, session_path,
+    SessionCacheCorruption, SessionLoadResult, SessionQuarantineResult, clear_session,
+    get_git_head_commit, load_session, load_session_checked, quarantine_session_cache,
+    save_session, session_exists, session_path,
 };
 pub use progress::increment_session_progress;
 pub use recovery::{prompt_session_recovery, prompt_session_recovery_timeout};

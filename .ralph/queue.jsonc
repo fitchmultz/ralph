@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0066",
-      "status": "todo",
-      "title": "Quarantine corrupt session cache instead of aborting recovery",
-      "description": "A corrupt or unreadable session cache currently bubbles up as an error before Ralph can make a resume/fresh/blocking decision. Goal: treat bad session cache as a recoverable state: preserve diagnostics, quarantine the bad file, and continue with a safe explicit recovery outcome when possible.",
-      "priority": "high",
-      "tags": [
-        "scan",
-        "session",
-        "recovery",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/session/persistence.rs",
-        "crates/ralph/src/session/validation.rs",
-        "crates/ralph/src/session/decision.rs",
-        "crates/ralph/src/session/tests.rs",
-        "make agent-ci"
-      ],
-      "evidence": [
-        "crates/ralph/src/session/persistence.rs:52-60 returns errors directly for read_session_file and parse_session_file failures.",
-        "crates/ralph/src/session/validation.rs:96-106 propagates load_session errors instead of returning an explicit validation/recovery state.",
-        "crates/ralph/src/session/decision.rs:140-146 calls check_session before constructing ResumeResolution, so corrupt cache bypasses ResumeDecision/BlockingState narration.",
-        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
-      ],
-      "plan": [
-        "Extend session validation with an explicit corrupt/unreadable session result that includes a redacted diagnostic message and cache path.",
-        "On corrupt cache, create a quarantine/backup or undo-safe diagnostic artifact before clearing or ignoring the bad session file.",
-        "Map the state to ResumeResolution: safe fresh fallback for non-interactive runs when allowed, otherwise a runner_recovery BlockingState with exact next steps.",
-        "Add tests for malformed session.jsonc, unreadable session cache, non-interactive fallback, and machine blocking output.",
-        "Verify by running cargo test -p ralph session:: and make agent-ci."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-04-29T03:24:54Z",
-      "updated_at": "2026-04-29T03:24:54Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0067",
       "status": "todo",
       "title": "Defer retry warnings until runner recovery is exhausted",

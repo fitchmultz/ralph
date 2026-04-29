@@ -371,6 +371,7 @@ fn machine_resume_reason(reason: ResumeReason) -> &'static str {
         ResumeReason::ResumeTargetTerminal => "resume_target_terminal",
         ResumeReason::RunnerSessionInvalid => "runner_session_invalid",
         ResumeReason::MissingRunnerSessionId => "missing_runner_session_id",
+        ResumeReason::SessionCacheCorrupt => "session_cache_corrupt",
     }
 }
 

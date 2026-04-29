@@ -24,7 +24,7 @@ use std::path::Path;
 use crate::contracts::{QueueFile, SessionState, TaskStatus};
 use crate::timeutil;
 
-use super::persistence::load_session;
+use super::persistence::{SessionCacheCorruption, SessionLoadResult, load_session_checked};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,6 +33,7 @@ pub enum SessionValidationResult {
     NoSession,
     Stale { reason: String },
     Timeout { hours: u64, session: SessionState },
+    CorruptCache(SessionCacheCorruption),
 }
 
 pub fn validate_session_with_now(
@@ -98,9 +99,12 @@ pub fn check_session(
     queue: &QueueFile,
     timeout_hours: Option<u64>,
 ) -> anyhow::Result<SessionValidationResult> {
-    let session = match load_session(cache_dir)? {
-        Some(session) => session,
-        None => return Ok(SessionValidationResult::NoSession),
+    let session = match load_session_checked(cache_dir) {
+        SessionLoadResult::Loaded(session) => session,
+        SessionLoadResult::Missing => return Ok(SessionValidationResult::NoSession),
+        SessionLoadResult::Corrupt(corruption) => {
+            return Ok(SessionValidationResult::CorruptCache(corruption));
+        }
     };
 
     Ok(validate_session(&session, queue, timeout_hours))
