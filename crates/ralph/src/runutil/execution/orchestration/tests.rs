@@ -17,10 +17,19 @@
 //! - No real runner binaries are required.
 
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
+use log::{Level, LevelFilter, Log, Metadata, Record};
+use serial_test::serial;
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::path::PathBuf;
+
+use super::super::super::RunnerRetryPolicy;
 use super::super::backend::{
     RunnerBackend, RunnerBackendResumeSession, RunnerBackendRunPrompt, RunnerErrorMessages,
     RunnerExecutionContext, RunnerFailureHandling, RunnerInvocation, RunnerRetryState,
@@ -77,7 +86,12 @@ fn test_invocation<'a>(
             revert_prompt: None,
         },
         retry: RunnerRetryState {
-            policy: Default::default(),
+            policy: RunnerRetryPolicy {
+                base_backoff: Duration::ZERO,
+                max_backoff: Duration::ZERO,
+                jitter_ratio: 0.0,
+                ..Default::default()
+            },
         },
     }
 }
@@ -101,6 +115,291 @@ fn test_messages() -> TestRunnerErrorMessages {
         terminated_msg: "terminated",
         non_zero_msg: non_zero_message,
         other_msg: other_message,
+    }
+}
+
+#[derive(Clone, Debug)]
+struct CapturedLog {
+    level: Level,
+    message: String,
+}
+
+struct TestLogger;
+
+static LOGGER: TestLogger = TestLogger;
+static LOGGER_STATE: OnceLock<LoggerState> = OnceLock::new();
+static LOGS: OnceLock<Mutex<Vec<CapturedLog>>> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LoggerState {
+    TestLogger,
+    OtherLogger,
+}
+
+impl Log for TestLogger {
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record<'_>) {
+        let logs = LOGS.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = logs.lock().expect("log mutex");
+        guard.push(CapturedLog {
+            level: record.level(),
+            message: record.args().to_string(),
+        });
+    }
+
+    fn flush(&self) {}
+}
+
+fn init_logger() -> (LoggerState, &'static Mutex<Vec<CapturedLog>>) {
+    let state = *LOGGER_STATE.get_or_init(|| {
+        if log::set_logger(&LOGGER).is_ok() {
+            log::set_max_level(LevelFilter::Debug);
+            LoggerState::TestLogger
+        } else {
+            LoggerState::OtherLogger
+        }
+    });
+    (state, LOGS.get_or_init(|| Mutex::new(Vec::new())))
+}
+
+fn take_logs() -> (LoggerState, Vec<CapturedLog>) {
+    let (state, logs) = init_logger();
+    let mut guard = logs.lock().expect("log mutex");
+    let drained = guard.drain(..).collect::<Vec<_>>();
+    (state, drained)
+}
+
+#[cfg(unix)]
+struct RestoreWritablePermissions {
+    path: PathBuf,
+}
+
+#[cfg(unix)]
+impl Drop for RestoreWritablePermissions {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            let _ = std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o700));
+        }
+    }
+}
+
+#[test]
+#[serial]
+#[cfg(unix)]
+fn successful_retry_emits_no_warning_level_recovery_log() {
+    let (state, _) = take_logs();
+    let _ = take_logs();
+
+    struct RetryThenSuccessBackend {
+        calls: usize,
+    }
+
+    impl RunnerBackend for RetryThenSuccessBackend {
+        fn run_prompt(
+            &mut self,
+            _request: RunnerBackendRunPrompt<'_>,
+        ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
+            self.calls += 1;
+            if self.calls == 1 {
+                return Err(runner::RunnerError::Other(anyhow::anyhow!(
+                    "rate limit, please retry later"
+                )));
+            }
+            Ok(runner::RunnerOutput {
+                status: success_status(),
+                stdout: "ok".to_string(),
+                stderr: String::new(),
+                session_id: None,
+            })
+        }
+
+        fn resume_session(
+            &mut self,
+            _request: RunnerBackendResumeSession<'_>,
+        ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
+            unreachable!("resume_session should not be called")
+        }
+    }
+
+    let temp_dir = tempfile::tempdir().expect("tempdir");
+    crate::testsupport::git::init_repo(temp_dir.path()).expect("init git repo");
+    let cache_dir = temp_dir.path().join(".ralph/cache");
+    std::fs::create_dir_all(&cache_dir).expect("create cache dir");
+    let cache_file = cache_dir.join("blocked");
+    std::fs::write(&cache_file, "initial").expect("write tracked cache fixture");
+    std::fs::write(temp_dir.path().join("README.md"), "initial").expect("write fixture");
+    crate::testsupport::git::commit_all(temp_dir.path(), "initial").expect("commit fixture");
+    std::fs::write(&cache_file, "dirty").expect("dirty allowed cache fixture");
+    std::fs::set_permissions(&cache_dir, std::fs::Permissions::from_mode(0o500))
+        .expect("make cache dir read-only");
+    let _permissions_guard = RestoreWritablePermissions { path: cache_dir };
+
+    let mut invocation = test_invocation(
+        temp_dir.path(),
+        Runner::Codex,
+        Model::Gpt53Codex,
+        "test prompt",
+        None,
+        true,
+        None,
+    );
+    invocation.failure.git_revert_mode = GitRevertMode::Enabled;
+
+    let mut backend = RetryThenSuccessBackend { calls: 0 };
+    let output = run_prompt_with_handling_backend(invocation, test_messages(), &mut backend)
+        .expect("retry should succeed");
+
+    assert_eq!(output.stdout, "ok");
+    assert_eq!(backend.calls, 2);
+
+    let (_, logs) = take_logs();
+    if state == LoggerState::TestLogger {
+        let auto_revert_logs = logs
+            .iter()
+            .filter(|entry| entry.message.contains("auto-revert before retry"))
+            .collect::<Vec<_>>();
+        assert!(
+            !auto_revert_logs.is_empty(),
+            "expected failed auto-revert retry diagnostic log: {logs:?}"
+        );
+        assert!(
+            auto_revert_logs
+                .iter()
+                .all(|entry| !matches!(entry.level, Level::Warn | Level::Error)),
+            "logs: {logs:?}"
+        );
+    }
+}
+
+#[test]
+#[serial]
+fn terminal_revert_failure_preserves_retry_admission_diagnostic() {
+    struct AlwaysRetryableBackend;
+
+    impl RunnerBackend for AlwaysRetryableBackend {
+        fn run_prompt(
+            &mut self,
+            _request: RunnerBackendRunPrompt<'_>,
+        ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
+            Err(runner::RunnerError::Other(anyhow::anyhow!(
+                "rate limit, please retry later"
+            )))
+        }
+
+        fn resume_session(
+            &mut self,
+            _request: RunnerBackendResumeSession<'_>,
+        ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
+            unreachable!("resume_session should not be called")
+        }
+    }
+
+    let temp_dir = tempfile::tempdir().expect("tempdir");
+    let bad_repo_path = temp_dir.path().join("missing-repo");
+    let mut invocation = test_invocation(
+        &bad_repo_path,
+        Runner::Codex,
+        Model::Gpt53Codex,
+        "test prompt",
+        None,
+        true,
+        None,
+    );
+    invocation.failure.git_revert_mode = GitRevertMode::Enabled;
+
+    let mut backend = AlwaysRetryableBackend;
+    let err = run_prompt_with_handling_backend(invocation, test_messages(), &mut backend)
+        .expect_err("terminal revert failure expected");
+    let message = err.to_string();
+
+    assert!(
+        message.contains("fallback git checkout"),
+        "message: {message}"
+    );
+    assert!(message.contains("Retry diagnostics"), "message: {message}");
+    assert!(
+        message.contains("repo cleanliness check failed"),
+        "message: {message}"
+    );
+}
+
+#[test]
+#[serial]
+fn terminal_failure_includes_retry_admission_diagnostic_without_warning_log() {
+    let (state, _) = take_logs();
+    let _ = take_logs();
+
+    struct AlwaysRetryableBackend;
+
+    impl RunnerBackend for AlwaysRetryableBackend {
+        fn run_prompt(
+            &mut self,
+            _request: RunnerBackendRunPrompt<'_>,
+        ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
+            Err(runner::RunnerError::Other(anyhow::anyhow!(
+                "rate limit, please retry later"
+            )))
+        }
+
+        fn resume_session(
+            &mut self,
+            _request: RunnerBackendResumeSession<'_>,
+        ) -> anyhow::Result<runner::RunnerOutput, runner::RunnerError> {
+            unreachable!("resume_session should not be called")
+        }
+    }
+
+    let temp_dir = tempfile::tempdir().expect("tempdir");
+    let bad_repo_path = temp_dir.path().join("missing-repo");
+    let invocation = test_invocation(
+        &bad_repo_path,
+        Runner::Codex,
+        Model::Gpt53Codex,
+        "test prompt",
+        None,
+        false,
+        None,
+    );
+
+    let mut backend = AlwaysRetryableBackend;
+    let err = run_prompt_with_handling_backend(invocation, test_messages(), &mut backend)
+        .expect_err("terminal failure expected");
+    let message = err.to_string();
+
+    assert!(message.contains("other error"), "message: {message}");
+    assert!(message.contains("Retry diagnostics"), "message: {message}");
+    assert!(
+        message.contains("repo cleanliness check failed"),
+        "message: {message}"
+    );
+    assert!(
+        message.contains("skipped retry admission"),
+        "message: {message}"
+    );
+
+    let (_, logs) = take_logs();
+    if state == LoggerState::TestLogger {
+        let retry_probe_logs = logs
+            .iter()
+            .filter(|entry| {
+                entry
+                    .message
+                    .contains("Failed to check repo state for retry")
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !retry_probe_logs.is_empty(),
+            "expected debug retry-admission diagnostic log: {logs:?}"
+        );
+        assert!(
+            retry_probe_logs
+                .iter()
+                .all(|entry| !matches!(entry.level, Level::Warn | Level::Error)),
+            "logs: {logs:?}"
+        );
     }
 }
 

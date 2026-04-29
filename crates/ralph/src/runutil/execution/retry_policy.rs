@@ -23,29 +23,60 @@ use anyhow::Result;
 
 use crate::contracts::GitRevertMode;
 
+pub(super) struct RetryAdmission {
+    pub(super) should_retry: bool,
+    pub(super) diagnostic: Option<String>,
+}
+
+impl RetryAdmission {
+    fn allowed() -> Self {
+        Self {
+            should_retry: true,
+            diagnostic: None,
+        }
+    }
+
+    fn denied() -> Self {
+        Self {
+            should_retry: false,
+            diagnostic: None,
+        }
+    }
+
+    fn denied_with_diagnostic(diagnostic: String) -> Self {
+        Self {
+            should_retry: false,
+            diagnostic: Some(diagnostic),
+        }
+    }
+}
+
 pub(super) fn should_retry_with_repo_state(
     repo_root: &Path,
     revert_on_error: bool,
     git_revert_mode: GitRevertMode,
-) -> Result<bool> {
+) -> Result<RetryAdmission> {
     let dirty_only_allowed = match crate::git::clean::repo_dirty_only_allowed_paths(
         repo_root,
         crate::git::clean::RALPH_RUN_CLEAN_ALLOWED_PATHS,
     ) {
         Ok(value) => value,
         Err(err) => {
-            log::warn!("Failed to check repo state for retry; skipping retry: {err}");
-            return Ok(false);
+            let safe_err = crate::redaction::redact_text(&err.to_string());
+            log::debug!("Failed to check repo state for retry; skipping retry: {safe_err}");
+            return Ok(RetryAdmission::denied_with_diagnostic(format!(
+                "repo cleanliness check failed; skipped retry admission: {safe_err}"
+            )));
         }
     };
 
     if dirty_only_allowed {
-        return Ok(true);
+        return Ok(RetryAdmission::allowed());
     }
 
     if revert_on_error && git_revert_mode == GitRevertMode::Enabled {
-        return Ok(true);
+        return Ok(RetryAdmission::allowed());
     }
 
-    Ok(false)
+    Ok(RetryAdmission::denied())
 }

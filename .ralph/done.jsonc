@@ -125,8 +125,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.4:xhigh"
+        "model_used": "openai-codex/gpt-5.4:xhigh",
+        "runner_used": "pi"
       }
     },
     {
@@ -193,10 +193,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "skill": "comprehensive-codebase-audit",
-        "model_used": "gpt-5.4",
         "task_kind": "queue_shaping",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -431,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race",
-        "source_report": "/tmp/ralph-report.md"
+        "source_report": "/tmp/ralph-report.md",
+        "audit_finding": "MEDIUM: app-side Run Next Task duplicates CLI task selection and can race"
       }
     },
     {
@@ -539,10 +539,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
-        "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "HIGH: machine run loop does not guarantee a terminal machine summary on error paths",
-        "source_report": "/tmp/ralph-report.md"
+        "runner_used": "codex",
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -609,10 +609,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract",
         "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex",
-        "model_used": "gpt-5.4"
+        "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: Stop After Current uses human CLI output instead of a machine contract"
       }
     },
     {
@@ -686,8 +686,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
         "audit_finding": "MEDIUM: native app execution controls are hardcoded and narrower than CLI capability sources",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
         "runner_used": "codex"
       }
@@ -761,9 +761,9 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "gpt-5.4",
+        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex",
-        "audit_finding": "MEDIUM: custom queue paths are second-class in some app and doc paths"
+        "runner_used": "codex"
       }
     },
     {
@@ -829,9 +829,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source_report": "/tmp/ralph-report.md",
         "audit_finding": "MEDIUM: app renders too many machine next steps as terminal instructions instead of actions",
         "runner_used": "codex",
+        "source_report": "/tmp/ralph-report.md",
         "model_used": "gpt-5.4"
       }
     },
@@ -890,10 +890,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "audit_finding": "LOW: app docs contain stale cross-surface statements",
-        "runner_used": "codex",
+        "model_used": "gpt-5.4",
         "source_report": "/tmp/ralph-report.md",
-        "model_used": "gpt-5.4"
+        "audit_finding": "LOW: app docs contain stale cross-surface statements",
+        "runner_used": "codex"
       }
     },
     {
@@ -955,10 +955,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.4",
+        "runner_used": "codex",
         "audit_finding": "LOW: app parity tracking is too coarse to catch the failures above",
         "source_report": "/tmp/ralph-report.md",
-        "runner_used": "codex"
+        "model_used": "gpt-5.4"
       }
     },
     {
@@ -2399,10 +2399,10 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
-        "model_used": "openai-codex/gpt-5.5",
         "runner_used": "pi",
         "reported_command": "ralph run loop --parallel 2",
+        "failure_mode": "gitignored coordinator queue.jsonc/done.jsonc not updated after parallel workers complete",
+        "model_used": "openai-codex/gpt-5.5",
         "severity_reason": "parallel-mode task state/data integrity loss"
       }
     },
@@ -2529,8 +2529,8 @@
         "RQ-0056"
       ],
       "custom_fields": {
-        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers.",
-        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths."
+        "current_default": "Only .env and .env.* basenames are synced from ignored non-.ralph paths.",
+        "recommended_direction": "Keep default .env* sync only; add explicit trusted repo-relative allowlist for additional ignored files needed by parallel workers."
       }
     },
     {
@@ -2715,8 +2715,8 @@
         "RQ-0057"
       ],
       "custom_fields": {
-        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically.",
-        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only."
+        "locked_trust_direction": "ralph init creates or updates .ralph/trust.jsonc by default; --check remains read-only.",
+        "locked_parallel_sync_direction": "interactive init scans and recommends additional ignored-file sync entries; non-interactive init does not broaden allowlist automatically."
       }
     },
     {
@@ -2945,8 +2945,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.5"
+        "model_used": "openai-codex/gpt-5.5",
+        "runner_used": "pi"
       }
     },
     {
@@ -3004,8 +3004,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
-        "model_used": "openai-codex/gpt-5.5"
+        "model_used": "openai-codex/gpt-5.5",
+        "runner_used": "pi"
       }
     },
     {
@@ -3063,9 +3063,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5:high",
         "scan_agent": "scan-general",
-        "model_used": "openai-codex/gpt-5.5:high"
+        "runner_used": "pi"
       }
     },
     {
@@ -3122,9 +3122,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.5:high",
-        "runner_used": "pi"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -3180,8 +3180,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "openai-codex/gpt-5.5:high",
+        "scan_agent": "scan-general",
         "runner_used": "pi"
       }
     },
@@ -3249,8 +3249,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
         "scan_agent": "scan-general",
+        "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.5:high"
       }
     },
@@ -3318,8 +3318,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "pi",
         "scan_agent": "scan-general",
+        "runner_used": "pi",
         "model_used": "openai-codex/gpt-5.5:high"
       }
     },
@@ -3382,6 +3382,69 @@
       "updated_at": "2026-04-29T04:51:05.228013000Z",
       "completed_at": "2026-04-29T04:51:05.228013000Z",
       "started_at": "2026-04-29T04:06:44.068871000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "pi",
+        "model_used": "openai-codex/gpt-5.5:high",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0067",
+      "status": "done",
+      "title": "Defer retry warnings until runner recovery is exhausted",
+      "description": "Retry admission and auto-revert paths log warnings during in-flight self-healing. Goal: collect retry diagnostics per attempt, keep in-flight logs at debug/trace, and emit ample redacted detail only on terminal failure or operator-visible recovery output.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "retry",
+        "logging",
+        "reliability",
+        "runner-recovery"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/execution/orchestration/core.rs",
+        "crates/ralph/src/runutil/execution/retry_policy.rs",
+        "crates/ralph/src/runutil/execution/orchestration/failure_paths.rs",
+        "crates/ralph/src/runutil/execution/orchestration/tests.rs",
+        "crates/ralph/src/runutil/execution/backend.rs",
+        "crates/ralph/src/runutil/retry/policy.rs",
+        "cargo test -p ralph runutil::execution",
+        "make agent-ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/runutil/execution/orchestration/core.rs:114-127 currently emits log::warn! when auto-revert before a retry fails. That warning is in the retry/self-healing path and can appear even when a later retry succeeds.",
+        "crates/ralph/src/runutil/execution/retry_policy.rs:31-39 currently emits log::warn! and returns Ok(false) when repo cleanliness probing fails. This is a terminal retry-admission decision, but the reason is not carried into the final runner error/operator diagnostic text.",
+        "crates/ralph/src/runutil/execution/orchestration/core.rs drives retry admission, auto-revert-before-retry, backoff, terminal failure dispatch, and signal/continue recovery; it is the best place to own a per-run retry diagnostic accumulator and append it only when returning final errors.",
+        "crates/ralph/src/runutil/execution/orchestration/failure_paths.rs builds the terminal timeout, non-zero-exit, signal, and other-failure operator messages; either pass retry diagnostics into these helpers or append diagnostics at the call sites before returning their final errors.",
+        "crates/ralph/src/runutil/execution/orchestration/tests.rs already uses mock RunnerBackend implementations and temp dirs, so regression coverage can be added without real runner binaries. Existing tests do not currently capture log levels for this retry warning behavior.",
+        "The requested behavior is to keep in-flight retry/recovery warnings hidden at warning/error levels, log only debug/trace during self-healing, and emit ample redacted detail only on terminal failure or explicit operator-visible recovery output."
+      ],
+      "plan": [
+        "Add a small retry diagnostic accumulator type near orchestration core or a focused sibling module, with entries for retry-admission probe failures and auto-revert-before-retry failures. It should render a concise operator-facing section only when non-empty.",
+        "Change retry_policy::should_retry_with_repo_state to return both the retry admission bool and an optional diagnostic instead of warning directly; downgrade its immediate log to debug or remove logging, then have core record the diagnostic when retry admission fails because repo state could not be checked.",
+        "In core.rs, replace the auto-revert-before-retry warn! with debug! and record a redacted/safe diagnostic entry. Do not block the retry when this best-effort revert fails; preserve current behavior unless implementation evidence proves it is unsafe.",
+        "Append collected retry diagnostics to terminal runner failure messages after all retry/self-healing paths are exhausted: timeout, non-zero exit, terminated-by-signal after signal recovery limit, and other failure. Do not append diagnostics on successful retry or successful continue-session recovery.",
+        "Keep diagnostic text secret-safe: include attempt number, operation, and error via existing redaction helper if available; avoid raw command output or paths that may contain secrets. Prefer phrasing like 'Retry diagnostics (suppressed during recovery): ...'.",
+        "Add regression tests: one successful retry after a failed auto-revert-before-retry records no warning-level log and returns Ok; one terminal failure after retry-admission probe failure includes the collected diagnostic in the final error; optionally one terminal failure after failed auto-revert-before-retry includes that diagnostic.",
+        "Run focused validation in Phase 2: cargo test -p ralph runutil::execution, then make agent-ci. If focused module path differs, adapt to the nearest focused cargo test that covers runutil execution."
+      ],
+      "notes": [
+        "Phase 1 only inspected code and refreshed planning metadata; no source implementation or tests were modified.",
+        "Current task status was already doing due to Ralph supervision; preserve status/identity fields in later updates.",
+        "Avoid treating unrelated .ralph queue churn as source changes, but stop if Phase 2 sees non-.ralph dirty paths before implementation.",
+        "Implemented retry diagnostic accumulation and debug-only in-flight retry/recovery logs.",
+        "Preserved accumulated diagnostics on terminal helper failures, including revert failure paths.",
+        "Added regression coverage for retry-admission diagnostics, failed auto-revert debug logging, and terminal diagnostic preservation.",
+        "Verified with cargo test -p ralph-agent-loop runutil::execution and make agent-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-04-29T03:24:54Z",
+      "updated_at": "2026-04-29T05:27:54.904208000Z",
+      "completed_at": "2026-04-29T05:27:54.904208000Z",
+      "started_at": "2026-04-29T04:53:35.845333000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

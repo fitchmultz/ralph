@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0067",
-      "status": "todo",
-      "title": "Defer retry warnings until runner recovery is exhausted",
-      "description": "Retry admission and auto-revert paths log warnings during in-flight self-healing. Goal: collect retry diagnostics per attempt, keep in-flight logs at debug/trace, and emit ample redacted detail only on terminal failure or operator-visible recovery output.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "retry",
-        "logging",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil/execution/orchestration/core.rs",
-        "crates/ralph/src/runutil/execution/retry_policy.rs",
-        "crates/ralph/src/runutil/execution/orchestration/tests.rs",
-        "make agent-ci"
-      ],
-      "evidence": [
-        "crates/ralph/src/runutil/execution/orchestration/core.rs:114-127 logs warn! when auto-revert before retry fails, even though retry/fallback logic may still succeed later.",
-        "crates/ralph/src/runutil/execution/retry_policy.rs:31-39 logs warn! and skips retry when repo cleanliness probing fails; this is a terminal decision path but not attached to the final runner diagnostic surface.",
-        "User focus requires hiding errors and warnings until all retries and self-healing are exhausted, then providing ample logging.",
-        "Command run: make agent-ci -> passed docs-only gate; no baseline CI blocker reproduced."
-      ],
-      "plan": [
-        "Introduce a retry diagnostic accumulator for auto-revert and retry-admission failures.",
-        "Downgrade in-flight retry/self-healing logs to debug unless no retry/fallback remains possible.",
-        "Attach accumulated retry diagnostics to the final RunAbort/safeguard dump/operator message when recovery exhausts.",
-        "Add tests that successful retry after an auto-revert warning path does not emit warning-level output and terminal failure includes collected diagnostics.",
-        "Verify by running cargo test -p ralph runutil::execution and make agent-ci."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-04-29T03:24:54Z",
-      "updated_at": "2026-04-29T03:24:54Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0068",
       "status": "todo",
       "title": "Classify missing CLI binaries as cli_unavailable in machine errors",

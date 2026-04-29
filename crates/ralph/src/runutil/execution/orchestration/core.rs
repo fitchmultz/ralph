@@ -35,6 +35,48 @@ use super::failure_paths::{
     handle_terminated_signal_failure, handle_timeout_failure,
 };
 
+#[derive(Default)]
+struct RetryDiagnostics {
+    entries: Vec<String>,
+}
+
+impl RetryDiagnostics {
+    fn record(&mut self, attempt: u32, message: impl Into<String>) {
+        self.entries
+            .push(format!("attempt {attempt}: {}", message.into()));
+    }
+
+    fn append_to_message(&self, mut message: String) -> String {
+        if self.entries.is_empty() {
+            return message;
+        }
+
+        message.push_str("\n\nRetry diagnostics (suppressed during recovery):");
+        for entry in &self.entries {
+            message.push_str("\n- ");
+            message.push_str(entry);
+        }
+        message
+    }
+
+    fn append_to_error(&self, err: anyhow::Error) -> anyhow::Error {
+        if self.entries.is_empty() {
+            return err;
+        }
+
+        let message = self.append_to_message(err.to_string());
+        if let Some(abort) = err.downcast_ref::<RunAbort>() {
+            return anyhow::Error::new(RunAbort::new(abort.reason(), message));
+        }
+
+        anyhow::anyhow!(message)
+    }
+
+    fn append_to_result<T>(&self, result: Result<T>) -> Result<T> {
+        result.map_err(|err| self.append_to_error(err))
+    }
+}
+
 pub(crate) fn run_prompt_with_handling_backend<FNonZero, FOther>(
     invocation: RunnerInvocation<'_>,
     messages: RunnerErrorMessages<'_, FNonZero, FOther>,
@@ -74,6 +116,7 @@ where
     let max_attempts = retry.policy.max_attempts;
     let mut rng = SeededRng::new();
     let mut signal_resume_attempts: u8 = 0;
+    let mut retry_diagnostics = RetryDiagnostics::default();
     let attempt_context =
         settings.attempt_context(effective_output_handler.clone(), execution.phase_type);
 
@@ -111,72 +154,93 @@ where
             }
             Err(ref err) => {
                 let classification = err.classify(&settings.runner_kind);
-                if attempt < max_attempts
+                let retry_admission = if attempt < max_attempts
                     && matches!(classification, RunnerFailureClass::Retryable(_))
-                    && should_retry_with_repo_state(
+                {
+                    Some(should_retry_with_repo_state(
                         settings.repo_root,
                         failure.revert_on_error,
                         failure.git_revert_mode,
-                    )?
-                {
-                    if failure.revert_on_error
-                        && failure.git_revert_mode == crate::contracts::GitRevertMode::Enabled
-                        && let Err(err) = crate::git::revert_uncommitted(settings.repo_root)
-                    {
-                        log::warn!("Failed to auto-revert before retry: {}", err);
-                    }
+                    )?)
+                } else {
+                    None
+                };
 
-                    let delay = compute_backoff(retry.policy, attempt, &mut rng);
-                    let reason_str = match classification {
-                        RunnerFailureClass::Retryable(RetryableReason::RateLimited) => "rate limit",
-                        RunnerFailureClass::Retryable(RetryableReason::TemporaryUnavailable) => {
-                            "temporarily unavailable"
+                if let Some(admission) = retry_admission {
+                    if !admission.should_retry {
+                        if let Some(diagnostic) = admission.diagnostic {
+                            retry_diagnostics.record(attempt, diagnostic);
                         }
-                        RunnerFailureClass::Retryable(RetryableReason::TransientIo) => {
-                            "transient error"
+                    } else {
+                        if failure.revert_on_error
+                            && failure.git_revert_mode == crate::contracts::GitRevertMode::Enabled
+                            && let Err(err) = crate::git::revert_uncommitted(settings.repo_root)
+                        {
+                            let safe_err = crate::redaction::redact_text(&err.to_string());
+                            log::debug!("Failed to auto-revert before retry: {safe_err}");
+                            retry_diagnostics.record(
+                                attempt,
+                                format!(
+                                    "auto-revert before retry failed; continuing retry flow: {safe_err}"
+                                ),
+                            );
                         }
-                        _ => "transient error",
-                    };
 
-                    emit_operation(
-                        &effective_output_handler,
-                        &format!(
-                            "Runner retry {}/{} in {} ({})",
-                            attempt + 1,
-                            max_attempts,
-                            format_duration(delay),
-                            reason_str
-                        ),
-                    );
+                        let delay = compute_backoff(retry.policy, attempt, &mut rng);
+                        let reason_str = match classification {
+                            RunnerFailureClass::Retryable(RetryableReason::RateLimited) => {
+                                "rate limit"
+                            }
+                            RunnerFailureClass::Retryable(
+                                RetryableReason::TemporaryUnavailable,
+                            ) => "temporarily unavailable",
+                            RunnerFailureClass::Retryable(RetryableReason::TransientIo) => {
+                                "transient error"
+                            }
+                            _ => "transient error",
+                        };
 
-                    let cancellation = runner::ctrlc_state().ok().map(|ctrlc| &ctrlc.interrupted);
-                    if super::super::super::shell::sleep_with_cancellation(delay, cancellation)
-                        .is_err()
-                    {
-                        return Err(anyhow::Error::new(RunAbort::new(
-                            RunAbortReason::Interrupted,
-                            interrupted_msg.to_string(),
-                        )));
+                        emit_operation(
+                            &effective_output_handler,
+                            &format!(
+                                "Runner retry {}/{} in {} ({})",
+                                attempt + 1,
+                                max_attempts,
+                                format_duration(delay),
+                                reason_str
+                            ),
+                        );
+
+                        let cancellation =
+                            runner::ctrlc_state().ok().map(|ctrlc| &ctrlc.interrupted);
+                        if super::super::super::shell::sleep_with_cancellation(delay, cancellation)
+                            .is_err()
+                        {
+                            return Err(anyhow::Error::new(RunAbort::new(
+                                RunAbortReason::Interrupted,
+                                interrupted_msg.to_string(),
+                            )));
+                        }
+
+                        attempt += 1;
+                        emit_operation(
+                            &effective_output_handler,
+                            &format!("Running runner attempt {}/ {}", attempt, max_attempts),
+                        );
+                        result = run_runner_attempt(
+                            backend,
+                            &attempt_context,
+                            execution.prompt,
+                            execution.session_id.clone(),
+                        );
+                        continue;
                     }
-
-                    attempt += 1;
-                    emit_operation(
-                        &effective_output_handler,
-                        &format!("Running runner attempt {}/ {}", attempt, max_attempts),
-                    );
-                    result = run_runner_attempt(
-                        backend,
-                        &attempt_context,
-                        execution.prompt,
-                        execution.session_id.clone(),
-                    );
-                    continue;
                 }
 
                 match result {
                     Ok(_) => unreachable!(),
                     Err(runner::RunnerError::Timeout) => {
-                        return Err(handle_timeout_failure(
+                        let err = retry_diagnostics.append_to_result(handle_timeout_failure(
                             settings.repo_root,
                             failure.git_revert_mode,
                             log_label,
@@ -184,14 +248,15 @@ where
                             timeout_stdout_capture.as_ref(),
                             failure.revert_on_error,
                             timeout_msg,
-                        )?);
+                        ))?;
+                        return Err(retry_diagnostics.append_to_error(err));
                     }
                     Err(runner::RunnerError::NonZeroExit {
                         code,
                         stdout,
                         stderr,
                         session_id: error_session_id,
-                    }) => match handle_non_zero_exit(
+                    }) => match retry_diagnostics.append_to_result(handle_non_zero_exit(
                         backend,
                         &attempt_context,
                         FailureRecoveryContext {
@@ -211,12 +276,14 @@ where
                             stderr: &stderr,
                         },
                         &mut non_zero_msg,
-                    )? {
+                    ))? {
                         FailureOutcome::Continue(next_result) => {
                             result = next_result;
                             continue;
                         }
-                        FailureOutcome::Abort(err) => return Err(err),
+                        FailureOutcome::Abort(err) => {
+                            return Err(retry_diagnostics.append_to_error(err));
+                        }
                     },
                     Err(runner::RunnerError::TerminatedBySignal {
                         signal,
@@ -239,40 +306,45 @@ where
                             continue;
                         }
 
-                        match handle_terminated_signal_failure(
-                            backend,
-                            &attempt_context,
-                            FailureRecoveryContext {
-                                git_revert_mode: failure.git_revert_mode,
-                                log_label,
-                                revert_prompt: failure.revert_prompt.as_ref(),
-                                timeout_stdout_capture: timeout_stdout_capture.as_ref(),
-                                revert_on_error: failure.revert_on_error,
-                            },
-                            FailureSessionIds {
-                                invocation: execution.session_id.as_deref(),
-                                error: error_session_id.as_deref(),
-                            },
-                            terminated_msg,
-                            &stdout,
-                            &stderr,
+                        match retry_diagnostics.append_to_result(
+                            handle_terminated_signal_failure(
+                                backend,
+                                &attempt_context,
+                                FailureRecoveryContext {
+                                    git_revert_mode: failure.git_revert_mode,
+                                    log_label,
+                                    revert_prompt: failure.revert_prompt.as_ref(),
+                                    timeout_stdout_capture: timeout_stdout_capture.as_ref(),
+                                    revert_on_error: failure.revert_on_error,
+                                },
+                                FailureSessionIds {
+                                    invocation: execution.session_id.as_deref(),
+                                    error: error_session_id.as_deref(),
+                                },
+                                terminated_msg,
+                                &stdout,
+                                &stderr,
+                            ),
                         )? {
                             FailureOutcome::Continue(next_result) => {
                                 result = next_result;
                                 continue;
                             }
-                            FailureOutcome::Abort(err) => return Err(err),
+                            FailureOutcome::Abort(err) => {
+                                return Err(retry_diagnostics.append_to_error(err));
+                            }
                         }
                     }
                     Err(err) => {
-                        return Err(handle_other_failure(
+                        let err = retry_diagnostics.append_to_result(handle_other_failure(
                             settings.repo_root,
                             failure.git_revert_mode,
                             log_label,
                             failure.revert_prompt.as_ref(),
                             failure.revert_on_error,
                             other_msg(err),
-                        )?);
+                        ))?;
+                        return Err(retry_diagnostics.append_to_error(err));
                     }
                 }
             }
